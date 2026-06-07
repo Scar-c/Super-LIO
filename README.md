@@ -131,4 +131,7 @@ We kindly recommend to cite [our paper](https://arxiv.org/abs/2509.05723) if you
   - The main branch is renamed to ros1
   - add ros2 branch
 
+- 2026-06-07
+ - [Important revisions]: Fixed some known errors and improved algorithm accuracy!
+ 
 </details>
