@@ -227,57 +227,67 @@ bool ESKF::Predict(const IMUData& imu) {
 
 const int STATE_DIM = 18;
 bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
-  SO3 R_0 = R_;
+  // propagated state
+  SO3 R_pred = R_;
+  V3  p_pred = p_;
+  V3  v_pred = v_;
+  V3  bg_pred = bg_;
+  V3  ba_pred = ba_;
+  V3  g_pred = g_;
 
-  M6 HTVH;     // H^T * V^(-1) * H
-  V6 HTVr;     // H^T * V^(-1) * residuals
-  M18 Pk, Qk;
+  M18 P_pred = P_;
+
+  M6 HTVH;
+  V6 HTVr;
+
+  M18 Pk = M18::Zero();
+  M18 Qk = M18::Zero();
+  M18 K_x = M18::Zero();
 
   need_converge_ = false;
+
   for (int iter = 0; iter < options_.num_iterations_; ++iter) {
-    if(iter > 2){
+    if (iter > 2) {
       need_converge_ = true;
     }
 
     obs(GetKFState(), HTVH, HTVr);
-    /**
-     * J = diag(I_3, I_3, J_theta, I_3, I_3, I_3)
-     * J_theta = I - 1/2 * δθ_k ∧
-     * δθ_k = Log(R_k^T * R_0)  ?  --> Log(R_0^T * R_k) ?
-     */
-    Pk = P_;
-    M3 J_theta = M3::Identity() - 0.5 * SO3::hat((R_0.inverse() * R_).log_vee());
-    for(int j = 0; j < STATE_DIM; j+=3){
-      Pk.block<3,3>(0, j).noalias() = J_theta * P_.block<3,3>(0, j);
-    }
-    for(int j = 0; j < STATE_DIM; j+=3){
-      Pk.block<3,3>(j, 0) = Pk.block<3,3>(j, 0) * J_theta.transpose();
-    }
 
-    /**
-     * The normal Kalman filter formula: 
-     * K_k = P_k * H_k^T * (H_k * P_k * H_k^T + V)^(-1)
-     * δx_k = K_k * (z - h(x_k))
-     * 
-     * Using SMW identity transformation：
-     * (A * B * (D + C * A * B)^(-1)) = ((A^(-1) + B * D^(-1) * C)^(-1) * B * D^(-1))
-     * K_k = (P_k^(-1) + H_k^T * V^(-1) * H_k)^(-1) * H_k^T * V^(-1)
-     * Q_k = (P_k^(-1) + H_k^T * V^(-1) * H_k)^(-1)
-     * HTVr = H_k^T * V^(-1) * residuals
-     * residuals = (z - h(x_k))
-     */
+    V18 dx_prior = V18::Zero();
+    dx_prior.template block<3,1>(0,0)  = (R_pred.inverse() * R_).log_vee();
+    dx_prior.template block<3,1>(3,0)  = p_  - p_pred;
+    dx_prior.template block<3,1>(6,0)  = v_  - v_pred;
+    dx_prior.template block<3,1>(9,0)  = bg_ - bg_pred;
+    dx_prior.template block<3,1>(12,0) = ba_ - ba_pred;
+    dx_prior.template block<3,1>(15,0) = g_  - g_pred;
 
-    M18 Pk_inv = Pk.inverse();
-    Pk_inv.block<6,6>(0,0) += HTVH;
+    M18 G_prior = M18::Identity();
 
-    Qk = Pk_inv.inverse();
+    M3 J_prior = M3::Identity()
+               - 0.5 * SO3::hat(dx_prior.template block<3,1>(0,0));
 
-    V18 error_dx = V18::Zero();
-    error_dx.head(6) = HTVr;
+    G_prior.template block<3,3>(0,0) = J_prior;
 
-    dx_ = Qk * error_dx;
+    Pk = G_prior * P_pred * G_prior.transpose();
 
-    // update norm state
+    dx_prior = G_prior * dx_prior;
+
+    // H^T R^{-1} H
+    M18 HTRH = M18::Zero();
+    HTRH.template block<6,6>(0,0) = HTVH;
+
+    // information form
+    M18 A = Pk.inverse() + HTRH;
+    Qk = A.inverse();
+
+    V18 b = V18::Zero();
+    b.template head<6>() = HTVr;
+
+    K_x = Qk * HTRH;
+
+    // dx = K_h + (K_x - I) * dx_prior
+    dx_ = Qk * b + (K_x - M18::Identity()) * dx_prior;
+
     Update();
 
     if (dx_.lpNorm<Eigen::Infinity>() < options_.quit_eps_ && iter > 0) {
@@ -285,26 +295,20 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
     }
   }
 
-  // update P
-  M18 temp_cov = M18::Identity();
-  temp_cov.block<6,6>(0,0) = HTVH;
-  P_ = (M18::Identity() - Qk * temp_cov) * Pk;
+  P_ = Qk;
 
-  Pk = P_;
+  M18 G_reset = M18::Identity();
+  M3 J_reset = M3::Identity()
+             - 0.5 * SO3::hat(dx_.template block<3,1>(0,0));
 
-  // project P
-  M3 J_theta = M3::Identity() - 0.5 * SO3::hat(dx_.template block<3, 1>(0, 0));
-  for(int j = 0; j < STATE_DIM; j+=3){
-    Pk.block<3,3>(0, j).noalias() = J_theta * P_.block<3,3>(0, j);
-  }
-  for(int j = 0; j < STATE_DIM; j+=3){
-    Pk.block<3,3>(j, 0) = Pk.block<3,3>(j, 0) * J_theta.transpose();
-  }
+  G_reset.template block<3,3>(0,0) = J_reset;
 
-  P_ = Pk;
+  P_ = G_reset * P_ * G_reset.transpose();
+
+  P_ = 0.5 * (P_ + P_.transpose());
 
   dx_.setZero();
-  
+
   last_obs_time_ = current_obs_time_;
   return true;
 }
