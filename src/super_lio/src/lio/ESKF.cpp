@@ -9,20 +9,42 @@ namespace LI2Sup{
 /// [2] VSLAM14: P71: (4.26)  P73: (4.32)
 /// [3] Proportional Derivative (PD) Control on the Euclidean Group.  A_matrix
 /// [1] = [2] <===> [3]
-static inline M3d RightJacobianSO3(const V3& ang_vel, const scalar& dt){
-  V3d ang_vel_d = ang_vel.template cast<double>();
-  scalar ang_vel_norm = ang_vel_d.norm();
-  if (ang_vel_norm < 1e-8){   /// noise? too small
-    return M3d::Identity();
-  }else{
-    V3d r_axis = ang_vel_d / ang_vel_norm;
-    double r_ang = ang_vel_norm * dt;
-    M3d K;
-    K << 0.0, -r_axis[2], r_axis[1], r_axis[2], 0.0, -r_axis[0], -r_axis[1], r_axis[0], 0.0;
-    double a = (1 - std::cos(r_ang)) / r_ang;
-    double b = 1 - std::sin(r_ang) / r_ang;
-    return M3d::Identity() - a * K + b * K * K;   // J_r(phi) = J_l(-phi)
+
+static inline M3d RightJacobianSO3(const V3& ang_vel, const scalar& dt) {
+  const V3d w = ang_vel.template cast<double>();
+  const double dt_d = static_cast<double>(dt);
+  M3d Jr = M3d::Identity();
+  if (!w.allFinite() || !std::isfinite(dt_d)) {
+    return Jr;
   }
+  const V3d phi = w * dt_d;
+  const double theta = phi.norm();
+  if (!std::isfinite(theta)) {
+    return Jr;
+  }
+  M3d K;
+  K << 0.0,     -phi.z(),  phi.y(),
+       phi.z(),  0.0,     -phi.x(),
+      -phi.y(),  phi.x(),  0.0;
+
+  const M3d K2 = K * K;
+  double A, B;
+  // J_r(phi) = I - A * phi^ + B * phi^2
+  // A = (1 - cos(theta)) / theta^2
+  // B = (theta - sin(theta)) / theta^3
+  if (theta < 1e-6) {  // Taylor expansion to avoid small angle numerical reduction
+    const double theta2 = theta * theta;
+    const double theta4 = theta2 * theta2;
+    A = 0.5 - theta2 / 24.0 + theta4 / 720.0;
+    B = 1.0 / 6.0 - theta2 / 120.0 + theta4 / 5040.0;
+  } else {
+    const double theta2 = theta * theta;
+    const double theta3 = theta2 * theta;
+    A = (1.0 - std::cos(theta)) / theta2;
+    B = (theta - std::sin(theta)) / theta3;
+  }
+  Jr = M3d::Identity() - A * K + B * K2;
+  return Jr;
 }
 
 
