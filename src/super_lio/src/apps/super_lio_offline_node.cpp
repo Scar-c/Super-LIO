@@ -69,9 +69,15 @@ int main(int argc, char** argv) {
   opts.bag_path = g_offline_bag;
   opts.lidar_topic = g_lidar_topic;
   opts.imu_topic = g_imu_topic;
+  opts.camera_topic = g_camera_enabled ? g_camera_topic : "";
   opts.start_offset = g_offline_start_offset;
   opts.duration = g_offline_duration;
   opts.publish = g_offline_publish;
+
+  data_wrapper->setCameraEnabled(g_camera_enabled);
+  if (g_camera_enabled && !g_camera_calib_file.empty()) {
+    data_wrapper->loadCameraCalibration(g_camera_calib_file);
+  }
   if (!reader.open(opts)) {
     return 1;
   }
@@ -104,6 +110,14 @@ int main(int argc, char** argv) {
               a.first_sensor_time, a.last_sensor_time);
   std::printf("first/last estimator timestamp: %.6f / %.6f\n",
               a.first_estimator_time, a.last_estimator_time);
+  std::printf("images read/dispatched/skipped: %zu/%zu/%zu\n", a.images_read,
+              a.images_dispatched, a.images_skipped);
+  std::printf("first/last image timestamp: %.6f / %.6f\n",
+              a.first_image_time, a.last_image_time);
+  std::printf("camera buffer: size=%zu peak=%zu dropped=%zu\n",
+              data_wrapper->cameraBufferSize(),
+              data_wrapper->cameraBufferPeak(),
+              data_wrapper->cameraBufferDropped());
   std::printf("process invocations: %zu\n", a.process_invocations);
   std::printf("sync epochs (heavy process): %d / %zu\n", a.sync_count,
               a.heavy_process_count);

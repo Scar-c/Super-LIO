@@ -57,6 +57,12 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   LOG(INFO) << GREEN << " ---> [Param] eva/instrumentation: "
             << (g_lio_instrumentation ? "true" : "false") << RESET;
 
+  nh.getParam("/camera/enabled", g_camera_enabled);
+  nh.getParam("/camera/topic", g_camera_topic);
+  nh.getParam("/camera/calib_file", g_camera_calib_file);
+  nh.getParam("/camera/time_offset", g_camera_time_offset);
+  nh.getParam("/camera/frame_buffer_capacity", g_camera_frame_buffer_capacity);
+
   nh.getParam("/lio/offline/bag", g_offline_bag);
   nh.getParam("/lio/offline/start_offset", g_offline_start_offset);
   nh.getParam("/lio/offline/duration", g_offline_duration);
@@ -243,6 +249,25 @@ ROSWrapper::ROSWrapper(){
   LOG(INFO) << GREEN << " ---> Using Lidar type: " << lidarTypeToString(g_lidar_type) << RESET;
 
   nh_.setCallbackQueue(&self_queue_);
+
+  if(g_camera_enabled && !g_camera_topic.empty()){
+    ros::SubscribeOptions ops_cam;
+    ops_cam.transport_hints = ros::TransportHints().tcpNoDelay();
+    ops_cam.init<sensor_msgs::Image>(
+      g_camera_topic, 100,
+      boost::bind(&ROSWrapper::imageHandler, this, _1));
+    subCamera_ = nh_.subscribe(ops_cam);
+  }
+  camera_buffer_.setCapacity(g_camera_frame_buffer_capacity);
+  if(g_camera_enabled && !g_camera_calib_file.empty()){
+    if(!loadCameraCalibration(g_camera_calib_file)){
+      LOG(ERROR) << " ---> [Param] camera calibration load FAILED: "
+                 << g_camera_calib_file;
+    }else{
+      LOG(INFO) << GREEN << " ---> [Param] camera calibration loaded: "
+                << g_camera_calib_file << RESET;
+    }
+  }
 
   subLidar_ = nh_.subscribe(ops);
   subIMU_   = nh_.subscribe<sensor_msgs::Imu>(g_imu_topic, 10000,    // 100Hz x 10s
@@ -479,6 +504,33 @@ void ROSWrapper::publishImuForwardOdom(const sensor_msgs::Imu::ConstPtr& msg,
   odom_robo.header.frame_id = "world";
   imu_odom_pub_.publish(odom_imu);
   robo_odom_pub_.publish(odom_robo);
+}
+
+
+void ROSWrapper::imageHandler(const sensor_msgs::Image::ConstPtr& msg){
+  HandleImage(msg);
+}
+
+void ROSWrapper::HandleImage(const sensor_msgs::Image::ConstPtr& msg){
+  if (!camera_enabled_) return;
+  CameraFrame frame;
+  frame.timestamp = msg->header.stamp.toSec() + g_camera_time_offset;
+  frame.width = msg->width;
+  frame.height = msg->height;
+  frame.encoding = msg->encoding;
+  frame.sequence_id = camera_sequence_++;
+  if (frame.width <= 0 || frame.height <= 0 || msg->data.empty()) {
+    ++camera_malformed_;
+    return;
+  }
+  frame.data = std::make_shared<const std::vector<uint8_t>>(msg->data.begin(),
+                                                            msg->data.end());
+  camera_buffer_.push(frame);
+  ++camera_ingested_;
+}
+
+bool ROSWrapper::loadCameraCalibration(const std::string& path){
+  return parseCameraCalibrationFile(path, camera_calib_);
 }
 
 

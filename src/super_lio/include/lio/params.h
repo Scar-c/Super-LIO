@@ -105,6 +105,13 @@ namespace LI2Sup{
   extern ResidualType g_residual_type;
 
 
+  /// TB-1 camera input (zero estimator influence)
+  extern bool        g_camera_enabled;
+  extern std::string g_camera_topic;
+  extern std::string g_camera_calib_file;
+  extern double      g_camera_time_offset;
+  extern int         g_camera_frame_buffer_capacity;
+
   /// TB-OFFLINE
   extern std::string g_offline_bag;
   extern double      g_offline_start_offset;

@@ -81,6 +81,13 @@ namespace LI2Sup{
 
   ResidualType g_residual_type = PROB;
 
+  /// TB-1 camera input
+  bool        g_camera_enabled = false;
+  std::string g_camera_topic = "";
+  std::string g_camera_calib_file = "";
+  double      g_camera_time_offset = 0.0;
+  int         g_camera_frame_buffer_capacity = 10;
+
   /// TB-OFFLINE
   std::string g_offline_bag = "";
   double      g_offline_start_offset = -1.0;

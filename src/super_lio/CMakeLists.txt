@@ -59,6 +59,8 @@ catkin_package(
 
 # LIO library source files
 file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/offline/*.cpp" "src/instrumentation/*.cpp")
+file(GLOB LIO_LIB_SRC_CAM "src/camera/*.cpp")
+list(APPEND LIO_LIB_SRC ${LIO_LIB_SRC_CAM})
 
 file(GLOB_RECURSE LIO_LIB_HEADERS "include/lio/*.hpp" "include/lio/*.h")
 
@@ -115,5 +117,17 @@ add_executable(tb0_instrumentation_test
 )
 target_include_directories(tb0_instrumentation_test PUBLIC include)
 target_link_libraries(tb0_instrumentation_test
+  ${EIGEN3_LIBRARIES}
+)
+
+# TB-1 camera input pure-logic tests (no ROS dependency)
+file(GLOB CAMERA_TEST_SRC "src/camera/*.cpp")
+list(FILTER CAMERA_TEST_SRC EXCLUDE REGEX ".*/tests/.*")
+add_executable(tb1_camera_test
+  src/camera/tests/test_camera.cpp
+  ${CAMERA_TEST_SRC}
+)
+target_include_directories(tb1_camera_test PUBLIC include)
+target_link_libraries(tb1_camera_test
   ${EIGEN3_LIBRARIES}
 )

@@ -17,6 +17,7 @@ struct OfflineOptions {
   std::string bag_path;
   std::string lidar_topic;
   std::string imu_topic;
+  std::string camera_topic;   // empty = camera dispatch disabled (TB-1)
   double start_offset = -1.0;
   double duration = -1.0;
   bool publish = true;
@@ -39,6 +40,11 @@ struct OfflineAccounting {
   double last_estimator_time = 0.0;
   size_t process_invocations = 0;
   size_t heavy_process_count = 0;
+  size_t images_read = 0;
+  size_t images_dispatched = 0;
+  size_t images_skipped = 0;
+  double first_image_time = 0.0;
+  double last_image_time = 0.0;
   size_t imu_remaining = 0;
   size_t lidar_remaining = 0;
   double front_lidar_end_time = 0.0;

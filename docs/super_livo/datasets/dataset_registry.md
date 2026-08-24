@@ -44,8 +44,8 @@ ground_truth_type: FULL_TRAJECTORY（bag 内 leica 相对轨迹；官方完整 G
 
 supported backend: offline（已验证 ~20x、bitwise parity）+ online
 online tested:     YES（TB-0/TB-OFFLINE 阶段）
-offline tested:    YES
-current status:    ACTIVE（TB-0 基线；TB-1 camera ingestion 目标）
+offline tested:    YES（TB-1：3986 epochs，camera 3986 frames，bitwise parity 9af9b9d…）
+current status:    ACTIVE（primary baseline；TB-1 camera ingestion done）
 ```
 
 ### NTU VIRAL nya_01
@@ -69,10 +69,10 @@ temporal sync:     官方 bag 内时间戳
 reference / GT:    /leica/pose/relative
 ground_truth_type: FULL_TRAJECTORY（bag 内相对轨迹；官方完整 GT 文件本地缺失，同上）
 
-supported backend: offline（结构同 eee_01；TB-1 需实际验证）+ online（未测）
+supported backend: offline（TB-1 已验证）+ online（未测）
 online tested:     NO
-offline tested:    NO（TB-1 首测）
-current status:    REGISTERED / TB-1 sanity 目标
+offline tested:    YES（TB-1：3949 epochs，camera 3947 frames，bitwise parity d547a22…）
+current status:    ACTIVE（secondary LIO baseline / regression）
 ```
 
 ### M3DGR Corridor01

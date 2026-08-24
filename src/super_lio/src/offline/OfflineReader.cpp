@@ -6,6 +6,7 @@
 #include <livox_ros_driver/CustomMsg.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
 
 namespace LI2Sup {
 
@@ -56,6 +57,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   }
 
   std::vector<std::string> topics = {opts_.lidar_topic, opts_.imu_topic};
+  if (!opts_.camera_topic.empty()) topics.push_back(opts_.camera_topic);
   rosbag::TopicQuery query(topics);
 
   std::unique_ptr<rosbag::View> view;
@@ -77,6 +79,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   const std::string dt_imu = "sensor_msgs/Imu";
   const std::string dt_custom = "livox_ros_driver/CustomMsg";
   const std::string dt_pc2 = "sensor_msgs/PointCloud2";
+  const std::string dt_image = "sensor_msgs/Image";
 
   double t0 = nowMs();
   bool first = true;
@@ -107,6 +110,23 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
     }
     accounting_.last_bag_time = rec_time.toSec();
 
+
+    if (!opts_.camera_topic.empty() && topic == opts_.camera_topic &&
+        dt == dt_image) {
+      auto msg = mi.instantiate<sensor_msgs::Image>();
+      if (msg) {
+        accounting_.images_read++;
+        if (accounting_.images_dispatched == 0) {
+          accounting_.first_image_time = msg->header.stamp.toSec();
+        }
+        accounting_.last_image_time = msg->header.stamp.toSec();
+        wrapper.HandleImage(msg);
+        accounting_.images_dispatched++;
+        lio.process();
+        accounting_.process_invocations++;
+        continue;
+      }
+    }
 
     if (topic == opts_.imu_topic && dt == dt_imu) {
       auto msg = mi.instantiate<sensor_msgs::Imu>();
@@ -166,6 +186,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   }
   accounting_.sensor_duration_s =
       accounting_.last_sensor_time - accounting_.first_sensor_time;
+  accounting_.images_skipped =
+      accounting_.images_read - accounting_.images_dispatched;
 
   view.reset();
   bag.close();

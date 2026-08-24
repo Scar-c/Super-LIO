@@ -32,6 +32,9 @@
 #include "basic/Manifold.h"
 #include "livox_ros_driver/CustomMsg.h"
 #include "common/ds.h"
+#include "camera/CameraCalibration.h"
+#include "camera/CameraFrame.h"
+#include "sensor_msgs/Image.h"
 
 #include "lio/params.h"
 #include "lio/ESKF.h"
@@ -95,6 +98,18 @@ public:
   void HandleImu(const sensor_msgs::Imu::ConstPtr&);
   void HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPtr&);
   void HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr&);
+  void HandleImage(const sensor_msgs::Image::ConstPtr&);
+
+  // Camera input (TB-1): zero estimator influence; bounded buffer only.
+  void setCameraEnabled(bool enabled) { camera_enabled_ = enabled; }
+  bool cameraEnabled() const { return camera_enabled_; }
+  size_t cameraBufferSize() const { return camera_buffer_.size(); }
+  size_t cameraBufferPeak() const { return camera_buffer_.peakSize(); }
+  size_t cameraBufferDropped() const { return camera_buffer_.dropped(); }
+  double cameraFirstTimestamp() const { return camera_buffer_.firstTimestamp(); }
+  double cameraLastTimestamp() const { return camera_buffer_.lastTimestamp(); }
+  const CameraCalibration& cameraCalibration() const { return camera_calib_; }
+  bool loadCameraCalibration(const std::string& path);
 
   // Output control: offline backend may disable all pure-ROS visualization
   // side effects while keeping the estimator untouched.
@@ -120,6 +135,7 @@ private:
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
   void livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr&);
   void stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr&);
+  void imageHandler(const sensor_msgs::Image::ConstPtr&);
   void publishImuForwardOdom(const sensor_msgs::Imu::ConstPtr& msg,
                              const DynamicState& imu_state,
                              const DynamicState& robo_state);
@@ -141,6 +157,14 @@ private:
 
   bool enable_publish_ = true;
   std::ofstream traj_file_;
+
+  bool camera_enabled_ = false;
+  CameraCalibration camera_calib_;
+  CameraBuffer camera_buffer_;
+  ros::Subscriber subCamera_;
+  uint64_t camera_sequence_ = 0;
+  size_t camera_ingested_ = 0;
+  size_t camera_malformed_ = 0;
   ros::Publisher imu_odom_pub_;
   ros::Publisher robo_odom_pub_;
   ros::Publisher msg2uav_pub_;
