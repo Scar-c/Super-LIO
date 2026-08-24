@@ -15,7 +15,7 @@ TB-0        complete — fecbdc6 chore(super-livo): complete baseline instrument
 ## Active chain
 
 ```text
-TB-1 ✓ → G-0 ✓ → G-1 ✗（NO-GO，证据保留）→ G-1R ✓ → G-2 ✓ → G-3 ✓ → G-1V ✓（historical shadow）→ **G-1VR**（Round 11 coordinate-origin）→ S-0 → S-1 → V-0..V-4 → OWNER REVIEW → G-2 → G-3 → DG-0 → S-0 → S-1 → V-0 → V-1 → V-2 → V-3 → V-4 → V-5 → L-0 → V-6 → M-0
+TB-1 ✓ → G-0 ✓ → G-1 ✗（NO-GO，证据保留）→ G-1R ✓ → G-2 ✓ → G-3 ✓ → G-1V ✓ → G-1VR ✓ → S-0 ✓ → S-1 ✓ → V-0..V-3（corrective required）→ **V-0C**（Round 11 frontend corrective）→ V-4 → ATE → OWNER REVIEW → G-2 → G-3 → DG-0 → S-0 → S-1 → V-0 → V-1 → V-2 → V-3 → V-4 → V-5 → L-0 → V-6 → M-0
 ```
 
 ## Source of Truth（v1）
