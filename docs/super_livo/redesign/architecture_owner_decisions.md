@@ -163,3 +163,17 @@ NO-GO:    median R5_point < 30% ∨ median Rplane_point < 20%
 
 - 旧 v0 tracker（`.scratch/super-livo-v0/issues/`）：不删除；状态 = TB-0 completed、TB-1 concept preserved、TB-2+ superseded by v1 graph。
 - 新 tracer graph（TB-1 → G-0..G-3 → DECISION GATE → S-0/S-1 → V-0..V-6 → L-0 → M-0）正式采用；S/V/L 沿用 camera-epoch / sequential prior / MODE-A/B/C / Common-FEJ / streaming 6×6/6×1 大框架，不重启 FEJ 讨论。
+## 21. Scheme-B Visual Geometry — PROVISIONAL SHADOW DECISION（Round 10）
+
+```text
+Status: PROVISIONAL / SHADOW ONLY —— 尚未 production approved
+Scope: 视觉 patch 相对 surfel 的局部偏移（G-1V shadow）
+```
+
+- **Patch 不是 centroid**：patch 记录相对支撑 surfel 的 immutable local offset；surfel 提供几何支撑，patch 保持自身局部 identity。
+- offset 表示：**full 3D** `d0 = P0 − μ_ref`（P0 = 创建时真实 LiDAR 点投影 u_ref = project(P0)）；禁止依赖任意再生的 tangent basis 解释 2D offset。
+- geometry transport：`P_B(k) = μ_k + Q·d0`，Q = shortest-arc(n_ref→n_k)，normal sign 先连续化；near-antiparallel 用 deterministic fallback；禁止 chained offset update（每帧从 immutable d0/n_ref 重建）。
+- patch support plane：`n_kᵀ(X − P_B(k)) = 0`（anchor 为 P_B(k) 而非 μ_k）。
+- 1 surfel : N patches；offset 不进滤波状态；Δu*（photometric local alignment）仅 diagnostic。
+- 旧 "reference ray × parent plane = final immutable visual anchor" 语义：**SUPERSEDED FOR SCHEME-B SHADOW**（历史保留，不删除）。
+- G-1V 通过后进入 DG-0 的 E-V 决策（E-L LiDAR direct 与 E-V visual support 拆开评估）。
