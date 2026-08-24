@@ -109,6 +109,18 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# V-2 plane-aware warp Jacobian synthetic tests (T_cb-aware)
+add_executable(v2_jacobian_test
+  src/lio/tests/test_v2_jacobian.cpp
+)
+target_include_directories(v2_jacobian_test PUBLIC include)
+target_link_libraries(v2_jacobian_test
+  Eigen3::Eigen
+  ${catkin_LIBRARIES}
+  gflags
+  glog
+)
+
 # S-1 sequential-prior ESKF tests (no ROS dependency)
 add_executable(s1_prior_test
   src/lio/tests/test_s1_prior.cpp

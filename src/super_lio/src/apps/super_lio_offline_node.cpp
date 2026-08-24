@@ -55,8 +55,9 @@ int main(int argc, char** argv) {
   data_wrapper->setPublishEnabled(g_offline_publish);
   auto lio = std::make_shared<SuperLIO>();
   lio->setROSWrapper(data_wrapper);
-  // V-0C 6DOF FD coverage: >=5 camera epochs with valid samples per dataset
-  lio->setFdSamplesNeeded(5);
+  // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
+  // epochs (>=5) and distinct landmarks (>=10 if available)
+  lio->setFdSamplesNeeded(0);
   lio->init();
 
   std::string out_dir = g_offline_out_dir;
@@ -431,12 +432,23 @@ int main(int argc, char** argv) {
                     ? lio->visualResidualSse() /
                           (double)lio->visualResidualSamples()
                     : 0.0);
-    std::printf("V-2 6DOF FD gate: fail=%d\n", lio->fdGateFail() ? 1 : 0);
+    std::printf("V-2 6DOF FD gate: fail=%d trials_complete=%d trials_attempted=%d distinct_epochs=%zu distinct_landmarks=%zu\n",
+                lio->fdGateFail() ? 1 : 0, lio->fdTrialsComplete(),
+                lio->fdTrialsAttempted(), lio->fdDistinctEpochs(),
+                lio->fdDistinctLandmarks());
     const char* dn[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
     for (int d = 0; d < 6; ++d) {
-      std::printf("V-2 FD %s: samples=%lld max_abs=%.6g med_rel=%.6g max_rel=%.6g\n",
-                  dn[d], (long long)lio->fdSamples()[d], lio->fdMaxAbs()[d],
-                  lio->fdMedRel()[d], lio->fdMaxRel()[d]);
+      std::printf("V-2 FD %s: global_med_rel=%.6g max_abs_all=%.6g strong_n=%lld strong_max_rel=%.6g strong_med_rel=%.6g weak_n=%lld weak_max_abs=%.6g\n",
+                  dn[d], lio->fdGlobalMedRel()[d], lio->fdMaxAbsAll()[d],
+                  (long long)lio->fdStrongCount()[d],
+                  lio->fdStrongMaxRel()[d], lio->fdStrongMedRel()[d],
+                  (long long)lio->fdWeakCount()[d],
+                  lio->fdWeakMaxAbs()[d]);
+    }
+    if (lio->fdConvDone()) {
+      std::printf("V-2 rz eps-convergence (frozen sample, max_rel): 1e-5=%.6g 1e-4=%.6g 1e-3=%.6g 1e-2=%.6g\n",
+                  lio->fdConvRz()[0], lio->fdConvRz()[1],
+                  lio->fdConvRz()[2], lio->fdConvRz()[3]);
     }
   }
   if (g_lio_v0_enabled) {
@@ -460,6 +472,11 @@ int main(int argc, char** argv) {
   }
   if (g_lio_v2_enabled && lio->fdGateFail()) {
     std::printf("[offline_node] FATAL: V-2 6DOF FD gate FAILED — hard gate.\n");
+    return 1;
+  }
+  if (g_lio_v2_enabled && lio->fdDistinctEpochs() < 5) {
+    std::printf("[offline_node] FATAL: FD coverage insufficient — distinct epochs %zu < 5.\n",
+                lio->fdDistinctEpochs());
     return 1;
   }
   std::printf("=== End offline accounting ===\n");

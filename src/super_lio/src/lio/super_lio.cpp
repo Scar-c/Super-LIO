@@ -1061,6 +1061,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   const int W = frame->width, H = frame->height;
   const std::vector<uint8_t>& img = *frame->data;
   const Eigen::Matrix4d T_cb = calib.T_cam_body();
+  // camera world pose from body pose: R_cam = R_body * R_bc, t_cam = t_body + R_body * t_bc
+  const Eigen::Matrix3d R_bc = T_cb.block<3, 3>(0, 0).cast<double>();
+  const Eigen::Vector3d t_bc = T_cb.block<3, 1>(0, 3).cast<double>();
   const double fx = calib.fx, fy = calib.fy, cx = calib.cx, cy = calib.cy;
 
   int accepted = 0;
@@ -1080,13 +1083,17 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
       const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
 
-      // ref camera pose (body attitude stored; camera axis approx)
-      const Eigen::Matrix3d R_ref = ref->cam_q.toRotationMatrix().cast<double>();
-      const Eigen::Vector3d t_ref = ref->cam_pos.cast<double>();
+      // ref camera pose = stored body pose + extrinsic (R_bc / t_bc)
+      const Eigen::Matrix3d R_body_ref = ref->cam_q.toRotationMatrix().cast<double>();
+      const Eigen::Matrix3d R_ref = R_body_ref * R_bc;
+      const Eigen::Vector3d t_ref =
+          ref->cam_pos.cast<double>() + R_body_ref * t_bc;
 
-      // current camera pose
-      const Eigen::Vector3d t_cur = pose.t_.cast<double>();
-      const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+      // current camera pose (body pose + extrinsic)
+      const Eigen::Vector3d t_cur =
+          pose.t_.cast<double>() + pose.R_.cast<double>() * t_bc;
+      const Eigen::Matrix3d R_cur =
+          pose.R_.cast<double>() * R_bc;
 
       // warp the 8x8 patch: for each sample pixel, ray from ref camera
       // through the pixel, intersect patch plane (P_patch, n_sync), then
@@ -1206,14 +1213,19 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         //   t -> t + delta_p
         //   dXc/dtheta = [Xc]x ; dXc/dp = -Rc^T
         Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
-        dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
+        dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();  // = -R_bc^T R_body^T
         // build skew of Xc
         Eigen::Matrix3d Xc_skew;
         Xc_skew << 0.0, -Xc.z(), Xc.y(), Xc.z(), 0.0, -Xc.x(), -Xc.y(), Xc.x(), 0.0;
-        // body-frame right-perturbation: R' = R exp(dth)
-        // Xc' = exp(-dth) Xc  ->  dXc/dth = [Xc]x
-        // (matches ESKF LIO Jacobian convention J = p x n^b)
-        dXc_dxi.block<3, 3>(0, 0) = Xc_skew;
+        // body-frame right-perturbation with extrinsic: R' = R_body exp(dth)
+        // Xc = R_bc^T R_body^T (X - t) - R_bc^T t_bc
+        // dXc/dth = [Xc + R_bc^T t_bc]x R_bc^T  (reduces to [Xc]x when
+        // R_bc=I, t_bc=0)
+        const Eigen::Vector3d Xc_t = Xc + R_bc.transpose() * t_bc;
+        Eigen::Matrix3d Xct_skew;
+        Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(),
+            -Xc_t.y(), Xc_t.x(), 0.0;
+        dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
 
         Eigen::Matrix<double, 2, 3> du_dXc;
         du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
@@ -1243,16 +1255,21 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       visual_residual_sse_ += sse_before;
 
       // 6DOF FD (hard gate): central difference on all six pose directions,
-      // per-sample DC residual; sampled across multiple frames/landmarks
-      if (fd_samples_needed_ > 0) {
+      // per-sample DC residual; a trial = this landmark x this camera epoch.
+      // Trial complete only if all six directions produce a valid sample set.
+      if (fd_samples_needed_ >= 0) {
+        fd_trials_attempted_++;
         auto warp_all = [&](const SE3& p_, std::vector<Eigen::Vector2d>& w,
-                            std::vector<double>& ic, double& mcur) {
+                            std::vector<double>& ic, double& mcur,
+                            std::vector<double>* zs = nullptr) {
           w.clear();
           ic.clear();
-          const Eigen::Matrix3d Rc = p_.R_.cast<double>();
-          const Eigen::Vector3d tc = p_.t_.cast<double>();
+          if (zs) zs->clear();
+          // camera pose = body pose + extrinsic (matches the main loop)
+          const Eigen::Matrix3d Rc = p_.R_.cast<double>() * R_bc;
+          const Eigen::Vector3d tc =
+              p_.t_.cast<double>() + p_.R_.cast<double>() * t_bc;
           double acc = 0.0;
-          // same valid set as the main loop: iterate the stored sample indices
           for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
             const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
             const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
@@ -1280,27 +1297,26 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                               fv * ((1.0 - fu) * I01 + fu * I11);
             w.emplace_back(u2, v2);
             ic.push_back(Ic);
+            if (zs) zs->push_back(Xc.z());
             acc += Ic;
           }
           mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
         };
         std::vector<Eigen::Vector2d> w0;
-        std::vector<double> ic0;
+        std::vector<double> ic0, z0;
         double mc0 = 0.0;
-        warp_all(pose, w0, ic0, mc0);
+        warp_all(pose, w0, ic0, mc0, &z0);
         if (w0.size() == M) {
-          fd_samples_needed_--;  // success counts toward FD coverage
+          bool all_dirs_ok = true;
           for (int d = 0; d < 6; ++d) {
-          // central-difference step: rz (roll about optical axis) produces
-          // pixel displacement proportional to the radial distance, so
-          // near-axis samples need a larger step; others 1e-4
-          const double eps = (d == 2) ? 1e-3 : 1e-4;
+            // central-difference step. eps=1e-4 default; d=2 (body-frame
+            // right-perturbation about the body z axis, NOT the camera
+            // optical axis) uses 1e-3 pending epsilon-convergence evidence
+            const double eps = (d == 2) ? 1e-3 : 1e-4;
             SE3 pp = pose, pm = pose;
             const float e = static_cast<float>(eps);
             if (d < 3) {
-              // rotation perturbation: body-frame right-perturbation
-              // R' = R exp(e e_j), matching the analytic dXc/dth = [Xc]x Rc^T
-              // and the ESKF LIO Jacobian convention (J = p x n^b)
+              // body-frame right-perturbation: R' = R exp(e e_d)
               const Eigen::Matrix3f Rm =
                   Eigen::AngleAxisf(e, Eigen::Vector3f::Unit(d))
                       .toRotationMatrix();
@@ -1311,17 +1327,23 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               pm.t_[d - 3] -= e;
             }
             std::vector<Eigen::Vector2d> w1, wm;
-            std::vector<double> ic1, icm;
+            std::vector<double> ic1, icm, z1, zm;
             double mc1 = 0.0, mcm = 0.0;
-            warp_all(pp, w1, ic1, mc1);
-            warp_all(pm, wm, icm, mcm);
-            if (w1.size() != M || wm.size() != M) continue;
-            // FD smoothness: only samples away from singularities in the
-            // perturbed frames are counted (depth > 0.5 m, image margin 8)
-            double max_abs = 0.0, max_rel = 0.0;
-            std::vector<double> rels;
+            warp_all(pp, w1, ic1, mc1, &z1);
+            warp_all(pm, wm, icm, mcm, &zm);
+            if (w1.size() != M || wm.size() != M) { all_dirs_ok = false; continue; }
+            double max_abs = 0.0, max_rel = 0.0, med_rel = 0.0;
+            double strong_max_rel = 0.0, strong_med_rel = 0.0;
+            double weak_max_abs = 0.0;
+            int64_t strong_n = 0, weak_n = 0;
+            std::vector<double> rels, srels;
             rels.reserve(M);
+            srels.reserve(M);
             for (size_t k = 0; k < M; ++k) {
+              // smoothness: count only samples away from projection
+              // singularities in the perturbed frames (depth > 0.5 m,
+              // image margin 8 px); weak-derivative samples (|fd| < 1e-3)
+              // are REPORTED separately and never gate PASS/FAIL
               const Eigen::Vector3d ray0((ref_u + (ref_idx[k] % 8) - 4 - cx) /
                                              fx,
                                          (ref_v + (ref_idx[k] / 8) - 4 - cy) /
@@ -1333,6 +1355,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               const Eigen::Vector3d Xc0 =
                   R_cur.transpose() * (t_ref + s0 * dir0 - t_cur);
               if (Xc0.z() <= 0.5) continue;
+              if (z1[k] <= 0.5 || zm[k] <= 0.5) continue;  // perturbed depth
               if (w0[k].x() < 8.0 || w0[k].x() >= W - 8.0 ||
                   w0[k].y() < 8.0 || w0[k].y() >= H - 8.0) continue;
               if (w1[k].x() < 8.0 || w1[k].x() >= W - 8.0 ||
@@ -1345,66 +1368,78 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               const double fd = (r1 - rm) / (2.0 * eps);
               const double an = (Js[k] - Jmean)(d);
               const double ae = std::abs(fd - an);
+              const double re = ae / std::max(1e-12, std::abs(fd));
               max_abs = std::max(max_abs, ae);
-              if (std::abs(fd) >= 1e-3) {  // signal-significant samples only
-                const double re = ae / std::abs(fd);
-                max_rel = std::max(max_rel, re);
-                rels.push_back(re);
+              rels.push_back(re);
+              if (std::abs(fd) >= 1e-3) {
+                strong_n++;
+                strong_max_rel = std::max(strong_max_rel, re);
+                srels.push_back(re);
+              } else {
+                weak_n++;
+                weak_max_abs = std::max(weak_max_abs, ae);
               }
             }
+            if (rels.empty()) { all_dirs_ok = false; continue; }
             std::sort(rels.begin(), rels.end());
-            fd_dirs_samples_[d]++;
-            fd_dirs_max_abs_[d] = std::max(fd_dirs_max_abs_[d], max_abs);
-            fd_dirs_med_rel_[d] = rels[rels.size() / 2];
-            fd_dirs_max_rel_[d] = std::max(fd_dirs_max_rel_[d], max_rel);
-            if (max_rel > 1e-2) {
-              // locate the worst sample for diagnostics
-              double wrel = -1.0, wfd = 0.0, wan = 0.0;
-              int wu = -1, wv = -1;
-              for (size_t k = 0; k < M; ++k) {
-                const double r0_ = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
-                const double r1_ = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
-                const double rm_ = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
-                const double fdv = (r1_ - rm_) / (2.0 * eps);
-                const double anv = (Js[k] - Jmean)(d);
-                const double re = std::abs(fdv - anv) /
-                                  std::max(1e-9, std::abs(fdv));
-                if (re > wrel) {
-                  wrel = re;
-                  wfd = fdv;
-                  wan = anv;
-                  wu = static_cast<int>(warped[k].x());
-                  wv = static_cast<int>(warped[k].y());
-                  if (fd_dirs_samples_[d] <= 1) {
-                    const double uu2 = warped[k].x();
-                    const double vv2 = warped[k].y();
-                    const int u0 = static_cast<int>(std::floor(uu2));
-                    const int v0 = static_cast<int>(std::floor(vv2));
-                    const double fu = uu2 - u0, fv = vv2 - v0;
-                    const int up = std::min(W - 1, u0 + 1);
-                    const int vp = std::min(H - 1, v0 + 1);
-                    const double Iu_ =
-                        (1.0 - fv) * (img[static_cast<size_t>(v0) * W + up] -
-                                      img[static_cast<size_t>(v0) * W + u0]) +
-                        fv * (img[static_cast<size_t>(vp) * W + up] -
-                              img[static_cast<size_t>(vp) * W + u0]);
-                    const double Iv_ =
-                        (1.0 - fu) * (img[static_cast<size_t>(vp) * W + u0] -
-                                      img[static_cast<size_t>(v0) * W + u0]) +
-                        fu * (img[static_cast<size_t>(vp) * W + up] -
-                              img[static_cast<size_t>(v0) * W + up]);
-                    LOG(ERROR) << "V-2 FD diag dir=" << d
-                               << " u=" << uu2 << " v=" << vv2
-                               << " fd=" << fdv << " an=" << anv
-                               << " Iu=" << Iu_ << " Iv=" << Iv_;
-                  }
-                }
-              }
+            med_rel = rels[rels.size() / 2];
+            if (!srels.empty()) {
+              std::sort(srels.begin(), srels.end());
+              strong_med_rel = srels[srels.size() / 2];
+            }
+            // global aggregates (whole-bundle per-direction)
+            fd_rel_all_[d].insert(fd_rel_all_[d].end(), rels.begin(), rels.end());
+            fd_max_abs_all_[d] = std::max(fd_max_abs_all_[d], max_abs);
+            fd_strong_count_[d] += strong_n;
+            fd_strong_max_rel_[d] = std::max(fd_strong_max_rel_[d], strong_max_rel);
+            fd_strong_med_rel_[d] = strong_med_rel;
+            fd_weak_count_[d] += weak_n;
+            fd_weak_max_abs_[d] = std::max(fd_weak_max_abs_[d], weak_max_abs);
+            if (strong_max_rel > 1e-2) {
               LOG(ERROR) << "V-2 6DOF FD gate FAIL dir=" << d
-                         << " max_rel=" << max_rel << " worst(u,v)=(" << wu
-                         << "," << wv << ") fd=" << wfd << " an=" << wan;
+                         << " strong_max_rel=" << strong_max_rel;
               fd_gate_fail_ = true;
             }
+            // rz epsilon-convergence on a frozen sample (first complete trial)
+            if (d == 2 && fd_conv_done_ == 0) {
+              const double es[4] = {1e-5, 1e-4, 1e-3, 1e-2};
+              for (int ci = 0; ci < 4; ++ci) {
+                SE3 pc = pose;
+                const float ec = static_cast<float>(es[ci]);
+                const Eigen::Matrix3f Rmc =
+                    Eigen::AngleAxisf(ec, Eigen::Vector3f::UnitZ())
+                        .toRotationMatrix();
+                SE3 ppc = pc, pmc = pc;
+                ppc.R_ = ppc.R_ * Rmc;
+                pmc.R_ = pmc.R_ * Rmc.transpose();
+                std::vector<Eigen::Vector2d> w1c, wmc;
+                std::vector<double> ic1c, icmc;
+                double mc1c = 0.0, mcmc = 0.0;
+                warp_all(ppc, w1c, ic1c, mc1c);
+                warp_all(pmc, wmc, icmc, mcmc);
+                double conv_max = 0.0;
+                if (w1c.size() == M && wmc.size() == M) {
+                  for (size_t k = 0; k < M; ++k) {
+                    const double r1c = (ic1c[k] - mc1c) - (ref_vals[k] - mean_ref);
+                    const double rmc_ = (icmc[k] - mcmc) - (ref_vals[k] - mean_ref);
+                    const double fdc = (r1c - rmc_) / (2.0 * es[ci]);
+                    const double anv = (Js[k] - Jmean)(2);
+                    conv_max = std::max(
+                        conv_max, std::abs(fdc - anv) /
+                                      std::max(1e-12, std::abs(fdc)));
+                  }
+                }
+                fd_conv_rz_[ci] = conv_max;
+              }
+              fd_conv_done_ = 1;
+            }
+          }
+          if (all_dirs_ok) {
+            fd_trials_complete_++;
+            fd_samples_needed_--;
+            fd_epoch_set_.insert(measures_.epoch_ts);
+            fd_lmk_set_.insert(lm.parent_id * 1000 + static_cast<int64_t>(lm.source_child_idx));
+            // global median computed at report time from fd_rel_all_
           }
         }
       }
@@ -1490,35 +1525,12 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     return tr - disc;  // min eigenvalue
   };
 
-  // ---- pass 1: existing landmarks occupy their grid cells ----
+  // ---- pass 1+2 (FAST-LIVO2 candidate-driven retrieval): for every
+  // currently geometry-supported candidate point, look up its parent's
+  // existing visual landmarks; visible ones occupy their grid cells;
+  // unoccupied cells keep the best Shi-Tomasi new-candidate. No global
+  // VisualMap scan, no previous-active union. ----
   int64_t visible_existing = 0;
-  int64_t invalidated = 0;
-  for (auto& kv : visual_map_.container()) {
-    auto& vec = kv.second;
-    for (size_t li = 0; li < vec.size(); ++li) {
-      auto& lm = vec[li];
-      if (!lm.geometry_valid) { invalidated++; continue; }
-      const OctVoxKey key(lm.parent_id & 0xFFFFF,
-                          (lm.parent_id >> 20) & 0xFFFFF,
-                          (lm.parent_id >> 40) & 0xFFFFF);
-      const ParentStats* ps = sidecar_.find(key);
-      if (ps == nullptr) { invalidated++; continue; }
-      bool ok = false;
-      double uu = 0, vv = 0;
-      project_world(lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>(),
-                    ok, uu, vv);
-      if (!ok) continue;
-      const int ci = grid_index(uu, vv);
-      if (cell_owner[ci] == 0) {
-        cell_owner[ci] = 1;
-        cell_lm[ci] = {kv.first, li};
-        lm.last_visible_time = frame->timestamp;
-        visible_existing++;
-      }
-    }
-  }
-
-  // ---- pass 2: eligible geometry candidates -> unoccupied cells ----
   int64_t eligible_candidates = 0;
   for (int i = 0; i < N; ++i) {
     const int idx = effect_knn_idxs_[i];
@@ -1563,7 +1575,32 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     if (!ok) continue;
     eligible_candidates++;
     const int ci = grid_index(uu, vv);
-    if (cell_owner[ci] != 0) continue;  // occupied by existing or better candidate
+    if (cell_owner[ci] != 0) continue;  // already claimed this frame
+
+    // reuse an existing visible landmark of this parent (if any)
+    auto it = visual_map_.container().find(parent_id);
+    VisualLandmark* reuse = nullptr;
+    size_t reuse_idx = 0;
+    if (it != visual_map_.container().end()) {
+      for (size_t li = 0; li < it->second.size(); ++li) {
+        auto& lm = it->second[li];
+        if (!lm.geometry_valid) continue;
+        bool ok2 = false;
+        double u2 = 0, v2 = 0;
+        project_world(lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>(),
+                      ok2, u2, v2);
+        if (ok2) { reuse = &lm; reuse_idx = li; break; }
+      }
+    }
+    if (reuse != nullptr) {
+      cell_owner[ci] = 1;
+      cell_lm[ci] = {parent_id, reuse_idx};
+      reuse->last_visible_time = frame->timestamp;
+      visible_existing++;
+      continue;
+    }
+
+    // new-candidate: best Shi-Tomasi per unoccupied cell
     const double sc = shi_tomasi(uu, vv);
     if (sc <= 0.0) continue;
     if (sc > cell_score[ci]) {
@@ -1727,9 +1764,15 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
   }
 
   // ---- pass 5: bounded active-reference reselection (solve boundary,
-  // FAST-LIVO2 photometric-consistency grounding, vio.cpp:660-684) ----
-  for (auto& kv : visual_map_.container()) {
-    for (auto& lm : kv.second) {
+  // FAST-LIVO2 photometric-consistency grounding, vio.cpp:660-684); only
+  // for the landmarks that participated in this epoch's observations ----
+  for (int ci = 0; ci < n_cells; ++ci) {
+    if (cell_lm[ci].first < 0) continue;
+    auto itr = visual_map_.container().find(cell_lm[ci].first);
+    if (itr == visual_map_.container().end()) continue;
+    if (cell_lm[ci].second >= itr->second.size()) continue;
+    auto& lm = itr->second[cell_lm[ci].second];
+    {
       int nv = 0;
       for (int s = 0; s < kMaxObsPerLandmark; ++s) {
         if (lm.observations[s].valid) nv++;

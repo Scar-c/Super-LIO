@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <queue>
+#include <set>
 #include <vector>
 #include <iostream>
 #include <cassert>
@@ -170,16 +171,37 @@ public:
   int64_t visual_residual_samples_ = 0;
   double visual_residual_sse_ = 0.0;
   bool fd_gate_fail_ = false;
-  int fd_samples_needed_ = 0;  // 6DOF FD: samples across frames (set per run)
+  int fd_samples_needed_ = 0;  // 6DOF FD: successful trials (set per run)
   void setFdSamplesNeeded(int n) { fd_samples_needed_ = n; }
-  std::array<int64_t, 6> fd_dirs_samples_{};
-  std::array<double, 6> fd_dirs_max_abs_{};
-  std::array<double, 6> fd_dirs_med_rel_{};
-  std::array<double, 6> fd_dirs_max_rel_{};
-  const std::array<int64_t, 6>& fdSamples() const { return fd_dirs_samples_; }
-  const std::array<double, 6>& fdMaxAbs() const { return fd_dirs_max_abs_; }
-  const std::array<double, 6>& fdMedRel() const { return fd_dirs_med_rel_; }
-  const std::array<double, 6>& fdMaxRel() const { return fd_dirs_max_rel_; }
+  // formal FD bundle (V-0C gate): a trial = one landmark x one camera epoch;
+  // counted complete only when all six directions pass +/-eps
+  std::set<double> fd_epoch_set_;
+  std::set<int64_t> fd_lmk_set_;
+  int fd_trials_complete_ = 0;
+  int fd_trials_attempted_ = 0;
+  std::array<std::vector<double>, 6> fd_rel_all_;    // global rel samples/dir
+  std::array<double, 6> fd_max_abs_all_{};           // all samples, abs error
+  std::array<int64_t, 6> fd_strong_count_{};         // |fd| >= 1e-3 (reported layer)
+  std::array<double, 6> fd_strong_max_rel_{};        // strong-layer max rel
+  std::array<double, 6> fd_strong_med_rel_{};
+  std::array<int64_t, 6> fd_weak_count_{};           // |fd| < 1e-3 (reported layer)
+  std::array<double, 6> fd_weak_max_abs_{};          // weak-layer max abs
+  std::array<double, 6> fd_global_med_rel_{};        // global median per direction
+  std::array<double, 4> fd_conv_rz_{};               // rz eps convergence (frozen sample)
+  int fd_conv_done_ = 0;
+  int fdTrialsComplete() const { return fd_trials_complete_; }
+  int fdTrialsAttempted() const { return fd_trials_attempted_; }
+  size_t fdDistinctEpochs() const { return fd_epoch_set_.size(); }
+  size_t fdDistinctLandmarks() const { return fd_lmk_set_.size(); }
+  const std::array<double, 6>& fdGlobalMedRel() const { return fd_global_med_rel_; }
+  const std::array<double, 6>& fdMaxAbsAll() const { return fd_max_abs_all_; }
+  const std::array<int64_t, 6>& fdStrongCount() const { return fd_strong_count_; }
+  const std::array<double, 6>& fdStrongMaxRel() const { return fd_strong_max_rel_; }
+  const std::array<double, 6>& fdStrongMedRel() const { return fd_strong_med_rel_; }
+  const std::array<int64_t, 6>& fdWeakCount() const { return fd_weak_count_; }
+  const std::array<double, 6>& fdWeakMaxAbs() const { return fd_weak_max_abs_; }
+  const std::array<double, 4>& fdConvRz() const { return fd_conv_rz_; }
+  int fdConvDone() const { return fd_conv_done_; }
   // V-0C coverage per-epoch distributions
   std::vector<int64_t> coverage_visible_existing_;
   std::vector<int64_t> coverage_new_created_;
