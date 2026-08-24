@@ -1,6 +1,6 @@
 # 18: [Super-LIVO v1][G-1R] Evaluate parent-scale plane support after child-plane NO-GO
 
-**Status:** ready-for-agent（Round 9 corrective；G-1 历史 NO-GO 证据保留）
+**Status:** completed（Round 9：eee/nya parent support GO 4/4；provisional gate (0.05,0.20)；evidence docs/super_livo/evidence/g1r_parent_support_corrective.md）
 
 ## Parent
 

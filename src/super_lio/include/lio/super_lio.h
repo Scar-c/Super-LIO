@@ -46,6 +46,8 @@ public:
   const std::array<int, 100>& g1QfHist() const { return g1_qf_hist_; }
   const std::array<int, 100>& g1QlHist() const { return g1_ql_hist_; }
   const std::array<int, 100>& g1ParentQfHist() const { return g1_parent_qf_hist_; }
+  const std::array<std::array<int, 100>, 4>& g1rQfChild() const { return g1r_qf_child_; }
+  const std::array<std::array<int, 100>, 5>& g1rQfParent() const { return g1r_qf_parent_; }
   size_t mapCapacity() const { return g_ivox_capacity; }
   void closeInstrumentation();
 
@@ -101,6 +103,8 @@ protected:
   std::array<int, 100> g1_qf_hist_{};
   std::array<int, 100> g1_ql_hist_{};
   std::array<int, 100> g1_parent_qf_hist_{};
+  std::array<std::array<int, 100>, 4> g1r_qf_child_{};
+  std::array<std::array<int, 100>, 5> g1r_qf_parent_{};
 
   bool g1_enabled_ = false;
   VisualSupportAggregator g1_agg_;

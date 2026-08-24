@@ -195,6 +195,19 @@ public:
   void resetMap(const std::vector<float>&);
   void clear();
 
+  // Read-only accessor for parent-aggregate (G-1R) shadow: returns the
+  // OctVox subvoxel centroid/count for a parent key, zero estimator influence.
+  bool getSubvoxel(const KEY& key, uint8_t local_idx, Point& pt,
+                   uint8_t& count) const {
+    auto it = grids_.find(key);
+    if (it == grids_.end()) return false;
+    OctVoxType& vox = it.value().second;
+    if (vox.counts_[local_idx] == OctVoxType::UNINIT_MASK) return false;
+    pt = vox.points_[local_idx];
+    count = vox.counts_[local_idx];
+    return true;
+  }
+
   void getTopK(const Point& point, KNNHeapType& top_K) const;
 
   void getTopK_VN(const Point& point, KNNHeapType& top_K) const;

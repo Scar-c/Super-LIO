@@ -96,16 +96,20 @@ void SuperLIO::init(){
 
   if(g_lio_g1_enabled && !g_lio_g1_out_dir.empty()){
     g1_enabled_ = true;
-    const std::vector<std::string> header = {
-        "timestamp", "n_processed", "n_fov",
-        "N1","N2","N3","N4","N5_7","N8_10","N11_19","N20",
-        "R3","R5","R8","R10","R20",
-        "pv01","pv02","pv03","pv04","pv05","pv06","pv07","pv08",
-        "pv09","pv10","pv11","pv12","pv13","pv14","pv15","pv16",
-        "vv01","vv02","vv03","vv04","vv05","vv06","vv07","vv08",
-        "vv09","vv10","vv11","vv12","vv13","vv14","vv15","vv16",
-        "g_fov","g_n5","g_plane","g_any","occ_cols","occ_rows",
-        "q0","q1","q2","q3","dt_cam"};
+    std::vector<std::string> header = {
+        "timestamp", "n_all", "R3_all", "R5_all", "R8_all", "R10_all", "R20_all"};
+    for (int g = 1; g <= 16; ++g) header.push_back("c_pv_all" + std::to_string(g));
+    for (int g = 1; g <= 16; ++g) header.push_back("p_pv_all" + std::to_string(g));
+    for (int g = 1; g <= 16; ++g) header.push_back("p_vv_all" + std::to_string(g));
+    header.push_back("n_fov");
+    header.push_back("R5_fov");
+    for (int g = 1; g <= 16; ++g) header.push_back("c_pv_fov" + std::to_string(g));
+    for (int g = 1; g <= 16; ++g) header.push_back("p_pv_fov" + std::to_string(g));
+    for (int g = 1; g <= 16; ++g) header.push_back("c_vv_fov" + std::to_string(g));
+    for (int g = 1; g <= 16; ++g) header.push_back("p_vv_fov" + std::to_string(g));
+    header.push_back("g_fov"); header.push_back("g_n5"); header.push_back("g_plane");
+    header.push_back("n_cells"); header.push_back("q0"); header.push_back("q1");
+    header.push_back("q2"); header.push_back("q3"); header.push_back("dt_cam");
     g1_csv_.open(g_lio_g1_out_dir + "/g1_stats.csv", header);
     LOG(INFO) << GREEN << " ---> [SuperLIO]: G-1 visual support diagnostics enabled" << RESET;
   }
@@ -641,18 +645,32 @@ void SuperLIO::runG1Shadow(const SE3& pose){
   const int n_cells = grid_n_width * grid_n_height;
 
   const auto& sweep = gateSweep();
-  std::array<int, 16> pv{};
-  std::array<int, 16> vv{};
-  std::set<int64_t> voxel_seen;
+  std::array<int, 16> c_pv_all{};
+  std::array<int, 16> p_pv_all{};
+  std::array<int, 16> p_vv_all{};
+  std::array<int, 16> c_pv_fov{};
+  std::array<int, 16> p_pv_fov{};
+  std::array<int, 16> c_vv_fov{};
+  std::array<int, 16> p_vv_fov{};
+  std::array<std::set<int64_t>, 16> pvoxel_all, pvoxel_fov, cvoxel_fov;
+  int n_all = 0, r3_all = 0, r5_all = 0, r8_all = 0, r10_all = 0, r20_all = 0;
+  int n_fov = 0, r5_fov = 0;
+  int g_fov = 0, g_n5 = 0, g_plane = 0;
   std::array<int, 4> quad{};
-  int g_fov = 0, g_n5 = 0, g_plane = 0, g_any = 0;
+  std::map<int, int> cell_fov, cell_n5;
+  std::map<int, bool> cell_plane;
   double dt_cam = cam_ok ? data_wrapper_->cameraNewestTimestamp() - measures_.lidar.end_time : 0.0;
+
+  // N-bin q_flat histograms (child 4 bins, parent 5 bins)
+  auto& h_c5 = g1r_qf_child_[0]; auto& h_c8 = g1r_qf_child_[1];
+  auto& h_c11 = g1r_qf_child_[2]; auto& h_c20 = g1r_qf_child_[3];
+  auto& h_p5 = g1r_qf_parent_[0]; auto& h_p10 = g1r_qf_parent_[1];
+  auto& h_p20 = g1r_qf_parent_[2]; auto& h_p40 = g1r_qf_parent_[3];
+  auto& h_p80 = g1r_qf_parent_[4];
 
   const int N = static_cast<int>(effect_knn_num_);
   row.n_processed = N;
   cell_plane_map_.clear();
-  std::map<int, int> cell_n5;   // cell -> count of FOV points with N>=5
-  std::map<int, int> cell_fov;
 
   for (int i = 0; i < N; ++i) {
     const int idx = effect_knn_idxs_[i];
@@ -671,10 +689,88 @@ void SuperLIO::runG1Shadow(const SE3& pose){
     if (ps == nullptr) continue;
     const SubvoxelStats& st = ps->sub[local_idx];
     if (!st.active) continue;
-    const int n = st.n;
-    if (n >= 1 && n <= 20) row.n_hist_fov[n]++;
+    const int n_child = st.n;
+    if (n_child >= 1 && n_child <= 20) row.n_hist_fov[n_child]++;
 
-    // FOV projection (causal: current pose, camera frame buffer)
+    // ---- all-effective geometry (no camera) ----
+    n_all++;
+    r3_all += (n_child >= 3) ? 1 : 0;
+    r5_all += (n_child >= 5) ? 1 : 0;
+    r8_all += (n_child >= 8) ? 1 : 0;
+    r10_all += (n_child >= 10) ? 1 : 0;
+    r20_all += (n_child >= 20) ? 1 : 0;
+
+    double c_qf = 0.0, c_ql = 0.0;
+    if (n_child >= 5) {
+      const Eigen::Matrix3d Sc = GeometryStatsSidecar::unpackS(st.s);
+      const double dn = static_cast<double>(n_child);
+      if (Sc.allFinite() && Sc.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esc(Sc / dn);
+        const Eigen::Vector3d evc = esc.eigenvalues();
+        if (evc.allFinite()) {
+          c_qf = evc(0) / (evc(0) + evc(1) + evc(2));
+          c_ql = evc(2) > 1e-12 ? evc(1) / evc(2) : 0.0;
+          if (n_child <= 7) h_c5[std::min(99, static_cast<int>(c_qf * 100))]++;
+          else if (n_child <= 10) h_c8[std::min(99, static_cast<int>(c_qf * 100))]++;
+          else if (n_child <= 19) h_c11[std::min(99, static_cast<int>(c_qf * 100))]++;
+          else h_c20[std::min(99, static_cast<int>(c_qf * 100))]++;
+        }
+      }
+    }
+
+    // parent aggregate (0.5m): Chan-merge of 8 child moments
+    Eigen::Vector3d p_mu;
+    Eigen::Matrix3d p_S;
+    double p_n = 0.0;
+    bool parent_ok = false;
+    {
+      std::array<GeometryStatsSidecar::ChildMoments, 8> children;
+      for (int s = 0; s < 8; ++s) {
+        const SubvoxelStats& ss = ps->sub[s];
+        if (!ss.active || ss.n < 1) continue;
+        children[s].valid = true;
+        children[s].n = ss.n;
+        children[s].mu = Eigen::Vector3d(ss.mu[0], ss.mu[1], ss.mu[2]);
+        children[s].S = GeometryStatsSidecar::unpackS(ss.s);
+      }
+      parent_ok = GeometryStatsSidecar::mergeChildren(children, p_mu, p_S, p_n);
+    }
+    double p_qf = 0.0, p_ql = 0.0;
+    if (parent_ok && p_n >= 5.0) {
+      if (p_S.allFinite() && p_S.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
+        const Eigen::Vector3d evp = esp.eigenvalues();
+        if (evp.allFinite()) {
+          p_qf = evp(0) / (evp(0) + evp(1) + evp(2));
+          p_ql = evp(2) > 1e-12 ? evp(1) / evp(2) : 0.0;
+          if (p_n <= 9) h_p5[std::min(99, static_cast<int>(p_qf * 100))]++;
+          else if (p_n <= 19) h_p10[std::min(99, static_cast<int>(p_qf * 100))]++;
+          else if (p_n <= 39) h_p20[std::min(99, static_cast<int>(p_qf * 100))]++;
+          else if (p_n <= 79) h_p40[std::min(99, static_cast<int>(p_qf * 100))]++;
+          else h_p80[std::min(99, static_cast<int>(p_qf * 100))]++;
+        }
+      }
+    }
+
+    const int64_t pvid = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+                         ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+                         ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+    const int64_t cvid = pvid * 8 + local_idx;
+
+    for (int g = 0; g < 16; ++g) {
+      if (c_qf > 0.0 && c_qf <= sweep[g].q_flat && c_ql >= sweep[g].q_line) {
+        c_pv_all[g]++;
+      }
+      if (p_qf > 0.0 && p_qf <= sweep[g].q_flat && p_ql >= sweep[g].q_line) {
+        p_pv_all[g]++;
+        if (pvoxel_all[g].count(pvid) == 0) {
+          pvoxel_all[g].insert(pvid);
+          p_vv_all[g]++;
+        }
+      }
+    }
+
+    // ---- camera FOV subset ----
     if (!cam_ok) continue;
     const Eigen::Vector3d p_body(pb.x(), pb.y(), pb.z());
     const Eigen::Vector3d pc = transformPoint(T_cb, p_body);
@@ -688,90 +784,41 @@ void SuperLIO::runG1Shadow(const SE3& pose){
     if (ci < 0 || ci >= grid_n_width || cj < 0 || cj >= grid_n_height) continue;
     const int cell = cj * grid_n_width + ci;
     cell_fov[cell]++;
-    g_fov++;
+    n_fov++;
+    r5_fov += (n_child >= 5) ? 1 : 0;
+    if (n_child >= 5) cell_n5[cell]++;
     const int qx = ci < grid_n_width / 2 ? 0 : 1;
     const int qy = cj < grid_n_height / 2 ? 0 : 1;
     quad[qy * 2 + qx]++;
 
-    row.rN_point[0] += (n >= 3) ? 1 : 0;
-    row.rN_point[1] += (n >= 5) ? 1 : 0;
-    row.rN_point[2] += (n >= 8) ? 1 : 0;
-    row.rN_point[3] += (n >= 10) ? 1 : 0;
-    row.rN_point[4] += (n >= 20) ? 1 : 0;
-    if (n >= 5) {
-      g_n5++;
-      cell_n5[cell]++;
-    }
-
-    if (n < 5) continue;
-    const Eigen::Matrix3d S = GeometryStatsSidecar::unpackS(st.s);
-    const double dn = static_cast<double>(n);
-    if (S.trace() <= 1e-12 || !S.allFinite()) continue;
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(S / dn);
-    const Eigen::Vector3d ev = es.eigenvalues();
-    if (!ev.allFinite()) continue;
-    const double qf = ev(0) / (ev(0) + ev(1) + ev(2));
-    const double ql = ev(2) > 1e-12 ? ev(1) / ev(2) : 0.0;
-
-    g1_qf_hist_[std::min(99, static_cast<int>(qf * 100))]++;
-    g1_ql_hist_[std::min(99, static_cast<int>(ql * 100))]++;
-
-    // parent-level (0.5m) aggregated flatness: merge active subvoxel scatters
-    {
-      Eigen::Matrix3d Sp = Eigen::Matrix3d::Zero();
-      Eigen::Vector3d mup = Eigen::Vector3d::Zero();
-      long np = 0;
-      for (int s = 0; s < 8; ++s) {
-        const SubvoxelStats& ss = ps->sub[s];
-        if (!ss.active || ss.n < 1) continue;
-        const Eigen::Matrix3d Ss = GeometryStatsSidecar::unpackS(ss.s);
-        const double ns = static_cast<double>(ss.n);
-        const Eigen::Vector3d mus(ss.mu[0], ss.mu[1], ss.mu[2]);
-        if (np == 0) {
-          Sp = Ss; mup = mus; np = static_cast<long>(ns);
-        } else {
-          const double ntot = static_cast<double>(np) + ns;
-          const Eigen::Vector3d diff = mup - mus;
-          Sp = Sp + Ss +
-               (static_cast<double>(np) * ns / ntot) * diff * diff.transpose();
-          mup = (mup * static_cast<double>(np) + mus * ns) / ntot;
-          np = static_cast<long>(ntot);
-        }
-      }
-      if (np >= 10 && Sp.allFinite() && Sp.trace() > 1e-12) {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(Sp / static_cast<double>(np));
-        const Eigen::Vector3d evp = esp.eigenvalues();
-        if (evp.allFinite()) {
-          const double qfp = evp(0) / (evp(0) + evp(1) + evp(2));
-          g1_parent_qf_hist_[std::min(99, static_cast<int>(qfp * 100))]++;
-        }
-      }
-    }
-
-    const int64_t vid = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
-                        ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
-                        ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
     for (int g = 0; g < 16; ++g) {
-      if (qf <= sweep[g].q_flat && ql >= sweep[g].q_line) {
-        pv[g]++;
-        if (voxel_seen.count(vid) == 0) {
-          voxel_seen.insert(vid);
-          vv[g]++;
+      if (c_qf > 0.0 && c_qf <= sweep[g].q_flat && c_ql >= sweep[g].q_line) {
+        c_pv_fov[g]++;
+        if (cvoxel_fov[g].count(cvid) == 0) {
+          cvoxel_fov[g].insert(cvid);
+          c_vv_fov[g]++;
         }
       }
+      if (p_qf > 0.0 && p_qf <= sweep[g].q_flat && p_ql >= sweep[g].q_line) {
+        p_pv_fov[g]++;
+        if (pvoxel_fov[g].count(pvid) == 0) {
+          pvoxel_fov[g].insert(pvid);
+          p_vv_fov[g]++;
+        }
+        cell_plane[cell] = true;
+      }
     }
-    if (pv[0] > 0 || pv[1] > 0) cell_plane_map_[cell] = true;
   }
 
-  row.n_fov = g_fov;
+  row.n_fov = n_fov;
   for (int g = 0; g < 16; ++g) {
-    row.plane_valid_point[g] = pv[g];
-    row.plane_valid_voxel[g] = vv[g];
+    row.plane_valid_point[g] = c_pv_fov[g];
+    row.plane_valid_voxel[g] = c_vv_fov[g];
   }
-  g_any = static_cast<int>(cell_fov.size());
+  g_fov = static_cast<int>(cell_fov.size());
   g_n5 = static_cast<int>(cell_n5.size());
-  g_plane = static_cast<int>(cell_plane_map_.size());
-  row.grid_cells[0] = g_any;
+  g_plane = static_cast<int>(cell_plane.size());
+  row.grid_cells[0] = g_fov;
   row.grid_cells[1] = g_n5;
   row.grid_cells[2] = g_plane;
   row.grid_cells[3] = n_cells;
@@ -784,25 +831,25 @@ void SuperLIO::runG1Shadow(const SE3& pose){
     const auto& r = row;
     std::vector<std::string> f;
     f.push_back(fmt(r.timestamp));
-    f.push_back(std::to_string(r.n_processed));
-    f.push_back(std::to_string(r.n_fov));
-    int h8[8] = {r.n_hist_fov[1], r.n_hist_fov[2], r.n_hist_fov[3], r.n_hist_fov[4],
-                 r.n_hist_fov[5] + r.n_hist_fov[6] + r.n_hist_fov[7],
-                 r.n_hist_fov[8] + r.n_hist_fov[9] + r.n_hist_fov[10],
-                 r.n_hist_fov[11] + r.n_hist_fov[12] + r.n_hist_fov[13] + r.n_hist_fov[14] +
-                     r.n_hist_fov[15] + r.n_hist_fov[16] + r.n_hist_fov[17] + r.n_hist_fov[18] +
-                     r.n_hist_fov[19],
-                 r.n_hist_fov[20]};
-    for (int k = 0; k < 8; ++k) f.push_back(std::to_string(h8[k]));
-    for (int k = 0; k < 5; ++k) f.push_back(std::to_string(r.rN_point[k]));
-    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(r.plane_valid_point[g]));
-    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(r.plane_valid_voxel[g]));
+    f.push_back(std::to_string(n_all));
+    f.push_back(std::to_string(r3_all));
+    f.push_back(std::to_string(r5_all));
+    f.push_back(std::to_string(r8_all));
+    f.push_back(std::to_string(r10_all));
+    f.push_back(std::to_string(r20_all));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(c_pv_all[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(p_pv_all[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(p_vv_all[g]));
+    f.push_back(std::to_string(n_fov));
+    f.push_back(std::to_string(r5_fov));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(c_pv_fov[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(p_pv_fov[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(c_vv_fov[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(p_vv_fov[g]));
     f.push_back(std::to_string(r.grid_cells[0]));
     f.push_back(std::to_string(r.grid_cells[1]));
     f.push_back(std::to_string(r.grid_cells[2]));
     f.push_back(std::to_string(r.grid_cells[3]));
-    f.push_back(std::to_string(r.occupied_cols));
-    f.push_back(std::to_string(r.occupied_rows));
     for (int q = 0; q < 4; ++q) f.push_back(std::to_string(r.quadrant_hits[q]));
     f.push_back(fmt(r.dt_cam));
     g1_csv_.writeRow(f);

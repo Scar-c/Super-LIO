@@ -151,6 +151,29 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 100; ++i) { acc += qfp[i]; if (acc >= qfp_tot * p) { v = (i + 0.5) / 100.0; break; } }
         std::printf(" P%.0f=%.3f", p * 100, v);
       }
+      {
+        const auto& qc = lio->g1rQfChild();
+        const auto& qp = lio->g1rQfParent();
+        const char* cbins[4] = {"N5-7", "N8-10", "N11-19", "N20"};
+        const char* pbins[5] = {"N5-9", "N10-19", "N20-39", "N40-79", "N80+"};
+        auto pct = [](const std::array<int, 100>& h, double p) {
+          long tot = 0;
+          for (int i = 0; i < 100; ++i) tot += h[i];
+          if (tot == 0) return -1.0;
+          long acc = 0;
+          for (int i = 0; i < 100; ++i) { acc += h[i]; if (acc >= tot * p) return (i + 0.5) / 100.0; }
+          return 1.0;
+        };
+        std::printf("\nG-1 child q_flat by N (P50/P90/P95):");
+        for (int b = 0; b < 4; ++b)
+          std::printf(" %s=%.3f/%.3f/%.3f", cbins[b], pct(qc[b], 0.5),
+                      pct(qc[b], 0.9), pct(qc[b], 0.95));
+        std::printf("\nG-1 parent q_flat by N_parent (P50/P90/P95):");
+        for (int b = 0; b < 5; ++b)
+          std::printf(" %s=%.3f/%.3f/%.3f", pbins[b], pct(qp[b], 0.5),
+                      pct(qp[b], 0.9), pct(qp[b], 0.95));
+        std::printf("\n");
+      }
       std::printf("\nG-1 q_line distribution:");
       for (double p : {0.5, 0.9, 0.95, 0.99}) {
         long acc = 0;

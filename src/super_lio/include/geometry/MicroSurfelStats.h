@@ -158,6 +158,66 @@ class GeometryStatsSidecar {
     return es.eigenvalues();
   }
 
+  // Chan/Welford merge of two (mu,S,n) sufficient statistics.
+  static void mergeMoments(const Eigen::Vector3d& mu1, const Eigen::Matrix3d& S1,
+                           double n1, const Eigen::Vector3d& mu2,
+                           const Eigen::Matrix3d& S2, double n2,
+                           Eigen::Vector3d& mu_out, Eigen::Matrix3d& S_out,
+                           double& n_out) {
+    const double nt = n1 + n2;
+    if (nt <= 0.0) {
+      mu_out.setZero();
+      S_out.setZero();
+      n_out = 0.0;
+      return;
+    }
+    const Eigen::Vector3d d = mu1 - mu2;
+    mu_out = (mu1 * n1 + mu2 * n2) / nt;
+    S_out = S1 + S2 + (n1 * n2 / nt) * d * d.transpose();
+    n_out = nt;
+  }
+
+  // Parent-aggregate (0.5m) plane support from 8 child (mu,S,n) blocks.
+  // Child n==1 contributes mu=OctVox centroid, S=0 (exact: single point
+  // centered scatter is zero). Caller supplies per-child (mu,S,n).
+  struct ChildMoments {
+    Eigen::Vector3d mu = Eigen::Vector3d::Zero();
+    Eigen::Matrix3d S = Eigen::Matrix3d::Zero();
+    double n = 0.0;
+    bool valid = false;
+  };
+
+  static bool mergeChildren(const std::array<ChildMoments, 8>& children,
+                            Eigen::Vector3d& mu_out, Eigen::Matrix3d& S_out,
+                            double& n_out) {
+    Eigen::Vector3d mu;
+    Eigen::Matrix3d S;
+    double n = 0.0;
+    bool first = true;
+    for (const auto& ch : children) {
+      if (!ch.valid || ch.n <= 0.0) continue;
+      if (first) {
+        mu = ch.mu;
+        S = ch.S;
+        n = ch.n;
+        first = false;
+      } else {
+        Eigen::Vector3d mu2;
+        Eigen::Matrix3d S2;
+        double n2;
+        mergeMoments(mu, S, n, ch.mu, ch.S, ch.n, mu2, S2, n2);
+        mu = mu2;
+        S = S2;
+        n = n2;
+      }
+    }
+    if (first) return false;
+    mu_out = mu;
+    S_out = S;
+    n_out = n;
+    return true;
+  }
+
  private:
   tsl::robin_map<OctVoxKey, ParentStats, OctVoxKeyHash> map_;
 
