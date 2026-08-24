@@ -103,6 +103,7 @@ std::string RunManifest::buildYaml(const ManifestFields& fields) {
   oss << "config: " << fields.config << "\n";
   oss << "config_hash: " << fields.config_hash << "\n";
   oss << "mode: " << fields.mode << "\n";
+  oss << "input_mode: " << fields.input_mode << "\n";
   oss << "camera_enabled: " << fields.camera_enabled << "\n";
   oss << "sync_mode: " << fields.sync_mode << "\n";
   oss << "ros_distro: " << rosDistro() << "\n";

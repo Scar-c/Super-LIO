@@ -15,6 +15,7 @@ struct ManifestFields {
   std::string config;
   std::string config_hash;
   std::string mode = "lio_only_legacy";
+  std::string input_mode = "online";
   std::string camera_enabled = "false";
   std::string sync_mode = "lidar_end";
 };

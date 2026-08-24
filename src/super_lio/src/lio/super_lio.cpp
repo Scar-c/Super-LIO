@@ -87,6 +87,7 @@ void SuperLIO::init(){
     logger_.reset(new ExperimentLogger());
     ManifestFields fields;
     fields.repo_root = g_root_dir;
+    fields.input_mode = g_offline_bag.empty() ? "online" : "offline";
     fields.dataset = g_lio_eva_dataset;
     fields.bag = g_lio_eva_bag;
     fields.playback_rate = g_lio_eva_playback_rate;

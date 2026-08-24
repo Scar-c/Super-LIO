@@ -2,6 +2,22 @@
 
 > 审计时间：2026-08-24。依据当前 git 状态 + 磁盘 artifacts 重新审计，不采信任何"上一轮终端声称 PASS"。
 
+## 0. 最终状态：RECOVERED AND COMPLETED（2026-08-24 收尾）
+
+TB-0 已在 **已验证的 offline backend** 上补完（依据 corrective round 流程）：
+
+- 新 baseline：`dd65aeb`（fix commit）+ eee_01 + offline backend + instrumentation disabled/enabled
+- offline 3-run baseline（instrumentation OFF）：`results/super_livo/tb0/tb0_off/disabled/run{1,2,3}`，轨迹 MD5 全部 `9af9b9d9b7fdeda4ffcd031b9f0cb544`，speed 16.7-23.9x，Exit 0
+- instrumented 3-run（ON）：`results/super_livo/tb0/tb0_off/enabled/run{1,2,3}`，轨迹 MD5 与 OFF 完全相同（**bitwise：instrumentation 零算法影响**），含 timing/lio_stats/map_stats CSV + run_manifest.yaml
+- overhead：enabled median wall 15.96s vs disabled median 19.0s（run 波动范围内，实测无正 overhead，≤5% 目标达成）
+- 分段（同一连续 run 后处理）：per-frame total 2.5→3.3→3.2→2.8ms（0-100/100-200/200-300/300-398s），**无随 sensor time 持续变慢**；OctVox 31k→93k→147k→188k→199k，饱和
+- 在线对照（`results/super_livo/tb0/online_parity`，fix 后二进制 rosbag play 1x）：MD5 与 offline 相同
+- TB-0 commit：`chore(super-livo): complete baseline instrumentation`（见 git log）
+
+历史证据（§6 DONE/PARTIAL 清单）仍然有效；TB0-GATE-1..7 全部关闭。
+
+---
+
 ## 1. Git 状态（审计时点）
 
 | 项 | 值 |

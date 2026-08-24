@@ -4,11 +4,34 @@
 #include "super_lio/CloudPose2.h"
 
 #include <iomanip>
+#include <sstream>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 using namespace BASIC;
 
 namespace LI2Sup{
+
+namespace {
+
+// rosparam set stores YAML-scalar values: "1.0" arrives as float, "-1" as int.
+// Manifest metadata fields are strings, so read with type fallback.
+std::string getParamString(ros::NodeHandle& nh, const std::string& key,
+                           const std::string& def) {
+  std::string s;
+  if (nh.getParam(key, s)) return s;
+  double d = 0.0;
+  if (nh.getParam(key, d)) {
+    if (d == std::floor(d) && std::abs(d) < 1e15) {
+      return std::to_string(static_cast<long long>(d));
+    }
+    std::ostringstream oss;
+    oss << d;
+    return oss.str();
+  }
+  return def;
+}
+
+}  // namespace
 
 void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/map/save_map", g_save_map);
@@ -26,9 +49,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/eva/out_dir", g_lio_eva_out_dir);
   nh.getParam("/lio/eva/dataset", g_lio_eva_dataset);
   nh.getParam("/lio/eva/bag", g_lio_eva_bag);
-  nh.getParam("/lio/eva/playback_rate", g_lio_eva_playback_rate);
-  nh.getParam("/lio/eva/start_offset", g_lio_eva_start_offset);
-  nh.getParam("/lio/eva/duration", g_lio_eva_duration);
+  g_lio_eva_playback_rate = getParamString(nh, "/lio/eva/playback_rate", "");
+  g_lio_eva_start_offset = getParamString(nh, "/lio/eva/start_offset", "");
+  g_lio_eva_duration = getParamString(nh, "/lio/eva/duration", "");
   nh.getParam("/lio/eva/config", g_lio_eva_config);
   nh.getParam("/lio/eva/config_hash", g_lio_eva_config_hash);
   LOG(INFO) << GREEN << " ---> [Param] eva/instrumentation: "
