@@ -154,6 +154,8 @@ public:
   // V-0/V-1 production visual landmark map (sparse side table)
   VisualMap visual_map_;
   int64_t visual_frames_processed_ = 0;
+  int64_t visual_frame_null_count_ = 0;
+  int64_t visualFrameNullCount() const { return visual_frame_null_count_; }
   int64_t visual_patch_attempts_ = 0;
   int64_t visual_obs_adds_ = 0;
   int64_t visual_obs_drops_ = 0;
@@ -168,8 +170,36 @@ public:
   int64_t visual_residual_samples_ = 0;
   double visual_residual_sse_ = 0.0;
   bool fd_gate_fail_ = false;
+  int fd_samples_needed_ = 0;  // 6DOF FD: samples across frames (set per run)
+  void setFdSamplesNeeded(int n) { fd_samples_needed_ = n; }
+  std::array<int64_t, 6> fd_dirs_samples_{};
+  std::array<double, 6> fd_dirs_max_abs_{};
+  std::array<double, 6> fd_dirs_med_rel_{};
+  std::array<double, 6> fd_dirs_max_rel_{};
+  const std::array<int64_t, 6>& fdSamples() const { return fd_dirs_samples_; }
+  const std::array<double, 6>& fdMaxAbs() const { return fd_dirs_max_abs_; }
+  const std::array<double, 6>& fdMedRel() const { return fd_dirs_med_rel_; }
+  const std::array<double, 6>& fdMaxRel() const { return fd_dirs_max_rel_; }
+  // V-0C coverage per-epoch distributions
+  std::vector<int64_t> coverage_visible_existing_;
+  std::vector<int64_t> coverage_new_created_;
+  std::vector<int64_t> coverage_accepted_;
+  int64_t coverage_frames_ = 0;
+  int64_t coverage_cells_total_ = 0;
+  int64_t coverage_cells_with_candidates_ = 0;
+  int64_t coverage_cells_occupied_existing_ = 0;
+  int64_t coverage_cells_filled_new_ = 0;
   double fd_gate_max_rel_ = 0.0;
   int64_t visual_residual_accepted_frames() const { return visual_residual_frames_; }
+  // V-0C coverage metrics
+  const std::vector<int64_t>& coverageVisibleExisting() const { return coverage_visible_existing_; }
+  const std::vector<int64_t>& coverageNewCreated() const { return coverage_new_created_; }
+  const std::vector<int64_t>& coverageAccepted() const { return coverage_accepted_; }
+  int64_t coverageFrames() const { return coverage_frames_; }
+  int64_t coverageCellsTotal() const { return coverage_cells_total_; }
+  int64_t coverageCellsWithCandidates() const { return coverage_cells_with_candidates_; }
+  int64_t coverageCellsOccupiedExisting() const { return coverage_cells_occupied_existing_; }
+  int64_t coverageCellsFilledNew() const { return coverage_cells_filled_new_; }
   int64_t visualResidualSamples() const { return visual_residual_samples_; }
   double visualResidualSse() const { return visual_residual_sse_; }
   bool fdGateFail() const { return fd_gate_fail_; }

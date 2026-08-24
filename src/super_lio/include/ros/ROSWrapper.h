@@ -58,6 +58,14 @@ public:
   ~ROSWrapper(){};
   using Ptr = std::shared_ptr<ROSWrapper>;
   bool sync_measure(MeasureGroup&);
+  // pop the frame consumed by the last successful camera epoch (called after
+  // the converged visual/LIO step so the frontend still sees the frame)
+  void popConsumedCameraFrame() {
+    if (!camera_buffer_.empty()) {
+      camera_buffer_.popOldest();
+      images_consumed_++;
+    }
+  }
   // S-0 camera-epoch (FAST-LIVO2 LIVO-inspired) helpers
   bool sync_camera_epoch(MeasureGroup& meas);
   bool sync_legacy_lidar_end(MeasureGroup& meas);
@@ -126,6 +134,10 @@ public:
   int64_t cameraEpochCount() const { return camera_epoch_count_; }
   const CameraFrame* cameraNewestFrame() const {
     return camera_buffer_.empty() ? nullptr : &camera_buffer_.newest();
+  }
+  // the frame of the current camera epoch (oldest un-consumed)
+  const CameraFrame* cameraEpochFrame() const {
+    return camera_buffer_.empty() ? nullptr : &camera_buffer_.oldest();
   }
   double cameraLastTimestamp() const { return camera_buffer_.lastTimestamp(); }
   const CameraCalibration& cameraCalibration() const { return camera_calib_; }

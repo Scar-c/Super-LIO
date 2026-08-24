@@ -55,6 +55,8 @@ int main(int argc, char** argv) {
   data_wrapper->setPublishEnabled(g_offline_publish);
   auto lio = std::make_shared<SuperLIO>();
   lio->setROSWrapper(data_wrapper);
+  // V-0C 6DOF FD coverage: >=5 camera epochs with valid samples per dataset
+  lio->setFdSamplesNeeded(5);
   lio->init();
 
   std::string out_dir = g_offline_out_dir;
@@ -392,6 +394,34 @@ int main(int argc, char** argv) {
     std::printf("S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=%lld median=%.1f P90=%.1f P95=%.1f P99=%.1f\n",
                 (long long)data_wrapper->cameraEpochCount(), pct(0.5), pct(0.9), pct(0.95), pct(0.99));
   }
+  if (g_lio_v0_enabled) {
+    auto pctv = [](const std::vector<int64_t>& v, double p) {
+      if (v.empty()) return -1.0;
+      std::vector<int64_t> s = v;
+      std::sort(s.begin(), s.end());
+      return static_cast<double>(s[std::min(s.size() - 1, static_cast<size_t>(s.size() * p))]);
+    };
+    std::printf("V-0C frontend: entered=%lld frame_null=%lld\n",
+                (long long)lio->visualFramesProcessed(),
+                (long long)lio->visualFrameNullCount());
+    std::printf("V-0C coverage: frames=%lld cells_total=%lld cells_with_candidates=%lld occupied_existing=%lld filled_new=%lld\n",
+                (long long)lio->coverageFrames(), (long long)lio->coverageCellsTotal(),
+                (long long)lio->coverageCellsWithCandidates(),
+                (long long)lio->coverageCellsOccupiedExisting(),
+                (long long)lio->coverageCellsFilledNew());
+    std::printf("V-0C visible_existing/frame P10/P50/P90: %.0f/%.0f/%.0f\n",
+                pctv(lio->coverageVisibleExisting(), 0.1),
+                pctv(lio->coverageVisibleExisting(), 0.5),
+                pctv(lio->coverageVisibleExisting(), 0.9));
+    std::printf("V-0C new_created/frame P10/P50/P90: %.0f/%.0f/%.0f\n",
+                pctv(lio->coverageNewCreated(), 0.1),
+                pctv(lio->coverageNewCreated(), 0.5),
+                pctv(lio->coverageNewCreated(), 0.9));
+    std::printf("V-0C accepted/frame P10/P50/P90: %.0f/%.0f/%.0f\n",
+                pctv(lio->coverageAccepted(), 0.1),
+                pctv(lio->coverageAccepted(), 0.5),
+                pctv(lio->coverageAccepted(), 0.9));
+  }
   if (g_lio_v2_enabled) {
     std::printf("V-2 photometric: frames=%lld accepted_landmarks=%lld total_samples=%lld meanSSE_per_sample=%.2f\n",
                 (long long)lio->visual_residual_accepted_frames(),
@@ -401,8 +431,13 @@ int main(int argc, char** argv) {
                     ? lio->visualResidualSse() /
                           (double)lio->visualResidualSamples()
                     : 0.0);
-    std::printf("V-2 FD gate: fail=%d max_relative_error=%.6g\n",
-                lio->fdGateFail() ? 1 : 0, lio->fdGateMaxRel());
+    std::printf("V-2 6DOF FD gate: fail=%d\n", lio->fdGateFail() ? 1 : 0);
+    const char* dn[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
+    for (int d = 0; d < 6; ++d) {
+      std::printf("V-2 FD %s: samples=%lld max_abs=%.6g med_rel=%.6g max_rel=%.6g\n",
+                  dn[d], (long long)lio->fdSamples()[d], lio->fdMaxAbs()[d],
+                  lio->fdMedRel()[d], lio->fdMaxRel()[d]);
+    }
   }
   if (g_lio_v0_enabled) {
     std::printf("V-0 VisualMap: parents=%zu landmarks=%lld slots_used=%lld created=%lld frames=%lld attempts=%lld\n",
@@ -422,6 +457,10 @@ int main(int argc, char** argv) {
     std::printf("V-0 visual map bytes ~= %.2f MB (slots=%lld x %zu B + landmarks %lld x %zu B)\n",
                 bytes / 1e6, (long long)slots, sizeof(VisualObservation),
                 (long long)lio->visualLandmarksCreated(), sizeof(VisualLandmark));
+  }
+  if (g_lio_v2_enabled && lio->fdGateFail()) {
+    std::printf("[offline_node] FATAL: V-2 6DOF FD gate FAILED — hard gate.\n");
+    return 1;
   }
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();

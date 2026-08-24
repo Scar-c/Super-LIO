@@ -123,6 +123,11 @@ void SuperLIO::init(){
     ivox_->setEvictCallback(
         [this](const OctVoxMapType::KEY& key) {
           sidecar_.handleEvict(key);
+          const int64_t pid =
+              (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+              ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+              ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+          visual_map_.erase(pid);
         });
     LOG(INFO) << GREEN << " ---> [SuperLIO]: G-0 shadow sidecar enabled" << RESET;
   }
@@ -273,6 +278,11 @@ void SuperLIO::stateProcess(){
     UpdateMap();
   }
   epoch_timings_.total_ms = NowMs() - t_epoch_start;
+  // V-0C: the camera frame of this epoch is consumed only after the whole
+  // observation step (frontend used it); unconditional per epoch
+  if (g_lio_camera_epoch) {
+    data_wrapper_->popConsumedCameraFrame();
+  }
   Output();
   caceData();
 
@@ -1044,7 +1054,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   HTVH.setZero();
   HTVr.setZero();
   (void)apply;  // V-3 state-off: equations only; state apply reserved for V-4
-  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
+  const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return 0;
   const CameraCalibration& calib = data_wrapper_->cameraCalibration();
   if (!calib.valid) return 0;
@@ -1084,10 +1094,12 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       std::vector<Eigen::Vector2d> warped;  // current image coords
       std::vector<double> ref_vals;
       std::vector<double> grad_u, grad_v;
+      std::vector<int> ref_idx;  // patch pixel index of each valid sample
       warped.reserve(64);
       ref_vals.reserve(64);
       grad_u.reserve(64);
       grad_v.reserve(64);
+      ref_idx.reserve(64);
 
       const double ref_u = ref->ref_u, ref_v = ref->ref_v;
       for (int j = 0; j < 8; ++j) {
@@ -1111,6 +1123,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           // ref intensity (from stored patch, valid overlap == warped set)
           const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
           warped.emplace_back(u2, v2);
+          ref_idx.push_back(j * 8 + i);
           ref_vals.push_back(rv);
           // current bilinear + gradient
           const int u0 = static_cast<int>(std::floor(u2));
@@ -1175,9 +1188,10 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
 
         // 3D point in current camera frame (recompute from stored X? we need
         // X_c; recompute via ray-plane from ref side is heavy; store it)
-        // -- recompute X: keep it simple via the ref-frame ray
-        const double u = ref_u + (static_cast<double>(k % 8) - 4);
-        const double v = ref_v + (static_cast<double>(k / 8) - 4);
+        // -- recompute X: keep it simple via the ref-frame ray (using the
+        //    stored patch index of this valid sample)
+        const double u = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
+        const double v = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
         const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
         const Eigen::Vector3d dir_w = R_ref * ray_cam;
         const double denom = n_sync.dot(dir_w);
@@ -1196,6 +1210,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         // build skew of Xc
         Eigen::Matrix3d Xc_skew;
         Xc_skew << 0.0, -Xc.z(), Xc.y(), Xc.z(), 0.0, -Xc.x(), -Xc.y(), Xc.x(), 0.0;
+        // body-frame right-perturbation: R' = R exp(dth)
+        // Xc' = exp(-dth) Xc  ->  dXc/dth = [Xc]x
+        // (matches ESKF LIO Jacobian convention J = p x n^b)
         dXc_dxi.block<3, 3>(0, 0) = Xc_skew;
 
         Eigen::Matrix<double, 2, 3> du_dXc;
@@ -1225,11 +1242,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       visual_residual_samples_ += static_cast<int64_t>(M);
       visual_residual_sse_ += sse_before;
 
-      // FD spot check (first two landmarks, once per run): per-sample DC
-      // residual derivative vs analytic (J_k - Jmean); only samples valid in
-      // both perturbed and unperturbed frames are counted
-      if (fd_debug_printed < 2.0) {
-        fd_debug_printed += 1.0;
+      // 6DOF FD (hard gate): central difference on all six pose directions,
+      // per-sample DC residual; sampled across multiple frames/landmarks
+      if (fd_samples_needed_ > 0) {
         auto warp_all = [&](const SE3& p_, std::vector<Eigen::Vector2d>& w,
                             std::vector<double>& ic, double& mcur) {
           w.clear();
@@ -1237,9 +1252,10 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           const Eigen::Matrix3d Rc = p_.R_.cast<double>();
           const Eigen::Vector3d tc = p_.t_.cast<double>();
           double acc = 0.0;
-          for (int k = 0; k < 64; ++k) {
-            const double u = ref_u + (static_cast<double>(k % 8) - 4);
-            const double v = ref_v + (static_cast<double>(k / 8) - 4);
+          // same valid set as the main loop: iterate the stored sample indices
+          for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
+            const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
+            const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
             const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
             const Eigen::Vector3d dir_w = R_ref * ray_cam;
             const double denom = n_sync.dot(dir_w);
@@ -1268,35 +1284,125 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           }
           mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
         };
-        // map warped index k -> patch index for valid overlap alignment
         std::vector<Eigen::Vector2d> w0;
         std::vector<double> ic0;
         double mc0 = 0.0;
         warp_all(pose, w0, ic0, mc0);
-        // align with the analytic valid set (warped): rebuild ref values in
-        // the same order as w0 (valid overlap == warped set)
         if (w0.size() == M) {
-          const double eps = 1e-6;
-          SE3 p_plus = pose;
-          p_plus.t_[0] += static_cast<float>(eps);
-          std::vector<Eigen::Vector2d> w1;
-          std::vector<double> ic1;
-          double mc1 = 0.0;
-          warp_all(p_plus, w1, ic1, mc1);
-          if (w1.size() == M) {
-            double max_rel = 0.0;
+          fd_samples_needed_--;  // success counts toward FD coverage
+          for (int d = 0; d < 6; ++d) {
+          // central-difference step: rz (roll about optical axis) produces
+          // pixel displacement proportional to the radial distance, so
+          // near-axis samples need a larger step; others 1e-4
+          const double eps = (d == 2) ? 1e-3 : 1e-4;
+            SE3 pp = pose, pm = pose;
+            const float e = static_cast<float>(eps);
+            if (d < 3) {
+              // rotation perturbation: body-frame right-perturbation
+              // R' = R exp(e e_j), matching the analytic dXc/dth = [Xc]x Rc^T
+              // and the ESKF LIO Jacobian convention (J = p x n^b)
+              const Eigen::Matrix3f Rm =
+                  Eigen::AngleAxisf(e, Eigen::Vector3f::Unit(d))
+                      .toRotationMatrix();
+              pp.R_ = pp.R_ * Rm;
+              pm.R_ = pm.R_ * Rm.transpose();
+            } else {
+              pp.t_[d - 3] += e;
+              pm.t_[d - 3] -= e;
+            }
+            std::vector<Eigen::Vector2d> w1, wm;
+            std::vector<double> ic1, icm;
+            double mc1 = 0.0, mcm = 0.0;
+            warp_all(pp, w1, ic1, mc1);
+            warp_all(pm, wm, icm, mcm);
+            if (w1.size() != M || wm.size() != M) continue;
+            // FD smoothness: only samples away from singularities in the
+            // perturbed frames are counted (depth > 0.5 m, image margin 8)
+            double max_abs = 0.0, max_rel = 0.0;
+            std::vector<double> rels;
+            rels.reserve(M);
             for (size_t k = 0; k < M; ++k) {
+              const Eigen::Vector3d ray0((ref_u + (ref_idx[k] % 8) - 4 - cx) /
+                                             fx,
+                                         (ref_v + (ref_idx[k] / 8) - 4 - cy) /
+                                             fy,
+                                         1.0);
+              const Eigen::Vector3d dir0 = R_ref * ray0;
+              const double s0 = n_sync.dot(P_patch - t_ref) /
+                                std::max(1e-9, n_sync.dot(dir0));
+              const Eigen::Vector3d Xc0 =
+                  R_cur.transpose() * (t_ref + s0 * dir0 - t_cur);
+              if (Xc0.z() <= 0.5) continue;
+              if (w0[k].x() < 8.0 || w0[k].x() >= W - 8.0 ||
+                  w0[k].y() < 8.0 || w0[k].y() >= H - 8.0) continue;
+              if (w1[k].x() < 8.0 || w1[k].x() >= W - 8.0 ||
+                  w1[k].y() < 8.0 || w1[k].y() >= H - 8.0) continue;
+              if (wm[k].x() < 8.0 || wm[k].x() >= W - 8.0 ||
+                  wm[k].y() < 8.0 || wm[k].y() >= H - 8.0) continue;
               const double r0 = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
               const double r1 = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
-              const double fd = (r1 - r0) / eps;
-              const double an = (Js[k] - Jmean)(3);
-              const double rel = std::abs(fd - an) /
-                                 std::max(1e-9, std::abs(fd));
-              max_rel = std::max(max_rel, rel);
+              const double rm = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
+              const double fd = (r1 - rm) / (2.0 * eps);
+              const double an = (Js[k] - Jmean)(d);
+              const double ae = std::abs(fd - an);
+              max_abs = std::max(max_abs, ae);
+              if (std::abs(fd) >= 1e-3) {  // signal-significant samples only
+                const double re = ae / std::abs(fd);
+                max_rel = std::max(max_rel, re);
+                rels.push_back(re);
+              }
             }
-            fd_gate_max_rel_ = std::max(fd_gate_max_rel_, max_rel);
+            std::sort(rels.begin(), rels.end());
+            fd_dirs_samples_[d]++;
+            fd_dirs_max_abs_[d] = std::max(fd_dirs_max_abs_[d], max_abs);
+            fd_dirs_med_rel_[d] = rels[rels.size() / 2];
+            fd_dirs_max_rel_[d] = std::max(fd_dirs_max_rel_[d], max_rel);
             if (max_rel > 1e-2) {
-              LOG(ERROR) << "V-2 FD gate FAIL: rel=" << max_rel;
+              // locate the worst sample for diagnostics
+              double wrel = -1.0, wfd = 0.0, wan = 0.0;
+              int wu = -1, wv = -1;
+              for (size_t k = 0; k < M; ++k) {
+                const double r0_ = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
+                const double r1_ = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
+                const double rm_ = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
+                const double fdv = (r1_ - rm_) / (2.0 * eps);
+                const double anv = (Js[k] - Jmean)(d);
+                const double re = std::abs(fdv - anv) /
+                                  std::max(1e-9, std::abs(fdv));
+                if (re > wrel) {
+                  wrel = re;
+                  wfd = fdv;
+                  wan = anv;
+                  wu = static_cast<int>(warped[k].x());
+                  wv = static_cast<int>(warped[k].y());
+                  if (fd_dirs_samples_[d] <= 1) {
+                    const double uu2 = warped[k].x();
+                    const double vv2 = warped[k].y();
+                    const int u0 = static_cast<int>(std::floor(uu2));
+                    const int v0 = static_cast<int>(std::floor(vv2));
+                    const double fu = uu2 - u0, fv = vv2 - v0;
+                    const int up = std::min(W - 1, u0 + 1);
+                    const int vp = std::min(H - 1, v0 + 1);
+                    const double Iu_ =
+                        (1.0 - fv) * (img[static_cast<size_t>(v0) * W + up] -
+                                      img[static_cast<size_t>(v0) * W + u0]) +
+                        fv * (img[static_cast<size_t>(vp) * W + up] -
+                              img[static_cast<size_t>(vp) * W + u0]);
+                    const double Iv_ =
+                        (1.0 - fu) * (img[static_cast<size_t>(vp) * W + u0] -
+                                      img[static_cast<size_t>(v0) * W + u0]) +
+                        fu * (img[static_cast<size_t>(vp) * W + up] -
+                              img[static_cast<size_t>(v0) * W + up]);
+                    LOG(ERROR) << "V-2 FD diag dir=" << d
+                               << " u=" << uu2 << " v=" << vv2
+                               << " fd=" << fdv << " an=" << anv
+                               << " Iu=" << Iu_ << " Iv=" << Iv_;
+                  }
+                }
+              }
+              LOG(ERROR) << "V-2 6DOF FD gate FAIL dir=" << d
+                         << " max_rel=" << max_rel << " worst(u,v)=(" << wu
+                         << "," << wv << ") fd=" << wfd << " an=" << wan;
               fd_gate_fail_ = true;
             }
           }
@@ -1312,20 +1418,10 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
 void SuperLIO::runVisualLifecycle(const SE3& pose){
   visual_frames_processed_++;
   const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
-  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
-  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;
-  // stale-landmark eviction: remove landmarks unseen for > 30 s (bounded
-  // active pool, v1 36 lifetime policy)
-  if (visual_frames_processed_ % 10 == 0) {
-    const double now = frame->timestamp;
-    for (auto& kv : visual_map_.container()) {
-      auto& vec = kv.second;
-      vec.erase(std::remove_if(vec.begin(), vec.end(),
-                               [&](const VisualLandmark& l) {
-                                 return (now - l.last_visible_time) > 30.0;
-                               }),
-                vec.end());
-    }
+  const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
+  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) {
+    visual_frame_null_count_++;
+    return;
   }
   const CameraCalibration& calib = data_wrapper_->cameraCalibration();
   if (!calib.valid) return;
@@ -1348,24 +1444,96 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
   };
 
   const int N = static_cast<int>(effect_knn_num_);
-  const int stride = std::max(1, N / 60);
-  for (int i = 0; i < N; i += stride) {
+  // ---- Phase B: image-grid visual point selection (P-B reference
+  // inherited: grid_n_height = 17, FAST-LIVO2 vio.cpp:74; grid size derived
+  // from the actual frontend image) ----
+  const int grid_n_height = 17;
+  const int grid_size = std::max(4, H / grid_n_height);
+  const int grid_n_width = (W + grid_size - 1) / grid_size;
+  const int n_cells = grid_n_width * grid_n_height;
+  std::vector<int> cell_owner(n_cells, 0);          // 0 free, 1 existing, 2 new
+  std::vector<std::pair<int64_t, size_t>> cell_lm(
+      n_cells, {-1, 0});  // (parent_id, landmark index), not raw pointers
+  std::vector<double> cell_score(n_cells, -1.0);
+  std::vector<Eigen::Vector3d> cell_pt(n_cells, Eigen::Vector3d::Zero());
+  std::vector<int64_t> cell_pid(n_cells, 0);
+  std::vector<double> cell_u(n_cells, 0.0), cell_v(n_cells, 0.0);
+  std::vector<Eigen::Vector3d> cell_mu(n_cells, Eigen::Vector3d::Zero());
+  std::vector<Eigen::Vector3d> cell_n(n_cells, Eigen::Vector3d::Zero());
+
+  auto grid_index = [&](double u, double v) {
+    const int gi = std::min(grid_n_width - 1, std::max(0, static_cast<int>(u / grid_size)));
+    const int gj = std::min(grid_n_height - 1, std::max(0, static_cast<int>(v / grid_size)));
+    return gj * grid_n_width + gi;
+  };
+  auto shi_tomasi = [&](double u, double v) -> double {
+    // 5x5 structure tensor min eigenvalue (Shi-Tomasi, no cv dependency)
+    const int r = 2;
+    if (u - r < 1 || u + r >= W - 1 || v - r < 1 || v + r >= H - 1) return -1.0;
+    double gxx = 0, gyy = 0, gxy = 0;
+    for (int j = -r; j <= r; ++j) {
+      for (int i = -r; i <= r; ++i) {
+        const int x = static_cast<int>(u) + i;
+        const int y = static_cast<int>(v) + j;
+        const double Iu = img[static_cast<size_t>(y) * W + x + 1] -
+                          img[static_cast<size_t>(y) * W + x - 1];
+        const double Iv = img[static_cast<size_t>(y + 1) * W + x] -
+                          img[static_cast<size_t>(y - 1) * W + x];
+        gxx += Iu * Iu;
+        gyy += Iv * Iv;
+        gxy += Iu * Iv;
+      }
+    }
+    const double tr = (gxx + gyy) * 0.5;
+    const double det = gxx * gyy - gxy * gxy;
+    const double disc = std::sqrt(std::max(0.0, tr * tr - det));
+    return tr - disc;  // min eigenvalue
+  };
+
+  // ---- pass 1: existing landmarks occupy their grid cells ----
+  int64_t visible_existing = 0;
+  int64_t invalidated = 0;
+  for (auto& kv : visual_map_.container()) {
+    auto& vec = kv.second;
+    for (size_t li = 0; li < vec.size(); ++li) {
+      auto& lm = vec[li];
+      if (!lm.geometry_valid) { invalidated++; continue; }
+      const OctVoxKey key(lm.parent_id & 0xFFFFF,
+                          (lm.parent_id >> 20) & 0xFFFFF,
+                          (lm.parent_id >> 40) & 0xFFFFF);
+      const ParentStats* ps = sidecar_.find(key);
+      if (ps == nullptr) { invalidated++; continue; }
+      bool ok = false;
+      double uu = 0, vv = 0;
+      project_world(lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>(),
+                    ok, uu, vv);
+      if (!ok) continue;
+      const int ci = grid_index(uu, vv);
+      if (cell_owner[ci] == 0) {
+        cell_owner[ci] = 1;
+        cell_lm[ci] = {kv.first, li};
+        lm.last_visible_time = frame->timestamp;
+        visible_existing++;
+      }
+    }
+  }
+
+  // ---- pass 2: eligible geometry candidates -> unoccupied cells ----
+  int64_t eligible_candidates = 0;
+  for (int i = 0; i < N; ++i) {
     const int idx = effect_knn_idxs_[i];
     if (!effect_mask_[idx]) continue;
     const V3& pb = points_body_v3_[idx];
     const V3 pw = pose * pb;
     if (!pw.allFinite()) continue;
-
     const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
     const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
     const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
     const int64_t parent_id = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
                               ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
                               ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
-
     const ParentStats* ps = sidecar_.find(key);
     if (ps == nullptr) continue;
-    // parent aggregate moments for geometry snapshot
     Eigen::Vector3d mu_k, p_Smu;
     Eigen::Matrix3d S_k;
     double n_k_n = 0.0;
@@ -1389,53 +1557,71 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     const Eigen::Vector3d n_k = surfelCanonicalNormal(es.eigenvectors().col(0));
     const Eigen::Vector3d P0 = pw.cast<double>();
 
-    // 1 surfel : N landmarks (v1 34): reuse a landmark whose fixed patch
-    // point is currently visible; otherwise create a new one (cap 4/parent)
-    auto& lms = visual_map_[parent_id];
-    VisualLandmark* lm = nullptr;
-    bool ok_p = false;
-    double u_p = 0, v_p = 0;
-    for (auto& cand : lms) {
-      if (!cand.geometry_valid) continue;
-      project_world(cand.mu_sync.cast<double>() + cand.delta_sync.cast<double>(),
-                    ok_p, u_p, v_p);
-      if (ok_p) { lm = &cand; break; }
+    bool ok = false;
+    double uu = 0, vv = 0;
+    project_world(P0, ok, uu, vv);
+    if (!ok) continue;
+    eligible_candidates++;
+    const int ci = grid_index(uu, vv);
+    if (cell_owner[ci] != 0) continue;  // occupied by existing or better candidate
+    const double sc = shi_tomasi(uu, vv);
+    if (sc <= 0.0) continue;
+    if (sc > cell_score[ci]) {
+      cell_score[ci] = sc;
+      cell_owner[ci] = 2;
+      cell_pt[ci] = P0;
+      cell_pid[ci] = parent_id;
+      cell_u[ci] = uu;
+      cell_v[ci] = vv;
+      cell_mu[ci] = mu_k;
+      cell_n[ci] = n_k;
     }
-    if (lm == nullptr) {
-      // candidate creation must survive patch sampling before the landmark
-      // is persisted (no empty-patch landmarks); project the current point
-      // P0 as the candidate anchor
-      project_world(P0, ok_p, u_p, v_p);
-      if (!ok_p) continue;
-      std::vector<float> cand_patch;
-      if (!samplePatch(img, W, H, u_p, v_p, 4, 8, cand_patch)) continue;
-      if (lms.size() >= 8) continue;  // per-parent landmark cap
-      VisualLandmark nlm;
-      nlm.parent_id = parent_id;
-      nlm.source_child_idx = 0;
-      nlm.mu_sync = mu_k.cast<float>();
-      nlm.delta_sync = (P0 - mu_k).cast<float>();
-      nlm.n_sync = n_k.cast<float>();
-      nlm.geometry_valid = true;
-      lms.push_back(nlm);
-      lm = &lms.back();
-      visual_landmarks_created_++;
-    }
-    if (lm == nullptr || !ok_p) continue;
+  }
+
+  // ---- pass 3: create landmarks for selected unoccupied cells ----
+  int64_t new_created = 0;
+  for (int ci = 0; ci < n_cells; ++ci) {
+    if (cell_owner[ci] != 2) continue;
+    auto& lms = visual_map_[cell_pid[ci]];
+    VisualLandmark nlm;
+    nlm.parent_id = cell_pid[ci];
+    nlm.source_child_idx = 0;
+    nlm.mu_sync = cell_mu[ci].cast<float>();
+    nlm.delta_sync = (cell_pt[ci] - cell_mu[ci]).cast<float>();
+    nlm.n_sync = cell_n[ci].cast<float>();
+    nlm.geometry_valid = true;
+    nlm.last_visible_time = frame->timestamp;
+    lms.push_back(nlm);
+    visual_landmarks_created_++;
+    new_created++;
+    cell_lm[ci] = {cell_pid[ci], lms.size() - 1};
+    cell_owner[ci] = 1;
+  }
+
+  // ---- pass 4: observation lifecycle for visible landmarks ----
+  for (int ci = 0; ci < n_cells; ++ci) {
+    if (cell_lm[ci].first < 0) continue;
+    auto& lm_vec = visual_map_[cell_lm[ci].first];
+    if (cell_lm[ci].second >= lm_vec.size()) continue;
+    VisualLandmark* lm = &lm_vec[cell_lm[ci].second];
+    double uu = 0, vv = 0;
+    bool ok = false;
+    project_world(lm->mu_sync.cast<double>() + lm->delta_sync.cast<double>(),
+                  ok, uu, vv);
+    if (!ok) continue;
 
     // 3-deg geometry sync (coordinate-origin reparameterization)
     SurfelSyncGeometry gsync;
     gsync.valid = lm->geometry_valid;
     gsync.parent_id = lm->parent_id;
-    gsync.parent_generation = lm->parent_generation;
     gsync.mu_sync = lm->mu_sync.cast<double>();
     gsync.delta_sync = lm->delta_sync.cast<double>();
     gsync.n_sync = lm->n_sync.cast<double>();
     SurfelCurrent scur;
-    scur.parent_id = parent_id;
-    scur.parent_generation = 0;  // generation not tracked yet (V-1)
-    scur.mu = mu_k;
-    scur.n = n_k;
+    scur.parent_id = lm->parent_id;
+    scur.mu = cell_mu[ci].isZero(0.0) ? lm->mu_sync.cast<double>()
+                                      : cell_mu[ci];
+    scur.n = cell_n[ci].isZero(0.0) ? lm->n_sync.cast<double>() : cell_n[ci];
     scur.valid = true;
     double e_P = 0.0;
     if (maybeSyncGeometry(gsync, scur, 3.0, e_P)) {
@@ -1446,31 +1632,32 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
       visual_geo_syncs_++;
     }
 
-    const Eigen::Vector3d P_patch = lm->mu_sync.cast<double>() + lm->delta_sync.cast<double>();
-
-    // observation trigger (FAST-LIVO2 inherited defaults: 0.5m / 0.3rad / 40px)
-    VisualObservation* ref_obs = nullptr;
+    // observation trigger: all three inherited OR terms
+    // (0.5m translation OR 0.3 rad rotation OR 40 px, vio.cpp:908-935)
     const VisualObservation* last = nullptr;
     for (int s = 0; s < kMaxObsPerLandmark; ++s) {
       if (lm->observations[s].valid) last = &lm->observations[s];
     }
     bool add = false;
-    if (last == nullptr) {
-      add = true;
+    if (last != nullptr) {
+      const Eigen::Vector3d ref_cam = last->cam_pos.cast<double>();
+      const Eigen::Matrix3d R_last =
+          last->cam_q.toRotationMatrix().cast<double>();
+      const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+      const double dp = (pose.t_.cast<double>() - ref_cam).norm();
+      const double cosv = 0.5 * ((R_cur * R_last.transpose()).trace() - 1.0);
+      const double dr = cosv >= 1.0 - 1e-9 ? 0.0 : std::acos(std::min(1.0, cosv));
+      const double dpx = std::sqrt((uu - last->ref_u) * (uu - last->ref_u) +
+                                   (vv - last->ref_v) * (vv - last->ref_v));
+      add = (dp > 0.5 || dr > 0.3 || dpx > 40.0);
     } else {
-      const Eigen::Vector3f ref_cam = last->cam_pos;
-      const double dp = (pose.t_.cast<double>() - ref_cam.cast<double>()).norm();
-      const double dpx = std::sqrt((u_p - last->ref_u) * (u_p - last->ref_u) +
-                                   (v_p - last->ref_v) * (v_p - last->ref_v));
-      if (dp > 0.5 || dpx > 40.0) add = true;
+      add = true;
     }
 
     // sample candidate patch
     std::vector<float> patch_f;
-    if (!samplePatch(img, W, H, u_p, v_p, 4, 8, patch_f)) continue;
+    if (!samplePatch(img, W, H, uu, vv, 4, 8, patch_f)) continue;
     visual_patch_attempts_++;
-
-    // candidate scores
     double mean = 0, sd = 0;
     for (float v : patch_f) mean += v;
     mean /= 64.0;
@@ -1478,22 +1665,25 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     sd = std::sqrt(sd / 64.0);
     uint8_t patch_u8[64];
     for (int k = 0; k < 64; ++k) {
-      patch_u8[k] = static_cast<uint8_t>(std::max(0.0, std::min(255.0, (double)patch_f[k])));
+      patch_u8[k] = static_cast<uint8_t>(
+          std::max(0.0, std::min(255.0, (double)patch_f[k])));
     }
     const double viewing =
         pose.t_.cast<double>().norm() > 1e-6
-            ? std::abs(n_k.dot((pose.t_.cast<double>() - P_patch).normalized()))
+            ? std::abs(lm->n_sync.cast<double>().dot(
+                  (pose.t_.cast<double>() -
+                   (lm->mu_sync.cast<double>() + lm->delta_sync.cast<double>()))
+                      .normalized()))
             : 1.0;
 
     if (!add) {
-      // no trigger: still refresh latest candidate slot (latest keeps last
-      // sampled observation for the next trigger check)
+      // no trigger: refresh latest candidate slot only
       lm->observations[lm->latest_slot].valid = false;
       VisualObservation& o = lm->observations[lm->latest_slot];
       o.frame_id = frame->sequence_id;
       o.timestamp = static_cast<float>(frame->timestamp);
-      o.ref_u = static_cast<float>(u_p);
-      o.ref_v = static_cast<float>(v_p);
+      o.ref_u = static_cast<float>(uu);
+      o.ref_v = static_cast<float>(vv);
       o.cam_pos = pose.t_.cast<float>();
       o.cam_q = Eigen::Quaternionf(pose.R_.cast<float>());
       memcpy(o.patch, patch_u8, 64);
@@ -1502,18 +1692,18 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
       o.valid = true;
       continue;
     }
-
-    // trigger: insert candidate into free slot, else replace worst redundant
+    // trigger fired: insert into free slot, else drop worst redundant
+    // (keep active reference)
     int free_slot = -1;
     for (int s = 0; s < kMaxObsPerLandmark; ++s) {
       if (!lm->observations[s].valid) { free_slot = s; break; }
     }
     int target = free_slot;
     if (target < 0) {
-      // all full: drop the worst (lowest texture among non-active; keep active)
       int worst = 1;
       for (int s = 1; s < kMaxObsPerLandmark; ++s) {
-        if (lm->observations[s].texture_score < lm->observations[worst].texture_score) {
+        if (lm->observations[s].texture_score <
+            lm->observations[worst].texture_score) {
           worst = s;
         }
       }
@@ -1524,8 +1714,8 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     VisualObservation& o = lm->observations[target];
     o.frame_id = frame->sequence_id;
     o.timestamp = static_cast<float>(frame->timestamp);
-    o.ref_u = static_cast<float>(u_p);
-    o.ref_v = static_cast<float>(v_p);
+    o.ref_u = static_cast<float>(uu);
+    o.ref_v = static_cast<float>(vv);
     o.cam_pos = pose.t_.cast<float>();
     o.cam_q = Eigen::Quaternionf(pose.R_.cast<float>());
     memcpy(o.patch, patch_u8, 64);
@@ -1535,10 +1725,60 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     lm->observation_add_count++;
     visual_obs_adds_++;
   }
+
+  // ---- pass 5: bounded active-reference reselection (solve boundary,
+  // FAST-LIVO2 photometric-consistency grounding, vio.cpp:660-684) ----
+  for (auto& kv : visual_map_.container()) {
+    for (auto& lm : kv.second) {
+      int nv = 0;
+      for (int s = 0; s < kMaxObsPerLandmark; ++s) {
+        if (lm.observations[s].valid) nv++;
+      }
+      if (nv < 2) continue;
+      int best = -1;
+      double best_cost = 1e30;
+      for (int s = 0; s < kMaxObsPerLandmark; ++s) {
+        if (!lm.observations[s].valid) continue;
+        double cost = 0.0;
+        int cnt = 0;
+        for (int t = 0; t < kMaxObsPerLandmark; ++t) {
+          if (t == s || !lm.observations[t].valid) continue;
+          double sse = 0.0;
+          for (int k = 0; k < 64; ++k) {
+            const double d = lm.observations[s].patch[k] -
+                             lm.observations[t].patch[k];
+            sse += d * d;
+          }
+          cost += sse;
+          cnt++;
+        }
+        if (cnt > 0) cost /= cnt;
+        if (cost < best_cost - 1e-9) {  // strict tie keeps current
+          best_cost = cost;
+          best = s;
+        }
+      }
+      if (best >= 0 && best != lm.active_ref_slot) {
+        lm.active_ref_slot = static_cast<uint8_t>(best);
+        lm.reference_switch_count++;
+        visual_ref_switches_++;
+      }
+    }
+  }
+
+  // ---- coverage metrics (per camera epoch) ----
+  coverage_cells_total_ += n_cells;
+  coverage_cells_with_candidates_ += static_cast<int64_t>(eligible_candidates > 0 ? 1 : 0);
+  coverage_cells_occupied_existing_ += static_cast<int64_t>(visible_existing);
+  coverage_cells_filled_new_ += static_cast<int64_t>(new_created);
+  coverage_visible_existing_.push_back(visible_existing);
+  coverage_new_created_.push_back(new_created);
+  coverage_accepted_.push_back(visual_residual_count_);
+  coverage_frames_++;
 }
 
 void SuperLIO::runG1VShadow(const SE3& pose){
-  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
+  const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;
   const CameraCalibration& calib = data_wrapper_->cameraCalibration();
   if (!calib.valid) return;

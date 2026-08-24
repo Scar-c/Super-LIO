@@ -619,9 +619,8 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   last_synced_lidar_end_time_ = t_c;
   sync_count_++;
   if (first_synced_lidar_end_time_ < 0.0) first_synced_lidar_end_time_ = t_c;
-  // one image consumed per epoch (VIO image consumption reserved for V-4)
-  camera_buffer_.popOldest();
-  images_consumed_++;
+  // image consumption deferred: the visual frontend needs this frame in the
+  // converged observation step; popConsumedCameraFrame() runs there
   lio_vio_flg_ = 1;  // LIO done; VIO no-op while visual OFF
   camera_epoch_count_++;
   return true;
