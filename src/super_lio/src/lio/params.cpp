@@ -81,6 +81,9 @@ namespace LI2Sup{
 
   ResidualType g_residual_type = PROB;
 
+  /// G-0 shadow sidecar
+  bool g_lio_g0_shadow = false;
+
   /// TB-1 camera input
   bool        g_camera_enabled = false;
   std::string g_camera_topic = "";

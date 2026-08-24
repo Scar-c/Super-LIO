@@ -24,6 +24,7 @@
 #include "ros/ROSWrapper.h"
 #include "instrumentation/ExperimentLogger.h"
 #include "instrumentation/RunStats.h"
+#include "geometry/MicroSurfelStats.h"
 
 namespace LI2Sup{
 
@@ -40,6 +41,7 @@ public:
   void saveMap();
   void printTimeRecord();
   size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
+  const GeometryStatsSidecar& sidecar() const { return sidecar_; }
   size_t mapCapacity() const { return g_ivox_capacity; }
   void closeInstrumentation();
 
@@ -87,6 +89,9 @@ protected:
   int pcd_index_ = -1;
 
   Timer time_record_;
+
+  GeometryStatsSidecar sidecar_;
+  bool sidecar_enabled_ = false;
 
   std::unique_ptr<ExperimentLogger> logger_;
   EpochTimings epoch_timings_;

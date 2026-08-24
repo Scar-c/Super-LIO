@@ -57,6 +57,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   LOG(INFO) << GREEN << " ---> [Param] eva/instrumentation: "
             << (g_lio_instrumentation ? "true" : "false") << RESET;
 
+  nh.getParam("/lio/g0/shadow", g_lio_g0_shadow);
+
   nh.getParam("/camera/enabled", g_camera_enabled);
   nh.getParam("/camera/topic", g_camera_topic);
   nh.getParam("/camera/calib_file", g_camera_calib_file);

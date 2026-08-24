@@ -105,6 +105,9 @@ namespace LI2Sup{
   extern ResidualType g_residual_type;
 
 
+  /// G-0 shadow sidecar
+  extern bool g_lio_g0_shadow;
+
   /// TB-1 camera input (zero estimator influence)
   extern bool        g_camera_enabled;
   extern std::string g_camera_topic;

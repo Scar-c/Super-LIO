@@ -4,6 +4,7 @@
 
 #include <set>
 #include <list>
+#include <functional>
 #include <queue>
 #include <vector>
 #include <memory>
@@ -98,20 +99,21 @@ public:
 
   ~OctVox() {}
 
-  void AddPoint(const Point& pt, uint8_t local_idx) {
+  bool AddPoint(const Point& pt, uint8_t local_idx) {
     uint8_t& count = counts_[local_idx];
     Point& stored_point = points_[local_idx];
     if(count == UNINIT_MASK) {
       stored_point = pt;
       count = 1;
-      return;
+      return true;
     }
 
-    if(count >= MAX_POINTS_PER_SUBVOXEL) return;
-    if ((pt - stored_point).squaredNorm() > DISTANCE_THRESHOLD_SQ) return;
+    if(count >= MAX_POINTS_PER_SUBVOXEL) return false;
+    if ((pt - stored_point).squaredNorm() > DISTANCE_THRESHOLD_SQ) return false;
 
     stored_point = (stored_point * count + pt) / (count + 1);
     ++count;
+    return true;
   }
 
   bool getPoint(const uint8_t local_idx, Point& pt) const {
@@ -203,6 +205,25 @@ public:
 
   size_t size() const { return data_.size(); }
 
+  // Zero-influence observation seams (G-0 shadow sidecar / future VisualMap).
+  struct AcceptedSubvoxelUpdate {
+    KEY key;
+    uint8_t local_idx;
+    uint8_t old_count;
+    uint8_t new_count;
+    Point old_centroid;
+    Point accepted_point;
+    bool accepted;
+  };
+
+  void setSubvoxelUpdateCallback(std::function<void(const AcceptedSubvoxelUpdate&)> cb) {
+    on_subvoxel_update_ = std::move(cb);
+  }
+
+  void setEvictCallback(std::function<void(const KEY&)> cb) {
+    on_evict_ = std::move(cb);
+  }
+
   void decrease_max_group(){
     if(group_idx_max_ > 4) group_idx_max_--;
   }
@@ -260,6 +281,9 @@ private:
   std::vector<uint8_t*> flat_search_ptrs_;
   int group_idx_max_;
 
+  std::function<void(const AcceptedSubvoxelUpdate&)> on_subvoxel_update_;
+  std::function<void(const KEY&)> on_evict_;
+
 };
 
 
@@ -292,13 +316,39 @@ void OctVoxMap<Point, Scalar>::insert(const Points& cloud_world){
         std::forward_as_tuple(key),
         std::forward_as_tuple(pt, local_idx));
       grids_.insert(std::make_pair(key, data_.begin()));
+      if (on_subvoxel_update_) {
+        AcceptedSubvoxelUpdate ev;
+        ev.key = key;
+        ev.local_idx = local_idx;
+        ev.old_count = 0;
+        ev.new_count = 1;
+        ev.old_centroid = pt;
+        ev.accepted_point = pt;
+        ev.accepted = true;
+        on_subvoxel_update_(ev);
+      }
       
       if (data_.size() >= capacity_) {
+        if (on_evict_) on_evict_(data_.back().first);
         grids_.erase(data_.back().first);
         data_.pop_back();
       }
     } else {
-      iter->second->second.AddPoint(pt, local_idx);
+      OctVoxType& vox = iter->second->second;
+      const uint8_t old_count = vox.counts_[local_idx];
+      const Point old_centroid = vox.points_[local_idx];
+      const bool accepted = vox.AddPoint(pt, local_idx);
+      if (on_subvoxel_update_) {
+        AcceptedSubvoxelUpdate ev;
+        ev.key = key;
+        ev.local_idx = local_idx;
+        ev.old_count = old_count == OctVoxType::UNINIT_MASK ? 0 : old_count;
+        ev.new_count = accepted ? old_count + 1 : old_count;
+        ev.old_centroid = old_centroid;
+        ev.accepted_point = pt;
+        ev.accepted = accepted;
+        on_subvoxel_update_(ev);
+      }
       data_.splice(data_.begin(), data_, iter->second);
     }
   }

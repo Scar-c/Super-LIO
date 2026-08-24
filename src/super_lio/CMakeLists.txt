@@ -131,3 +131,18 @@ target_include_directories(tb1_camera_test PUBLIC include)
 target_link_libraries(tb1_camera_test
   ${EIGEN3_LIBRARIES}
 )
+
+# G-0 sidecar pure-logic tests (Welford oracle + eviction seam)
+add_executable(g0_sidecar_test
+  src/geometry/tests/test_sidecar.cpp
+)
+target_include_directories(g0_sidecar_test PUBLIC
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(g0_sidecar_test
+  ${EIGEN3_LIBRARIES}
+  ${PCL_LIBRARIES}
+)

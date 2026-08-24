@@ -118,6 +118,18 @@ int main(int argc, char** argv) {
               data_wrapper->cameraBufferSize(),
               data_wrapper->cameraBufferPeak(),
               data_wrapper->cameraBufferDropped());
+  if (g_lio_g0_shadow) {
+    std::printf("G-0 sidecar: accepted=%zu rejected=%zu allocations=%zu "
+                "evictions=%zu active=%zu peak=%zu updates=%zu\n",
+                lio->sidecar().acceptedEvents(), lio->sidecar().rejectedEvents(),
+                lio->sidecar().allocations(), lio->sidecar().evictions(),
+                lio->sidecar().activeParents(), lio->sidecar().peakParents(),
+                lio->sidecar().updateCount());
+    const auto& h = lio->sidecar().nHistogram();
+    std::printf("G-0 N histogram:");
+    for (int n = 1; n <= 20; ++n) std::printf(" %d:%llu", n, (unsigned long long)h[n]);
+    std::printf("\n");
+  }
   std::printf("process invocations: %zu\n", a.process_invocations);
   std::printf("sync epochs (heavy process): %d / %zu\n", a.sync_count,
               a.heavy_process_count);

@@ -86,9 +86,9 @@ bag path:          <canonical> /bag/M3DGR/Corridor01.bag
 bag size:          6.9 GB
 bag hash:          e7c76fd9f2afdabb9a70304661e6d7a0
 
-LiDAR / IMU / Camera topics: 待 topic audit（TB-1 时补；registry 更新）
-calibration source: 官方 M3DGR 数据集提供（本地无标定文件 → UNKNOWN，需 owner 提供或官方包补）
-temporal sync:     UNKNOWN（待 audit）
+LiDAR / IMU / Camera topics: 待 topic audit；固定组合 = Avia(/livox/avia/points) + Avia built-in IMU(/livox/avia/imu) + D435i RGB(/camera/color/image_raw)
+calibration source: OFFICIAL_CALIBRATION_AVAILABLE（github.com/sjtuyinjie/M3DGR calibration.md，2026-08-24 获取；详见 calibration_time_sync.md §3）
+temporal sync:     software synchronization（no external trigger，官方声明）；offset 数值待确认
 
 reference / GT:    GTCorridor01.txt（本地）
 ground_truth_type: FINAL_RELATIVE_POSE（3×3 旋转矩阵 + 3×1 平移 + bag_time: 383s）
@@ -112,9 +112,9 @@ bag path:          <canonical> /bag/M3DGR/Corridor02.bag
 bag size:          4.9 GB
 bag hash:          b0f910a94699f4eb1fbd7a0b89d7dc80
 
-LiDAR / IMU / Camera topics: 待 topic audit
-calibration source: UNKNOWN（同 Corridor01）
-temporal sync:     UNKNOWN
+LiDAR / IMU / Camera topics: 待 topic audit（固定组合同 Corridor01：Avia + Avia IMU + D435i RGB）
+calibration source: OFFICIAL_CALIBRATION_AVAILABLE（同 Corridor01）
+temporal sync:     software synchronization（官方声明）；offset 待确认
 
 reference / GT:    GTCorridor02.txt
 ground_truth_type: FINAL_RELATIVE_POSE（3×3 旋转 + 3×1 平移 + bag_time: 293s）
