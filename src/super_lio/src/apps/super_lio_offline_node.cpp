@@ -392,6 +392,25 @@ int main(int argc, char** argv) {
     std::printf("S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=%lld median=%.1f P90=%.1f P95=%.1f P99=%.1f\n",
                 (long long)data_wrapper->cameraEpochCount(), pct(0.5), pct(0.9), pct(0.95), pct(0.99));
   }
+  if (g_lio_v0_enabled) {
+    std::printf("V-0 VisualMap: parents=%zu landmarks=%lld slots_used=%lld created=%lld frames=%lld attempts=%lld\n",
+                lio->visualMap().parentCount(), (long long)lio->visualLandmarksCreated(),
+                (long long)lio->visualMap().observationSlotsUsed(),
+                (long long)lio->visualLandmarksCreated(),
+                (long long)lio->visualFramesProcessed(),
+                (long long)lio->visualPatchAttempts());
+    std::printf("V-1 lifecycle: geo_syncs=%lld obs_adds=%lld obs_drops=%lld ref_switches=%lld\n",
+                (long long)lio->visualGeoSyncs(), (long long)lio->visualObsAdds(),
+                (long long)lio->visualObsDrops(), (long long)lio->visualRefSwitches());
+    std::printf("V-0 sizeof(VisualObservation)=%zu sizeof(VisualLandmark)=%zu\n",
+                sizeof(VisualObservation), sizeof(VisualLandmark));
+    int64_t slots = lio->visualMap().observationSlotsUsed();
+    double bytes = (double)slots * sizeof(VisualObservation) +
+                   (double)lio->visualLandmarksCreated() * sizeof(VisualLandmark);
+    std::printf("V-0 visual map bytes ~= %.2f MB (slots=%lld x %zu B + landmarks %lld x %zu B)\n",
+                bytes / 1e6, (long long)slots, sizeof(VisualObservation),
+                (long long)lio->visualLandmarksCreated(), sizeof(VisualLandmark));
+  }
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();
   return 0;

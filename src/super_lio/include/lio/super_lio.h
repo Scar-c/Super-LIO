@@ -27,6 +27,7 @@
 #include "geometry/MicroSurfelStats.h"
 #include "geometry/VisualSupportStats.h"
 #include "geometry/SchemeBShadow.h"
+#include "visual/VisualLandmark.h"
 
 namespace LI2Sup{
 
@@ -73,6 +74,15 @@ public:
   int64_t g1vCreated() const { return g1v_created_; }
   int64_t g1vTracked() const { return g1v_tracked_; }
   int64_t g1vSkipped() const { return g1v_skipped_; }
+  const VisualMap& visualMap() const { return visual_map_; }
+  int64_t visualFramesProcessed() const { return visual_frames_processed_; }
+  int64_t visualPatchAttempts() const { return visual_patch_attempts_; }
+  int64_t visualObsAdds() const { return visual_obs_adds_; }
+  int64_t visualObsDrops() const { return visual_obs_drops_; }
+  int64_t visualGeoSyncs() const { return visual_geo_syncs_; }
+  int64_t visualRefSwitches() const { return visual_ref_switches_; }
+  int64_t visualLandmarksCreated() const { return visual_landmarks_created_; }
+  int64_t visualParentInvalids() const { return visual_parent_invalids_; }
   size_t g1vPatches() const { return g1v_patches_.size(); }
   const std::array<int64_t, 500>& g1vOffHist() const { return g1v_off_hist_; }
   const std::array<int64_t, 500>& g1vDnHist() const { return g1v_dn_hist_; }
@@ -140,6 +150,17 @@ public:
   double pa_ad_du_x = 0, pa_ad_du_y = 0, pa_ad_du_xx = 0, pa_ad_du_yy = 0, pa_ad_du_xy = 0, pa_ad_du_n = 0;
   double pa_we_pi_x = 0, pa_we_pi_y = 0, pa_we_pi_xx = 0, pa_we_pi_yy = 0, pa_we_pi_xy = 0, pa_we_pi_n = 0;
   int64_t g1v_samples_ = 0;
+
+  // V-0/V-1 production visual landmark map (sparse side table)
+  VisualMap visual_map_;
+  int64_t visual_frames_processed_ = 0;
+  int64_t visual_patch_attempts_ = 0;
+  int64_t visual_obs_adds_ = 0;
+  int64_t visual_obs_drops_ = 0;
+  int64_t visual_geo_syncs_ = 0;
+  int64_t visual_ref_switches_ = 0;
+  int64_t visual_landmarks_created_ = 0;
+  int64_t visual_parent_invalids_ = 0;
   int64_t g1v_created_ = 0;
   int64_t g1v_tracked_ = 0;
   int64_t g1v_skipped_ = 0;
@@ -163,6 +184,7 @@ protected:
   void runG1Shadow(const BASIC::SE3& pose);
   void runG2G3Shadow(const BASIC::SE3& pose);
   void runG1VShadow(const BASIC::SE3& pose);
+  void runVisualLifecycle(const BASIC::SE3& pose);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();

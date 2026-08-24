@@ -610,6 +610,9 @@ void SuperLIO::Observe(){
         if(g_lio_g1v_enabled){
           runG1VShadow(pose);
         }
+        if(g_lio_v0_enabled){
+          runVisualLifecycle(pose);
+        }
       }
       return;
     }
@@ -1029,6 +1032,220 @@ void SuperLIO::runG2G3Shadow(const SE3& pose){
     }
   }
 }
+
+void SuperLIO::runVisualLifecycle(const SE3& pose){
+  visual_frames_processed_++;
+  const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
+  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
+  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;
+  const CameraCalibration& calib = data_wrapper_->cameraCalibration();
+  if (!calib.valid) return;
+  const int W = frame->width, H = frame->height;
+  const std::vector<uint8_t>& img = *frame->data;
+  const Pinhole cam{calib.fx, calib.fy, calib.cx, calib.cy};
+  const Eigen::Matrix4d T_cb = calib.T_cam_body();
+  const Eigen::Vector3d cam_center_body(0, 0, 0);
+
+  auto project_world = [&](const Eigen::Vector3d& X_w, bool& ok, double& u,
+                           double& v) {
+    ok = false;
+    const Eigen::Vector3d X_b =
+        pose.R_.transpose().cast<double>() * (X_w - pose.t_.cast<double>());
+    const Eigen::Vector3d X_c = transformPoint(T_cb, X_b);
+    if (X_c.z() <= 0.05) return;
+    u = calib.fx * X_c.x() / X_c.z() + calib.cx;
+    v = calib.fy * X_c.y() / X_c.z() + calib.cy;
+    ok = (u >= 4.0 && u < W - 4.0 && v >= 4.0 && v < H - 4.0);
+  };
+
+  const int N = static_cast<int>(effect_knn_num_);
+  const int stride = std::max(1, N / 300);
+  for (int i = 0; i < N; i += stride) {
+    const int idx = effect_knn_idxs_[i];
+    if (!effect_mask_[idx]) continue;
+    const V3& pb = points_body_v3_[idx];
+    const V3 pw = pose * pb;
+    if (!pw.allFinite()) continue;
+
+    const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
+    const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
+    const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
+    const int64_t parent_id = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+                              ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+                              ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+
+    const ParentStats* ps = sidecar_.find(key);
+    if (ps == nullptr) continue;
+    // parent aggregate moments for geometry snapshot
+    Eigen::Vector3d mu_k, p_Smu;
+    Eigen::Matrix3d S_k;
+    double n_k_n = 0.0;
+    {
+      std::array<GeometryStatsSidecar::ChildMoments, 8> children;
+      for (int s = 0; s < 8; ++s) {
+        const SubvoxelStats& ss = ps->sub[s];
+        if (!ss.active || ss.n < 1) continue;
+        children[s].valid = true;
+        children[s].n = ss.n;
+        children[s].mu = Eigen::Vector3d(ss.mu[0], ss.mu[1], ss.mu[2]);
+        children[s].S = GeometryStatsSidecar::unpackS(ss.s);
+      }
+      if (!GeometryStatsSidecar::mergeChildren(children, mu_k, S_k, n_k_n)) {
+        continue;
+      }
+    }
+    if (n_k_n < 5.0 || S_k.trace() <= 1e-12) continue;
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(S_k / n_k_n);
+    if (!es.eigenvalues().allFinite()) continue;
+    const Eigen::Vector3d n_k = surfelCanonicalNormal(es.eigenvectors().col(0));
+    const Eigen::Vector3d P0 = pw.cast<double>();
+
+    // 1 surfel : N landmarks (v1 34): reuse a landmark whose fixed patch
+    // point is currently visible; otherwise create a new one (cap 4/parent)
+    auto& lms = visual_map_[parent_id];
+    VisualLandmark* lm = nullptr;
+    bool ok_p = false;
+    double u_p = 0, v_p = 0;
+    for (auto& cand : lms) {
+      if (!cand.geometry_valid) continue;
+      project_world(cand.mu_sync.cast<double>() + cand.delta_sync.cast<double>(),
+                    ok_p, u_p, v_p);
+      if (ok_p) { lm = &cand; break; }
+    }
+    if (lm == nullptr) {
+      // candidate creation must survive patch sampling before the landmark
+      // is persisted (no empty-patch landmarks); project the current point
+      // P0 as the candidate anchor
+      project_world(P0, ok_p, u_p, v_p);
+      if (!ok_p) continue;
+      std::vector<float> cand_patch;
+      if (!samplePatch(img, W, H, u_p, v_p, 4, 8, cand_patch)) continue;
+      if (lms.size() >= 4) continue;  // per-parent landmark cap
+      VisualLandmark nlm;
+      nlm.parent_id = parent_id;
+      nlm.source_child_idx = 0;
+      nlm.mu_sync = mu_k.cast<float>();
+      nlm.delta_sync = (P0 - mu_k).cast<float>();
+      nlm.n_sync = n_k.cast<float>();
+      nlm.geometry_valid = true;
+      lms.push_back(nlm);
+      lm = &lms.back();
+      visual_landmarks_created_++;
+    }
+    if (lm == nullptr || !ok_p) continue;
+
+    // 3-deg geometry sync (coordinate-origin reparameterization)
+    SurfelSyncGeometry gsync;
+    gsync.valid = lm->geometry_valid;
+    gsync.parent_id = lm->parent_id;
+    gsync.parent_generation = lm->parent_generation;
+    gsync.mu_sync = lm->mu_sync.cast<double>();
+    gsync.delta_sync = lm->delta_sync.cast<double>();
+    gsync.n_sync = lm->n_sync.cast<double>();
+    SurfelCurrent scur;
+    scur.parent_id = parent_id;
+    scur.parent_generation = 0;  // generation not tracked yet (V-1)
+    scur.mu = mu_k;
+    scur.n = n_k;
+    scur.valid = true;
+    double e_P = 0.0;
+    if (maybeSyncGeometry(gsync, scur, 3.0, e_P)) {
+      lm->mu_sync = gsync.mu_sync.cast<float>();
+      lm->delta_sync = gsync.delta_sync.cast<float>();
+      lm->n_sync = gsync.n_sync.cast<float>();
+      lm->geometry_sync_count++;
+      visual_geo_syncs_++;
+    }
+
+    const Eigen::Vector3d P_patch = lm->mu_sync.cast<double>() + lm->delta_sync.cast<double>();
+
+    // observation trigger (FAST-LIVO2 inherited defaults: 0.5m / 0.3rad / 40px)
+    VisualObservation* ref_obs = nullptr;
+    const VisualObservation* last = nullptr;
+    for (int s = 0; s < kMaxObsPerLandmark; ++s) {
+      if (lm->observations[s].valid) last = &lm->observations[s];
+    }
+    bool add = false;
+    if (last == nullptr) {
+      add = true;
+    } else {
+      const Eigen::Vector3f ref_cam = last->cam_pos;
+      const double dp = (pose.t_.cast<double>() - ref_cam.cast<double>()).norm();
+      const double dpx = std::sqrt((u_p - last->ref_u) * (u_p - last->ref_u) +
+                                   (v_p - last->ref_v) * (v_p - last->ref_v));
+      if (dp > 0.5 || dpx > 40.0) add = true;
+    }
+
+    // sample candidate patch
+    std::vector<float> patch_f;
+    if (!samplePatch(img, W, H, u_p, v_p, 4, 8, patch_f)) continue;
+    visual_patch_attempts_++;
+
+    // candidate scores
+    double mean = 0, sd = 0;
+    for (float v : patch_f) mean += v;
+    mean /= 64.0;
+    for (float v : patch_f) sd += (v - mean) * (v - mean);
+    sd = std::sqrt(sd / 64.0);
+    uint8_t patch_u8[64];
+    for (int k = 0; k < 64; ++k) {
+      patch_u8[k] = static_cast<uint8_t>(std::max(0.0, std::min(255.0, (double)patch_f[k])));
+    }
+    const double viewing =
+        pose.t_.cast<double>().norm() > 1e-6
+            ? std::abs(n_k.dot((pose.t_.cast<double>() - P_patch).normalized()))
+            : 1.0;
+
+    if (!add) {
+      // no trigger: still refresh latest candidate slot (latest keeps last
+      // sampled observation for the next trigger check)
+      lm->observations[lm->latest_slot].valid = false;
+      VisualObservation& o = lm->observations[lm->latest_slot];
+      o.frame_id = frame->sequence_id;
+      o.timestamp = static_cast<float>(frame->timestamp);
+      o.ref_u = static_cast<float>(u_p);
+      o.ref_v = static_cast<float>(v_p);
+      o.cam_pos = pose.t_.cast<float>();
+      memcpy(o.patch, patch_u8, 64);
+      o.texture_score = static_cast<float>(sd);
+      o.viewing_score = static_cast<float>(viewing);
+      o.valid = true;
+      continue;
+    }
+
+    // trigger: insert candidate into free slot, else replace worst redundant
+    int free_slot = -1;
+    for (int s = 0; s < kMaxObsPerLandmark; ++s) {
+      if (!lm->observations[s].valid) { free_slot = s; break; }
+    }
+    int target = free_slot;
+    if (target < 0) {
+      // all full: drop the worst (lowest texture among non-active; keep active)
+      int worst = 1;
+      for (int s = 1; s < kMaxObsPerLandmark; ++s) {
+        if (lm->observations[s].texture_score < lm->observations[worst].texture_score) {
+          worst = s;
+        }
+      }
+      target = worst;
+      lm->observation_drop_count++;
+      visual_obs_drops_++;
+    }
+    VisualObservation& o = lm->observations[target];
+    o.frame_id = frame->sequence_id;
+    o.timestamp = static_cast<float>(frame->timestamp);
+    o.ref_u = static_cast<float>(u_p);
+    o.ref_v = static_cast<float>(v_p);
+    o.cam_pos = pose.t_.cast<float>();
+    memcpy(o.patch, patch_u8, 64);
+    o.texture_score = static_cast<float>(sd);
+    o.viewing_score = static_cast<float>(viewing);
+    o.valid = true;
+    lm->observation_add_count++;
+    visual_obs_adds_++;
+  }
+}
+
 void SuperLIO::runG1VShadow(const SE3& pose){
   const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;

@@ -61,6 +61,7 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/g1/enabled", g_lio_g1_enabled);
   nh.getParam("/lio/g1v/enabled", g_lio_g1v_enabled);
   nh.getParam("/lio/camera_epoch/enabled", g_lio_camera_epoch);
+  nh.getParam("/lio/v0/enabled", g_lio_v0_enabled);
   nh.getParam("/lio/g1/out_dir", g_lio_g1_out_dir);
 
   nh.getParam("/camera/enabled", g_camera_enabled);

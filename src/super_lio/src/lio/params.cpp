@@ -84,6 +84,9 @@ namespace LI2Sup{
   /// G-0 shadow sidecar
   bool g_lio_g0_shadow = false;
 
+  /// V-0/V-1 production visual landmark lifecycle (no estimator feedback)
+  bool g_lio_v0_enabled = false;
+
   /// S-0 camera-epoch synchronization (visual OFF)
   bool g_lio_camera_epoch = false;
 
