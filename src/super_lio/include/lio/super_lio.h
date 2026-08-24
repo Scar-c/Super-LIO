@@ -43,6 +43,31 @@ public:
   void printTimeRecord();
   size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
   const GeometryStatsSidecar& sidecar() const { return sidecar_; }
+
+  struct G2Life {
+    int64_t first_visible = 0;
+    int64_t first_n5 = 0;
+    int64_t first_valid = 0;   // parent provisional gate (child 用 g2_first_valid_child)
+    int64_t last_visible = 0;
+    int64_t n_visible = 0;
+    int64_t e0 = 0, e1 = 0, e3 = 0;
+    int64_t e1_1 = 0, e1_2 = 0, e1_3 = 0, e1_5 = 0;
+    bool valid_now = false;
+    Eigen::Vector3d last_norm = Eigen::Vector3d::Zero();
+    bool have_norm = false;
+    double last_depth = 0.0;
+    bool have_depth = false;
+  };
+  // G-3 accessors
+  const std::array<int64_t, 900>& g3NormChild() const { return g3_norm_child_; }
+  const std::array<int64_t, 900>& g3NormParent() const { return g3_norm_parent_; }
+  const std::array<int64_t, 2000>& g3ResChild() const { return g3_res_child_; }
+  const std::array<int64_t, 2000>& g3ResParent() const { return g3_res_parent_; }
+  const std::array<int64_t, 2000>& g3Dn() const { return g3_dn_; }
+  const std::array<int64_t, 2000>& g3Dt() const { return g3_dt_; }
+  int64_t g3N() const { return g3_n_; }
+  const std::map<int64_t, G2Life>& g2Child() const { return g2_child_; }
+  const std::map<int64_t, G2Life>& g2Parent() const { return g2_parent_; }
   const std::array<int, 100>& g1QfHist() const { return g1_qf_hist_; }
   const std::array<int, 100>& g1QlHist() const { return g1_ql_hist_; }
   const std::array<int, 100>& g1ParentQfHist() const { return g1_parent_qf_hist_; }
@@ -61,6 +86,7 @@ protected:
   void DownSample();
   void Observe();
   void runG1Shadow(const BASIC::SE3& pose);
+  void runG2G3Shadow(const BASIC::SE3& pose);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();
@@ -105,6 +131,17 @@ protected:
   std::array<int, 100> g1_parent_qf_hist_{};
   std::array<std::array<int, 100>, 4> g1r_qf_child_{};
   std::array<std::array<int, 100>, 5> g1r_qf_parent_{};
+
+
+  std::map<int64_t, G2Life> g2_child_;
+  std::map<int64_t, G2Life> g2_parent_;
+  std::array<int64_t, 900> g3_norm_child_{};    // 0.1 deg bins, 0..90 deg
+  std::array<int64_t, 900> g3_norm_parent_{};
+  std::array<int64_t, 2000> g3_res_child_{};    // 0.1 mm bins, 0..0.2 m
+  std::array<int64_t, 2000> g3_res_parent_{};
+  std::array<int64_t, 2000> g3_dn_{};
+  std::array<int64_t, 2000> g3_dt_{};
+  int64_t g3_n_ = 0;
 
   bool g1_enabled_ = false;
   VisualSupportAggregator g1_agg_;

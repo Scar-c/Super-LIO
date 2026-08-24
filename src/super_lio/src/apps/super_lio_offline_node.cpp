@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
@@ -199,6 +200,89 @@ int main(int argc, char** argv) {
                   ? a.sensor_duration_s / ((t_proc_end - t_proc_start) / 1000.0)
                   : 0.0);
   std::printf("peak RSS during loop: %ld KB\n", rssKb());
+  if (g_lio_g1_enabled) {
+    // G-2 maturity summary
+    const auto& cl = lio->g2Child();
+    const auto& pl = lio->g2Parent();
+    auto pct = [](const std::vector<int64_t>& v, double p) {
+      if (v.empty()) return -1.0;
+      std::vector<int64_t> s = v;
+      std::sort(s.begin(), s.end());
+      return static_cast<double>(s[std::min(s.size() - 1, static_cast<size_t>(s.size() * p))]);
+    };
+    auto delay = [&](const auto& m, int which) {
+      std::vector<int64_t> d;
+      for (const auto& kv : m) {
+        const auto& L = kv.second;
+        const int64_t t1 = which == 0 ? L.first_visible : (which == 1 ? L.first_n5 : L.first_valid);
+        if (t1 > 0 && L.first_visible > 0 && t1 >= L.first_visible) d.push_back(t1 - L.first_visible);
+      }
+      return d;
+    };
+    auto d_child_n5 = delay(cl, 1);
+    auto d_child_val = delay(cl, 2);
+    auto d_parent_val = delay(pl, 2);
+    std::printf("G-2 child maturity: cells=%zu first_visible->N5 median=%.0f P90=%.0f; "
+                "->valid median=%.0f P90=%.0f\n",
+                cl.size(), pct(d_child_n5, 0.5), pct(d_child_n5, 0.9),
+                pct(d_child_val, 0.5), pct(d_child_val, 0.9));
+    std::printf("G-2 parent maturity: parents=%zu first_visible->valid median=%.0f P90=%.0f\n",
+                pl.size(), pct(d_parent_val, 0.5), pct(d_parent_val, 0.9));
+    int64_t child_mwv = 0, child_vwv = 0, parent_vwv = 0;
+    for (const auto& kv : cl) {
+      const auto& L = kv.second;
+      if (L.first_n5 > 0 && L.first_n5 <= L.last_visible) child_mwv++;
+      if (L.first_valid > 0 && L.first_valid <= L.last_visible) child_vwv++;
+    }
+    for (const auto& kv : pl) {
+      const auto& L = kv.second;
+      if (L.first_valid > 0 && L.first_valid <= L.last_visible) parent_vwv++;
+    }
+    std::printf("G-2 mature_while_visible: child=%lld/%zu parent_valid_while_visible=%lld/%zu\n",
+                (long long)child_mwv, cl.size(), (long long)parent_vwv, pl.size());
+    int64_t e0 = 0, e3 = 0, e1_1 = 0, e1_2 = 0, e1_3 = 0, e1_5 = 0;
+    for (const auto& kv : pl) {
+      e0 += kv.second.e0; e3 += kv.second.e3;
+      e1_1 += kv.second.e1_1; e1_2 += kv.second.e1_2;
+      e1_3 += kv.second.e1_3; e1_5 += kv.second.e1_5;
+    }
+    std::printf("G-2 parent sync events: E0=%lld E3=%lld E1(>1deg)=%lld >2=%lld >3=%lld >5=%lld\n",
+                (long long)e0, (long long)e3, (long long)e1_1,
+                (long long)e1_2, (long long)e1_3, (long long)e1_5);
+
+    // G-3 agreement summaries
+    auto hist_pct = [](const std::array<int64_t, 900>& h, double p) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 900; ++i) { acc += h[i]; if (acc >= tot * p) return i / 10.0; }
+      return 90.0;
+    };
+    auto hist_pct2 = [](const std::array<int64_t, 2000>& h, double p) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 2000; ++i) { acc += h[i]; if (acc >= tot * p) return i / 1000.0; }
+      return 0.2;
+    };
+    std::printf("G-3 (n=%lld) normal angle vs HKNN (deg, P50/P90/P95): "
+                "child=%.2f/%.2f/%.2f parent=%.2f/%.2f/%.2f\n",
+                (long long)lio->g3N(), hist_pct(lio->g3NormChild(), 0.5),
+                hist_pct(lio->g3NormChild(), 0.9), hist_pct(lio->g3NormChild(), 0.95),
+                hist_pct(lio->g3NormParent(), 0.5), hist_pct(lio->g3NormParent(), 0.9),
+                hist_pct(lio->g3NormParent(), 0.95));
+    std::printf("G-3 residual diff vs HKNN (m, P50/P90/P95): "
+                "child=%.4f/%.4f/%.4f parent=%.4f/%.4f/%.4f\n",
+                hist_pct2(lio->g3ResChild(), 0.5), hist_pct2(lio->g3ResChild(), 0.9),
+                hist_pct2(lio->g3ResChild(), 0.95), hist_pct2(lio->g3ResParent(), 0.5),
+                hist_pct2(lio->g3ResParent(), 0.9), hist_pct2(lio->g3ResParent(), 0.95));
+    std::printf("G-3 child d_n/d_t (m, P50/P90/P95): dn=%.4f/%.4f/%.4f dt=%.4f/%.4f/%.4f\n",
+                hist_pct2(lio->g3Dn(), 0.5), hist_pct2(lio->g3Dn(), 0.9),
+                hist_pct2(lio->g3Dn(), 0.95), hist_pct2(lio->g3Dt(), 0.5),
+                hist_pct2(lio->g3Dt(), 0.9), hist_pct2(lio->g3Dt(), 0.95));
+  }
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();
   return 0;
