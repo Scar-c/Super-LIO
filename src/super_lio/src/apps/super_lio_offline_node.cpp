@@ -283,6 +283,78 @@ int main(int argc, char** argv) {
                 hist_pct2(lio->g3Dn(), 0.95), hist_pct2(lio->g3Dt(), 0.5),
                 hist_pct2(lio->g3Dt(), 0.9), hist_pct2(lio->g3Dt(), 0.95));
   }
+  if (g_lio_g1v_enabled) {
+    auto hp = [](const std::array<int64_t, 500>& h, double p) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 500; ++i) { acc += h[i]; if (acc >= tot * p) return i / 100.0; }
+      return 5.0;
+    };
+    auto hp2 = [](const std::array<int64_t, 1000>& h, double p) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 1000; ++i) { acc += h[i]; if (acc >= tot * p) return i / 1000.0; }
+      return 1.0;
+    };
+    auto hp3 = [](const std::array<int64_t, 400>& h, double p, double bin) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 400; ++i) { acc += h[i]; if (acc >= tot * p) return i / bin; }
+      return 8.0;
+    };
+    std::printf("G-1V patches created=%lld tracked=%lld samples=%lld skipped=%lld\n",
+                (long long)lio->g1vCreated(), (long long)lio->g1vTracked(),
+                (long long)lio->g1vSamples(), (long long)lio->g1vSkipped());
+    std::printf("G-1V offset |d0| (m, P50/P90/P95): %.3f/%.3f/%.3f  dn_ref: %.4f/%.4f/%.4f  dt_ref: %.3f/%.3f/%.3f\n",
+                hp(lio->g1vOffHist(), 0.5), hp(lio->g1vOffHist(), 0.9), hp(lio->g1vOffHist(), 0.95),
+                hp(lio->g1vDnHist(), 0.5), hp(lio->g1vDnHist(), 0.9), hp(lio->g1vDnHist(), 0.95),
+                hp(lio->g1vDtHist(), 0.5), hp(lio->g1vDtHist(), 0.9), hp(lio->g1vDtHist(), 0.95));
+    std::printf("G-1V anchor drift (m, P50/P90/P95/P99): %.4f/%.4f/%.4f/%.4f\n",
+                hp2(lio->g1vAnchorHist(), 0.5), hp2(lio->g1vAnchorHist(), 0.9),
+                hp2(lio->g1vAnchorHist(), 0.95), hp2(lio->g1vAnchorHist(), 0.99));
+    std::printf("G-1V warp sample pixel delta O-HKNN vs B-PARENT (px, P50/P90/P95): %.2f/%.2f/%.2f\n",
+                hp3(lio->g1vWarpxHist(), 0.5, 20.0), hp3(lio->g1vWarpxHist(), 0.9, 20.0),
+                hp3(lio->g1vWarpxHist(), 0.95, 20.0));
+    std::printf("G-1V |du*| diagnostic (px, P50/P90/P95/P99): %.2f/%.2f/%.2f/%.2f\n",
+                hp3(lio->g1vDuHist(), 0.5, 40.0), hp3(lio->g1vDuHist(), 0.9, 40.0),
+                hp3(lio->g1vDuHist(), 0.95, 40.0), hp3(lio->g1vDuHist(), 0.99, 40.0));
+    for (int d = 0; d < 5; ++d) {
+      const char* tag = d == 0 ? "<=5ms" : d == 1 ? "<=10ms" : d == 2 ? "<=20ms" : d == 3 ? "<=50ms" : "all";
+      const auto& du = lio->g1vDuDt()[d];
+      const auto& pb = lio->g1vPhotobDt()[d];
+      const auto& pa = lio->g1vPhotoaDt()[d];
+      auto pct3 = [&](const std::array<int64_t, 400>& h, double p) {
+        long long tot = 0;
+        for (auto v : h) tot += v;
+        if (tot == 0) return -1.0;
+        long long acc = 0;
+        for (int i = 0; i < 400; ++i) { acc += h[i]; if (acc >= tot * p) return i / 40.0; }
+        return 10.0;
+      };
+      auto pctp = [&](const std::array<int64_t, 400>& h, double p) {
+        long long tot = 0;
+        for (auto v : h) tot += v;
+        if (tot == 0) return -1.0;
+        long long acc = 0;
+        for (int i = 0; i < 400; ++i) { acc += h[i]; if (acc >= tot * p) return i / 2.0; }
+        return 200.0;
+      };
+      std::printf("G-1V dt bin %s n=%lld: |du*| P50/P90=%.2f/%.2f  photo before P50/P90=%.0f/%.0f  after=%.0f/%.0f\n",
+                  tag, (long long)lio->g1vDtN()[d], pct3(du, 0.5), pct3(du, 0.9),
+                  pctp(pb, 0.5), pctp(pb, 0.9), pctp(pa, 0.5), pctp(pa, 0.9));
+    }
+    std::printf("G-1V photo meanSSE O-HKNN vs B-PARENT (P50/P90): %.1f/%.1f  %.1f/%.1f\n",
+                hp3(lio->g1vPhotooHist(), 0.5, 2.0), hp3(lio->g1vPhotooHist(), 0.9, 2.0),
+                hp3(lio->g1vPhotobHist(), 0.5, 2.0), hp3(lio->g1vPhotobHist(), 0.9, 2.0));
+    std::printf("G-1V correlations (r): normal_angle~du*=%.3f dn_ref~du*=%.3f anchor_drift~du*=%.3f warp_err~photo_improve=%.3f\n",
+                lio->g1vPearson(0), lio->g1vPearson(1), lio->g1vPearson(2), lio->g1vPearson(3));
+  }
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();
   return 0;

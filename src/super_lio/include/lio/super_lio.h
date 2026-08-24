@@ -26,6 +26,7 @@
 #include "instrumentation/RunStats.h"
 #include "geometry/MicroSurfelStats.h"
 #include "geometry/VisualSupportStats.h"
+#include "geometry/SchemeBShadow.h"
 
 namespace LI2Sup{
 
@@ -68,6 +69,80 @@ public:
   int64_t g3N() const { return g3_n_; }
   const std::map<int64_t, G2Life>& g2Child() const { return g2_child_; }
   const std::map<int64_t, G2Life>& g2Parent() const { return g2_parent_; }
+  int64_t g1vSamples() const { return g1v_samples_; }
+  int64_t g1vCreated() const { return g1v_created_; }
+  int64_t g1vTracked() const { return g1v_tracked_; }
+  int64_t g1vSkipped() const { return g1v_skipped_; }
+  size_t g1vPatches() const { return g1v_patches_.size(); }
+  const std::array<int64_t, 500>& g1vOffHist() const { return g1v_off_hist_; }
+  const std::array<int64_t, 500>& g1vDnHist() const { return g1v_dn_hist_; }
+  const std::array<int64_t, 500>& g1vDtHist() const { return g1v_dt_hist_; }
+  const std::array<int64_t, 1000>& g1vAnchorHist() const { return g1v_anchor_hist_; }
+  const std::array<int64_t, 400>& g1vWarpxHist() const { return g1v_warpx_hist_; }
+  const std::array<int64_t, 400>& g1vDuHist() const { return g1v_du_hist_; }
+  const std::array<std::array<int64_t, 400>, 5>& g1vDuDt() const { return g1v_du_dt_; }
+  const std::array<std::array<int64_t, 400>, 5>& g1vPhotobDt() const { return g1v_photob_dt_; }
+  const std::array<std::array<int64_t, 400>, 5>& g1vPhotoaDt() const { return g1v_photoa_dt_; }
+  const std::array<int64_t, 5>& g1vDtN() const { return g1v_dt_n_; }
+  const std::array<int64_t, 400>& g1vPhotobHist() const { return g1v_photob_hist_; }
+  const std::array<int64_t, 400>& g1vPhotooHist() const { return g1v_photoo_hist_; }
+  const std::array<int64_t, 400>& g1vPhotoaHist() const { return g1v_photoa_hist_; }
+  double g1vPearson(int which) const {
+    double x = 0, y = 0, xx = 0, yy = 0, xy = 0, n = 0;
+    if (which == 0) { x = pa_na_du_x; y = pa_na_du_y; xx = pa_na_du_xx; yy = pa_na_du_yy; xy = pa_na_du_xy; n = pa_na_du_n; }
+    else if (which == 1) { x = pa_dn_du_x; y = pa_dn_du_y; xx = pa_dn_du_xx; yy = pa_dn_du_yy; xy = pa_dn_du_xy; n = pa_dn_du_n; }
+    else if (which == 2) { x = pa_ad_du_x; y = pa_ad_du_y; xx = pa_ad_du_xx; yy = pa_ad_du_yy; xy = pa_ad_du_xy; n = pa_ad_du_n; }
+    else { x = pa_we_pi_x; y = pa_we_pi_y; xx = pa_we_pi_xx; yy = pa_we_pi_yy; xy = pa_we_pi_xy; n = pa_we_pi_n; }
+    if (n < 2) return 0.0;
+    const double vx = xx - x * x / n;
+    const double vy = yy - y * y / n;
+    if (vx <= 0.0 || vy <= 0.0) return 0.0;
+    return (xy - x * y / n) / std::sqrt(vx * vy);
+  }
+
+  // G-1V Scheme-B shadow state
+  struct SchemeBPatch {
+    int64_t surfel_id = 0;
+    Eigen::Vector3d p0 = Eigen::Vector3d::Zero();    // oracle only
+    Eigen::Vector3d mu_ref = Eigen::Vector3d::Zero();
+    Eigen::Vector3d n_ref = Eigen::Vector3d::Zero();
+    Eigen::Vector3d d0 = Eigen::Vector3d::Zero();
+    double ts_ref = 0.0;
+    double ref_u = 0.0, ref_v = 0.0;
+    std::vector<float> ref_patch;                    // 8x8
+    int64_t n_tracked = 0;
+    Eigen::Vector3d last_n = Eigen::Vector3d::Zero();
+    bool have_last_n = false;
+    double last_sync_anchor = 0.0;
+    int64_t sync_count = 0;
+    double acc_normal_deg = 0.0;
+    int64_t e1_1 = 0, e1_2 = 0, e1_3 = 0, e1_5 = 0;
+  };
+  std::map<int64_t, SchemeBPatch> g1v_patches_;
+  // statistics
+  std::array<int64_t, 500> g1v_off_hist_{};       // |d0| 0..5m, 1cm bins
+  std::array<int64_t, 500> g1v_dn_hist_{};        // |d_n_ref| 0..0.5m, 1mm
+  std::array<int64_t, 500> g1v_dt_hist_{};        // d_t_ref 0..2.5m, 5mm
+  std::array<int64_t, 1000> g1v_anchor_hist_{};   // anchor drift 0..1m, 1mm
+  std::array<int64_t, 400> g1v_warpx_hist_{};     // sample pixel delta 0..20px, 0.05px
+  std::array<int64_t, 400> g1v_du_hist_{};        // |du*| 0..10px, 0.025px
+  std::array<int64_t, 400> g1v_photob_hist_{};    // photo before 0..200, 0.5
+  std::array<int64_t, 400> g1v_photoo_hist_{};    // O-HKNN photo 0..200, 0.5
+  std::array<int64_t, 400> g1v_photoa_hist_{};    // photo after 0..200, 0.5
+  // per camera-dt-bin copies (bins: <=5, <=10, <=20, <=50, all ms)
+  std::array<std::array<int64_t, 400>, 5> g1v_du_dt_{};
+  std::array<std::array<int64_t, 400>, 5> g1v_photob_dt_{};
+  std::array<std::array<int64_t, 400>, 5> g1v_photoa_dt_{};
+  std::array<int64_t, 5> g1v_dt_n_{};
+  // Pearson accumulators (x,y pairs)
+  double pa_na_du_x = 0, pa_na_du_y = 0, pa_na_du_xx = 0, pa_na_du_yy = 0, pa_na_du_xy = 0, pa_na_du_n = 0;
+  double pa_dn_du_x = 0, pa_dn_du_y = 0, pa_dn_du_xx = 0, pa_dn_du_yy = 0, pa_dn_du_xy = 0, pa_dn_du_n = 0;
+  double pa_ad_du_x = 0, pa_ad_du_y = 0, pa_ad_du_xx = 0, pa_ad_du_yy = 0, pa_ad_du_xy = 0, pa_ad_du_n = 0;
+  double pa_we_pi_x = 0, pa_we_pi_y = 0, pa_we_pi_xx = 0, pa_we_pi_yy = 0, pa_we_pi_xy = 0, pa_we_pi_n = 0;
+  int64_t g1v_samples_ = 0;
+  int64_t g1v_created_ = 0;
+  int64_t g1v_tracked_ = 0;
+  int64_t g1v_skipped_ = 0;
   const std::array<int, 100>& g1QfHist() const { return g1_qf_hist_; }
   const std::array<int, 100>& g1QlHist() const { return g1_ql_hist_; }
   const std::array<int, 100>& g1ParentQfHist() const { return g1_parent_qf_hist_; }
@@ -87,6 +162,7 @@ protected:
   void Observe();
   void runG1Shadow(const BASIC::SE3& pose);
   void runG2G3Shadow(const BASIC::SE3& pose);
+  void runG1VShadow(const BASIC::SE3& pose);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();

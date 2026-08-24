@@ -605,6 +605,9 @@ void SuperLIO::Observe(){
       if(g1_enabled_ && sidecar_enabled_){
         runG1Shadow(pose);
         runG2G3Shadow(pose);
+        if(g_lio_g1v_enabled){
+          runG1VShadow(pose);
+        }
       }
       return;
     }
@@ -629,170 +632,7 @@ void SuperLIO::Observe(){
 
 
 
-void SuperLIO::runG2G3Shadow(const SE3& pose){
-  const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
-  const int64_t epoch = frame_num_;
-  const auto& sweep = gateSweep();
-  const PlaneGateParams prov{0.05, 0.20};  // G-1R provisional diagnostic gate
 
-  for (int i = 0; i < static_cast<int>(effect_knn_num_); ++i) {
-    const int idx = effect_knn_idxs_[i];
-    if (!effect_mask_[idx]) continue;
-    const V3& pb = points_body_v3_[idx];
-    const V3 pw = pose * pb;
-    if (!pw.allFinite()) continue;
-    const V3d n_hknn(abcd_vec_[idx][0], abcd_vec_[idx][1], abcd_vec_[idx][2]);
-    if (n_hknn.norm() < 1e-9) continue;
-    const double d_hknn = abcd_vec_[idx][3];
-    const double r_hknn = n_hknn.dot(pw.cast<double>()) + d_hknn;
-
-    const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
-    const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
-    const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
-    const int dx = fine[0] & 1, dy = fine[1] & 1, dz = fine[2] & 1;
-    const int local_idx = (dz << 2) | (dy << 1) | dx;
-    const int64_t cid = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
-                        ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
-                        ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
-    const int64_t child_id = cid * 8 + local_idx;
-
-    const ParentStats* ps = sidecar_.find(key);
-    if (ps == nullptr) continue;
-    const SubvoxelStats& st = ps->sub[local_idx];
-    if (!st.active) continue;
-    const int n_child = st.n;
-
-    // ---- G-3: child/parent plane vs HKNN agreement (all-effective) ----
-    // child micro plane (if valid under provisional child gate: use q_flat/q_line)
-    double c_norm_ang = -1.0, c_res_diff = -1.0, c_dn = -1.0, c_dt = -1.0;
-    double p_norm_ang = -1.0, p_res_diff = -1.0, p_dn = -1.0, p_dt = -1.0;
-    Eigen::Vector3d p_mu, p_Smu;
-    Eigen::Matrix3d p_S;
-    double p_n = 0.0;
-    bool parent_ok = false;
-    if (n_child >= 5) {
-      const Eigen::Matrix3d Sc = GeometryStatsSidecar::unpackS(st.s);
-      const double dn = static_cast<double>(n_child);
-      if (Sc.allFinite() && Sc.trace() > 1e-12) {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esc(Sc / dn);
-        const Eigen::Vector3d evc = esc.eigenvalues();
-        if (evc.allFinite()) {
-          const double qf = evc(0) / (evc(0) + evc(1) + evc(2));
-          const double ql = evc(2) > 1e-12 ? evc(1) / evc(2) : 0.0;
-          if (qf <= prov.q_flat && ql >= prov.q_line) {
-            const Eigen::Vector3d mu_c(st.mu[0], st.mu[1], st.mu[2]);
-            const Eigen::Vector3d n_c = esc.eigenvectors().col(0);
-            c_norm_ang = std::acos(std::min(1.0, std::abs(n_c.dot(n_hknn.normalized()))));
-            c_dn = std::abs(n_c.dot(pw.cast<double>() - mu_c));
-            const double r_c = n_c.dot(pw.cast<double>() - mu_c);
-            c_res_diff = std::abs(r_c - r_hknn);
-            c_dt = ((pw.cast<double>() - mu_c) -
-                    n_c * n_c.dot(pw.cast<double>() - mu_c)).norm();
-          }
-        }
-      }
-    }
-    {
-      std::array<GeometryStatsSidecar::ChildMoments, 8> children;
-      for (int s = 0; s < 8; ++s) {
-        const SubvoxelStats& ss = ps->sub[s];
-        if (!ss.active || ss.n < 1) continue;
-        children[s].valid = true;
-        children[s].n = ss.n;
-        children[s].mu = Eigen::Vector3d(ss.mu[0], ss.mu[1], ss.mu[2]);
-        children[s].S = GeometryStatsSidecar::unpackS(ss.s);
-      }
-      parent_ok = GeometryStatsSidecar::mergeChildren(children, p_mu, p_S, p_n);
-      if (parent_ok && p_n >= 5.0 && p_S.allFinite() && p_S.trace() > 1e-12) {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
-        const Eigen::Vector3d evp = esp.eigenvalues();
-        if (evp.allFinite()) {
-          const double qf = evp(0) / (evp(0) + evp(1) + evp(2));
-          const double ql = evp(2) > 1e-12 ? evp(1) / evp(2) : 0.0;
-          if (qf <= prov.q_flat && ql >= prov.q_line) {
-            const Eigen::Vector3d n_p = esp.eigenvectors().col(0);
-            p_norm_ang = std::acos(std::min(1.0, std::abs(n_p.dot(n_hknn.normalized()))));
-            p_dn = std::abs(n_p.dot(pw.cast<double>() - p_mu));
-            const double r_p = n_p.dot(pw.cast<double>() - p_mu);
-            p_res_diff = std::abs(r_p - r_hknn);
-            p_dt = ((pw.cast<double>() - p_mu) -
-                    n_p * n_p.dot(pw.cast<double>() - p_mu)).norm();
-          }
-        }
-      }
-    }
-    ++g3_n_;
-    if (c_norm_ang >= 0.0) {
-      g3_norm_child_[std::min(899, static_cast<int>(c_norm_ang * 180.0 / M_PI * 10.0))]++;
-      g3_res_child_[std::min(1999, static_cast<int>(c_res_diff * 10000.0))]++;
-      g3_dn_[std::min(1999, static_cast<int>(c_dn * 10000.0))]++;
-      g3_dt_[std::min(1999, static_cast<int>(c_dt * 10000.0))]++;
-    }
-    if (p_norm_ang >= 0.0) {
-      g3_norm_parent_[std::min(899, static_cast<int>(p_norm_ang * 180.0 / M_PI * 10.0))]++;
-      g3_res_parent_[std::min(1999, static_cast<int>(p_res_diff * 10000.0))]++;
-    }
-
-    // ---- G-2: lifecycle (FOV cells only) ----
-    const bool parent_valid =
-        parent_ok && p_n >= 5.0 && p_S.allFinite() && p_S.trace() > 1e-12;
-    // visibility: child cells tracked when a point falls on them (all-effective
-    // proxy for visibility; camera-specific maturity uses FOV in G-1 row)
-    G2Life& cl = g2_child_[child_id];
-    if (cl.first_visible == 0) cl.first_visible = epoch;
-    cl.last_visible = epoch;
-    cl.n_visible++;
-    if (n_child >= 5 && cl.first_n5 == 0) cl.first_n5 = epoch;
-    bool c_valid = false;
-    if (n_child >= 5) {
-      const Eigen::Matrix3d Sc = GeometryStatsSidecar::unpackS(st.s);
-      const double dn = static_cast<double>(n_child);
-      if (Sc.allFinite() && Sc.trace() > 1e-12) {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esc(Sc / dn);
-        const Eigen::Vector3d evc = esc.eigenvalues();
-        if (evc.allFinite()) {
-          const double qf = evc(0) / (evc(0) + evc(1) + evc(2));
-          const double ql = evc(2) > 1e-12 ? evc(1) / evc(2) : 0.0;
-          c_valid = qf <= prov.q_flat && ql >= prov.q_line;
-        }
-      }
-    }
-    if (c_valid && cl.first_valid == 0) cl.first_valid = epoch;
-    if (c_valid != cl.valid_now) {
-      if (c_valid) { cl.e0++; } else { cl.e3++; }
-      cl.valid_now = c_valid;
-    }
-
-    G2Life& pl = g2_parent_[cid];
-    if (pl.first_visible == 0) pl.first_visible = epoch;
-    pl.last_visible = epoch;
-    pl.n_visible++;
-    if (parent_valid) {
-      if (pl.first_valid == 0) pl.first_valid = epoch;
-      if (!pl.valid_now) { pl.e0++; pl.valid_now = true; }
-      const Eigen::Vector3d n_p = [&] {
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
-        return esp.eigenvectors().col(0);
-      }();
-      if (pl.have_norm) {
-        const double ang = std::acos(std::min(
-            1.0, std::abs(pl.last_norm.dot(n_p) /
-                          (pl.last_norm.norm() * n_p.norm()))));
-        const double deg = ang * 180.0 / M_PI;
-        pl.e1++;
-        if (deg > 1.0) pl.e1_1++;
-        if (deg > 2.0) pl.e1_2++;
-        if (deg > 3.0) pl.e1_3++;
-        if (deg > 5.0) pl.e1_5++;
-      }
-      pl.last_norm = n_p;
-      pl.have_norm = true;
-    } else if (pl.valid_now) {
-      pl.valid_now = false;
-      pl.e3++;
-    }
-  }
-}
 void SuperLIO::runG1Shadow(const SE3& pose){
   g1_agg_.beginEpoch(measures_.lidar.end_time);
   VisualSupportRow& row = g1_agg_.row();
@@ -1022,6 +862,455 @@ void SuperLIO::runG1Shadow(const SE3& pose){
   }
 }
 
+
+void SuperLIO::runG2G3Shadow(const SE3& pose){
+  const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
+  const int64_t epoch = frame_num_;
+  const auto& sweep = gateSweep();
+  const PlaneGateParams prov{0.05, 0.20};  // G-1R provisional diagnostic gate
+
+  for (int i = 0; i < static_cast<int>(effect_knn_num_); ++i) {
+    const int idx = effect_knn_idxs_[i];
+    if (!effect_mask_[idx]) continue;
+    const V3& pb = points_body_v3_[idx];
+    const V3 pw = pose * pb;
+    if (!pw.allFinite()) continue;
+    const V3d n_hknn(abcd_vec_[idx][0], abcd_vec_[idx][1], abcd_vec_[idx][2]);
+    if (n_hknn.norm() < 1e-9) continue;
+    const double d_hknn = abcd_vec_[idx][3];
+    const double r_hknn = n_hknn.dot(pw.cast<double>()) + d_hknn;
+
+    const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
+    const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
+    const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
+    const int dx = fine[0] & 1, dy = fine[1] & 1, dz = fine[2] & 1;
+    const int local_idx = (dz << 2) | (dy << 1) | dx;
+    const int64_t cid = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+                        ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+                        ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+    const int64_t child_id = cid * 8 + local_idx;
+
+    const ParentStats* ps = sidecar_.find(key);
+    if (ps == nullptr) continue;
+    const SubvoxelStats& st = ps->sub[local_idx];
+    if (!st.active) continue;
+    const int n_child = st.n;
+
+    // ---- G-3: child/parent plane vs HKNN agreement (all-effective) ----
+    // child micro plane (if valid under provisional child gate: use q_flat/q_line)
+    double c_norm_ang = -1.0, c_res_diff = -1.0, c_dn = -1.0, c_dt = -1.0;
+    double p_norm_ang = -1.0, p_res_diff = -1.0, p_dn = -1.0, p_dt = -1.0;
+    Eigen::Vector3d p_mu, p_Smu;
+    Eigen::Matrix3d p_S;
+    double p_n = 0.0;
+    bool parent_ok = false;
+    if (n_child >= 5) {
+      const Eigen::Matrix3d Sc = GeometryStatsSidecar::unpackS(st.s);
+      const double dn = static_cast<double>(n_child);
+      if (Sc.allFinite() && Sc.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esc(Sc / dn);
+        const Eigen::Vector3d evc = esc.eigenvalues();
+        if (evc.allFinite()) {
+          const double qf = evc(0) / (evc(0) + evc(1) + evc(2));
+          const double ql = evc(2) > 1e-12 ? evc(1) / evc(2) : 0.0;
+          if (qf <= prov.q_flat && ql >= prov.q_line) {
+            const Eigen::Vector3d mu_c(st.mu[0], st.mu[1], st.mu[2]);
+            const Eigen::Vector3d n_c = esc.eigenvectors().col(0);
+            c_norm_ang = std::acos(std::min(1.0, std::abs(n_c.dot(n_hknn.normalized()))));
+            c_dn = std::abs(n_c.dot(pw.cast<double>() - mu_c));
+            const double r_c = n_c.dot(pw.cast<double>() - mu_c);
+            c_res_diff = std::abs(r_c - r_hknn);
+            c_dt = ((pw.cast<double>() - mu_c) -
+                    n_c * n_c.dot(pw.cast<double>() - mu_c)).norm();
+          }
+        }
+      }
+    }
+    {
+      std::array<GeometryStatsSidecar::ChildMoments, 8> children;
+      for (int s = 0; s < 8; ++s) {
+        const SubvoxelStats& ss = ps->sub[s];
+        if (!ss.active || ss.n < 1) continue;
+        children[s].valid = true;
+        children[s].n = ss.n;
+        children[s].mu = Eigen::Vector3d(ss.mu[0], ss.mu[1], ss.mu[2]);
+        children[s].S = GeometryStatsSidecar::unpackS(ss.s);
+      }
+      parent_ok = GeometryStatsSidecar::mergeChildren(children, p_mu, p_S, p_n);
+      if (parent_ok && p_n >= 5.0 && p_S.allFinite() && p_S.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
+        const Eigen::Vector3d evp = esp.eigenvalues();
+        if (evp.allFinite()) {
+          const double qf = evp(0) / (evp(0) + evp(1) + evp(2));
+          const double ql = evp(2) > 1e-12 ? evp(1) / evp(2) : 0.0;
+          if (qf <= prov.q_flat && ql >= prov.q_line) {
+            const Eigen::Vector3d n_p = esp.eigenvectors().col(0);
+            p_norm_ang = std::acos(std::min(1.0, std::abs(n_p.dot(n_hknn.normalized()))));
+            p_dn = std::abs(n_p.dot(pw.cast<double>() - p_mu));
+            const double r_p = n_p.dot(pw.cast<double>() - p_mu);
+            p_res_diff = std::abs(r_p - r_hknn);
+            p_dt = ((pw.cast<double>() - p_mu) -
+                    n_p * n_p.dot(pw.cast<double>() - p_mu)).norm();
+          }
+        }
+      }
+    }
+    ++g3_n_;
+    if (c_norm_ang >= 0.0) {
+      g3_norm_child_[std::min(899, static_cast<int>(c_norm_ang * 180.0 / M_PI * 10.0))]++;
+      g3_res_child_[std::min(1999, static_cast<int>(c_res_diff * 10000.0))]++;
+      g3_dn_[std::min(1999, static_cast<int>(c_dn * 10000.0))]++;
+      g3_dt_[std::min(1999, static_cast<int>(c_dt * 10000.0))]++;
+    }
+    if (p_norm_ang >= 0.0) {
+      g3_norm_parent_[std::min(899, static_cast<int>(p_norm_ang * 180.0 / M_PI * 10.0))]++;
+      g3_res_parent_[std::min(1999, static_cast<int>(p_res_diff * 10000.0))]++;
+    }
+
+    // ---- G-2: lifecycle (FOV cells only) ----
+    const bool parent_valid =
+        parent_ok && p_n >= 5.0 && p_S.allFinite() && p_S.trace() > 1e-12;
+    // visibility: child cells tracked when a point falls on them (all-effective
+    // proxy for visibility; camera-specific maturity uses FOV in G-1 row)
+    G2Life& cl = g2_child_[child_id];
+    if (cl.first_visible == 0) cl.first_visible = epoch;
+    cl.last_visible = epoch;
+    cl.n_visible++;
+    if (n_child >= 5 && cl.first_n5 == 0) cl.first_n5 = epoch;
+    bool c_valid = false;
+    if (n_child >= 5) {
+      const Eigen::Matrix3d Sc = GeometryStatsSidecar::unpackS(st.s);
+      const double dn = static_cast<double>(n_child);
+      if (Sc.allFinite() && Sc.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esc(Sc / dn);
+        const Eigen::Vector3d evc = esc.eigenvalues();
+        if (evc.allFinite()) {
+          const double qf = evc(0) / (evc(0) + evc(1) + evc(2));
+          const double ql = evc(2) > 1e-12 ? evc(1) / evc(2) : 0.0;
+          c_valid = qf <= prov.q_flat && ql >= prov.q_line;
+        }
+      }
+    }
+    if (c_valid && cl.first_valid == 0) cl.first_valid = epoch;
+    if (c_valid != cl.valid_now) {
+      if (c_valid) { cl.e0++; } else { cl.e3++; }
+      cl.valid_now = c_valid;
+    }
+
+    G2Life& pl = g2_parent_[cid];
+    if (pl.first_visible == 0) pl.first_visible = epoch;
+    pl.last_visible = epoch;
+    pl.n_visible++;
+    if (parent_valid) {
+      if (pl.first_valid == 0) pl.first_valid = epoch;
+      if (!pl.valid_now) { pl.e0++; pl.valid_now = true; }
+      const Eigen::Vector3d n_p = [&] {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
+        return esp.eigenvectors().col(0);
+      }();
+      if (pl.have_norm) {
+        const double ang = std::acos(std::min(
+            1.0, std::abs(pl.last_norm.dot(n_p) /
+                          (pl.last_norm.norm() * n_p.norm()))));
+        const double deg = ang * 180.0 / M_PI;
+        pl.e1++;
+        if (deg > 1.0) pl.e1_1++;
+        if (deg > 2.0) pl.e1_2++;
+        if (deg > 3.0) pl.e1_3++;
+        if (deg > 5.0) pl.e1_5++;
+      }
+      pl.last_norm = n_p;
+      pl.have_norm = true;
+    } else if (pl.valid_now) {
+      pl.valid_now = false;
+      pl.e3++;
+    }
+  }
+}
+void SuperLIO::runG1VShadow(const SE3& pose){
+  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
+  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;
+  const CameraCalibration& calib = data_wrapper_->cameraCalibration();
+  if (!calib.valid) return;
+  const int W = frame->width, H = frame->height;
+  const std::vector<uint8_t>& img = *frame->data;
+  const Pinhole cam{calib.fx, calib.fy, calib.cx, calib.cy};
+  const Eigen::Matrix4d T_cb = calib.T_cam_body();
+  const Eigen::Vector3d cam_center_body(0, 0, 0);  // camera optical center in cam frame
+
+  const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
+  const int N = static_cast<int>(effect_knn_num_);
+  const int stride = std::max(1, N / 150);  // sample at most ~150 points/frame
+
+  for (int i = 0; i < N; i += stride) {
+    const int idx = effect_knn_idxs_[i];
+    if (!effect_mask_[idx]) continue;
+    const V3& pb = points_body_v3_[idx];
+    const V3 pw = pose * pb;
+    if (!pw.allFinite()) continue;
+    // HKNN plane (authoritative, current iteration cache)
+    const Eigen::Vector3d n_hknn(abcd_vec_[idx][0], abcd_vec_[idx][1], abcd_vec_[idx][2]);
+    if (n_hknn.norm() < 1e-9) { ++g1v_skipped_; continue; }
+
+    const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
+    const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
+    const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
+    const int64_t surfel_id = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+                              ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+                              ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+
+    const ParentStats* ps = sidecar_.find(key);
+    if (ps == nullptr) { ++g1v_skipped_; continue; }
+    // parent aggregate moments
+    Eigen::Vector3d mu_k, p_Smu;
+    Eigen::Matrix3d S_k;
+    double n_k_n = 0.0;
+    bool ok = false;
+    {
+      std::array<GeometryStatsSidecar::ChildMoments, 8> children;
+      for (int s = 0; s < 8; ++s) {
+        const SubvoxelStats& ss = ps->sub[s];
+        if (!ss.active || ss.n < 1) continue;
+        children[s].valid = true;
+        children[s].n = ss.n;
+        children[s].mu = Eigen::Vector3d(ss.mu[0], ss.mu[1], ss.mu[2]);
+        children[s].S = GeometryStatsSidecar::unpackS(ss.s);
+      }
+      ok = GeometryStatsSidecar::mergeChildren(children, mu_k, S_k, n_k_n);
+    }
+    if (!ok || n_k_n < 5.0 || !S_k.allFinite() || S_k.trace() <= 1e-12) { ++g1v_skipped_; continue; }
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(S_k / n_k_n);
+    const Eigen::Vector3d n_k_raw = es.eigenvectors().col(0);
+    if (!es.eigenvalues().allFinite()) { ++g1v_skipped_; continue; }
+    const Eigen::Vector3d n_k = canonicalNormal(n_k_raw);
+
+    const Eigen::Vector3d P0 = pw.cast<double>();
+
+    auto it = g1v_patches_.find(surfel_id);
+    if (it == g1v_patches_.end()) {
+      // create patch from this actual LiDAR point
+      if (g1v_patches_.size() >= 60000) { ++g1v_skipped_; continue; }
+      // project P0 into camera (body->cam)
+      const Eigen::Vector3d p_body(pb.x(), pb.y(), pb.z());
+      const Eigen::Vector3d pc = transformPoint(T_cb, p_body);
+      if (pc.z() <= 0.05) { ++g1v_skipped_; continue; }
+      const double u0 = calib.fx * pc.x() / pc.z() + calib.cx;
+      const double v0 = calib.fy * pc.y() / pc.z() + calib.cy;
+      if (u0 < 8 || u0 >= W - 8 || v0 < 8 || v0 >= H - 8) { ++g1v_skipped_; continue; }
+
+      SchemeBPatch p;
+      p.surfel_id = surfel_id;
+      p.p0 = P0;
+      p.mu_ref = mu_k;
+      p.n_ref = n_k;
+      p.d0 = P0 - mu_k;
+      p.ts_ref = measures_.lidar.end_time;
+      p.ref_u = u0;
+      p.ref_v = v0;
+      if (!samplePatch(img, W, H, u0, v0, 4, 8, p.ref_patch)) { ++g1v_skipped_; continue; }
+      p.last_n = n_k;
+      p.have_last_n = true;
+      p.last_sync_anchor = (P0 - mu_k).norm();
+      it = g1v_patches_.emplace(surfel_id, std::move(p)).first;
+      ++g1v_created_;
+      // offset distributions
+      const double dn = std::abs(n_k.dot(p.d0));
+      const double dt = (p.d0 - n_k * n_k.dot(p.d0)).norm();
+      g1v_off_hist_[std::min(499, static_cast<int>(p.d0.norm() * 100))]++;
+      g1v_dn_hist_[std::min(499, static_cast<int>(dn * 1000))]++;
+      g1v_dt_hist_[std::min(499, static_cast<int>(dt * 200))]++;
+      continue;  // creation frame: no warp comparison
+    }
+
+    // ---- track existing patch ----
+    SchemeBPatch& p = it->second;
+    ++p.n_tracked;
+    ++g1v_tracked_;
+    const Eigen::Matrix3d Q = shortestArcRotation(p.n_ref, n_k);
+    const Eigen::Vector3d P_B = reconstructAnchor(mu_k, Q, p.d0);
+
+    // anchor drift (geometry change of the landmark position)
+    const double anchor_drift = (P_B - p.p0).norm();
+    g1v_anchor_hist_[std::min(999, static_cast<int>(anchor_drift * 1000))]++;
+
+    // O-HKNN anchor stays P0; normals: HKNN n_hknn (current point)
+    const Eigen::Vector3d n_o = canonicalNormal(n_hknn);
+    const Eigen::Vector3d n_b = n_k;
+
+    // project anchor points to camera for warp comparison
+    auto project_anchor = [&](const Eigen::Vector3d& X_w, bool& okp, double& u, double& v) {
+      okp = false;
+      const Eigen::Vector3d X_b =
+          pose.R_.transpose().cast<double>() * (X_w - pose.t_.cast<double>());
+      const Eigen::Vector3d X_c = transformPoint(T_cb, X_b);
+      if (X_c.z() <= 0.05) return;
+      u = calib.fx * X_c.x() / X_c.z() + calib.cx;
+      v = calib.fy * X_c.y() / X_c.z() + calib.cy;
+      okp = true;
+    };
+    bool ok_o = false, ok_b = false, ok_s = false;
+    double u_o = 0, v_o = 0, u_b = 0, v_b = 0, u_s = 0, v_s = 0;
+    project_anchor(p.p0, ok_o, u_o, v_o);
+    project_anchor(P_B, ok_b, u_b, v_b);
+    project_anchor(p.p0, ok_s, u_s, v_s);  // B-STATIC same anchor, parent normal
+
+    // warp: compare predicted sample coordinates between O-HKNN and B-PARENT
+    // using plane-supported ray intersection for the 8x8 patch around anchor.
+    // For each patch pixel we need the 3D point on each plane.
+    const Eigen::Vector3d cam_center_w = pose.t_.cast<double>();
+    double max_sample_delta = 0.0, sum_sample_delta = 0.0;
+    int n_samples = 0;
+    if (ok_o && ok_b && ok_s) {
+      const int half = 4;
+      for (int j = 0; j < 8; ++j) {
+        for (int ii = 0; ii < 8; ++ii) {
+          const double uu = u_o + (ii - half);
+          const double vv = v_o + (j - half);
+          Eigen::Vector3d Xo, Xb, Xs;
+          double do_ = 0, db = 0, ds = 0;
+          const bool ro = rayPlaneIntersect(cam, uu, vv, cam_center_w, p.p0, n_o, Xo, do_);
+          const bool rb = rayPlaneIntersect(cam, uu, vv, cam_center_w, P_B, n_b, Xb, db);
+          const bool rs = rayPlaneIntersect(cam, uu, vv, cam_center_w, p.p0, n_b, Xs, ds);
+          if (!ro || !rb || !rs) continue;
+          // project Xo and Xb back
+          const Eigen::Vector3d Xo_b =
+              pose.R_.transpose().cast<double>() * (Xo - cam_center_w);
+          const Eigen::Vector3d Xb_b =
+              pose.R_.transpose().cast<double>() * (Xb - cam_center_w);
+          const Eigen::Vector3d Xs_b =
+              pose.R_.transpose().cast<double>() * (Xs - cam_center_w);
+          const Eigen::Vector3d Xo_c = transformPoint(T_cb, Xo_b);
+          const Eigen::Vector3d Xb_c = transformPoint(T_cb, Xb_b);
+          const Eigen::Vector3d Xs_c = transformPoint(T_cb, Xs_b);
+          if (Xo_c.z() <= 0.05 || Xb_c.z() <= 0.05 || Xs_c.z() <= 0.05) continue;
+          const double uo2 = calib.fx * Xo_c.x() / Xo_c.z() + calib.cx;
+          const double vo2 = calib.fy * Xo_c.y() / Xo_c.z() + calib.cy;
+          const double ub2 = calib.fx * Xb_c.x() / Xb_c.z() + calib.cx;
+          const double vb2 = calib.fy * Xb_c.y() / Xb_c.z() + calib.cy;
+          const double delta = std::sqrt((uo2 - ub2) * (uo2 - ub2) + (vo2 - vb2) * (vo2 - vb2));
+          sum_sample_delta += delta;
+          max_sample_delta = std::max(max_sample_delta, delta);
+          ++n_samples;
+        }
+      }
+    }
+    if (n_samples > 0) {
+      const double mean_delta = sum_sample_delta / n_samples;
+      g1v_warpx_hist_[std::min(399, static_cast<int>(mean_delta * 20))]++;
+    }
+
+    // photometric: ref patch vs current at B-PARENT and O-HKNN centers
+    double photo_o = -1.0, photo_b = -1.0;
+    double dc_o = -1.0, dc_b = -1.0;
+    std::vector<float> cur_b, cur_o;
+    if (ok_b && samplePatch(img, W, H, u_b, v_b, 4, 8, cur_b)) {
+      double rm = 0, cm = 0;
+      for (float v : p.ref_patch) rm += v;
+      for (float v : cur_b) cm += v;
+      rm /= 64.0; cm /= 64.0;
+      double s = 0;
+      for (size_t k = 0; k < 64; ++k) {
+        const double d = (p.ref_patch[k] - rm) - (cur_b[k] - cm);
+        s += d * d;
+      }
+      photo_b = s / 64.0;
+      dc_b = std::abs(rm - cm);
+    }
+    if (ok_o && samplePatch(img, W, H, u_o, v_o, 4, 8, cur_o)) {
+      double rm = 0, cm = 0;
+      for (float v : p.ref_patch) rm += v;
+      for (float v : cur_o) cm += v;
+      rm /= 64.0; cm /= 64.0;
+      double s = 0;
+      for (size_t k = 0; k < 64; ++k) {
+        const double d = (p.ref_patch[k] - rm) - (cur_o[k] - cm);
+        s += d * d;
+      }
+      photo_o = s / 64.0;
+      dc_o = std::abs(rm - cm);
+    }
+    if (photo_b >= 0.0) g1v_photob_hist_[std::min(399, static_cast<int>(photo_b * 2))]++;
+    if (photo_o >= 0.0) g1v_photoo_hist_[std::min(399, static_cast<int>(photo_o * 2))]++;
+
+    // diagnostic local alignment (2D shift minimizing SSE; consistent units)
+    double best_du = 0.0, best_dv = 0.0, best_sse = photo_b * 64.0;
+    if (photo_b >= 0.0) {
+      const int R = 5;  // P-C diagnostic provisional (registered in parameter_policy)
+      for (int dy = -R; dy <= R; ++dy) {
+        for (int dx = -R; dx <= R; ++dx) {
+          std::vector<float> shifted;
+          if (!samplePatch(img, W, H, u_b + dx, v_b + dy, 4, 8, shifted)) continue;
+          double rm = 0, sm = 0;
+          for (float v : p.ref_patch) rm += v;
+          for (float v : shifted) sm += v;
+          rm /= 64.0; sm /= 64.0;
+          double sse = 0;
+          for (size_t k = 0; k < 64; ++k) {
+            const double d = (p.ref_patch[k] - rm) - (shifted[k] - sm);
+            sse += d * d;
+          }
+          if (sse < best_sse) {
+            best_sse = sse;
+            best_du = dx;
+            best_dv = dy;
+          }
+        }
+      }
+    }
+    if (photo_b >= 0.0) {
+      const double du_mag = std::sqrt(best_du * best_du + best_dv * best_dv);
+      g1v_du_hist_[std::min(399, static_cast<int>(du_mag * 40))]++;
+      g1v_photoa_hist_[std::min(399, static_cast<int>((best_sse / 64.0) * 2))]++;
+      const double dt_ms = std::abs(measures_.lidar.end_time - frame->timestamp) * 1000.0;
+      int db = 4;
+      if (dt_ms <= 5.0) db = 0;
+      else if (dt_ms <= 10.0) db = 1;
+      else if (dt_ms <= 20.0) db = 2;
+      else if (dt_ms <= 50.0) db = 3;
+      g1v_dt_n_[db]++;
+      g1v_du_dt_[db][std::min(399, static_cast<int>(du_mag * 40))]++;
+      g1v_photob_dt_[db][std::min(399, static_cast<int>(photo_b * 2))]++;
+      g1v_photoa_dt_[db][std::min(399, static_cast<int>((best_sse / 64.0) * 2))]++;
+      ++g1v_samples_;
+
+      // correlations: (x=normal disagreement deg, y=|du*|) etc.
+      const double na_deg = std::acos(std::min(1.0, std::abs(n_b.dot(n_o)))) * 180.0 / M_PI;
+      const double dn_ref = std::abs(p.n_ref.dot(p.d0));
+      const double warp_err = n_samples > 0 ? sum_sample_delta / n_samples : 0.0;
+      const double photo_improve = photo_b - best_sse / 64.0;
+      pa_na_du_x += na_deg; pa_na_du_y += du_mag;
+      pa_na_du_xx += na_deg * na_deg; pa_na_du_yy += du_mag * du_mag;
+      pa_na_du_xy += na_deg * du_mag; pa_na_du_n += 1;
+      pa_dn_du_x += dn_ref; pa_dn_du_y += du_mag;
+      pa_dn_du_xx += dn_ref * dn_ref; pa_dn_du_yy += du_mag * du_mag;
+      pa_dn_du_xy += dn_ref * du_mag; pa_dn_du_n += 1;
+      pa_ad_du_x += anchor_drift; pa_ad_du_y += du_mag;
+      pa_ad_du_xx += anchor_drift * anchor_drift; pa_ad_du_yy += du_mag * du_mag;
+      pa_ad_du_xy += anchor_drift * du_mag; pa_ad_du_n += 1;
+      pa_we_pi_x += warp_err; pa_we_pi_y += photo_improve;
+      pa_we_pi_xx += warp_err * warp_err; pa_we_pi_yy += photo_improve * photo_improve;
+      pa_we_pi_xy += warp_err * photo_improve; pa_we_pi_n += 1;
+    }
+
+    // event-trigger: accumulated normal change vs last sync
+    if (p.have_last_n) {
+      const double ang = std::acos(std::min(
+          1.0, std::abs(p.last_n.dot(n_k) / (p.last_n.norm() * n_k.norm())))) *
+                         180.0 / M_PI;
+      p.acc_normal_deg += ang;
+      if (p.acc_normal_deg > 1.0) p.e1_1++;
+      if (p.acc_normal_deg > 2.0) p.e1_2++;
+      if (p.acc_normal_deg > 3.0) p.e1_3++;
+      if (p.acc_normal_deg > 5.0) p.e1_5++;
+      if (p.acc_normal_deg > 3.0) {
+        p.sync_count++;
+        p.last_n = n_k;
+        p.acc_normal_deg = 0.0;
+        p.last_sync_anchor = anchor_drift;
+      }
+    }
+  }
+}
 void SuperLIO::UpdateMap() {
   const size_t ptsize = ds_undistort_->size();
   if (ptsize == 0) return;

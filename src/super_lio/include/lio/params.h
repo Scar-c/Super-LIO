@@ -108,6 +108,9 @@ namespace LI2Sup{
   /// G-0 shadow sidecar
   extern bool g_lio_g0_shadow;
 
+  /// G-1V Scheme-B shadow
+  extern bool g_lio_g1v_enabled;
+
   /// G-1 visual support diagnostics
   extern bool        g_lio_g1_enabled;
   extern std::string g_lio_g1_out_dir;

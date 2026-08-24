@@ -1,6 +1,6 @@
 # 19: [Super-LIVO v1][G-1V] Validate surfel-local patch offsets and plane-supported warp
 
-**Status:** ready-for-agent（Round 10 corrective；Scheme-B shadow）
+**Status:** completed（Round 10：B-PARENT ≈ O-HKNN oracle；anchor drift P50 4cm→<2px；|Δu*|≈5px 系统性（两方案相同）；DC 归一化必需；evidence docs/super_livo/evidence/g1v_scheme_b_patch_geometry.md）
 
 ## Parent
 

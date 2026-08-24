@@ -111,6 +111,9 @@ public:
     return camera_buffer_.empty() ? -1.0 : camera_buffer_.lastTimestamp();
   }
   bool cameraBufferEmpty() const { return camera_buffer_.empty(); }
+  const CameraFrame* cameraNewestFrame() const {
+    return camera_buffer_.empty() ? nullptr : &camera_buffer_.newest();
+  }
   double cameraLastTimestamp() const { return camera_buffer_.lastTimestamp(); }
   const CameraCalibration& cameraCalibration() const { return camera_calib_; }
   bool loadCameraCalibration(const std::string& path);

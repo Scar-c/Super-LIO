@@ -108,6 +108,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# G-1V Scheme-B shadow pure-logic tests (no ROS dependency)
+add_executable(g1v_schemeb_test
+  src/geometry/tests/test_schemeb.cpp
+)
+target_include_directories(g1v_schemeb_test PUBLIC include)
+target_link_libraries(g1v_schemeb_test
+  Eigen3::Eigen
+)
+
 # TB-0 instrumentation pure-logic tests (no ROS dependency)
 file(GLOB INSTR_SRC "src/instrumentation/*.cpp")
 list(FILTER INSTR_SRC EXCLUDE REGEX ".*/tests/.*")
