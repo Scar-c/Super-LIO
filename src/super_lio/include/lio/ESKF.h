@@ -38,6 +38,31 @@ public:
     BASIC::SE3  pose;
   };
 
+  // S-1 role-typed snapshots (ADR-003 box semantics):
+  //   PropagationPrior    = x_prop, P^- (IMU propagation to epoch t)
+  //   SequentialPrior     = x_L, P_L (LiDAR posterior; VIO prior, I-07)
+  //   LinearizationAnchor = x_fej (FEJ anchor; MODE-B/C reserved, I-06)
+  //   PosteriorSnapshot   = result of one update (x_post, P_post)
+  struct PropagationPrior {
+    double time = 0.0;
+    SysState x;
+    COV P = COV::Zero();
+  };
+  struct SequentialPrior {
+    double time = 0.0;
+    SysState x;
+    COV P = COV::Zero();
+  };
+  struct LinearizationAnchor {
+    double time = 0.0;
+    SysState x;
+  };
+  struct PosteriorSnapshot {
+    double time = 0.0;
+    SysState x;
+    COV P = COV::Zero();
+  };
+
 
   ESKF(Options option = Options()) : options_(option) { BuildNoise(option); }
 
@@ -56,6 +81,12 @@ public:
 
   using ObsFunc = std::function<void(const KFState& kf_state, BASIC::M6& HT_Vinv_H, BASIC::V6& HT_Vinv_r)>;
   bool UpdateObserve(ObsFunc obs);
+  // S-1: explicit sequential-prior update. Prior (x_L, P_L) initializes the
+  // IEKF; returns the posterior snapshot. Zero-information obs (empty
+  // residuals) must give x_post == prior.x, P_post == prior.P.
+  PosteriorSnapshot UpdateObserveFromPrior(const SequentialPrior& prior,
+                                           ObsFunc obs);
+  PosteriorSnapshot UpdateObserveImpl(ObsFunc obs);
 
   double GetTime() const { return current_time_; }
 

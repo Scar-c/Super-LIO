@@ -59,6 +59,7 @@ catkin_package(
 
 # LIO library source files
 file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/offline/*.cpp" "src/instrumentation/*.cpp")
+list(FILTER LIO_LIB_SRC EXCLUDE REGEX ".*/tests/.*")
 file(GLOB LIO_LIB_SRC_CAM "src/camera/*.cpp")
 list(APPEND LIO_LIB_SRC ${LIO_LIB_SRC_CAM})
 
@@ -106,6 +107,21 @@ add_executable(super_lio_offline_node src/apps/super_lio_offline_node.cpp)
 target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
+)
+
+# S-1 sequential-prior ESKF tests (no ROS dependency)
+add_executable(s1_prior_test
+  src/lio/tests/test_s1_prior.cpp
+  src/lio/ESKF.cpp
+  src/lio/params.cpp
+)
+target_include_directories(s1_prior_test PUBLIC include)
+target_link_libraries(s1_prior_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+  gflags
+  glog
 )
 
 # S-0 camera-epoch slice conservation tests (no ROS dependency)

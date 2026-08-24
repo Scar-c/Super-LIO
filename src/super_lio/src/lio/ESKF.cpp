@@ -248,7 +248,26 @@ bool ESKF::Predict(const IMUData& imu) {
 
 
 const int STATE_DIM = 18;
+ESKF::PosteriorSnapshot ESKF::UpdateObserveFromPrior(const ESKF::SequentialPrior& prior,
+                                                   ESKF::ObsFunc obs) {
+  R_ = prior.x.R;
+  p_ = prior.x.p;
+  v_ = prior.x.v;
+  bg_ = prior.x.bg;
+  ba_ = prior.x.ba;
+  current_time_ = prior.time;
+  current_obs_time_ = prior.time;
+  P_ = prior.P;
+  return UpdateObserveImpl(obs);
+}
+
 bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
+  UpdateObserveImpl(obs);
+  return true;
+}
+
+ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+  // propagated state (current filter state, or the explicit prior)
   // propagated state
   SO3 R_pred = R_;
   V3  p_pred = p_;
@@ -332,7 +351,9 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
   dx_.setZero();
 
   last_obs_time_ = current_obs_time_;
-  return true;
+
+  return PosteriorSnapshot{current_time_, GetSysState(), P_};
 }
+
 
 }
