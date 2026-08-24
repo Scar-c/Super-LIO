@@ -161,6 +161,19 @@ public:
   int64_t visual_ref_switches_ = 0;
   int64_t visual_landmarks_created_ = 0;
   int64_t visual_parent_invalids_ = 0;
+  // V-2/V-3 photometric diagnostics
+  int visual_residual_count_ = 0;
+  int visual_residual_landmarks_ = 0;
+  int64_t visual_residual_frames_ = 0;
+  int64_t visual_residual_samples_ = 0;
+  double visual_residual_sse_ = 0.0;
+  bool fd_gate_fail_ = false;
+  double fd_gate_max_rel_ = 0.0;
+  int64_t visual_residual_accepted_frames() const { return visual_residual_frames_; }
+  int64_t visualResidualSamples() const { return visual_residual_samples_; }
+  double visualResidualSse() const { return visual_residual_sse_; }
+  bool fdGateFail() const { return fd_gate_fail_; }
+  double fdGateMaxRel() const { return fd_gate_max_rel_; }
   int64_t g1v_created_ = 0;
   int64_t g1v_tracked_ = 0;
   int64_t g1v_skipped_ = 0;
@@ -185,6 +198,10 @@ protected:
   void runG2G3Shadow(const BASIC::SE3& pose);
   void runG1VShadow(const BASIC::SE3& pose);
   void runVisualLifecycle(const BASIC::SE3& pose);
+  // V-2/V-3: photometric residual + analytic 6-DOF Jacobian + streaming
+  // equations. apply=false -> V-3 state-off (equations only).
+  int runVisualResidual(const BASIC::SE3& pose, BASIC::M6& HTVH,
+                        BASIC::V6& HTVr, bool apply);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();

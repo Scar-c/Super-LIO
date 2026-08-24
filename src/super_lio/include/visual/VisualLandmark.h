@@ -26,6 +26,7 @@ struct VisualObservation {
   float timestamp = 0.0f;
   float ref_u = 0.0f, ref_v = 0.0f;        // reference pixel
   Eigen::Vector3f cam_pos = Eigen::Vector3f::Zero();  // ref camera center (world)
+  Eigen::Quaternionf cam_q = Eigen::Quaternionf::Identity();  // ref camera attitude
   uint8_t patch[kPatchSize];                // immutable 8x8 grayscale
   float texture_score = 0.0f;               // gradient std
   float viewing_score = 0.0f;               // 1/cos of viewing angle proxy
@@ -47,6 +48,7 @@ struct VisualLandmark {
   uint8_t best_alt_slot = 1;
   uint8_t latest_slot = 2;
 
+  double last_visible_time = 0.0;
   int64_t geometry_sync_count = 0;
   int64_t observation_add_count = 0;
   int64_t reference_switch_count = 0;

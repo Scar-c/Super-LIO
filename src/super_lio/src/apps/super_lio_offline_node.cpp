@@ -392,6 +392,18 @@ int main(int argc, char** argv) {
     std::printf("S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=%lld median=%.1f P90=%.1f P95=%.1f P99=%.1f\n",
                 (long long)data_wrapper->cameraEpochCount(), pct(0.5), pct(0.9), pct(0.95), pct(0.99));
   }
+  if (g_lio_v2_enabled) {
+    std::printf("V-2 photometric: frames=%lld accepted_landmarks=%lld total_samples=%lld meanSSE_per_sample=%.2f\n",
+                (long long)lio->visual_residual_accepted_frames(),
+                (long long)lio->visual_residual_landmarks_,
+                (long long)lio->visualResidualSamples(),
+                lio->visualResidualSamples() > 0
+                    ? lio->visualResidualSse() /
+                          (double)lio->visualResidualSamples()
+                    : 0.0);
+    std::printf("V-2 FD gate: fail=%d max_relative_error=%.6g\n",
+                lio->fdGateFail() ? 1 : 0, lio->fdGateMaxRel());
+  }
   if (g_lio_v0_enabled) {
     std::printf("V-0 VisualMap: parents=%zu landmarks=%lld slots_used=%lld created=%lld frames=%lld attempts=%lld\n",
                 lio->visualMap().parentCount(), (long long)lio->visualLandmarksCreated(),

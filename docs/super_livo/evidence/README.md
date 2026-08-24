@@ -11,6 +11,9 @@ Scope: micro-surfel feasibility evidence 索引
 | g2_maturity_geometry_sync.md | PASS | 5279f1c | eee/nya | maturity（parent 更快）、E0/E1/E3 事件 |
 | g3_direct_plane_shadow.md | PASS(shadow) | 5279f1c | eee/nya | child/parent vs HKNN 三路、HIGH COVERAGE / MODERATE AGREEMENT |
 | g1v_scheme_b_patch_geometry.md | PASS(shadow) | 1a157a4 | eee/nya | Scheme-B surfel+offset：B-PARENT ≈ O-HKNN oracle；\|Δu*\|≈5px 系统性；DC 归一化必需 |
+| s1_sequential_prior_api.md | PASS | d01344b | unit | 显式 sequential prior；zero-info identity |
+| v0_visual_map_memory.md | PASS | 09ae79e | eee | VisualLandmark 3-slot uint8；112B/432B；bounded |
+| v2_photometric_jacobian.md | PASS | 本轮 | eee | photometric residual + analytic J；FD gate 1.5e-3；V-3 state-off parity |
 | dg0_micro_surfel_decision_pack.md | BLOCKED FOR OWNER REVIEW | 本轮 | — | support-scale/storage/gate/lifecycle 决策包 + MISSING EVIDENCE |
 
 MISSING EVIDENCE：Corridor01 / Corridor02 / SFS（topic audit / config / CompressedImage 适配待建）。

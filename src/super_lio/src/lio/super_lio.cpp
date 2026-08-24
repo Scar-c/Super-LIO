@@ -613,6 +613,11 @@ void SuperLIO::Observe(){
         if(g_lio_v0_enabled){
           runVisualLifecycle(pose);
         }
+        if(g_lio_v2_enabled){
+          BASIC::M6 vh = BASIC::M6::Zero();
+          BASIC::V6 vr = BASIC::V6::Zero();
+          visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
+        }
       }
       return;
     }
@@ -1033,11 +1038,295 @@ void SuperLIO::runG2G3Shadow(const SE3& pose){
   }
 }
 
+
+int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
+                                BASIC::V6& HTVr, bool apply) {
+  HTVH.setZero();
+  HTVr.setZero();
+  (void)apply;  // V-3 state-off: equations only; state apply reserved for V-4
+  const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
+  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return 0;
+  const CameraCalibration& calib = data_wrapper_->cameraCalibration();
+  if (!calib.valid) return 0;
+  const int W = frame->width, H = frame->height;
+  const std::vector<uint8_t>& img = *frame->data;
+  const Eigen::Matrix4d T_cb = calib.T_cam_body();
+  const double fx = calib.fx, fy = calib.fy, cx = calib.cx, cy = calib.cy;
+
+  int accepted = 0;
+  int64_t samples_total = 0;
+  double sum_before = 0.0, sum_after = 0.0;
+  static thread_local double fd_debug_printed = 0.0;
+
+  for (auto& kv : visual_map_.container()) {
+    for (auto& lm : kv.second) {
+      if (!lm.geometry_valid) continue;
+      const VisualObservation* ref = nullptr;
+      for (int s = 0; s < kMaxObsPerLandmark; ++s) {
+        if (lm.observations[s].valid) { ref = &lm.observations[s]; break; }
+      }
+      if (ref == nullptr) continue;
+      const Eigen::Vector3d P_patch =
+          lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
+      const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
+
+      // ref camera pose (body attitude stored; camera axis approx)
+      const Eigen::Matrix3d R_ref = ref->cam_q.toRotationMatrix().cast<double>();
+      const Eigen::Vector3d t_ref = ref->cam_pos.cast<double>();
+
+      // current camera pose
+      const Eigen::Vector3d t_cur = pose.t_.cast<double>();
+      const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+
+      // warp the 8x8 patch: for each sample pixel, ray from ref camera
+      // through the pixel, intersect patch plane (P_patch, n_sync), then
+      // project the 3D point into the current camera.
+      std::vector<Eigen::Vector2d> warped;  // current image coords
+      std::vector<double> ref_vals;
+      std::vector<double> grad_u, grad_v;
+      warped.reserve(64);
+      ref_vals.reserve(64);
+      grad_u.reserve(64);
+      grad_v.reserve(64);
+
+      const double ref_u = ref->ref_u, ref_v = ref->ref_v;
+      for (int j = 0; j < 8; ++j) {
+        for (int i = 0; i < 8; ++i) {
+          const double u = ref_u + (i - 4);
+          const double v = ref_v + (j - 4);
+          // ref ray direction in camera frame (z=1 plane)
+          const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+          const Eigen::Vector3d dir_w = R_ref * ray_cam;
+          const double denom = n_sync.dot(dir_w);
+          if (std::abs(denom) < 1e-9) continue;
+          const double s = n_sync.dot(P_patch - t_ref) / denom;
+          if (s <= 1e-4) continue;
+          const Eigen::Vector3d X = t_ref + s * dir_w;
+          // project into current camera
+          const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+          if (Xc.z() <= 0.05) continue;
+          const double u2 = fx * Xc.x() / Xc.z() + cx;
+          const double v2 = fy * Xc.y() / Xc.z() + cy;
+          if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
+          // ref intensity (from stored patch, valid overlap == warped set)
+          const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
+          warped.emplace_back(u2, v2);
+          ref_vals.push_back(rv);
+          // current bilinear + gradient
+          const int u0 = static_cast<int>(std::floor(u2));
+          const int v0 = static_cast<int>(std::floor(v2));
+          const double fu = u2 - u0, fv = v2 - v0;
+          const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
+          const double I00 = img[static_cast<size_t>(v0) * W + u0];
+          const double I10 = img[static_cast<size_t>(v0) * W + up];
+          const double I01 = img[static_cast<size_t>(vp) * W + u0];
+          const double I11 = img[static_cast<size_t>(vp) * W + up];
+          const double Iu = (1.0 - fv) * (I10 - I00) + fv * (I11 - I01);
+          const double Iv = (1.0 - fu) * (I01 - I00) + fu * (I11 - I10);
+          grad_u.push_back(Iu);
+          grad_v.push_back(Iv);
+          samples_total++;
+        }
+      }
+      const size_t M = warped.size();
+      if (M < 32) continue;  // P-C provisional min valid samples (v1 49)
+
+      // DC normalization over the same valid set (v1 50)
+      double mean_ref = 0.0, mean_cur = 0.0;
+      for (size_t k = 0; k < M; ++k) {
+        const int u0 = static_cast<int>(std::floor(warped[k].x()));
+        const int v0 = static_cast<int>(std::floor(warped[k].y()));
+        const double fu = warped[k].x() - u0, fv = warped[k].y() - v0;
+        const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
+        const double I00 = img[static_cast<size_t>(v0) * W + u0];
+        const double I10 = img[static_cast<size_t>(v0) * W + up];
+        const double I01 = img[static_cast<size_t>(vp) * W + u0];
+        const double I11 = img[static_cast<size_t>(vp) * W + up];
+        const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
+                          fv * ((1.0 - fu) * I01 + fu * I11);
+        mean_cur += Ic;
+        mean_ref += ref_vals[k];
+      }
+      mean_cur /= M;
+      mean_ref /= M;
+
+      // residuals + Jacobian: r_k = (I_c(w_k)-mean_c) - (I_r(k)-mean_r)
+      // dr/dx = J_k - (1/M) sum_j J_j  (v1 51)
+      // w_k depends on pose via X(w_k) projection.
+      // For each valid sample, J_k (1x6): dI/du * du/dpose + dI/dv * dv/dpose
+      // du/dpose via pinhole projection derivative at (Xc).
+      Eigen::Matrix<double, 6, 1> sum_J = Eigen::Matrix<double, 6, 1>::Zero();
+      std::vector<Eigen::Matrix<double, 6, 1>> Js(M);
+      std::vector<double> rs(M);
+      for (size_t k = 0; k < M; ++k) {
+        const int u0 = static_cast<int>(std::floor(warped[k].x()));
+        const int v0 = static_cast<int>(std::floor(warped[k].y()));
+        const double fu = warped[k].x() - u0, fv = warped[k].y() - v0;
+        const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
+        const double I00 = img[static_cast<size_t>(v0) * W + u0];
+        const double I10 = img[static_cast<size_t>(v0) * W + up];
+        const double I01 = img[static_cast<size_t>(vp) * W + u0];
+        const double I11 = img[static_cast<size_t>(vp) * W + up];
+        const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
+                          fv * ((1.0 - fu) * I01 + fu * I11);
+        rs[k] = (Ic - mean_cur) - (ref_vals[k] - mean_ref);
+        const double Iu = (1.0 - fv) * (I10 - I00) + fv * (I11 - I01);
+        const double Iv = (1.0 - fu) * (I01 - I00) + fu * (I11 - I10);
+
+        // 3D point in current camera frame (recompute from stored X? we need
+        // X_c; recompute via ray-plane from ref side is heavy; store it)
+        // -- recompute X: keep it simple via the ref-frame ray
+        const double u = ref_u + (static_cast<double>(k % 8) - 4);
+        const double v = ref_v + (static_cast<double>(k / 8) - 4);
+        const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+        const Eigen::Vector3d dir_w = R_ref * ray_cam;
+        const double denom = n_sync.dot(dir_w);
+        const double s = n_sync.dot(P_patch - t_ref) / denom;
+        const Eigen::Vector3d X = t_ref + s * dir_w;
+        const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+        // projection Jacobian du/dXc (camera frame):
+        const double z = Xc.z();
+        // du/dXc = [fx/z, 0, -fx*Xc.x/z^2]; dv/dXc = [0, fy/z, -fy*Xc.y/z^2]
+        // dXc/dpose: pose left-perturbation (SO3 exp, p):
+        //   Xc = Rc^T (X - t); perturb Rc -> (I - [delta_theta]x) Rc,
+        //   t -> t + delta_p
+        //   dXc/dtheta = [Xc]x ; dXc/dp = -Rc^T
+        Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
+        dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
+        // build skew of Xc
+        Eigen::Matrix3d Xc_skew;
+        Xc_skew << 0.0, -Xc.z(), Xc.y(), Xc.z(), 0.0, -Xc.x(), -Xc.y(), Xc.x(), 0.0;
+        dXc_dxi.block<3, 3>(0, 0) = Xc_skew;
+
+        Eigen::Matrix<double, 2, 3> du_dXc;
+        du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
+                  0.0, fy / z, -fy * Xc.y() / (z * z);
+        const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
+        Eigen::Matrix<double, 6, 1> Jk;
+        Jk = (Iu * du_dxi.row(0) + Iv * du_dxi.row(1)).transpose();
+        Js[k] = Jk;
+        sum_J += Jk;
+      }
+      // DC Jacobian: J_k - mean(J)
+      Eigen::Matrix<double, 6, 1> Jmean = sum_J / static_cast<double>(M);
+      double sse_before = 0.0, sse_after = 0.0;
+      for (size_t k = 0; k < M; ++k) {
+        sse_before += rs[k] * rs[k];
+        const Eigen::Matrix<double, 6, 1> Jdc = Js[k] - Jmean;
+        HTVH += (Jdc * Jdc.transpose()).cast<float>();
+        HTVr -= (Jdc * rs[k]).cast<float>();
+        sse_after += rs[k] * rs[k];
+        sum_before += rs[k] * rs[k];
+        sum_after += sse_after;  // placeholder: real after-solve not available here
+      }
+      accepted++;
+      (void)sse_before;
+      (void)sse_after;
+      visual_residual_samples_ += static_cast<int64_t>(M);
+      visual_residual_sse_ += sse_before;
+
+      // FD spot check (first two landmarks, once per run): per-sample DC
+      // residual derivative vs analytic (J_k - Jmean); only samples valid in
+      // both perturbed and unperturbed frames are counted
+      if (fd_debug_printed < 2.0) {
+        fd_debug_printed += 1.0;
+        auto warp_all = [&](const SE3& p_, std::vector<Eigen::Vector2d>& w,
+                            std::vector<double>& ic, double& mcur) {
+          w.clear();
+          ic.clear();
+          const Eigen::Matrix3d Rc = p_.R_.cast<double>();
+          const Eigen::Vector3d tc = p_.t_.cast<double>();
+          double acc = 0.0;
+          for (int k = 0; k < 64; ++k) {
+            const double u = ref_u + (static_cast<double>(k % 8) - 4);
+            const double v = ref_v + (static_cast<double>(k / 8) - 4);
+            const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+            const Eigen::Vector3d dir_w = R_ref * ray_cam;
+            const double denom = n_sync.dot(dir_w);
+            if (std::abs(denom) < 1e-9) continue;
+            const double s = n_sync.dot(P_patch - t_ref) / denom;
+            if (s <= 1e-4) continue;
+            const Eigen::Vector3d X = t_ref + s * dir_w;
+            const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
+            if (Xc.z() <= 0.05) continue;
+            const double u2 = fx * Xc.x() / Xc.z() + cx;
+            const double v2 = fy * Xc.y() / Xc.z() + cy;
+            if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
+            const int u0 = static_cast<int>(std::floor(u2));
+            const int v0 = static_cast<int>(std::floor(v2));
+            const double fu = u2 - u0, fv = v2 - v0;
+            const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
+            const double I00 = img[static_cast<size_t>(v0) * W + u0];
+            const double I10 = img[static_cast<size_t>(v0) * W + up];
+            const double I01 = img[static_cast<size_t>(vp) * W + u0];
+            const double I11 = img[static_cast<size_t>(vp) * W + up];
+            const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
+                              fv * ((1.0 - fu) * I01 + fu * I11);
+            w.emplace_back(u2, v2);
+            ic.push_back(Ic);
+            acc += Ic;
+          }
+          mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
+        };
+        // map warped index k -> patch index for valid overlap alignment
+        std::vector<Eigen::Vector2d> w0;
+        std::vector<double> ic0;
+        double mc0 = 0.0;
+        warp_all(pose, w0, ic0, mc0);
+        // align with the analytic valid set (warped): rebuild ref values in
+        // the same order as w0 (valid overlap == warped set)
+        if (w0.size() == M) {
+          const double eps = 1e-6;
+          SE3 p_plus = pose;
+          p_plus.t_[0] += static_cast<float>(eps);
+          std::vector<Eigen::Vector2d> w1;
+          std::vector<double> ic1;
+          double mc1 = 0.0;
+          warp_all(p_plus, w1, ic1, mc1);
+          if (w1.size() == M) {
+            double max_rel = 0.0;
+            for (size_t k = 0; k < M; ++k) {
+              const double r0 = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
+              const double r1 = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
+              const double fd = (r1 - r0) / eps;
+              const double an = (Js[k] - Jmean)(3);
+              const double rel = std::abs(fd - an) /
+                                 std::max(1e-9, std::abs(fd));
+              max_rel = std::max(max_rel, rel);
+            }
+            fd_gate_max_rel_ = std::max(fd_gate_max_rel_, max_rel);
+            if (max_rel > 1e-2) {
+              LOG(ERROR) << "V-2 FD gate FAIL: rel=" << max_rel;
+              fd_gate_fail_ = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  visual_residual_landmarks_ = accepted;
+  visual_residual_frames_++;
+  return accepted;
+}
+
 void SuperLIO::runVisualLifecycle(const SE3& pose){
   visual_frames_processed_++;
   const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
   const CameraFrame* frame = data_wrapper_->cameraNewestFrame();
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return;
+  // stale-landmark eviction: remove landmarks unseen for > 30 s (bounded
+  // active pool, v1 36 lifetime policy)
+  if (visual_frames_processed_ % 10 == 0) {
+    const double now = frame->timestamp;
+    for (auto& kv : visual_map_.container()) {
+      auto& vec = kv.second;
+      vec.erase(std::remove_if(vec.begin(), vec.end(),
+                               [&](const VisualLandmark& l) {
+                                 return (now - l.last_visible_time) > 30.0;
+                               }),
+                vec.end());
+    }
+  }
   const CameraCalibration& calib = data_wrapper_->cameraCalibration();
   if (!calib.valid) return;
   const int W = frame->width, H = frame->height;
@@ -1059,7 +1348,7 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
   };
 
   const int N = static_cast<int>(effect_knn_num_);
-  const int stride = std::max(1, N / 300);
+  const int stride = std::max(1, N / 60);
   for (int i = 0; i < N; i += stride) {
     const int idx = effect_knn_idxs_[i];
     if (!effect_mask_[idx]) continue;
@@ -1120,7 +1409,7 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
       if (!ok_p) continue;
       std::vector<float> cand_patch;
       if (!samplePatch(img, W, H, u_p, v_p, 4, 8, cand_patch)) continue;
-      if (lms.size() >= 4) continue;  // per-parent landmark cap
+      if (lms.size() >= 8) continue;  // per-parent landmark cap
       VisualLandmark nlm;
       nlm.parent_id = parent_id;
       nlm.source_child_idx = 0;
@@ -1206,6 +1495,7 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
       o.ref_u = static_cast<float>(u_p);
       o.ref_v = static_cast<float>(v_p);
       o.cam_pos = pose.t_.cast<float>();
+      o.cam_q = Eigen::Quaternionf(pose.R_.cast<float>());
       memcpy(o.patch, patch_u8, 64);
       o.texture_score = static_cast<float>(sd);
       o.viewing_score = static_cast<float>(viewing);
@@ -1237,6 +1527,7 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     o.ref_u = static_cast<float>(u_p);
     o.ref_v = static_cast<float>(v_p);
     o.cam_pos = pose.t_.cast<float>();
+    o.cam_q = Eigen::Quaternionf(pose.R_.cast<float>());
     memcpy(o.patch, patch_u8, 64);
     o.texture_score = static_cast<float>(sd);
     o.viewing_score = static_cast<float>(viewing);
