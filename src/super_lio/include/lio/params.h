@@ -99,6 +99,7 @@ namespace LI2Sup{
   extern double      g_offline_start_offset;
   extern double      g_offline_duration;
   extern bool        g_offline_publish;
+  extern std::string g_offline_out_dir;
 
   /// for relocation
   extern bool g_update_map;

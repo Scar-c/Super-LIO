@@ -75,6 +75,7 @@ namespace LI2Sup{
   double      g_offline_start_offset = -1.0;
   double      g_offline_duration = -1.0;
   bool        g_offline_publish = true;
+  std::string g_offline_out_dir = "";
 
   /// for relocation
   bool g_update_map = false;

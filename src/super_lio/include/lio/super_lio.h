@@ -36,6 +36,8 @@ public:
   void process();
   void saveMap();
   void printTimeRecord();
+  size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
+  size_t mapCapacity() const { return g_ivox_capacity; }
 
 protected:
   void stateWaitKFInit();

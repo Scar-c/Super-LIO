@@ -37,8 +37,13 @@ struct OfflineAccounting {
   double last_sensor_time = 0.0;
   double first_estimator_time = 0.0;
   double last_estimator_time = 0.0;
+  size_t process_invocations = 0;
+  size_t heavy_process_count = 0;
   size_t imu_remaining = 0;
   size_t lidar_remaining = 0;
+  double front_lidar_end_time = 0.0;
+  double last_imu_time = 0.0;
+  std::string unprocessed_reason;
   int sync_count = 0;
   double wall_processing_s = 0.0;
   double sensor_duration_s = 0.0;

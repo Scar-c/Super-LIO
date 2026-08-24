@@ -8,6 +8,7 @@
 #include <deque>
 #include <vector>
 #include <execution>
+#include <fstream>
 
  #include <pcl/point_types.h>
  #include <pcl/point_cloud.h>
@@ -95,6 +96,15 @@ public:
   void HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPtr&);
   void HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr&);
 
+  // Output control: offline backend may disable all pure-ROS visualization
+  // side effects while keeping the estimator untouched.
+  void setPublishEnabled(bool enabled) { enable_publish_ = enabled; }
+  bool publishEnabled() const { return enable_publish_; }
+
+  // Streaming trajectory sink (TUM format), independent of ROS publishing.
+  bool openTrajectoryFile(const std::string& path);
+  void closeTrajectoryFile();
+
   // Accounting / drain support (read-only, behavior neutral)
   size_t lidarBufferSize() const { return lidar_buffer_.size(); }
   size_t imuBufferSize() const { return imu_buffer_.size(); }
@@ -102,11 +112,18 @@ public:
   double lastSyncedLidarEndTime() const { return last_synced_lidar_end_time_; }
   double firstSyncedLidarEndTime() const { return first_synced_lidar_end_time_; }
   double lastTimestampImu() const { return last_timestamp_imu_; }
+  double frontLidarEndTime() const {
+    return lidar_buffer_.empty() ? -1.0 : lidar_buffer_.front().end_time;
+  }
 
 private:
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
   void livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr&);
   void stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr&);
+  void publishImuForwardOdom(const sensor_msgs::Imu::ConstPtr& msg,
+                             const DynamicState& imu_state,
+                             const DynamicState& robo_state);
+  void writeTrajectoryRow(const NavState& state);
 
 
   ros::NodeHandle nh_;
@@ -121,6 +138,21 @@ private:
   int sync_count_ = 0;
   double first_synced_lidar_end_time_ = -1.0;
   double last_synced_lidar_end_time_ = -1.0;
+
+  bool enable_publish_ = true;
+  std::ofstream traj_file_;
+  ros::Publisher imu_odom_pub_;
+  ros::Publisher robo_odom_pub_;
+  ros::Publisher msg2uav_pub_;
+  ros::Publisher cloud_world_pub_;
+  ros::Publisher cloud2robot_pub_;
+  ros::Publisher cloud_body_pose_pub_;
+  ros::Publisher cloud_world_pose_pub_;
+  ros::Publisher dense_cloud_pose_pub_;
+  ros::Publisher processing_time_pub_;
+  ros::Publisher global_map_pub_;
+  ros::Timer global_map_timer_;
+  ros::Subscriber init_pose_sub_;
 
   ESKF::Ptr eskf_ = nullptr;
   OctVoxMap<BASIC::V3, BASIC::scalar>::Ptr ivox_ = nullptr;

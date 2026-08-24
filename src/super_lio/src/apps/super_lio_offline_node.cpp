@@ -1,5 +1,7 @@
 #include <csignal>
 #include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <ros/ros.h>
 
 #include "lio/super_lio.h"
@@ -8,9 +10,31 @@
 
 using namespace LI2Sup;
 
+namespace {
+
 void SigHandle(int sig) {
   g_flag_run = false;
 }
+
+long rssKb() {
+  FILE* f = fopen("/proc/self/statm", "r");
+  if (!f) return -1;
+  long total = 0, resident = 0;
+  if (fscanf(f, "%ld %ld", &total, &resident) != 2) {
+    resident = -1;
+  }
+  fclose(f);
+  const long page_kb = sysconf(_SC_PAGESIZE) / 1024;
+  return resident > 0 ? resident * page_kb : -1;
+}
+
+double nowMs() {
+  return std::chrono::duration<double, std::milli>(
+             std::chrono::high_resolution_clock::now().time_since_epoch())
+      .count();
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "lio_offline");
@@ -25,9 +49,20 @@ int main(int argc, char** argv) {
   }
 
   ROSWrapper::Ptr data_wrapper = std::make_shared<ROSWrapper>();
+  data_wrapper->setPublishEnabled(g_offline_publish);
   auto lio = std::make_shared<SuperLIO>();
   lio->setROSWrapper(data_wrapper);
   lio->init();
+
+  std::string out_dir = g_offline_out_dir;
+  if (!out_dir.empty()) {
+    std::error_code ec;
+    std::filesystem::create_directories(out_dir, ec);
+    if (!ec && !data_wrapper->openTrajectoryFile(out_dir + "/trajectory.tum")) {
+      std::printf("[offline_node] WARNING: cannot open trajectory file in %s\n",
+                  out_dir.c_str());
+    }
+  }
 
   OfflineReader reader;
   OfflineOptions opts;
@@ -41,15 +76,19 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::printf("[offline_node] processing %s ...\n", opts.bag_path.c_str());
+  std::printf("[offline_node] processing %s (publish=%s)\n",
+              opts.bag_path.c_str(), opts.publish ? "true" : "false");
+  const double t_proc_start = nowMs();
   if (!reader.run(*data_wrapper, *lio)) {
     std::printf("[offline_node] ERROR: offline run failed\n");
     return 1;
   }
   reader.drain(*data_wrapper, *lio);
+  const double t_proc_end = nowMs();
 
   lio->saveMap();
   lio->printTimeRecord();
+  data_wrapper->closeTrajectoryFile();
 
   const OfflineAccounting& a = reader.accounting();
   std::printf("\n=== Offline accounting ===\n");
@@ -65,12 +104,21 @@ int main(int argc, char** argv) {
               a.first_sensor_time, a.last_sensor_time);
   std::printf("first/last estimator timestamp: %.6f / %.6f\n",
               a.first_estimator_time, a.last_estimator_time);
-  std::printf("sync epochs: %d\n", a.sync_count);
+  std::printf("process invocations: %zu\n", a.process_invocations);
+  std::printf("sync epochs (heavy process): %d / %zu\n", a.sync_count,
+              a.heavy_process_count);
   std::printf("remaining imu/lidar in buffer: %zu/%zu\n", a.imu_remaining,
               a.lidar_remaining);
+  std::printf("front_lidar_end_time: %.6f  last_imu_time: %.6f\n",
+              a.front_lidar_end_time, a.last_imu_time);
+  std::printf("unprocessed_reason: %s\n", a.unprocessed_reason.c_str());
   std::printf("sensor_duration_s: %.3f\n", a.sensor_duration_s);
-  std::printf("wall_processing_s: %.3f\n", a.wall_processing_s);
-  std::printf("speed_factor: %.3fx\n", reader.speedFactor());
+  std::printf("wall_processing_s: %.3f\n", (t_proc_end - t_proc_start) / 1000.0);
+  std::printf("speed_factor: %.3fx\n",
+              (t_proc_end - t_proc_start) > 0.0
+                  ? a.sensor_duration_s / ((t_proc_end - t_proc_start) / 1000.0)
+                  : 0.0);
+  std::printf("peak RSS during loop: %ld KB\n", rssKb());
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();
   return 0;

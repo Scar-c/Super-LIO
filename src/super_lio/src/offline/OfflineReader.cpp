@@ -17,11 +17,14 @@ double nowMs() {
       .count();
 }
 
-bool inRange(const ros::Time& t, double start, double end) {
-  double s = t.toSec();
-  if (start > 0.0 && s < start) return false;
-  if (end > 0.0 && s > end) return false;
-  return true;
+long rssKb() {
+  FILE* f = fopen("/proc/self/statm", "r");
+  if (!f) return -1;
+  long total = 0, resident = 0;
+  if (fscanf(f, "%ld %ld", &total, &resident) != 2) resident = -1;
+  fclose(f);
+  const long page_kb = sysconf(_SC_PAGESIZE) / 1024;
+  return resident > 0 ? resident * page_kb : -1;
 }
 
 }  // namespace
@@ -52,22 +55,18 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
     end = opts_.start_offset + opts_.duration;
   }
 
-  double bag_start = 0.0;
-  double bag_end = 0.0;
-  {
-    rosbag::View full(bag);
-    bag_start = full.getBeginTime().toSec();
-    bag_end = full.getEndTime().toSec();
-  }
-  double s = start >= 0.0 ? bag_start + start : bag_start;
-  double e = end > 0.0 ? bag_start + end : bag_end;
+  std::vector<std::string> topics = {opts_.lidar_topic, opts_.imu_topic};
+  rosbag::TopicQuery query(topics);
 
   std::unique_ptr<rosbag::View> view;
   try {
+    view.reset(new rosbag::View(bag, query));
+    const double bag_start = view->getBeginTime().toSec();
+    const double bag_end = view->getEndTime().toSec();
+    double s = start >= 0.0 ? bag_start + start : bag_start;
+    double e = end > 0.0 ? bag_start + end : bag_end;
     if (s > bag_start || e < bag_end) {
-      view.reset(new rosbag::View(bag, ros::Time(s), ros::Time(e)));
-    } else {
-      view.reset(new rosbag::View(bag));
+      view.reset(new rosbag::View(bag, query, ros::Time(s), ros::Time(e)));
     }
   } catch (const std::exception& err) {
     std::printf("[OfflineReader] ERROR: view query failed: %s\n", err.what());
@@ -81,32 +80,33 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
 
   double t0 = nowMs();
   bool first = true;
+  int last_diag_sync_ = 0;
+  const int kDiagEpochInterval = 500;
   for (const rosbag::MessageInstance& mi : *view) {
     const std::string& topic = mi.getTopic();
     const std::string& dt = mi.getDataType();
     const ros::Time rec_time = mi.getTime();
 
-    if (topic != opts_.imu_topic && topic != opts_.lidar_topic) {
-      accounting_.other_messages++;
-      continue;
-    }
     accounting_.bag_relevant_messages++;
+    if (wrapper.syncCount() >= kDiagEpochInterval &&
+        (wrapper.syncCount() % kDiagEpochInterval) == 0 &&
+        wrapper.syncCount() != last_diag_sync_) {
+      last_diag_sync_ = wrapper.syncCount();
+      std::printf(
+          "[diag] sensor_time=%.3f epochs=%d wall=%.3fs imu_consumed=%zu "
+          "lidar_consumed=%zu imu_depth=%zu lidar_depth=%zu voxels=%zu "
+          "rss=%ldKB\n",
+          wrapper.lastSyncedLidarEndTime(), wrapper.syncCount(),
+          (nowMs() - t0) / 1000.0, accounting_.imu_dispatched,
+          accounting_.lidar_dispatched, wrapper.imuBufferSize(),
+          wrapper.lidarBufferSize(), lio.mapVoxelCount(), rssKb());
+    }
     if (first) {
       accounting_.first_bag_time = rec_time.toSec();
       first = false;
     }
     accounting_.last_bag_time = rec_time.toSec();
 
-    if (!inRange(rec_time, s, e)) {
-      if (topic == opts_.lidar_topic) {
-        accounting_.lidar_read++;
-        accounting_.lidar_skipped++;
-      } else {
-        accounting_.imu_read++;
-        accounting_.imu_skipped++;
-      }
-      continue;
-    }
 
     if (topic == opts_.imu_topic && dt == dt_imu) {
       auto msg = mi.instantiate<sensor_msgs::Imu>();
@@ -119,6 +119,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         wrapper.HandleImu(msg);
         accounting_.imu_dispatched++;
         lio.process();
+        accounting_.process_invocations++;
         continue;
       }
     }
@@ -135,6 +136,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           wrapper.HandleLidarCustomMsg(msg);
           accounting_.lidar_dispatched++;
           lio.process();
+          accounting_.process_invocations++;
           continue;
         }
       } else if (dt == dt_pc2) {
@@ -148,6 +150,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           wrapper.HandleLidarPointCloud2(msg);
           accounting_.lidar_dispatched++;
           lio.process();
+          accounting_.process_invocations++;
           continue;
         }
       }
@@ -170,18 +173,36 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
 }
 
 void OfflineReader::drain(ROSWrapper& wrapper, SuperLIO& lio) {
-  const int kDrainTries = 20;
-  for (int i = 0; i < kDrainTries; ++i) {
+  while (true) {
+    const int before = wrapper.syncCount();
     lio.process();
-    if (wrapper.syncCount() == accounting_.sync_count) break;
+    accounting_.process_invocations++;
+    if (wrapper.syncCount() == before) break;
   }
   accounting_.sync_count = wrapper.syncCount();
   if (accounting_.sync_count > 0) {
     accounting_.first_estimator_time = wrapper.firstSyncedLidarEndTime();
     accounting_.last_estimator_time = wrapper.lastSyncedLidarEndTime();
   }
+  accounting_.heavy_process_count = static_cast<size_t>(accounting_.sync_count);
   accounting_.imu_remaining = wrapper.imuBufferSize();
   accounting_.lidar_remaining = wrapper.lidarBufferSize();
+  accounting_.last_imu_time = wrapper.lastTimestampImu();
+  if (accounting_.lidar_remaining > 0) {
+    accounting_.front_lidar_end_time = wrapper.frontLidarEndTime();
+    if (wrapper.lastTimestampImu() >= 0.0 &&
+        wrapper.lastTimestampImu() < accounting_.front_lidar_end_time) {
+      accounting_.unprocessed_reason =
+          "front lidar lacks IMU coverage beyond its end_time (no more messages)";
+    } else {
+      accounting_.unprocessed_reason =
+          "unexpected: lidar remaining but IMU covers it (sync loop stopped)";
+    }
+  } else if (accounting_.imu_remaining > 0) {
+    accounting_.unprocessed_reason = "trailing IMU beyond last lidar end_time";
+  } else {
+    accounting_.unprocessed_reason = "all measurement groups processed";
+  }
 }
 
 }  // namespace LI2Sup

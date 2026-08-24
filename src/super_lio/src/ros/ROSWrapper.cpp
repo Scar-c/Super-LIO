@@ -3,6 +3,7 @@
 #include "super_lio/CloudPose.h"
 #include "super_lio/CloudPose2.h"
 
+#include <iomanip>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 using namespace BASIC;
@@ -25,6 +26,7 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/offline/start_offset", g_offline_start_offset);
   nh.getParam("/lio/offline/duration", g_offline_duration);
   nh.getParam("/lio/offline/publish", g_offline_publish);
+  nh.getParam("/lio/offline/out_dir", g_offline_out_dir);
   
   // ROS Topic input
   nh.getParam("/lio/ros/lidar_topic",  g_lidar_topic);
@@ -379,56 +381,69 @@ void ROSWrapper::HandleImu(const sensor_msgs::Imu::ConstPtr& msg){
   imu_buffer_.push_back(data);
   last_timestamp_imu_ = data.secs;
 
-  static ros::Publisher pub_imu_odom  = nh_.advertise<nav_msgs::Odometry>("/lio/imu/odom", 10);    /// imu frame -> imu freq
-  static ros::Publisher pub_robo_odom = nh_.advertise<nav_msgs::Odometry>("/lio/robo/odom", 10);   /// robot frame -> imu freq
-  
+  if (!enable_publish_) return;   // high-rate output predictor is output-only
+                                  // (see docs/super_livo/recovery/offline_timestamp_audit.md §4)
+
   DynamicState imu_state, robo_state;
   if(eskf_->Predict(data, imu_state, robo_state)){
-    nav_msgs::Odometry odom_imu, odom_robo;
-
-    {
-      odom_imu.pose.pose.position.x = imu_state.p(0);
-      odom_imu.pose.pose.position.y = imu_state.p(1);
-      odom_imu.pose.pose.position.z = imu_state.p(2);
-
-      Quat q(imu_state.R);
-      q.normalize();
-
-      odom_imu.pose.pose.orientation.x = q.x();
-      odom_imu.pose.pose.orientation.y = q.y();
-      odom_imu.pose.pose.orientation.z = q.z();
-      odom_imu.pose.pose.orientation.w = q.w();
-
-      odom_imu.twist.twist.linear.x = imu_state.v(0);
-      odom_imu.twist.twist.linear.y = imu_state.v(1);
-      odom_imu.twist.twist.linear.z = imu_state.v(2);
-
-      odom_imu.twist.twist.angular.x = imu_state.w(0);
-      odom_imu.twist.twist.angular.y = imu_state.w(1);
-      odom_imu.twist.twist.angular.z = imu_state.w(2);
-    }
-
-    {
-      odom_robo.pose.pose.position.x = robo_state.p(0);
-      odom_robo.pose.pose.position.y = robo_state.p(1);
-      odom_robo.pose.pose.position.z = robo_state.p(2);
-
-      Quat q(robo_state.R);
-      q.normalize();
-
-      odom_robo.pose.pose.orientation.x = q.x();
-      odom_robo.pose.pose.orientation.y = q.y();
-      odom_robo.pose.pose.orientation.z = q.z();
-      odom_robo.pose.pose.orientation.w = q.w();
-    }
-
-    odom_imu.header.stamp = msg->header.stamp;
-    odom_robo.header.stamp = msg->header.stamp;
-    odom_imu.header.frame_id = "world";
-    odom_robo.header.frame_id = "world";
-    pub_imu_odom.publish(odom_imu);
-    pub_robo_odom.publish(odom_robo);
+    publishImuForwardOdom(msg, imu_state, robo_state);
   }
+}
+
+void ROSWrapper::publishImuForwardOdom(const sensor_msgs::Imu::ConstPtr& msg,
+                                       const DynamicState& imu_state,
+                                       const DynamicState& robo_state){
+  if (!imu_odom_pub_) {
+    imu_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lio/imu/odom", 10);
+  }
+  if (!robo_odom_pub_) {
+    robo_odom_pub_ = nh_.advertise<nav_msgs::Odometry>("/lio/robo/odom", 10);
+  }
+
+  nav_msgs::Odometry odom_imu, odom_robo;
+
+  {
+    odom_imu.pose.pose.position.x = imu_state.p(0);
+    odom_imu.pose.pose.position.y = imu_state.p(1);
+    odom_imu.pose.pose.position.z = imu_state.p(2);
+
+    Quat q(imu_state.R);
+    q.normalize();
+
+    odom_imu.pose.pose.orientation.x = q.x();
+    odom_imu.pose.pose.orientation.y = q.y();
+    odom_imu.pose.pose.orientation.z = q.z();
+    odom_imu.pose.pose.orientation.w = q.w();
+
+    odom_imu.twist.twist.linear.x = imu_state.v(0);
+    odom_imu.twist.twist.linear.y = imu_state.v(1);
+    odom_imu.twist.twist.linear.z = imu_state.v(2);
+
+    odom_imu.twist.twist.angular.x = imu_state.w(0);
+    odom_imu.twist.twist.angular.y = imu_state.w(1);
+    odom_imu.twist.twist.angular.z = imu_state.w(2);
+  }
+
+  {
+    odom_robo.pose.pose.position.x = robo_state.p(0);
+    odom_robo.pose.pose.position.y = robo_state.p(1);
+    odom_robo.pose.pose.position.z = robo_state.p(2);
+
+    Quat q(robo_state.R);
+    q.normalize();
+
+    odom_robo.pose.pose.orientation.x = q.x();
+    odom_robo.pose.pose.orientation.y = q.y();
+    odom_robo.pose.pose.orientation.z = q.z();
+    odom_robo.pose.pose.orientation.w = q.w();
+  }
+
+  odom_imu.header.stamp = msg->header.stamp;
+  odom_robo.header.stamp = msg->header.stamp;
+  odom_imu.header.frame_id = "world";
+  odom_robo.header.frame_id = "world";
+  imu_odom_pub_.publish(odom_imu);
+  robo_odom_pub_.publish(odom_robo);
 }
 
 
@@ -476,7 +491,29 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
 }
 
 
+bool ROSWrapper::openTrajectoryFile(const std::string& path){
+  if (path.empty()) return false;
+  traj_file_.open(path, std::ios::out | std::ios::trunc);
+  return traj_file_.is_open();
+}
+
+void ROSWrapper::closeTrajectoryFile(){
+  if (traj_file_.is_open()) traj_file_.close();
+}
+
+void ROSWrapper::writeTrajectoryRow(const NavState& state){
+  V4 q = state.R.coeffs();
+  traj_file_ << std::fixed << std::setprecision(9)
+             << state.timestamp << " "
+             << state.p[0] << " " << state.p[1] << " " << state.p[2] << " "
+             << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << "\n";
+  traj_file_.flush();
+}
+
+
 void ROSWrapper::pub_odom(const NavState& state){
+  if (traj_file_.is_open()) writeTrajectoryRow(state);
+  if (!enable_publish_) return;
   nav_msgs::Odometry odom;
   odom.header.frame_id = "world";
   odom.header.stamp = ros::Time().fromSec(state.timestamp);
@@ -499,7 +536,9 @@ void ROSWrapper::pub_odom(const NavState& state){
   V3 robo_position = state.R.R_ * ( - g_odom_robo.R_ * g_odom_robo.t_) + state.p;
 
   if(g_2_robot){
-    static ros::Publisher pub_msg2uav_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
+    if (!msg2uav_pub_) {
+      msg2uav_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 10);
+    }
     M3 robo_rotation = state.R.R_ * g_odom_robo.R_;
     msg2uav_.header.stamp = odom.header.stamp;
     msg2uav_.pose.position.x = robo_position[0];
@@ -510,7 +549,7 @@ void ROSWrapper::pub_odom(const NavState& state){
     msg2uav_.pose.orientation.x = robo_quat.x();
     msg2uav_.pose.orientation.y = robo_quat.y();
     msg2uav_.pose.orientation.z = robo_quat.z();
-    pub_msg2uav_.publish(msg2uav_);
+    msg2uav_pub_.publish(msg2uav_);
   }
 
   // if(1)
@@ -565,32 +604,38 @@ void ROSWrapper::pub_odom(const NavState& state){
 
 
 void ROSWrapper::pub_cloud_world(const CloudPtr& pc,double time){
-  static ros::Publisher pub_cloud_world_ = nh_.advertise<sensor_msgs::PointCloud2>
-                                            ("/lio/cloud_world", 10);
+  if (!enable_publish_) return;
+  if (!cloud_world_pub_) {
+    cloud_world_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lio/cloud_world", 10);
+  }
   sensor_msgs::PointCloud2 cloud;
   pcl::toROSMsg(*pc, cloud);
   cloud.header.frame_id = "world";
   cloud.header.stamp = ros::Time().fromSec(time);
-  pub_cloud_world_.publish(cloud);
+  cloud_world_pub_.publish(cloud);
 }
 
 
 void ROSWrapper::pub_cloud2planner(const CloudPtr& pc, double time){
-  static ros::Publisher pub_cloud2robot_ = nh_.advertise<sensor_msgs::PointCloud2>
-                                            ("/lio/robo/cloud_world", 10);
+  if (!enable_publish_) return;
+  if (!cloud2robot_pub_) {
+    cloud2robot_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lio/robo/cloud_world", 10);
+  }
   sensor_msgs::PointCloud2 cloud;
   pcl::toROSMsg(*pc, cloud);
   cloud.header.frame_id = "world";
   cloud.header.stamp = ros::Time().fromSec(time);
-  pub_cloud2robot_.publish(cloud);
+  cloud2robot_pub_.publish(cloud);
 }
 
 
 void ROSWrapper::pub_cloud_body_pose(const CloudPtr& pc, 
   const NavState& state)
 {
-  static ros::Publisher pub_output2robot_ = nh_.advertise<super_lio::CloudPose>
-                                            ("/lio/body/cloud_pose", 10);
+  if (!enable_publish_) return;
+  if (!cloud_body_pose_pub_) {
+    cloud_body_pose_pub_ = nh_.advertise<super_lio::CloudPose>("/lio/body/cloud_pose", 10);
+  }
   super_lio::CloudPose cloud_pose;
   pcl::toROSMsg(*pc, cloud_pose.cloud);
   cloud_pose.cloud.header.stamp = ros::Time().fromSec(state.timestamp);  
@@ -603,15 +648,17 @@ void ROSWrapper::pub_cloud_body_pose(const CloudPtr& pc,
   cloud_pose.pose.orientation.z = temp_q[2];
   cloud_pose.pose.orientation.w = temp_q[3];
 
-  pub_output2robot_.publish(cloud_pose);
+  cloud_body_pose_pub_.publish(cloud_pose);
 }
 
 
 void ROSWrapper::pub_cloud_world_pose(const CloudPtr& pc, 
    const NavState& state)
 {
-  static ros::Publisher pub_output2robot_ = nh_.advertise<super_lio::CloudPose>
-                                            ("/lio/world/cloud_pose", 10);
+  if (!enable_publish_) return;
+  if (!cloud_world_pose_pub_) {
+    cloud_world_pose_pub_ = nh_.advertise<super_lio::CloudPose>("/lio/world/cloud_pose", 10);
+  }
   super_lio::CloudPose cloud_pose;
   pcl::toROSMsg(*pc, cloud_pose.cloud);
   cloud_pose.cloud.header.stamp = ros::Time().fromSec(state.timestamp);  
@@ -624,7 +671,7 @@ void ROSWrapper::pub_cloud_world_pose(const CloudPtr& pc,
   cloud_pose.pose.orientation.z = temp_q[2];
   cloud_pose.pose.orientation.w = temp_q[3];
   
-  pub_output2robot_.publish(cloud_pose);
+  cloud_world_pose_pub_.publish(cloud_pose);
 }
 
 
@@ -632,8 +679,10 @@ void ROSWrapper::pub_cloud_body_pose(
       const BASIC::VV3& pc_body,
       const NavState& state)
 {
-  static ros::Publisher pub_msg_ = nh_.advertise<super_lio::CloudPose2>
-                                            ("/lio/dense/cloud_pose", 10);
+  if (!enable_publish_) return;
+  if (!dense_cloud_pose_pub_) {
+    dense_cloud_pose_pub_ = nh_.advertise<super_lio::CloudPose2>("/lio/dense/cloud_pose", 10);
+  }
 
   super_lio::CloudPose2 cloud_pose;
   cloud_pose.header.stamp = ros::Time().fromSec(state.timestamp);
@@ -654,52 +703,56 @@ void ROSWrapper::pub_cloud_body_pose(
     cloud_pose.cloud_lidar.push_back(pt[2]);
   }
 
-  pub_msg_.publish(cloud_pose);
+  dense_cloud_pose_pub_.publish(cloud_pose);
 }
 
 
 void ROSWrapper::pub_processing_time(double time, double current_time, double mean_time, double std_time)
 {
-  static ros::Publisher pub_process_time_ = nh_.advertise<geometry_msgs::PoseStamped>
-                                            ("/lio/processing_time", 10);
+  if (!enable_publish_) return;
+  if (!processing_time_pub_) {
+    processing_time_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/lio/processing_time", 10);
+  }
   geometry_msgs::PoseStamped msg;
   msg.header.stamp = ros::Time().fromSec(time);
   msg.pose.position.x = current_time;
   msg.pose.position.y = mean_time;
   msg.pose.position.z = std_time;
-  pub_process_time_.publish(msg);
+  processing_time_pub_.publish(msg);
 }
 
 
 void ROSWrapper::set_global_map(const BASIC::CloudPtr& global_map){
+  if (!enable_publish_) return;
   pcl::toROSMsg(*global_map, global_map_msg_);
   global_map_msg_.header.frame_id = "world";
 
-  static ros::Publisher global_map_pub =
-    nh_.advertise<sensor_msgs::PointCloud2>("/lio/global_map", 1, true);
-
-  static ros::Timer global_map_timer =
-    nh_.createTimer(
-      ros::Duration(1.0),
-      [this](const ros::TimerEvent&) {
-        static int count = -1;
-        static int publish_interval = 1;
-        count++;
-        if (count % publish_interval != 0) {
-          return;
-        }
-        count = 0;
-        publish_interval++;
-        if(publish_interval > 10) publish_interval = 10;
-        global_map_msg_.header.stamp = ros::Time::now();
-        global_map_pub.publish(global_map_msg_);
-      });
+  if (!global_map_pub_) {
+    global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/lio/global_map", 1, true);
+  }
+  if (!global_map_timer_) {
+    global_map_timer_ = nh_.createTimer(
+        ros::Duration(1.0),
+        [this](const ros::TimerEvent&) {
+          static int count = -1;
+          static int publish_interval = 1;
+          count++;
+          if (count % publish_interval != 0) {
+            return;
+          }
+          count = 0;
+          publish_interval++;
+          if(publish_interval > 10) publish_interval = 10;
+          global_map_msg_.header.stamp = ros::Time::now();
+          global_map_pub_.publish(global_map_msg_);
+        });
+  }
 }
 
 void ROSWrapper::set_initial_data(BASIC::SE3& init_pose, bool& flg_get_init_guess, bool flg_finish_init)
 {
-  static ros::Subscriber init_pose_sub =
-    nh_.subscribe<geometry_msgs::PoseWithCovarianceStamped>(
+  if (!init_pose_sub_) {
+    init_pose_sub_ = nh_.subscribe<geometry_msgs::PoseWithCovarianceStamped>(
       "/initialpose", 1,
       [this, &init_pose, &flg_get_init_guess]
       (const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg)
@@ -730,11 +783,13 @@ void ROSWrapper::set_initial_data(BASIC::SE3& init_pose, bool& flg_get_init_gues
                           .transpose()
                   << RESET;
       });
+  }
 
   if (flg_finish_init) {
-    init_pose_sub = ros::Subscriber();
+    init_pose_sub_ = ros::Subscriber();
   }
 }
+
 
 
 

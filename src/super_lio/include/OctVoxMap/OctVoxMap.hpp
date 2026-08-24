@@ -201,6 +201,8 @@ public:
     group_idx_max_ = flat_search_order_offsets.size() - 1;
   }
 
+  size_t size() const { return data_.size(); }
+
   void decrease_max_group(){
     if(group_idx_max_ > 4) group_idx_max_--;
   }
