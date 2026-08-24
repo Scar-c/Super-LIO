@@ -48,3 +48,11 @@
 ## 5. 迁移一致性检查（REDESIGN-GATE-7/9 关联）
 
 - 任何旧 ADR 未列于此表 → 视为 KEEP；若实现期发现冲突 → STOP + ADR REVIEW REQUIRED（不得绕过架构）。
+---
+
+## 附录 C：Round 5 Architecture Owner Freeze（迁移矩阵补充）
+
+- 分辨率/生命周期/semantics 冻结（parent 0.5 / 8 subvoxels / 0.25 / N≤20 / 0.1m）→ 迁移矩阵中任何"sweep 候选"项一律关闭（I-01 AMEND 仅指 stats 存储形态，不指分辨率 sweep）。
+- 10 km world-coordinate 压力场景从 Gate 移除（G-0 oracle 最小集；见 feasibility 附录 B）。
+- shadow storage = C 冻结（memory doc §7）；production = deferred（DECISION GATE 前不改 OctVox production ABI）。
+- E1 OR E2（geometry sync）、L0+HKNN first（direct path）、1:N、ray-plane anchor、N20 freeze：与本矩阵 AMEND 项一致，已冻结。

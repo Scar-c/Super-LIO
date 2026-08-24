@@ -94,3 +94,14 @@ camera-only landmarks / stereo triangulation / monocular inverse-depth / directi
 ## 6. 下一轮建议
 
 - 若 owner 批准：从 TB-1 与 G-0 并行开始（TB-1 = camera 输入零影响；G-0 = stats shadow + oracle，两者无依赖）。
+---
+
+## 附录 D：Round 5 Architecture Owner Freeze（tracer graph 正式采用）
+
+1. §1 图**正式采用**为 implementation 主链（TB-OFFLINE/TB-0 标 DONE；TB-1 → G-0..G-3 → DECISION GATE → S-0..S-1 → V-0..V-6 → L-0 → M-0）。
+2. G-0 实现目标固定：Candidate C sidecar + Welford + same accepted point set + no estimator influence；只做 statistics/oracle/runtime/memory；第一正式 bag = eee_01。
+3. G-0 数值测试最小集：simple synthetic unit test + real eee_01 shadow；不要求 10 km 或 large stress suite 作为 Gate。
+4. G-1 需要 Camera Input（TB-1）但 visual feedback OFF；estimator 继续原 LiDAR-end path；camera 只做 shadow（FOV/patch border/geometry support）；不得为 coverage 提前改 camera-epoch estimator timing。
+5. G-2 无 VIO update；只记录 maturity/validity timeline/visibility/sync event rate。
+6. DECISION GATE 后才允许决定 production storage（inline A / union B / sidecar C / other）；G-0 implementation 不得提前改 OctVox production ABI。
+7. 后续 S/V/L 沿用 camera-epoch / sequential prior / MODE-A/B/C / Common-FEJ / streaming 6×6/6×1 大框架，映射到 micro-surfel geometry source；不重启 FEJ 讨论。

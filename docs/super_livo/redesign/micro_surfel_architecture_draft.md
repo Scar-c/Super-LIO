@@ -1,6 +1,7 @@
 # Micro-Surfel Architecture Draft（0.25 m）
 
 > Phase D 文档（DOCUMENTATION ONLY）。HEAD 基线 `fecbdc6`。本草案定义 Super-LIVO v1 的 micro-surfel 几何层，不实现。
+> Round 5 冻结决定：见文末附录 A（与 `architecture_owner_decisions.md` 一致，后者为准）。
 
 ## 1. 背景与 Ground Truth（源码确认，OctVoxMap.hpp @ fecbdc6）
 
@@ -196,3 +197,25 @@ final_geometry flag
 - d_max / local support threshold / 3° 阈值（数据驱动）
 - neighbor stencil 具体形态与 score（G-3 数据定）
 - "geometry reparameterization" 的 anchor 更新频率与触发组合（E1/E2 的 OR/AND 策略）
+---
+
+## 附录 A：Round 5 Architecture Owner Freeze（修正本草案的开放项）
+
+以下决定已冻结，本草案中与之冲突的"开放项"一律以本附录为准（详见 architecture_owner_decisions.md）：
+
+1. **几何分辨率固定**：parent 0.5 m、8 subvoxels、subvoxel 0.25 m；不做 0.20/0.10 sweep、不做 parent/subvoxel/count sweep。
+2. **bounded semantics 固定**：MAX_POINTS=20、0.1 m accepted gate；micro-surfel 使用与现有 representative **完全相同的 accepted point set**（membership/centroid/max count/rejection distance 均不变）。
+3. **不要求特殊 world-coordinate 场景作为 Gate**：10 km / 1 mm 压力场景从当前 Gate 移除；真实基础 bag 优先。若真实数据出现数值问题，再补压力测试。
+4. **Welford 生产方向固定**：persistent storage float、temporary arithmetic double（where cheap/appropriate）、3×3 covariance/eigendecomposition 双精度优先；不改现有 point storage 类型、不把 map point 改 double。
+5. **最小 sufficient-statistics oracle 保留**：plane / noisy plane / line / non-planar cluster + N=1..20，与 brute-force double 一致（mean/scatter/covariance/normal/eigen ordering/plane-valid）；不做 10 km stress suite。
+6. **Storage**：shadow 阶段 = Candidate C（sparse sidecar，G-0..G-3 均用）；production storage = DEFERRED（仅 DECISION GATE 后决定；v1 spec 不写死）。
+7. **Plane validity**：N<5 unavailable；N≥5 eligible；eigen gate PASS → valid；q_flat/q_line 候选 sweep 保留小范围（0.01/0.02/0.03/0.05 × 0.05/0.10/0.20/0.30），但先取一个 conservative candidate 在 eee_01 跑通，不做全 bag 大规模网格搜索。
+8. **Lifecycle**：N=1..4 unavailable；N=5..19 VALID↔INVALID 可反转；N=20 final evaluation + freeze；VALID→INVALID → 绑定 landmark 暂停使用该 geometry；INVALID→VALID → 强制 geometry sync。
+9. **Visual binding**：MicroSurfel:VisualLandmark = 1:N；0.25 m 只定义 3D local plane support，不定义视觉密度。
+10. **Anchor**：μ ≠ photometric patch center；metric anchor = reference ray × plane；ray-plane gate（finite / positive depth / 不平行 / local support valid）保留。
+11. **Geometry sync trigger = E1 OR E2**：normal accumulated change（current vs last-sync，非相邻帧）OR anchor/depth change（优先 ray depth/anchor shift，centroid pixel shift 仅 diagnostic）；最终阈值 DEFER TO G-2 DATA。
+12. **3° 语义**：仅 candidate starting point；G-2 记录 1°/2°/3°/5° event frequency；不做最优阈值大规模 trajectory sweep。
+13. **Direct LiDAR 第一版**：L0 falling subvoxel + L2 原 HKNN fallback（direct hit or fallback）；neighbor stencil（6/26-neighbor、complex scoring）全部 DEFERRED，等 G-3 数据显示 falling direct coverage 不足且 boundary miss 为主因才引入。
+14. **L0 gate**：plane_valid ∧ |nᵀ(p−μ)|<d_max ∧ d_t=‖(I−nnᵀ)(p−μ)‖<d_t,max；数值在 G-3 定，不提前大 sweep。
+15. **Benchmark 顺序固定**：eee_01 → Corridor01 → SFS；禁止 substitute；缺失即 STOP+ASK OWNER。
+16. **Offline Experiment Policy 冻结**：dataset experiment offline first；online 仅 parity/integration/real sensor。

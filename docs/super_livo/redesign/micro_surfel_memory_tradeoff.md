@@ -12,18 +12,29 @@
 
 ## 2. 三套候选 + D
 
+### 算术修正（Round 5 Phase A：与"104→128B + 每 parent +192B"表述冲突的更正）
+
+每个 subvoxel 增加 `6 float = 24 B` scatter；**OctVox 含 8 个 subvoxel**，因此：
+
+```text
+理论字段增量 = 8 × 24 = 192 B / parent（OctVox）
+baseline sizeof(OctVox<Point>) = 104 B（实测，Round 0）
+Candidate A/B 的理论 sizeof(OctVox) = 104 + 192 = 296 B（alignment 后实际值必须用
+    sizeof 程序实测 —— 见 §4 测量计划；不要再用"104→128"这类表述）
+```
+
 ### Candidate A — Inline scatter（每 subvoxel +24 B）
 
 ```text
 centroid(12B) + count(1B) + scatter6f(+24B)
-OctVox payload: 104 → 128 B（+24）；每 parent +192 B
-不永久 cache normal；query plane 时 eigendecompose（3×3，~几十 ns）
+OctVox payload: 104 → 296 B theoretical（每 parent +192 B，8 subvoxel × 24 B）
+不永久 cache normal；query plane 时 eigendecompose（3×3）
 ```
 
 - 优点：单次 voxel lookup、cache locality 好、实现简单、无额外 hash。
 - 缺点：**所有 parent/subslot 付固定成本**（即使 N=0）；频繁 query 时 eig 成本随查询频率放大。
 
-### Candidate B — Inline 24 B union/state reuse
+### Candidate B — Inline 24 B union/state reuse（每 subvoxel 固定 +24 B）
 
 ```text
 N < 20:  scatter6f（24 B，Welford 累积）
@@ -31,11 +42,12 @@ N == 20: overwrite/reinterpret 为 normal3f + eigenvalues3f（24 B）
 count==20 作为 mature-state discriminator（+ 必要 validity bitmask）
 ```
 
+- 每 parent 理论增量同样 **192 B**（8×24）；sizeof 与 A 相同（296 B theoretical），alignment 实测待补。
 - 优点：不额外增加 cached-normal；mature plane query 极快；仍单 lookup。
 - 缺点：N=5..19 仍需 eig；union/state 语义复杂；**必须严格防止错误 reinterpret**（需要 alignment/sizeof 验证 + 类型安全包装）。
-- 本布局的 alignment/sizeof 验证要求：`alignas` 下 24B 块无 padding 问题；写入 normal/eigen 时与 scatter 共享存储的迁移测试（N=19→20 过渡）。
+- 布局验证要求：`alignas` 下 24B 块无 padding 问题；N=19→20 过渡的 scatter→normal/eigen 迁移测试。
 
-### Candidate C — Sparse geometry sidecar（shadow 阶段推荐）
+### Candidate C — Sparse geometry sidecar（shadow 阶段冻结）
 
 ```text
 GeometryStatsSidecar: KEY → parent stats block（稀疏分配）
@@ -43,9 +55,11 @@ N == 1: 不分配（唯一历史点即现有 centroid，scatter ≡ 0）
 第 2 个点被接受时: 分配 stats（若缺），scatter 初始化为 0，Welford-update p2
 ```
 
+- **baseline OctVox payload 不变（sizeof 104 B）**；只对有 N≥2 subvoxel 的 parent 分配 stats block。
 - 精确恢复同一 accepted-point set 的 centered scatter（首点 scatter=0 是精确语义）。
-- 优点：baseline OctVox payload 不变；大量 N≤1 的稀疏 slot 不付统计内存；**适合第一轮 shadow feasibility**。
+- 优点：大量 N≤1 的稀疏 slot 不付统计内存；**适合第一轮 shadow feasibility（G-0..G-3）**。
 - 缺点：第二索引/pointer chase；生命周期同步；direct LiDAR fast path 可能增加 lookup overhead。
+- 侧边条目成本模型：KEY(12) + stats block（μ 12 + S 24 + N 1 + state 1，约 38-48 B 含对齐）+ robin_map/list 容器开销（按 Round 0 经验：容器项 ~24 B/项 + 可能 list 节点），**实现期用 sizeof + 实测 RSS 校准**。
 
 ### Candidate D（允许，但必须过数值 oracle）
 
@@ -71,8 +85,9 @@ shadow-sidecar RSS（Candidate C 实现后）
 candidate layout modeled RSS（A/B 理论模型 + 实际 voxel count 推算）
 ```
 
-- 报告峰值 RSS 必须区分：**payload bytes / container estimated bytes / process RSS**（不可混称）。
-- OctVox 实际峰值 ~199k（eee_01）远低于 2M capacity → 若走 Candidate A/B，实际增量 ≈ 199k×192 B ≈ 38 MB payload（+~24% OctVox payload，占进程 RSS 的 ~24%）。这一数字必须在决策中呈现，不能只写"理论 2M"。
+- 报告峰值 RSS 必须区分：**baseline sizeof / candidate theoretical field addition / actual sizeof after alignment / container overhead / process RSS**（不可混称；Round 5 修正要求）。
+- actual sizeof 测量：`sizeof(OctVox<Point>)`、`sizeof(OctVox<Point> + 8×scatter6f)`、union 版本 均用 /tmp 下最小 C++ 程序实测（不改仓库、不改 OctVox ABI）；alignment/padding 结果记录在 G-0 ticket。
+- OctVox 实际峰值 ~199k（eee_01）远低于 2M capacity → 若走 Candidate A/B，实际增量 ≈ 199k×192 B ≈ **38 MB** payload（+192 B/parent；占进程 RSS 的 ~24%，相对 baseline 161MB 的增量必须用实测 RSS 验证）。这一数字必须在决策中呈现，不能只写"理论 2M"。
 
 ## 5. 每 voxel 固定成本评估（FACT-07 约束）
 
@@ -98,15 +113,16 @@ direct shadow matching time vs 原 HKNN+plane fit time / frame
 ## 7. 第一轮实现方向推荐
 
 ```text
-Feasibility / shadow: Candidate C（sidecar）
+Feasibility / shadow: Candidate C（sidecar）—— Round 5 正式冻结（G-0..G-3 均用 C）
 理由: 先证明 0.25m micro-surfel 在真实数据上有足够覆盖与几何一致性，
       再决定是否值得永久膨胀 OctVox（避免为 feasibility 先改核心 OctVox ABI）。
-Final production layout: OPEN（由 measurement 决定：C 若覆盖足够 → 评估 B 的 union 收益；若 eig 成本主导 → 评估 B）
+Final production layout: OPEN（= DEFERRED；仅在 G-3 后 DECISION GATE 决定 A/B/C/other；
+      v1 spec 不得提前写死 production winner）
 ```
 
 ## 8. REDESIGN-GATE-3 满足性
 
 - 至少 3 种 storage candidate（A/B/C + D 允许）✓
-- 每种有 sizeof 计划（A/B 已列 payload 增量；C 侧边条目 sizeof 待实现期实测：KEY(12) + stats block + 容器开销，按 Round 0 robin_map/list 经验估算）
+- 每种有 sizeof 计划（A/B：104→296 B theoretical、alignment 实测计划；C：baseline 104 B 不变 + sidecar 条目实测计划）✓
 - RSS 计划：baseline/shadow/modeled 三列 ✓
 - runtime 计划：stats/eig/query/lookup 分项 ✓

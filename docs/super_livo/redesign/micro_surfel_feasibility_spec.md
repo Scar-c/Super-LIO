@@ -124,3 +124,16 @@ vs brute-force recompute from stored test points
 - oracle 全用例 PASS（§9）→ 才允许进入真实轨迹统计。
 - §6 的 GO/MARGINAL 判据 + 额外报告项齐全 → 进入 DECISION GATE（storage layout / plane gate / visual support GO-MARGINAL-NOGO）。
 - NO-GO → 按 §7 顺序研究 fallback，并重新评估路线（不自动判 micro-surfel 失败于 SFS）。
+---
+
+## 附录 B：Round 5 Architecture Owner Freeze（修正本 spec）
+
+1. **G-1 第一轮只要求固定**：parent 0.5 / subvoxel 0.25 / N≥5 / 一个 conservative plane gate，在 eee_01 输出 R3/R5/R8/R10/R20、Rplane_point、Rplane_voxel、Rgrid_plane；不做第一天全参数组合。
+2. **G-2 再补**：first visible→N5 delay、first visible→plane-valid delay、mature while visible、geometry sync event counts（1°/2°/3°/5° 记录，不做最优阈值 sweep）。
+3. **G-3 再做**：direct LiDAR shadow。
+4. **G-3 第一版严格**：falling-subvoxel direct → fail → 原 HKNN fallback；**不实现 neighbor stencil**；原 HKNN 结果 authoritative，direct 只 shadow 记录。
+5. **G-3 输出**：falling-direct% / HKNN-fallback% / reject% / micro-vs-HKNN normal angle / micro-vs-HKNN residual difference；先 eee_01，再 Corridor01，最后 SFS。
+6. **§9 oracle**：移除 "large global coordinate + tiny local spread" 作为 Gate 用例（保留 plane/noisy plane/line/non-planar/N=1..20）；10 km stress 不再要求，真实数据出现数值问题再补。
+7. **§6 Gate**：Rgrid_plane 仍必须报告，但**不新增未测的固定 Rgrid 数值硬门**。
+8. **ATR 禁用**：G-0..G-3 禁止用 ATE 作为主要 structural correctness gate（优先 oracle/coverage/parity/agreement/runtime/memory/causality）。
+9. **promotion rule**：eee_01 PASS → Corridor01 → SFS；eee FAIL 不得跳 Corridor01。
