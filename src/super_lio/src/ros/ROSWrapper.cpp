@@ -60,6 +60,7 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/g0/shadow", g_lio_g0_shadow);
   nh.getParam("/lio/g1/enabled", g_lio_g1_enabled);
   nh.getParam("/lio/g1v/enabled", g_lio_g1v_enabled);
+  nh.getParam("/lio/camera_epoch/enabled", g_lio_camera_epoch);
   nh.getParam("/lio/g1/out_dir", g_lio_g1_out_dir);
 
   nh.getParam("/camera/enabled", g_camera_enabled);
@@ -540,6 +541,91 @@ bool ROSWrapper::loadCameraCalibration(const std::string& path){
 
 
 bool ROSWrapper::sync_measure(MeasureGroup& meas){
+  if (g_lio_camera_epoch) {
+    return sync_camera_epoch(meas);
+  }
+  return sync_legacy_lidar_end(meas);
+}
+
+// S-0 camera-epoch sync, FAST-LIVO2 LIVO-inspired:
+//   - stale image drop: t_c <= last processed epoch
+//   - wait until LiDAR+IMU cover t_c (no future guess)
+//   - LiDAR scan sliced at t_c: points <= t_c -> current LIO segment,
+//     points > t_c -> retained pending slice (conserved, no loss/dup)
+//   - IMU drained to (last_epoch, t_c]; older IMU already consumed
+//   - one image consumed per successful epoch (visual OFF: LIO only)
+bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
+  meas.epoch_ts = -1.0;
+  if (camera_buffer_.empty() || lidar_buffer_.empty() || imu_buffer_.empty()) {
+    return false;
+  }
+  const CameraFrame& cf = camera_buffer_.oldest();
+  const double t_c = cf.timestamp + g_camera_time_offset;
+  if (t_c <= last_epoch_time_) {
+    // stale image: estimator already at/beyond this image time (7.3)
+    camera_buffer_.popOldest();
+    stale_image_drop_count_++;
+    return false;
+  }
+  // sensor support (7.4): LiDAR coverage and IMU coverage
+  const bool lidar_covers =
+      pending_lidar_.has ||
+      (!lidar_buffer_.empty() && lidar_buffer_.front().start_time <= t_c);
+  if (!lidar_covers) return false;
+  if (last_timestamp_imu_ < t_c) return false;
+
+  // ---- LiDAR: slice scans at t_c, keep future points in pending ----
+  pcl::PointCloud<PointXTZIT>::Ptr cur_pc;
+  double slice_origin = 0.0;
+  int64_t emitted_before = lidar_points_emitted_;
+  int64_t retained_before = lidar_points_retained_;
+  sliceLidarAt(t_c, lidar_buffer_, pending_lidar_, pending_lidar_, cur_pc,
+               slice_origin, lidar_points_emitted_, lidar_points_retained_);
+  (void)emitted_before; (void)retained_before;
+
+  if (cur_pc->empty()) {
+    // legal boundary (t_c before any point of the started scan); the image
+    // cannot produce a measurement epoch -> drop it (counted), no fake data
+    camera_buffer_.popOldest();
+    empty_slice_count_++;
+    return false;
+  }
+
+  // ---- IMU: (last_epoch, t_c] ----
+  meas.imu.clear();
+  double imu_time = imu_buffer_.front().secs;
+  while (!imu_buffer_.empty()) {
+    imu_time = imu_buffer_.front().secs;
+    if (imu_time > t_c) break;
+    if (imu_time > last_epoch_time_) meas.imu.push_back(imu_buffer_.front());
+    imu_buffer_.pop_front();
+  }
+
+  // ---- build measure ----
+  meas.lidar.pc = cur_pc;
+  meas.lidar.start_time = slice_origin;
+  meas.lidar.end_time = t_c;
+  meas.epoch_ts = t_c;
+  {
+    const double dt_ms = (t_c - last_epoch_time_) * 1000.0;
+    if (dt_ms >= -200.0 && dt_ms < 200.0) {
+      camera_epoch_dt_hist_[static_cast<int>(dt_ms + 200.0)]++;
+    }
+  }
+  last_epoch_time_ = t_c;
+  last_timestamp_lidar_ = t_c;
+  last_synced_lidar_end_time_ = t_c;
+  sync_count_++;
+  if (first_synced_lidar_end_time_ < 0.0) first_synced_lidar_end_time_ = t_c;
+  // one image consumed per epoch (VIO image consumption reserved for V-4)
+  camera_buffer_.popOldest();
+  images_consumed_++;
+  lio_vio_flg_ = 1;  // LIO done; VIO no-op while visual OFF
+  camera_epoch_count_++;
+  return true;
+}
+
+bool ROSWrapper::sync_legacy_lidar_end(MeasureGroup& meas){
   if (lidar_buffer_.empty() || imu_buffer_.empty()) {
     return false;
   }else{
@@ -581,7 +667,6 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
   last_synced_lidar_end_time_ = meas.lidar.end_time;
   return true;
 }
-
 
 bool ROSWrapper::openTrajectoryFile(const std::string& path){
   if (path.empty()) return false;

@@ -58,6 +58,15 @@ public:
   ~ROSWrapper(){};
   using Ptr = std::shared_ptr<ROSWrapper>;
   bool sync_measure(MeasureGroup&);
+  // S-0 camera-epoch (FAST-LIVO2 LIVO-inspired) helpers
+  bool sync_camera_epoch(MeasureGroup& meas);
+  bool sync_legacy_lidar_end(MeasureGroup& meas);
+  int64_t staleImageDropCount() const { return stale_image_drop_count_; }
+  int64_t imagesConsumed() const { return images_consumed_; }
+  int64_t emptySliceCount() const { return empty_slice_count_; }
+  int64_t lidarPointsEmitted() const { return lidar_points_emitted_; }
+  int64_t lidarPointsRetained() const { return lidar_points_retained_; }
+  double lastEpochTime() const { return last_epoch_time_; }
   void spinOnce(){
     self_queue_.callAvailable();
   }
@@ -111,6 +120,10 @@ public:
     return camera_buffer_.empty() ? -1.0 : camera_buffer_.lastTimestamp();
   }
   bool cameraBufferEmpty() const { return camera_buffer_.empty(); }
+  // S-0 camera-epoch dt stats (epoch_ts - lidar end_time, ms, 0..200ms 1ms bins)
+  // dt bins: (epoch_ts - lidar_end) ms, -200..+200, 1ms/bin, offset +200
+  const std::array<int64_t, 400>& cameraEpochDtHist() const { return camera_epoch_dt_hist_; }
+  int64_t cameraEpochCount() const { return camera_epoch_count_; }
   const CameraFrame* cameraNewestFrame() const {
     return camera_buffer_.empty() ? nullptr : &camera_buffer_.newest();
   }
@@ -168,6 +181,17 @@ private:
   bool camera_enabled_ = false;
   CameraCalibration camera_calib_;
   CameraBuffer camera_buffer_;
+  std::array<int64_t, 400> camera_epoch_dt_hist_{};
+  int64_t camera_epoch_count_ = 0;
+  // S-0 camera-epoch state (FAST-LIVO2 LIVO semantics)
+  PendingLidarSlice pending_lidar_;
+  double last_epoch_time_ = -1.0;
+  int lio_vio_flg_ = 0;  // 0=WAIT, 1=LIO, 2=VIO (VIO reserved for V-4)
+  int64_t stale_image_drop_count_ = 0;
+  int64_t images_consumed_ = 0;
+  int64_t empty_slice_count_ = 0;
+  int64_t lidar_points_emitted_ = 0;
+  int64_t lidar_points_retained_ = 0;
   ros::Subscriber subCamera_;
   uint64_t camera_sequence_ = 0;
   size_t camera_ingested_ = 0;

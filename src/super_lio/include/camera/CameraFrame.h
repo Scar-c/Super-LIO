@@ -57,6 +57,9 @@ class CameraBuffer {
   double firstTimestamp() const { return first_timestamp_; }
   double lastTimestamp() const { return last_timestamp_; }
   const CameraFrame& oldest() const { return frames_.front(); }
+  void popOldest() {
+    if (!frames_.empty()) frames_.pop_front();
+  }
   const CameraFrame& newest() const { return frames_.back(); }
 
  private:

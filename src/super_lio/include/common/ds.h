@@ -130,7 +130,66 @@ struct LidarData
 struct MeasureGroup {
   LidarData lidar;
   std::deque<IMUData> imu;
+  // S-0 camera-epoch: processing epoch timestamp (camera ts when
+  // camera-epoch mode enabled; -1 keeps legacy LiDAR-epoch behavior)
+  double epoch_ts = -1.0;
 };
+
+// S-0 camera-epoch LiDAR slicing (FAST-LIVO2 LIVO semantics):
+// at epoch t_c, points with physical time <= t_c form the current LIO
+// segment; later points of an in-progress scan are retained in the pending
+// slice for the next epoch. Conservation: every input point is emitted
+// exactly once, either as current or as retained future.
+struct PendingLidarSlice {
+  bool has = false;
+  double origin = 0.0;  // absolute time reference of points[0]
+  std::vector<PointXTZIT> points;
+};
+
+inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
+                         const PendingLidarSlice& pending_in,
+                         PendingLidarSlice& pending_out,
+                         pcl::PointCloud<PointXTZIT>::Ptr& cur_out,
+                         double& slice_origin, int64_t& emitted,
+                         int64_t& retained) {
+  cur_out.reset(new pcl::PointCloud<PointXTZIT>());
+  cur_out->reserve(24000 * 4);
+  slice_origin = t_c;
+  auto append = [&](double abs_t, const PointXTZIT& pt) {
+    PointXTZIT q = pt;
+    q.offset_time = abs_t - slice_origin;
+    cur_out->push_back(q);
+    emitted++;
+  };
+  if (pending_in.has) {
+    slice_origin = pending_in.origin;
+    for (const auto& pt : pending_in.points) {
+      append(pending_in.origin + pt.offset_time, pt);
+    }
+  }
+  pending_out.has = false;
+  pending_out.points.clear();
+  while (!scans.empty() && scans.front().start_time <= t_c) {
+    const LidarData& scan = scans.front();
+    const double cut = t_c - scan.start_time;
+    for (const auto& pt : scan.pc->points) {
+      const double abs_t = scan.start_time + pt.offset_time;
+      if (pt.offset_time <= cut) {
+        append(abs_t, pt);
+      } else {
+        if (!pending_out.has) {
+          pending_out.has = true;
+          pending_out.origin = abs_t;
+        }
+        PointXTZIT q = pt;
+        q.offset_time = abs_t - pending_out.origin;
+        pending_out.points.push_back(q);
+        retained++;
+      }
+    }
+    scans.pop_front();
+  }
+}
 
 
 }

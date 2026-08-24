@@ -108,6 +108,16 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# S-0 camera-epoch slice conservation tests (no ROS dependency)
+add_executable(s0_slice_test
+  src/common/tests/test_s0_slice.cpp
+)
+target_include_directories(s0_slice_test PUBLIC include)
+target_link_libraries(s0_slice_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # G-1VR coordinate-origin sync tests (no ROS dependency)
 add_executable(g1vr_surfel_sync_test
   src/geometry/tests/test_surfel_sync.cpp

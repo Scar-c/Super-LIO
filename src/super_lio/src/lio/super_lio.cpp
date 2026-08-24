@@ -430,7 +430,9 @@ void SuperLIO::saveMap(){
 void SuperLIO::Propagation_Undistort(){
   propagate_states_.clear();
   propagate_states_.emplace_back(kf_->GetDynamicState());
-  kf_->SetObsTime(measures_.lidar.end_time);
+  const double obs_time = (measures_.epoch_ts > 0.0) ? measures_.epoch_ts
+                                                     : measures_.lidar.end_time;
+  kf_->SetObsTime(obs_time);
   double t_imu_start = NowMs();
   for (auto &imu : measures_.imu) {
     kf_->Predict(imu);

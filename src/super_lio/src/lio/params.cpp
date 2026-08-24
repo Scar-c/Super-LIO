@@ -84,6 +84,9 @@ namespace LI2Sup{
   /// G-0 shadow sidecar
   bool g_lio_g0_shadow = false;
 
+  /// S-0 camera-epoch synchronization (visual OFF)
+  bool g_lio_camera_epoch = false;
+
   /// G-1V Scheme-B shadow
   bool g_lio_g1v_enabled = false;
 

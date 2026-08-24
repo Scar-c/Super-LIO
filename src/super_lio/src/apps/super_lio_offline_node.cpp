@@ -42,6 +42,8 @@ int main(int argc, char** argv) {
   signal(SIGINT, SigHandle);
   ros::NodeHandle nh;
   LoadParamFromRos(nh);
+  std::printf("[offline_node] camera_epoch=%d camera_enabled=%d\n",
+              g_lio_camera_epoch ? 1 : 0, g_camera_enabled ? 1 : 0);
 
   if (g_offline_bag.empty()) {
     std::printf("[offline_node] ERROR: /lio/offline/bag is empty. "
@@ -370,6 +372,25 @@ int main(int argc, char** argv) {
                 hp3(lio->g1vPhotobHist(), 0.5, 2.0), hp3(lio->g1vPhotobHist(), 0.9, 2.0));
     std::printf("G-1V correlations (r): normal_angle~du*=%.3f dn_ref~du*=%.3f anchor_drift~du*=%.3f warp_err~photo_improve=%.3f\n",
                 lio->g1vPearson(0), lio->g1vPearson(1), lio->g1vPearson(2), lio->g1vPearson(3));
+  }
+  if (g_lio_camera_epoch) {
+    const auto& h = data_wrapper->cameraEpochDtHist();
+    auto pct = [&](double p) {
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 400; ++i) { acc += h[i]; if (acc >= tot * p) return (i - 200.0); }
+      return 200.0;
+    };
+    std::printf("S-0 camera-epoch: epochs=%lld images_consumed=%lld stale_image_drop=%lld empty_slice=%lld\n",
+                (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
+                (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount());
+    std::printf("S-0 camera-epoch: lidar_points_emitted=%lld future_points_retained=%lld last_epoch=%.3f\n",
+                (long long)data_wrapper->lidarPointsEmitted(), (long long)data_wrapper->lidarPointsRetained(),
+                data_wrapper->lastEpochTime());
+    std::printf("S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=%lld median=%.1f P90=%.1f P95=%.1f P99=%.1f\n",
+                (long long)data_wrapper->cameraEpochCount(), pct(0.5), pct(0.9), pct(0.95), pct(0.99));
   }
   std::printf("=== End offline accounting ===\n");
   ros::shutdown();
