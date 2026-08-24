@@ -2,6 +2,10 @@
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
+#include <iomanip>
+#include <sstream>
+#include <map>
+#include <set>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/concurrent_vector.h>
@@ -11,6 +15,15 @@
 using namespace BASIC;
 
 namespace LI2Sup{
+
+namespace {
+std::string fmt(double v) {
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(6) << v;
+  return oss.str();
+}
+}  // namespace
+
 
 inline bool calc_plane_coeff(const int N, const std::array<V3, 5>& points, std::array<double, 4>& abcd)
 {
@@ -80,6 +93,35 @@ void SuperLIO::init(){
   abcd_vec_.resize(20000);
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
+
+  if(g_lio_g1_enabled && !g_lio_g1_out_dir.empty()){
+    g1_enabled_ = true;
+    const std::vector<std::string> header = {
+        "timestamp", "n_processed", "n_fov",
+        "N1","N2","N3","N4","N5_7","N8_10","N11_19","N20",
+        "R3","R5","R8","R10","R20",
+        "pv01","pv02","pv03","pv04","pv05","pv06","pv07","pv08",
+        "pv09","pv10","pv11","pv12","pv13","pv14","pv15","pv16",
+        "vv01","vv02","vv03","vv04","vv05","vv06","vv07","vv08",
+        "vv09","vv10","vv11","vv12","vv13","vv14","vv15","vv16",
+        "g_fov","g_n5","g_plane","g_any","occ_cols","occ_rows",
+        "q0","q1","q2","q3","dt_cam"};
+    g1_csv_.open(g_lio_g1_out_dir + "/g1_stats.csv", header);
+    LOG(INFO) << GREEN << " ---> [SuperLIO]: G-1 visual support diagnostics enabled" << RESET;
+  }
+
+  if(g_lio_g0_shadow){
+    sidecar_enabled_ = true;
+    ivox_->setSubvoxelUpdateCallback(
+        [this](const OctVoxMapType::AcceptedSubvoxelUpdate& ev) {
+          sidecar_.handleAccepted(ev);
+        });
+    ivox_->setEvictCallback(
+        [this](const OctVoxMapType::KEY& key) {
+          sidecar_.handleEvict(key);
+        });
+    LOG(INFO) << GREEN << " ---> [SuperLIO]: G-0 shadow sidecar enabled" << RESET;
+  }
 
   state_fn_ = &SuperLIO::stateWaitKFInit;
 
@@ -555,7 +597,12 @@ void SuperLIO::Observe(){
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
 
-    if(need_converge) return;
+    if(need_converge){
+      if(g1_enabled_ && sidecar_enabled_){
+        runG1Shadow(pose);
+      }
+      return;
+    }
 
     int _effect_knn_num = 0;
     for(size_t i = 0; i < effect_knn_num_; ++i){
@@ -575,6 +622,192 @@ void SuperLIO::Observe(){
   frame_num_++;
 }
 
+
+void SuperLIO::runG1Shadow(const SE3& pose){
+  g1_agg_.beginEpoch(measures_.lidar.end_time);
+  VisualSupportRow& row = g1_agg_.row();
+
+  const CameraCalibration& calib = data_wrapper_->cameraCalibration();
+  const bool cam_ok = calib.valid && !data_wrapper_->cameraBufferEmpty();
+  const Eigen::Matrix4d T_cb = cam_ok ? calib.T_cam_body() : Eigen::Matrix4d::Identity();
+
+  const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
+  const int grid_n_height = 17;
+  const int gh = cam_ok ? calib.image_height : 480;
+  const int gw = cam_ok ? calib.image_width : 752;
+  const float cell_h = static_cast<float>(gh) / grid_n_height;
+  const float cell_w = cell_h;
+  const int grid_n_width = static_cast<int>(std::ceil(gw / cell_w));
+  const int n_cells = grid_n_width * grid_n_height;
+
+  const auto& sweep = gateSweep();
+  std::array<int, 16> pv{};
+  std::array<int, 16> vv{};
+  std::set<int64_t> voxel_seen;
+  std::array<int, 4> quad{};
+  int g_fov = 0, g_n5 = 0, g_plane = 0, g_any = 0;
+  double dt_cam = cam_ok ? data_wrapper_->cameraNewestTimestamp() - measures_.lidar.end_time : 0.0;
+
+  const int N = static_cast<int>(effect_knn_num_);
+  row.n_processed = N;
+  cell_plane_map_.clear();
+  std::map<int, int> cell_n5;   // cell -> count of FOV points with N>=5
+  std::map<int, int> cell_fov;
+
+  for (int i = 0; i < N; ++i) {
+    const int idx = effect_knn_idxs_[i];
+    if (!effect_mask_[idx]) continue;
+    const V3& pb = points_body_v3_[idx];
+    const V3 pw = pose * pb;
+    if (!pw.allFinite()) continue;
+
+    const Eigen::Vector3f pfp = pw.cast<float>() * sub_inv;
+    const Eigen::Vector3i fine = pfp.array().floor().cast<int>();
+    const OctVoxKey key(fine[0] >> 1, fine[1] >> 1, fine[2] >> 1);
+    const int dx = fine[0] & 1, dy = fine[1] & 1, dz = fine[2] & 1;
+    const int local_idx = (dz << 2) | (dy << 1) | dx;
+
+    const ParentStats* ps = sidecar_.find(key);
+    if (ps == nullptr) continue;
+    const SubvoxelStats& st = ps->sub[local_idx];
+    if (!st.active) continue;
+    const int n = st.n;
+    if (n >= 1 && n <= 20) row.n_hist_fov[n]++;
+
+    // FOV projection (causal: current pose, camera frame buffer)
+    if (!cam_ok) continue;
+    const Eigen::Vector3d p_body(pb.x(), pb.y(), pb.z());
+    const Eigen::Vector3d pc = transformPoint(T_cb, p_body);
+    if (pc.z() <= 0.05) continue;
+    const double u = calib.fx * pc.x() / pc.z() + calib.cx;
+    const double v = calib.fy * pc.y() / pc.z() + calib.cy;
+    const double border = 8.0;
+    if (u < border || u >= gw - border || v < border || v >= gh - border) continue;
+    const int ci = static_cast<int>(u / cell_w);
+    const int cj = static_cast<int>(v / cell_h);
+    if (ci < 0 || ci >= grid_n_width || cj < 0 || cj >= grid_n_height) continue;
+    const int cell = cj * grid_n_width + ci;
+    cell_fov[cell]++;
+    g_fov++;
+    const int qx = ci < grid_n_width / 2 ? 0 : 1;
+    const int qy = cj < grid_n_height / 2 ? 0 : 1;
+    quad[qy * 2 + qx]++;
+
+    row.rN_point[0] += (n >= 3) ? 1 : 0;
+    row.rN_point[1] += (n >= 5) ? 1 : 0;
+    row.rN_point[2] += (n >= 8) ? 1 : 0;
+    row.rN_point[3] += (n >= 10) ? 1 : 0;
+    row.rN_point[4] += (n >= 20) ? 1 : 0;
+    if (n >= 5) {
+      g_n5++;
+      cell_n5[cell]++;
+    }
+
+    if (n < 5) continue;
+    const Eigen::Matrix3d S = GeometryStatsSidecar::unpackS(st.s);
+    const double dn = static_cast<double>(n);
+    if (S.trace() <= 1e-12 || !S.allFinite()) continue;
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(S / dn);
+    const Eigen::Vector3d ev = es.eigenvalues();
+    if (!ev.allFinite()) continue;
+    const double qf = ev(0) / (ev(0) + ev(1) + ev(2));
+    const double ql = ev(2) > 1e-12 ? ev(1) / ev(2) : 0.0;
+
+    g1_qf_hist_[std::min(99, static_cast<int>(qf * 100))]++;
+    g1_ql_hist_[std::min(99, static_cast<int>(ql * 100))]++;
+
+    // parent-level (0.5m) aggregated flatness: merge active subvoxel scatters
+    {
+      Eigen::Matrix3d Sp = Eigen::Matrix3d::Zero();
+      Eigen::Vector3d mup = Eigen::Vector3d::Zero();
+      long np = 0;
+      for (int s = 0; s < 8; ++s) {
+        const SubvoxelStats& ss = ps->sub[s];
+        if (!ss.active || ss.n < 1) continue;
+        const Eigen::Matrix3d Ss = GeometryStatsSidecar::unpackS(ss.s);
+        const double ns = static_cast<double>(ss.n);
+        const Eigen::Vector3d mus(ss.mu[0], ss.mu[1], ss.mu[2]);
+        if (np == 0) {
+          Sp = Ss; mup = mus; np = static_cast<long>(ns);
+        } else {
+          const double ntot = static_cast<double>(np) + ns;
+          const Eigen::Vector3d diff = mup - mus;
+          Sp = Sp + Ss +
+               (static_cast<double>(np) * ns / ntot) * diff * diff.transpose();
+          mup = (mup * static_cast<double>(np) + mus * ns) / ntot;
+          np = static_cast<long>(ntot);
+        }
+      }
+      if (np >= 10 && Sp.allFinite() && Sp.trace() > 1e-12) {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(Sp / static_cast<double>(np));
+        const Eigen::Vector3d evp = esp.eigenvalues();
+        if (evp.allFinite()) {
+          const double qfp = evp(0) / (evp(0) + evp(1) + evp(2));
+          g1_parent_qf_hist_[std::min(99, static_cast<int>(qfp * 100))]++;
+        }
+      }
+    }
+
+    const int64_t vid = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
+                        ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
+                        ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+    for (int g = 0; g < 16; ++g) {
+      if (qf <= sweep[g].q_flat && ql >= sweep[g].q_line) {
+        pv[g]++;
+        if (voxel_seen.count(vid) == 0) {
+          voxel_seen.insert(vid);
+          vv[g]++;
+        }
+      }
+    }
+    if (pv[0] > 0 || pv[1] > 0) cell_plane_map_[cell] = true;
+  }
+
+  row.n_fov = g_fov;
+  for (int g = 0; g < 16; ++g) {
+    row.plane_valid_point[g] = pv[g];
+    row.plane_valid_voxel[g] = vv[g];
+  }
+  g_any = static_cast<int>(cell_fov.size());
+  g_n5 = static_cast<int>(cell_n5.size());
+  g_plane = static_cast<int>(cell_plane_map_.size());
+  row.grid_cells[0] = g_any;
+  row.grid_cells[1] = g_n5;
+  row.grid_cells[2] = g_plane;
+  row.grid_cells[3] = n_cells;
+  row.dt_cam = dt_cam;
+  for (int q = 0; q < 4; ++q) row.quadrant_hits[q] = quad[q];
+
+  g1_agg_.commitEpoch();
+
+  if (g1_csv_.isOpen()) {
+    const auto& r = row;
+    std::vector<std::string> f;
+    f.push_back(fmt(r.timestamp));
+    f.push_back(std::to_string(r.n_processed));
+    f.push_back(std::to_string(r.n_fov));
+    int h8[8] = {r.n_hist_fov[1], r.n_hist_fov[2], r.n_hist_fov[3], r.n_hist_fov[4],
+                 r.n_hist_fov[5] + r.n_hist_fov[6] + r.n_hist_fov[7],
+                 r.n_hist_fov[8] + r.n_hist_fov[9] + r.n_hist_fov[10],
+                 r.n_hist_fov[11] + r.n_hist_fov[12] + r.n_hist_fov[13] + r.n_hist_fov[14] +
+                     r.n_hist_fov[15] + r.n_hist_fov[16] + r.n_hist_fov[17] + r.n_hist_fov[18] +
+                     r.n_hist_fov[19],
+                 r.n_hist_fov[20]};
+    for (int k = 0; k < 8; ++k) f.push_back(std::to_string(h8[k]));
+    for (int k = 0; k < 5; ++k) f.push_back(std::to_string(r.rN_point[k]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(r.plane_valid_point[g]));
+    for (int g = 0; g < 16; ++g) f.push_back(std::to_string(r.plane_valid_voxel[g]));
+    f.push_back(std::to_string(r.grid_cells[0]));
+    f.push_back(std::to_string(r.grid_cells[1]));
+    f.push_back(std::to_string(r.grid_cells[2]));
+    f.push_back(std::to_string(r.grid_cells[3]));
+    f.push_back(std::to_string(r.occupied_cols));
+    f.push_back(std::to_string(r.occupied_rows));
+    for (int q = 0; q < 4; ++q) f.push_back(std::to_string(r.quadrant_hits[q]));
+    f.push_back(fmt(r.dt_cam));
+    g1_csv_.writeRow(f);
+  }
+}
 
 void SuperLIO::UpdateMap() {
   const size_t ptsize = ds_undistort_->size();

@@ -25,6 +25,7 @@
 #include "instrumentation/ExperimentLogger.h"
 #include "instrumentation/RunStats.h"
 #include "geometry/MicroSurfelStats.h"
+#include "geometry/VisualSupportStats.h"
 
 namespace LI2Sup{
 
@@ -42,6 +43,9 @@ public:
   void printTimeRecord();
   size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
   const GeometryStatsSidecar& sidecar() const { return sidecar_; }
+  const std::array<int, 100>& g1QfHist() const { return g1_qf_hist_; }
+  const std::array<int, 100>& g1QlHist() const { return g1_ql_hist_; }
+  const std::array<int, 100>& g1ParentQfHist() const { return g1_parent_qf_hist_; }
   size_t mapCapacity() const { return g_ivox_capacity; }
   void closeInstrumentation();
 
@@ -54,6 +58,7 @@ protected:
   void Propagation_Undistort();
   void DownSample();
   void Observe();
+  void runG1Shadow(const BASIC::SE3& pose);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();
@@ -92,6 +97,14 @@ protected:
 
   GeometryStatsSidecar sidecar_;
   bool sidecar_enabled_ = false;
+  std::map<int, bool> cell_plane_map_;
+  std::array<int, 100> g1_qf_hist_{};
+  std::array<int, 100> g1_ql_hist_{};
+  std::array<int, 100> g1_parent_qf_hist_{};
+
+  bool g1_enabled_ = false;
+  VisualSupportAggregator g1_agg_;
+  CsvWriter g1_csv_;
 
   std::unique_ptr<ExperimentLogger> logger_;
   EpochTimings epoch_timings_;

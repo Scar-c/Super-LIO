@@ -107,6 +107,10 @@ public:
   size_t cameraBufferPeak() const { return camera_buffer_.peakSize(); }
   size_t cameraBufferDropped() const { return camera_buffer_.dropped(); }
   double cameraFirstTimestamp() const { return camera_buffer_.firstTimestamp(); }
+  double cameraNewestTimestamp() const {
+    return camera_buffer_.empty() ? -1.0 : camera_buffer_.lastTimestamp();
+  }
+  bool cameraBufferEmpty() const { return camera_buffer_.empty(); }
   double cameraLastTimestamp() const { return camera_buffer_.lastTimestamp(); }
   const CameraCalibration& cameraCalibration() const { return camera_calib_; }
   bool loadCameraCalibration(const std::string& path);

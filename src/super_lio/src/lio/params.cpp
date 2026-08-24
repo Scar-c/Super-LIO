@@ -84,6 +84,10 @@ namespace LI2Sup{
   /// G-0 shadow sidecar
   bool g_lio_g0_shadow = false;
 
+  /// G-1 visual support diagnostics
+  bool        g_lio_g1_enabled = false;
+  std::string g_lio_g1_out_dir = "";
+
   /// TB-1 camera input
   bool        g_camera_enabled = false;
   std::string g_camera_topic = "";

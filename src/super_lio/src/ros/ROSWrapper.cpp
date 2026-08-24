@@ -58,6 +58,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
             << (g_lio_instrumentation ? "true" : "false") << RESET;
 
   nh.getParam("/lio/g0/shadow", g_lio_g0_shadow);
+  nh.getParam("/lio/g1/enabled", g_lio_g1_enabled);
+  nh.getParam("/lio/g1/out_dir", g_lio_g1_out_dir);
 
   nh.getParam("/camera/enabled", g_camera_enabled);
   nh.getParam("/camera/topic", g_camera_topic);

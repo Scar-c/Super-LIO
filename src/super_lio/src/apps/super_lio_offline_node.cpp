@@ -129,6 +129,37 @@ int main(int argc, char** argv) {
     std::printf("G-0 N histogram:");
     for (int n = 1; n <= 20; ++n) std::printf(" %d:%llu", n, (unsigned long long)h[n]);
     std::printf("\n");
+    if (g_lio_g1_enabled) {
+      const auto& qf = lio->g1QfHist();
+      const auto& ql = lio->g1QlHist();
+      long qf_tot = 0, ql_tot = 0;
+      for (int i = 0; i < 100; ++i) { qf_tot += qf[i]; ql_tot += ql[i]; }
+      std::printf("G-1 q_flat distribution (percentiles of 0..1):");
+      for (double p : {0.5, 0.9, 0.95, 0.99}) {
+        long acc = 0;
+        double v = -1;
+        for (int i = 0; i < 100; ++i) { acc += qf[i]; if (acc >= qf_tot * p) { v = (i + 0.5) / 100.0; break; } }
+        std::printf(" P%.0f=%.3f", p * 100, v);
+      }
+      const auto& qfp = lio->g1ParentQfHist();
+      long qfp_tot = 0;
+      for (int i = 0; i < 100; ++i) qfp_tot += qfp[i];
+      std::printf("\nG-1 parent(0.5m) q_flat distribution:");
+      for (double p : {0.5, 0.9, 0.95, 0.99}) {
+        long acc = 0;
+        double v = -1;
+        for (int i = 0; i < 100; ++i) { acc += qfp[i]; if (acc >= qfp_tot * p) { v = (i + 0.5) / 100.0; break; } }
+        std::printf(" P%.0f=%.3f", p * 100, v);
+      }
+      std::printf("\nG-1 q_line distribution:");
+      for (double p : {0.5, 0.9, 0.95, 0.99}) {
+        long acc = 0;
+        double v = -1;
+        for (int i = 0; i < 100; ++i) { acc += ql[i]; if (acc >= ql_tot * p) { v = (i + 0.5) / 100.0; break; } }
+        std::printf(" P%.0f=%.3f", p * 100, v);
+      }
+      std::printf("\n");
+    }
   }
   std::printf("process invocations: %zu\n", a.process_invocations);
   std::printf("sync epochs (heavy process): %d / %zu\n", a.sync_count,
