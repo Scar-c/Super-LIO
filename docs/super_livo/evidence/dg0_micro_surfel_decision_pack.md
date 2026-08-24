@@ -1,10 +1,10 @@
 # DG-0 — Micro-Surfel Decision Pack（Round 9 修订）
 
-Status: BLOCKED FOR OWNER REVIEW（NO AUTO-CLOSE / NO AUTO-PROMOTE）
+Status: BLOCKED FOR OWNER REVIEW（NO AUTO-CLOSE / NO AUTO-PROMOTE）— Round 10 修订：E-L / E-V 拆分；新增 Visual Geometry Decision — Scheme B 章节
 Scope: support-scale / production storage / plane gate / direct gate / lifecycle / sync 的 evidence 汇总
 Source of Truth: v1 spec DG-0；Round 9 §51-55
-Related commits: 8f355a1（G-0）、a7d7313（G-1）、f0f6cea+e6a0f7b（G-1R）、5279f1c（G-2/G-3）
-Datasets: eee_01 / nya_01（Corridor/SFS MISSING）
+Related commits: 8f355a1（G-0）、a7d7313（G-1）、f0f6cea+e6a0f7b（G-1R）、5279f1c（G-2/G-3）、1a157a4（G-1V）
+Datasets: eee_01 / nya_01（Corridor/SFS MISSING EVIDENCE；Corridor topic audit 完成）
 Last updated: 2026-08-24
 
 ## 1. Child（0.25m）总结
@@ -41,6 +41,15 @@ Last updated: 2026-08-24
 
 ## 5. DS Recommendation（RECOMMENDATION ONLY，NOT FROZEN）
 
+### E-L（LiDAR direct plane candidate）——来自 Round 9 G-3
+
+```text
+coverage:  high（parent 60-80%）
+agreement: moderate（normal P50 ~15°、residual diff ~0.3m）
+status:    NOT production approved
+```
+
+
 ```text
 support scale:      PARENT（0.5m aggregate；child 保留为 local identity）
 production storage: Candidate E（baseline OctVox 8 child + 一个 parent surfel stats block；
@@ -52,6 +61,28 @@ parent lifecycle:   keep-updating（E3=0 表明稳定性；freeze 无数据支�
 geometry sync:      E1 OR E2 保留；normal 阈值候选 2-3°（事件率 ~3.7-5.0/parent，平衡事件频率与漂移）
 overall verdict:    MARGINAL-GO —— coverage/maturity 强支持 parent 路线；
                     HKNN agreement moderate → 建议 direct fast path + HKNN fallback 保底（HYBRID 候选，勿实现）
+```
+
+## 5b. Visual Geometry Decision — Scheme B（Round 10，G-1V）
+
+```text
+creation exactness:      PASS（P_B(t0)==P0 数值零；unit + shadow）
+offset distribution:     |d0| P50 0.18-0.19m；d_n_ref P50 0.20-0.34m；d_t_ref P50 ~0.35m
+anchor drift:            P50 0.038-0.043m / P90 0.156-0.185m / P99 ~0.29-0.34m
+                         投影影响 <2px（O-HKNN vs B-PARENT warp P50 1.8-2.4px）
+warp pixel error:        O-HKNN vs B-PARENT 8x8 采样 P50 1.8-2.35px
+photometric residual:    B-PARENT ≈ O-HKNN（nya 40.0 vs 39.5 meanSSE；DC 归一化后）
+                         eee 中 O-HKNN oracle 不可用（P0 出视野——固定点 anchor 不可持续）
+local alignment:         |Δu*| P50≈5.1px、P90 触 7px（R=5 边界）——两方案相同
+                         （系统性校正需求，非 Scheme-B 特有；dt 分桶无差异）
+geometry-photo correlation: 全部 ≈0（normal 角/dn_ref/anchor drift vs |Δu*|；
+                         warp err vs improvement）→ LiDAR geometry 质量
+                         在本数据上不能预测 photometric 校正需求
+dataset confidence:      Tier A 双数据集一致；Corridor/SFS MISSING
+E-V recommendation:      CONTINUE（Scheme-B 无参数化退化；surfel 支持使 patch
+                         持续可跟踪——O-HKNN 的 P0 出视野即证明固定 anchor 不可行）
+                         REVISE 点：photometric 必须 DC 归一化；V- 系列搜索窗 ≥5-7px；
+                         5px 系统性校正来源待解（camera timing / HKNN plane 精度）
 ```
 
 ## 6. Architecture Owner decisions required
