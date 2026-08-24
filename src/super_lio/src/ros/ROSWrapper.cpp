@@ -20,6 +20,11 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/map/save_interval", g_pcd_save_interval);
 
   nh.getParam("/lio/eva/timer", g_time_eva);
+
+  nh.getParam("/lio/offline/bag", g_offline_bag);
+  nh.getParam("/lio/offline/start_offset", g_offline_start_offset);
+  nh.getParam("/lio/offline/duration", g_offline_duration);
+  nh.getParam("/lio/offline/publish", g_offline_publish);
   
   // ROS Topic input
   nh.getParam("/lio/ros/lidar_topic",  g_lidar_topic);
@@ -218,6 +223,10 @@ ROSWrapper::ROSWrapper(){
 
 
 void ROSWrapper::livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr& msg){
+  HandleLidarCustomMsg(msg);
+}
+
+void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPtr& msg){
   if(msg->point_num < 10) return;
   LidarData lidar_data;
   std::size_t ptsize = msg->point_num;
@@ -252,6 +261,10 @@ inline bool validPoint(double x, double y, double z)
 }
 
 void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
+  HandleLidarPointCloud2(msg);
+}
+
+void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr& msg){
   if(msg->data.size() < 10) return;
   
   LidarData lidar_data;
@@ -341,6 +354,10 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
 
 
 void ROSWrapper::imuHandler(const sensor_msgs::Imu::ConstPtr& msg){
+  HandleImu(msg);
+}
+
+void ROSWrapper::HandleImu(const sensor_msgs::Imu::ConstPtr& msg){
   IMUData data;
   data.secs = msg->header.stamp.toSec();
   data.acc  = V3(msg->linear_acceleration.x,
@@ -450,6 +467,11 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
   last_timestamp_lidar_ = meas.lidar.end_time;
   lidar_buffer_.pop_front();
   lidar_pushed_ = false;
+  sync_count_++;
+  if (first_synced_lidar_end_time_ < 0.0) {
+    first_synced_lidar_end_time_ = meas.lidar.end_time;
+  }
+  last_synced_lidar_end_time_ = meas.lidar.end_time;
   return true;
 }
 

@@ -25,6 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   nav_msgs
   message_generation
+  rosbag
 )
 find_package(PythonLibs REQUIRED)
 
@@ -51,13 +52,13 @@ include_directories(
 
 # Package setup for catkin
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime
+  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime rosbag
   DEPENDS EIGEN3 PCL
   INCLUDE_DIRS include
 )
 
 # LIO library source files
-file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp")
+file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/offline/*.cpp")
 
 file(GLOB_RECURSE LIO_LIB_HEADERS "include/lio/*.hpp" "include/lio/*.h")
 
@@ -94,6 +95,13 @@ target_link_libraries(super_lio_node
 
 add_executable(relocation_node src/apps/relocation_node.cpp)
 target_link_libraries(relocation_node
+  lio
+  ${catkin_LIBRARIES}
+)
+
+# Offline bag-processing backend (direct rosbag reader, same estimator core)
+add_executable(super_lio_offline_node src/apps/super_lio_offline_node.cpp)
+target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
 )

@@ -94,6 +94,12 @@ namespace LI2Sup{
   extern ResidualType g_residual_type;
 
 
+  /// TB-OFFLINE
+  extern std::string g_offline_bag;
+  extern double      g_offline_start_offset;
+  extern double      g_offline_duration;
+  extern bool        g_offline_publish;
+
   /// for relocation
   extern bool g_update_map;
   extern double g_init_px, g_init_py, g_init_pz, g_init_roll, g_init_pitch, g_init_yaw;

@@ -70,6 +70,12 @@ namespace LI2Sup{
 
   ResidualType g_residual_type = PROB;
 
+  /// TB-OFFLINE
+  std::string g_offline_bag = "";
+  double      g_offline_start_offset = -1.0;
+  double      g_offline_duration = -1.0;
+  bool        g_offline_publish = true;
+
   /// for relocation
   bool g_update_map = false;
   double g_init_px, g_init_py, g_init_pz, g_init_roll, g_init_pitch, g_init_yaw;

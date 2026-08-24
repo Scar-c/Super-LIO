@@ -89,6 +89,19 @@ public:
 
   void set_initial_data(BASIC::SE3& init_pose, bool& flg_get_init_guess, bool flg_finish_init = false);
 
+  // Common ingestion seam (online callbacks are thin wrappers over these;
+  // the offline bag backend drives the same handlers).
+  void HandleImu(const sensor_msgs::Imu::ConstPtr&);
+  void HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPtr&);
+  void HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr&);
+
+  // Accounting / drain support (read-only, behavior neutral)
+  size_t lidarBufferSize() const { return lidar_buffer_.size(); }
+  size_t imuBufferSize() const { return imu_buffer_.size(); }
+  int syncCount() const { return sync_count_; }
+  double lastSyncedLidarEndTime() const { return last_synced_lidar_end_time_; }
+  double firstSyncedLidarEndTime() const { return first_synced_lidar_end_time_; }
+  double lastTimestampImu() const { return last_timestamp_imu_; }
 
 private:
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
@@ -105,6 +118,9 @@ private:
   bool lidar_pushed_ = false;
   double last_timestamp_imu_ = -1.0;
   double last_timestamp_lidar_ = -1.0;
+  int sync_count_ = 0;
+  double first_synced_lidar_end_time_ = -1.0;
+  double last_synced_lidar_end_time_ = -1.0;
 
   ESKF::Ptr eskf_ = nullptr;
   OctVoxMap<BASIC::V3, BASIC::scalar>::Ptr ivox_ = nullptr;
