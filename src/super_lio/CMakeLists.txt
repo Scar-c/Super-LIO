@@ -58,7 +58,7 @@ catkin_package(
 )
 
 # LIO library source files
-file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/offline/*.cpp")
+file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/offline/*.cpp" "src/instrumentation/*.cpp")
 
 file(GLOB_RECURSE LIO_LIB_HEADERS "include/lio/*.hpp" "include/lio/*.h")
 
@@ -104,4 +104,16 @@ add_executable(super_lio_offline_node src/apps/super_lio_offline_node.cpp)
 target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
+)
+
+# TB-0 instrumentation pure-logic tests (no ROS dependency)
+file(GLOB INSTR_SRC "src/instrumentation/*.cpp")
+list(FILTER INSTR_SRC EXCLUDE REGEX ".*/tests/.*")
+add_executable(tb0_instrumentation_test
+  src/instrumentation/tests/test_instrumentation.cpp
+  ${INSTR_SRC}
+)
+target_include_directories(tb0_instrumentation_test PUBLIC include)
+target_link_libraries(tb0_instrumentation_test
+  ${EIGEN3_LIBRARIES}
 )

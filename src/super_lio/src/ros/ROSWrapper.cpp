@@ -22,6 +22,18 @@ void LoadParamFromRos(ros::NodeHandle& nh){
 
   nh.getParam("/lio/eva/timer", g_time_eva);
 
+  nh.getParam("/lio/eva/instrumentation", g_lio_instrumentation);
+  nh.getParam("/lio/eva/out_dir", g_lio_eva_out_dir);
+  nh.getParam("/lio/eva/dataset", g_lio_eva_dataset);
+  nh.getParam("/lio/eva/bag", g_lio_eva_bag);
+  nh.getParam("/lio/eva/playback_rate", g_lio_eva_playback_rate);
+  nh.getParam("/lio/eva/start_offset", g_lio_eva_start_offset);
+  nh.getParam("/lio/eva/duration", g_lio_eva_duration);
+  nh.getParam("/lio/eva/config", g_lio_eva_config);
+  nh.getParam("/lio/eva/config_hash", g_lio_eva_config_hash);
+  LOG(INFO) << GREEN << " ---> [Param] eva/instrumentation: "
+            << (g_lio_instrumentation ? "true" : "false") << RESET;
+
   nh.getParam("/lio/offline/bag", g_offline_bag);
   nh.getParam("/lio/offline/start_offset", g_offline_start_offset);
   nh.getParam("/lio/offline/duration", g_offline_duration);

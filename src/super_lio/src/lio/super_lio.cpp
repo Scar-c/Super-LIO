@@ -83,6 +83,27 @@ void SuperLIO::init(){
 
   state_fn_ = &SuperLIO::stateWaitKFInit;
 
+  if(g_lio_instrumentation && !g_lio_eva_out_dir.empty()){
+    logger_.reset(new ExperimentLogger());
+    ManifestFields fields;
+    fields.repo_root = g_root_dir;
+    fields.dataset = g_lio_eva_dataset;
+    fields.bag = g_lio_eva_bag;
+    fields.playback_rate = g_lio_eva_playback_rate;
+    fields.start_offset = g_lio_eva_start_offset;
+    fields.duration = g_lio_eva_duration;
+    fields.config = g_lio_eva_config;
+    fields.config_hash = g_lio_eva_config_hash;
+    if(logger_->open(g_lio_eva_out_dir, fields)){
+      LOG(INFO) << GREEN << " ---> [SuperLIO]: instrumentation enabled, out_dir: "
+                << g_lio_eva_out_dir << RESET;
+    }else{
+      LOG(ERROR) << " ---> [SuperLIO]: failed to open instrumentation out_dir: "
+                 << g_lio_eva_out_dir;
+      logger_.reset();
+    }
+  }
+
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
 }
 
@@ -192,6 +213,7 @@ bool SuperLIO::map_init(){
 
 void SuperLIO::stateProcess(){
   frame_num_++;
+  double t_epoch_start = NowMs();
   if(g_time_eva){
     time_record_.Evaluate([this](){Propagation_Undistort();}, "Undistort");
     time_record_.Evaluate([this]() { DownSample(); }, "DownSample");
@@ -203,8 +225,18 @@ void SuperLIO::stateProcess(){
     Observe();
     UpdateMap();
   }
+  epoch_timings_.total_ms = NowMs() - t_epoch_start;
   Output();
   caceData();
+
+  if(logger_ && logger_->isOpen()){
+    logger_->recordEpoch(measures_.lidar.end_time, epoch_timings_,
+                         effect_knn_num_, epoch_iterations_,
+                         epoch_residual_stats_, ivox_->size(),
+                         g_ivox_capacity);
+  }
+  epoch_residual_stats_.reset();
+  epoch_iterations_ = 0;
 }
 
 
@@ -352,10 +384,12 @@ void SuperLIO::Propagation_Undistort(){
   propagate_states_.clear();
   propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->SetObsTime(measures_.lidar.end_time);
+  double t_imu_start = NowMs();
   for (auto &imu : measures_.imu) {
     kf_->Predict(imu);
     propagate_states_.emplace_back(kf_->GetDynamicState());
   }
+  epoch_timings_.imu_propagation_ms = NowMs() - t_imu_start;
 
   static const M3 TLI_R = g_lidar_imu.R_;
   static const V3 TLI_t = g_lidar_imu.t_;
@@ -368,6 +402,7 @@ void SuperLIO::Propagation_Undistort(){
   std::size_t ptsize = raw_pc->points.size();
   scan_undistort_full_->resize(ptsize); 
 
+  double t_undistort_start = NowMs();
   tbb::parallel_for(
   tbb::blocked_range<size_t>(0, ptsize),
   [&](const tbb::blocked_range<size_t>& r) {
@@ -413,18 +448,22 @@ void SuperLIO::Propagation_Undistort(){
       pt_full.z = eigen_point[2];
     }
   });
+  epoch_timings_.undistortion_ms = NowMs() - t_undistort_start;
 }
 
 
 void SuperLIO::DownSample(){
+  double t_start = NowMs();
   voxel_grid_fliter_.setInputCloud(scan_undistort_full_);
   voxel_grid_fliter_.filter(ds_undistort_);
+  epoch_timings_.downsample_ms = NowMs() - t_start;
 }
 
 
 struct ThreadACC{
   M6d HTVH = M6d::Zero();
   V6d HTVr = V6d::Zero();
+  RunningStats resid;
   ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()) {}
 };
 
@@ -447,8 +486,11 @@ void SuperLIO::Observe(){
 
   ivox_->reset_max_group();
   int iter_num = 0;
+  epoch_iterations_ = 0;
 
+  double t_update_start = NowMs();
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
+    epoch_iterations_++;
     const SE3 pose = kf_state.pose;
     const bool need_converge = kf_state.need_converge;
     const M3d R_transpose = (pose.R_.transpose()).cast<double>();
@@ -484,6 +526,8 @@ void SuperLIO::Observe(){
           effect_mask_[idx] = compute_error(abcd, point_world, _lengths[idx], error);
           if(!effect_mask_[idx]) continue;
           
+          local_acc.resid.add(error);
+
           {
             V3d normvec(abcd[0], abcd[1], abcd[2]);
             V3d nb = R_transpose * normvec;
@@ -500,10 +544,13 @@ void SuperLIO::Observe(){
 
     M6d sum_HTVH = M6d::Zero();
     V6d sum_HTVr = V6d::Zero();
+    RunningStats sum_resid;
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
+      sum_resid.merge(local_acc.resid);
     }
+    epoch_residual_stats_ = sum_resid;
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
 
@@ -523,6 +570,7 @@ void SuperLIO::Observe(){
     iter_num++;
   });
 
+  epoch_timings_.state_update_ms = NowMs() - t_update_start;
   frame_num_++;
 }
 
@@ -531,6 +579,7 @@ void SuperLIO::UpdateMap() {
   const size_t ptsize = ds_undistort_->size();
   if (ptsize == 0) return;
   
+  double t_start = NowMs();
   last_pose_ = kf_->GetSE3();
   points_world_v3_.resize(ptsize);
   
@@ -543,7 +592,7 @@ void SuperLIO::UpdateMap() {
   }
   
   ivox_->insert(points_world_v3_);
-
+  epoch_timings_.map_update_ms = NowMs() - t_start;
 }
 
 
@@ -577,6 +626,12 @@ void SuperLIO::Output(){
 void SuperLIO::printTimeRecord(){
   if(!g_time_eva) return;
   time_record_.PrintAll();
+}
+
+void SuperLIO::closeInstrumentation(){
+  if(logger_){
+    logger_->close();
+  }
 }
 
 } // namespace END.

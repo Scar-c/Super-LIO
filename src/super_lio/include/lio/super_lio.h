@@ -3,6 +3,7 @@
 #ifndef SUPER_LIO_H_
 #define SUPER_LIO_H_
 
+#include <memory>
 #include <queue>
 #include <vector>
 #include <iostream>
@@ -21,6 +22,8 @@
 #include "OctVoxMap/OctVoxMap.hpp"
 #include "OctVoxMap/VoxelGridFilter.h"
 #include "ros/ROSWrapper.h"
+#include "instrumentation/ExperimentLogger.h"
+#include "instrumentation/RunStats.h"
 
 namespace LI2Sup{
 
@@ -38,6 +41,7 @@ public:
   void printTimeRecord();
   size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
   size_t mapCapacity() const { return g_ivox_capacity; }
+  void closeInstrumentation();
 
 protected:
   void stateWaitKFInit();
@@ -83,6 +87,11 @@ protected:
   int pcd_index_ = -1;
 
   Timer time_record_;
+
+  std::unique_ptr<ExperimentLogger> logger_;
+  EpochTimings epoch_timings_;
+  RunningStats epoch_residual_stats_;
+  std::size_t epoch_iterations_ = 0;
 };
 
 } // namespace END.

@@ -31,5 +31,6 @@ int main(int argc, char** argv){
 
   lio->saveMap();
   lio->printTimeRecord();
+  lio->closeInstrumentation();
   return 0;
 }

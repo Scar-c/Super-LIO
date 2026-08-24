@@ -14,6 +14,17 @@ namespace LI2Sup{
   /// evaluation
   bool g_time_eva = false;
 
+  /// TB-0 instrumentation
+  bool   g_lio_instrumentation = false;
+  std::string g_lio_eva_out_dir = "";
+  std::string g_lio_eva_dataset = "";
+  std::string g_lio_eva_bag = "";
+  std::string g_lio_eva_playback_rate = "";
+  std::string g_lio_eva_start_offset = "";
+  std::string g_lio_eva_duration = "";
+  std::string g_lio_eva_config = "";
+  std::string g_lio_eva_config_hash = "";
+
   bool   g_save_map;
   bool   g_if_filter; 
   string g_save_map_dir;
