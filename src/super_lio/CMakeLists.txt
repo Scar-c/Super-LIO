@@ -108,6 +108,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# G-1VR coordinate-origin sync tests (no ROS dependency)
+add_executable(g1vr_surfel_sync_test
+  src/geometry/tests/test_surfel_sync.cpp
+)
+target_include_directories(g1vr_surfel_sync_test PUBLIC include)
+target_link_libraries(g1vr_surfel_sync_test
+  Eigen3::Eigen
+)
+
 # G-1V Scheme-B shadow pure-logic tests (no ROS dependency)
 add_executable(g1v_schemeb_test
   src/geometry/tests/test_schemeb.cpp

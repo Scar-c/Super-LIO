@@ -1,6 +1,6 @@
 # 20: [Super-LIVO v1][G-1VR] Preserve patch identity under centroid reparameterization
 
-**Status:** ready-for-agent（Round 11 corrective；coordinate-origin Scheme-B）
+**Status:** completed（Round 11：coordinate-origin 重参数化；3° sync anchor error <1e-12；9 组 unit PASS；evidence docs/super_livo/evidence/g1vr_coordinate_origin_scheme_b.md）
 
 ## Parent
 
