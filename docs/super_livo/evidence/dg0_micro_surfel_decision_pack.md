@@ -67,14 +67,15 @@ overall verdict:    MARGINAL-GO —— coverage/maturity 强支持 parent 路线
 
 ```text
 creation exactness:      PASS（P_B(t0)==P0 数值零；unit + shadow）
-offset distribution:     |d0| P50 0.18-0.19m；d_n_ref P50 0.20-0.34m；d_t_ref P50 ~0.35m
+offset distribution:     |d0| P50 0.18-0.19m；d_n_ref P50 0.020-0.034m；d_t_ref P50 0.175-0.180m
+                         （Round 11 Phase C 更正：Round 10 打印 bin 单位混淆已修正）
 anchor drift:            P50 0.038-0.043m / P90 0.156-0.185m / P99 ~0.29-0.34m
                          投影影响 <2px（O-HKNN vs B-PARENT warp P50 1.8-2.4px）
 warp pixel error:        O-HKNN vs B-PARENT 8x8 采样 P50 1.8-2.35px
 photometric residual:    B-PARENT ≈ O-HKNN（nya 40.0 vs 39.5 meanSSE；DC 归一化后）
                          eee 中 O-HKNN oracle 不可用（P0 出视野——固定点 anchor 不可持续）
-local alignment:         |Δu*| P50≈5.1px、P90 触 7px（R=5 边界）——两方案相同
-                         （系统性校正需求，非 Scheme-B 特有；dt 分桶无差异）
+local alignment:         |Δu*| P50≈5.1px、P90 触 7px（R=5 边界）= SEARCH CENSORED
+                         → INCONCLUSIVE（Round 11 更正；V-2 R=12 重测）；dt 分桶无差异
 geometry-photo correlation: 全部 ≈0（normal 角/dn_ref/anchor drift vs |Δu*|；
                          warp err vs improvement）→ LiDAR geometry 质量
                          在本数据上不能预测 photometric 校正需求

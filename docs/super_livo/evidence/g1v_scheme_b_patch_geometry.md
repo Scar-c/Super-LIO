@@ -33,12 +33,18 @@ Last updated: 2026-08-24
 |---|---|---|
 | patches created / tracked samples | 30,614 / 71,156 | 16,297 / 88,714 |
 | offset |d0|（m, P50/P90） | 0.19 / 0.31 | 0.18 / 0.30 |
-| offset d_n_ref（m, P50/P90） | 0.34 / 1.30 | 0.20 / 0.83 |
-| offset d_t_ref（m, P50/P90） | 0.35 / 0.59 | 0.36 / 0.58 |
+| offset d_n_ref（m, P50/P90） | 0.034 / 0.130 | 0.020 / 0.083 |
+| offset d_t_ref（m, P50/P90） | 0.175 / 0.295 | 0.180 / 0.290 |
 | anchor drift ‖P_B(k)−P0‖（m, P50/P90/P99） | 0.043 / 0.185 / 0.344 | 0.038 / 0.156 / 0.290 |
 | warp sample pixel delta O-HKNN vs B-PARENT（px, P50） | 1.80 | 2.35 |
 
 - 几何 warp（O-HKNN vs B-PARENT 8×8 采样像素差）P50 ≈ 1.8-2.4px。
+
+### CORRECTION NOTE（Round 11 Phase C）
+
+- Round 10 报告的 offset 统计存在**打印 bin 单位混淆**：|d0| 直方图为 1cm/bin，d_n 为 1mm/bin、d_t 为 5mm/bin，但汇总打印统一按 1cm/bin 换算 → d_n/d_t 被放大（×10 / ×2）。**数据本身正确**；修正后 d_n_ref P50 = 0.034m（eee）/0.020m（nya），d_t_ref P50 = 0.175/0.180m；恒等不变量 d_n ≤ |d0|、d_t ≤ |d0|、‖d0‖² ≈ d_n²+d_t² 成立（float tolerance 1e-6 内，逐样本已断言）。
+- |Δu*| P90/P95/P99 ≈ 7.05px = √(5²+5²) → **SEARCH CENSORED（R=5 饱和）**。旧结论 "5-7px sufficient" 与 correlations≈0 全部改为 **INCONCLUSIVE**（不得带入 production 参数；R=12 将在 V-2 阶段 §53 重测）。
+- P0 出视野结论（photoo 空）不受影响（非统计类）。
 - **B-STATIC 分解**：O-HKNN（P0+n_hknn）与 B-PARENT（P_B+n_k）photo 几乎相同（nya 39.5 vs 40.0）→ anchor drift（P50 4cm）与 normal 误差合计 <2px 投影影响；**anchor drift 对 photometric 的贡献可忽略**（初始假设不成立，已记录）。
 
 ## 4. Photometric diagnostic（DC 归一化 meanSSE；局部对齐 R=5px P-C provisional）
@@ -58,7 +64,7 @@ Last updated: 2026-08-24
   2. 系统性 |Δu*|≈5px（P90 到搜索边界 7px）对两种方案相同 → 来自共同因素（HKNN plane 本身/图像噪声/亮度残差），**非 Scheme-B 特有**。
   3. DC 归一化前 raw SSE 由亮度差主导（mean 差 ~80 gray）→ photometric 必须做 DC/brightness 归一化（V- 系列设计输入）。
 
-## 5. Correlations（§43 A-D，全部 ≈ 0）
+## 5. Correlations（§43 A-D —— 全部 INCONCLUSIVE，因 |Δu*| 被 R=5 截断）
 
 | pair | eee r | nya r |
 |---|---|---|
@@ -67,8 +73,8 @@ Last updated: 2026-08-24
 | anchor drift vs \|Δu*\| | 0.033 | 0.007 |
 | warp err vs photo improvement | −0.004 | 0.002 |
 
-- **LiDAR geometry quality 不能预测 photometric 校正需求**（本数据上）。
-- Limitation：|Δu*| 被 R=5 截断（P90 触边界）→ 相关被截断污染；诚实报告，不作过度解读。
+- 相关数值（|r| ≤ 0.033）因 |Δu*| 截断而不可解释 → **INCONCLUSIVE**（Round 11 Phase C 更正）。
+- R=12/20 诊断在 V-2（Round 11 §53）重测。
 
 ## 6. Event-trigger / lifetime（§46-49，继承 1/2/3/5°）
 
@@ -98,6 +104,6 @@ Last updated: 2026-08-24
 ## 10. Open questions（供 DG-0 E-V）
 
 1. 5px 系统性校正需求的来源与消除（camera timing / HKNN plane 精度 / brightness）——需要更多数据。
-2. V- 系列搜索窗建议 ≥5-7px（本数据），或依赖更准的几何先验。
+2. 搜索窗大小：本数据 R=5 饱和 → INCONCLUSIVE（V-2 R=12 重测）。
 3. DC 归一化必要性已确认（V- 系列必须）。
 4. P0 出视野 → O-HKNN 不可持续 → Scheme-B 的 surfel 支持是必要的（正结果）。

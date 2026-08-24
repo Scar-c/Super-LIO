@@ -311,10 +311,26 @@ int main(int argc, char** argv) {
     std::printf("G-1V patches created=%lld tracked=%lld samples=%lld skipped=%lld\n",
                 (long long)lio->g1vCreated(), (long long)lio->g1vTracked(),
                 (long long)lio->g1vSamples(), (long long)lio->g1vSkipped());
+    auto hpmm = [](const std::array<int64_t, 500>& h, double p) {  // 1mm bins
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 500; ++i) { acc += h[i]; if (acc >= tot * p) return i / 1000.0; }
+      return 0.5;
+    };
+    auto hp5 = [](const std::array<int64_t, 500>& h, double p) {  // 5mm bins
+      long long tot = 0;
+      for (auto v : h) tot += v;
+      if (tot == 0) return -1.0;
+      long long acc = 0;
+      for (int i = 0; i < 500; ++i) { acc += h[i]; if (acc >= tot * p) return i / 200.0; }
+      return 2.5;
+    };
     std::printf("G-1V offset |d0| (m, P50/P90/P95): %.3f/%.3f/%.3f  dn_ref: %.4f/%.4f/%.4f  dt_ref: %.3f/%.3f/%.3f\n",
                 hp(lio->g1vOffHist(), 0.5), hp(lio->g1vOffHist(), 0.9), hp(lio->g1vOffHist(), 0.95),
-                hp(lio->g1vDnHist(), 0.5), hp(lio->g1vDnHist(), 0.9), hp(lio->g1vDnHist(), 0.95),
-                hp(lio->g1vDtHist(), 0.5), hp(lio->g1vDtHist(), 0.9), hp(lio->g1vDtHist(), 0.95));
+                hpmm(lio->g1vDnHist(), 0.5), hpmm(lio->g1vDnHist(), 0.9), hpmm(lio->g1vDnHist(), 0.95),
+                hp5(lio->g1vDtHist(), 0.5), hp5(lio->g1vDtHist(), 0.9), hp5(lio->g1vDtHist(), 0.95));
     std::printf("G-1V anchor drift (m, P50/P90/P95/P99): %.4f/%.4f/%.4f/%.4f\n",
                 hp2(lio->g1vAnchorHist(), 0.5), hp2(lio->g1vAnchorHist(), 0.9),
                 hp2(lio->g1vAnchorHist(), 0.95), hp2(lio->g1vAnchorHist(), 0.99));
