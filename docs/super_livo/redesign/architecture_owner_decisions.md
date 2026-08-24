@@ -177,3 +177,23 @@ Scope: 视觉 patch 相对 surfel 的局部偏移（G-1V shadow）
 - 1 surfel : N patches；offset 不进滤波状态；Δu*（photometric local alignment）仅 diagnostic。
 - 旧 "reference ray × parent plane = final immutable visual anchor" 语义：**SUPERSEDED FOR SCHEME-B SHADOW**（历史保留，不删除）。
 - G-1V 通过后进入 DG-0 的 E-V 决策（E-L LiDAR direct 与 E-V visual support 拆开评估）。
+
+## 22. Coordinate-Origin Multi-Observation Scheme-B（Round 11 冻结，D1-D5）
+
+```text
+D1 centroid = coordinate origin only（P_patch = mu_sync + delta_sync；
+    centroid 更新只重参数化 offset：delta_new = P_fixed - mu_new；
+    P_fixed 不移动；boxed invariant mu_new + delta_new == P_fixed）
+D2 geometry sync 与 patch observation update 是两套生命周期：
+    geometry = 3° event-triggered snapshot（mu_sync/n_sync/delta_sync 原子更新；
+    禁止因 geometry 更新重采样 reference image patch）
+    observation = 独立生命周期（新观测进入 candidate；active reference 可替换/重选）
+D3 bounded observation storage：MAX_OBSERVATIONS_PER_LANDMARK = 3
+    （slot A active reference / B best alternate / C latest candidate；hard cap，不 sweep）
+D4 persistent patch = uint8_t[64]（8x8 grayscale；计算时临时转 float；不自行改 float）
+D5 E-L（LiDAR direct parent plane）DEFERRED / NOT APPROVED；
+    HKNN + plane fit remains authoritative；本阶段不启用 direct-plane estimator feedback
+
+Round 10 "immutable d0 + moving surfel -> moving P_B" = HISTORICAL SHADOW MODEL，
+SUPERSEDED FOR PRODUCTION（历史 evidence 保留不删）。
+```

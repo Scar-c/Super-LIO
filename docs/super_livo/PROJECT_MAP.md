@@ -73,3 +73,12 @@ Experiment infrastructure
 bag/ROS → Handle* → buffers → sync_measure → process():
   Propagation_Undistort → DownSample → Observe(HKNN) → UpdateMap → Output(pub/traj)
 ```
+## Round 11 — Coordinate-Origin Multi-Observation Scheme-B（冻结）
+
+```text
+1. centroid = coordinate origin only（P_patch = mu_sync + delta_sync 恒等；
+   centroid 更新只重参数化 offset，P_fixed 不移动）
+2. physical patch anchor invariant（creation + 3deg sync anchor error ~ 0）
+3. geometry sync != patch observation update（两套生命周期）
+4. max 3 observation patches / VisualLandmark（uint8[64]，slot A/B/C）
+```
