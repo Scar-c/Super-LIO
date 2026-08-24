@@ -79,3 +79,14 @@ first implementation = KEEP DEFAULT
 - 禁止只写 `default=xxx` 不写 provenance。
 - 新参数引入前必须先在本文档登记；P-C 参数的"最终值"统一由 DG-0 决定（measure first）。
 - P-B 参数照搬时注明 exact source（文件/论文/行号）。
+
+## P-C diagnostic provisional（Round 10）
+
+```text
+g1v local alignment search radius = 5 px
+category: P-C diagnostic provisional（非 production threshold）
+来源: G-1V shadow（Δu* 分布 P50≈5px、P90 触 R=5 边界）；
+      参考 FAST-LIVO2 无继承默认（reference search 范围未登记）→ 选择小、明确的
+      diagnostic radius 并登记；禁止多半径重跑整 bag
+用途: 仅 G-1V photometric 诊断；不得声称是最终视觉搜索窗口
+```
