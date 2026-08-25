@@ -35,6 +35,7 @@ struct VisualObservation {
 };
 
 struct VisualLandmark {
+  uint64_t landmark_id = 0;  // P0-6: stable unique identity, assigned once
   int64_t parent_id = 0;
   uint32_t parent_generation = 0;
   uint8_t source_child_idx = 0;

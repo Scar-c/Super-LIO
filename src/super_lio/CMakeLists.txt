@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(super_lio)
+execute_process(COMMAND git -C ${CMAKE_SOURCE_DIR} rev-parse --short HEAD
+                OUTPUT_VARIABLE GIT_SHA OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 
 #DEBUG CONFIGURATION
@@ -123,6 +125,8 @@ add_executable(v2_jacobian_test
   src/lio/tests/test_v2_jacobian.cpp
 )
 target_include_directories(v2_jacobian_test PUBLIC include)
+target_compile_definitions(v2_jacobian_test PRIVATE
+  GIT_SHA="\"${GIT_SHA}\"")
 target_link_libraries(v2_jacobian_test
   Eigen3::Eigen
   ${catkin_LIBRARIES}

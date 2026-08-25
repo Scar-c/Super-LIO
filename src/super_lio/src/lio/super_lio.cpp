@@ -129,6 +129,7 @@ void SuperLIO::init(){
               ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
               ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
           visual_map_.erase(pid);
+          parent_generation_++;  // P0-7: parent eviction bumps the generation
         });
     LOG(INFO) << GREEN << " ---> [SuperLIO]: G-0 shadow sidecar enabled" << RESET;
   }
@@ -1072,14 +1073,22 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   double sum_before = 0.0, sum_after = 0.0;
   static thread_local double fd_debug_printed = 0.0;
 
-  for (auto& kv : visual_map_.container()) {
-    for (auto& lm : kv.second) {
+  // P0-8: process only the active visual list built by the frontend this
+  // epoch (candidate/local retrieval), never a global VisualMap scan
+  for (const auto& a : active_visual_landmarks_) {
+    auto aitr = visual_map_.container().find(a.first);
+    if (aitr == visual_map_.container().end()) continue;
+    if (a.second >= aitr->second.size()) continue;
+    auto& lm = aitr->second[a.second];
+    {
       if (!lm.geometry_valid) continue;
-      const VisualObservation* ref = nullptr;
-      for (int s = 0; s < kMaxObsPerLandmark; ++s) {
-        if (lm.observations[s].valid) { ref = &lm.observations[s]; break; }
+      // P0-4: use exactly the frozen active reference slot; an invalid
+      // active slot makes the landmark ineligible for this solve
+      if (lm.active_ref_slot >= kMaxObsPerLandmark ||
+          !lm.observations[lm.active_ref_slot].valid) {
+        continue;
       }
-      if (ref == nullptr) continue;
+      const VisualObservation* ref = &lm.observations[lm.active_ref_slot];
       const Eigen::Vector3d P_patch =
           lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
       const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
@@ -1441,7 +1450,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             fd_trials_complete_++;
             fd_samples_needed_--;
             fd_epoch_set_.insert(measures_.epoch_ts);
-            fd_lmk_set_.insert(lm.parent_id * 1000 + static_cast<int64_t>(lm.source_child_idx));
+            fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
             // global median computed at report time from fd_rel_all_
           }
         }
@@ -1490,6 +1499,7 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
   const int grid_n_width = (W + grid_size - 1) / grid_size;
   const int n_cells = grid_n_width * grid_n_height;
   std::vector<int> cell_owner(n_cells, 0);          // 0 free, 1 existing, 2 new
+  std::vector<uint8_t> cell_child(n_cells, 0);      // P0-3: candidate child idx
   std::vector<std::pair<int64_t, size_t>> cell_lm(
       n_cells, {-1, 0});  // (parent_id, landmark index), not raw pointers
   std::vector<double> cell_score(n_cells, -1.0);
@@ -1547,6 +1557,9 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     const int64_t parent_id = (static_cast<int64_t>(key.x()) & 0xFFFFF) |
                               ((static_cast<int64_t>(key.y()) & 0xFFFFF) << 20) |
                               ((static_cast<int64_t>(key.z()) & 0xFFFFF) << 40);
+    // P0-3: real child subvoxel identity (x low bit = bit0)
+    const uint8_t child_idx = static_cast<uint8_t>(
+        (fine[0] & 1) | ((fine[1] & 1) << 1) | ((fine[2] & 1) << 2));
     const ParentStats* ps = sidecar_.find(key);
     if (ps == nullptr) continue;
     Eigen::Vector3d mu_k, p_Smu;
@@ -1577,13 +1590,13 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     project_world(P0, ok, uu, vv);
     if (!ok) continue;
     eligible_candidates++;
-    const int ci = grid_index(uu, vv);
-    if (cell_owner[ci] != 0) continue;  // already claimed this frame
 
-    // reuse an existing visible landmark of this parent (if any)
+    // P0-2: reuse an existing visible landmark; it occupies the grid cell
+    // of its OWN projection, not the candidate's cell
     auto it = visual_map_.container().find(parent_id);
     VisualLandmark* reuse = nullptr;
     size_t reuse_idx = 0;
+    double reuse_u = 0, reuse_v = 0;
     if (it != visual_map_.container().end()) {
       for (size_t li = 0; li < it->second.size(); ++li) {
         auto& lm = it->second[li];
@@ -1592,25 +1605,35 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
         double u2 = 0, v2 = 0;
         project_world(lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>(),
                       ok2, u2, v2);
-        if (ok2) { reuse = &lm; reuse_idx = li; break; }
+        if (ok2) { reuse = &lm; reuse_idx = li; reuse_u = u2; reuse_v = v2; break; }
       }
     }
     if (reuse != nullptr) {
-      cell_owner[ci] = 1;
-      cell_lm[ci] = {parent_id, reuse_idx};
-      reuse->last_visible_time = frame->timestamp;
-      visible_existing++;
+      const int ci_lm = grid_index(reuse_u, reuse_v);
+      if (cell_owner[ci_lm] == 0) {
+        cell_owner[ci_lm] = 1;
+        cell_lm[ci_lm] = {parent_id, reuse_idx};
+        reuse->last_visible_time = frame->timestamp;
+        visible_existing++;
+      }
       continue;
     }
 
-    // new-candidate: best Shi-Tomasi per unoccupied cell
+    // P0-1: consider ALL candidates per cell; highest frozen texture score
+    // wins (only cells already owned by an existing landmark are closed)
+    const int ci = grid_index(uu, vv);
+    if (cell_owner[ci] == 1) continue;
     const double sc = shi_tomasi(uu, vv);
     if (sc <= 0.0) continue;
-    if (sc > cell_score[ci]) {
+    if (sc > cell_score[ci] ||
+        (sc == cell_score[ci] && cell_owner[ci] != 2)) {
+      // tie (exact) -> stable lower candidate index wins: only replace on
+      // strict greater; first candidate establishes the cell (owner 2)
       cell_score[ci] = sc;
       cell_owner[ci] = 2;
       cell_pt[ci] = P0;
       cell_pid[ci] = parent_id;
+      cell_child[ci] = child_idx;
       cell_u[ci] = uu;
       cell_v[ci] = vv;
       cell_mu[ci] = mu_k;
@@ -1624,8 +1647,10 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     if (cell_owner[ci] != 2) continue;
     auto& lms = visual_map_[cell_pid[ci]];
     VisualLandmark nlm;
+    nlm.landmark_id = next_landmark_id_++;  // P0-6: stable unique id
     nlm.parent_id = cell_pid[ci];
-    nlm.source_child_idx = 0;
+    nlm.source_child_idx = cell_child[ci];  // P0-3: real child identity
+    nlm.parent_generation = parent_generation_;  // P0-7: current parent gen
     nlm.mu_sync = cell_mu[ci].cast<float>();
     nlm.delta_sync = (cell_pt[ci] - cell_mu[ci]).cast<float>();
     nlm.n_sync = cell_n[ci].cast<float>();
@@ -1717,19 +1742,8 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
             : 1.0;
 
     if (!add) {
-      // no trigger: refresh latest candidate slot only
-      lm->observations[lm->latest_slot].valid = false;
-      VisualObservation& o = lm->observations[lm->latest_slot];
-      o.frame_id = frame->sequence_id;
-      o.timestamp = static_cast<float>(frame->timestamp);
-      o.ref_u = static_cast<float>(uu);
-      o.ref_v = static_cast<float>(vv);
-      o.cam_pos = pose.t_.cast<float>();
-      o.cam_q = Eigen::Quaternionf(pose.R_.cast<float>());
-      memcpy(o.patch, patch_u8, 64);
-      o.texture_score = static_cast<float>(sd);
-      o.viewing_score = static_cast<float>(viewing);
-      o.valid = true;
+      // P0-5: trigger false -> do NOT sample or overwrite any observation
+      // (immutability); diagnostic counters may update only
       continue;
     }
     // trigger fired: insert into free slot, else drop worst redundant
@@ -1764,6 +1778,13 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     o.valid = true;
     lm->observation_add_count++;
     visual_obs_adds_++;
+  }
+
+  // ---- active visual list materialization (P0-8): stable ordered snapshot
+  // of this epoch's participating landmarks for the residual evaluator ----
+  active_visual_landmarks_.clear();
+  for (int ci = 0; ci < n_cells; ++ci) {
+    if (cell_lm[ci].first >= 0) active_visual_landmarks_.push_back(cell_lm[ci]);
   }
 
   // ---- pass 5: bounded active-reference reselection (solve boundary,

@@ -154,6 +154,9 @@ public:
 
   // V-0/V-1 production visual landmark map (sparse side table)
   VisualMap visual_map_;
+  std::vector<std::pair<int64_t, size_t>> active_visual_landmarks_;  // P0-8
+  uint64_t next_landmark_id_ = 1;  // P0-6: monotonic landmark id source
+  uint32_t parent_generation_ = 0;  // P0-7: parent generation counter (evict-bumped)
   int64_t visual_frames_processed_ = 0;
   int64_t visual_frame_null_count_ = 0;
   int64_t visualFrameNullCount() const { return visual_frame_null_count_; }
