@@ -1,5 +1,6 @@
 
 #include "geometry/BilinearSample.h"
+#include "geometry/FDHarness.h"
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
@@ -1028,7 +1029,7 @@ void SuperLIO::runG2G3Shadow(const SE3& pose){
       if (!pl.valid_now) { pl.e0++; pl.valid_now = true; }
       const Eigen::Vector3d n_p = [&] {
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> esp(p_S / p_n);
-        return esp.eigenvectors().col(0);
+        return esp.eigenvectors().col(0).eval();  // eval: avoid dangling Block
       }();
       if (pl.have_norm) {
         const double ang = std::acos(std::min(
@@ -1159,13 +1160,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
 
       // DC normalization over the same valid set (v1 50)
       // E2: single-source DC mean — use the exact stored sample values
-      double mean_ref = 0.0, mean_cur = 0.0;
-      for (size_t k = 0; k < M; ++k) {
-        mean_cur += ic_vals[k];
-        mean_ref += ref_vals[k];
-      }
-      mean_cur /= M;
-      mean_ref /= M;
+      const double mean_ref = meanOfStored(ref_vals);
+      const double mean_cur = meanOfStored(ic_vals);
 
       // residuals + Jacobian: r_k = (I_c(w_k)-mean_c) - (I_r(k)-mean_r)
       // dr/dx = J_k - (1/M) sum_j J_j  (v1 51)
@@ -1372,7 +1368,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         const double mean_c = mean_cur, mean_r = mean_ref;
         // note: production FD used per-perturbation means; for the double
         // oracle we use the double means of each perturbed set (same rule)
-        const double eps_d = 1e-5;  // double oracle step (diagnostic §8)
+        // Owner-authorized fixed Gate-M double-FD epsilon: 1e-6
+        // (no adaptive eps, no depth filtering; epsilon convergence diagnostic only)
+        const double eps_d = 1e-6;
 
         // Round 11F: independent double-analytic reference (B) for the base
         // bundle: Jraw_double[k], then Jmean_double and Jdc_double.
@@ -1394,8 +1392,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         }
         if (Bn > 0) Bjmean /= static_cast<double>(Bn);
 
-        H_accum_n_ = 0;
-        H_prod_.setZero(); H_dbl_.setZero(); b_prod_.setZero(); b_dbl_.setZero();
+        Eigen::Matrix<double, 6, 6> H_prod = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 6> H_dbl = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 1> b_prod = Eigen::Matrix<double, 6, 1>::Zero();
+        Eigen::Matrix<double, 6, 1> b_dbl = Eigen::Matrix<double, 6, 1>::Zero();
+        int64_t H_accum_n = 0;
         int64_t trial_nonsmooth = 0;
         for (int d = 0; d < 6; ++d) {
           // float perturb (registered eps: 1e-4, rz 1e-3)
@@ -1505,11 +1506,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 const Eigen::Matrix<double, 6, 1> Av = (Js[k] - Jmean);
                 const Eigen::Matrix<double, 6, 1> Bv = (Bjraw[k] - Bjmean);
                 const double r_prod = rs[k];
-                H_prod_ += Av * Av.transpose();
-                b_prod_ -= Av * r_prod;
-                H_dbl_ += Bv * Bv.transpose();
-                b_dbl_ -= Bv * r_prod;
-                H_accum_n_++;
+                H_prod += Av * Av.transpose();
+                b_prod -= Av * r_prod;
+                H_dbl += Bv * Bv.transpose();
+                b_dbl -= Bv * r_prod;
+                H_accum_n++;
               }
             }
             const double red = std::abs(fdd - an) / std::max(1e-12, std::abs(fdd));
@@ -1685,17 +1686,14 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         if (trial_nonsmooth > 0) fd_trials_with_nonsmooth_++;
         // H/b numeric audit: compare production vs double reference for this
         // bundle (only when it was smooth enough to accumulate)
-        if (H_accum_n_ > 0) {
+        if (H_accum_n > 0) {
           const double h_rel =
-              (H_prod_ - H_dbl_).norm() / std::max(1e-12, H_dbl_.norm());
+              (H_prod - H_dbl).norm() / std::max(1e-12, H_dbl.norm());
           const double b_rel =
-              (b_prod_ - b_dbl_).norm() / std::max(1e-12, b_dbl_.norm());
+              (b_prod - b_dbl).norm() / std::max(1e-12, b_dbl.norm());
           hb_worst_h_rel_ = std::max(hb_worst_h_rel_, h_rel);
           hb_worst_b_rel_ = std::max(hb_worst_b_rel_, b_rel);
-          H_accum_n_ = 0;
         }
-        H_prod_.setZero(); H_dbl_.setZero();
-        b_prod_.setZero(); b_dbl_.setZero();
         // Gate M: per-direction math fail flag
         for (int dd = 0; dd < 6; ++dd) {
           if (double_math_max_rel_[dd] > 1e-2) {

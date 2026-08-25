@@ -55,6 +55,15 @@ inline int fdQuotaNext(int quota) {
   return quota;  // 0 stays 0 (continuous), -1 stays -1 (disabled)
 }
 
+// Single-source DC mean: must equal the arithmetic mean of the exact stored
+// sample values used by the residual (no re-sampling of image intensity).
+inline double meanOfStored(const std::vector<double>& stored) {
+  if (stored.empty()) return 0.0;
+  double acc = 0.0;
+  for (double v : stored) acc += v;
+  return acc / static_cast<double>(stored.size());
+}
+
 }  // namespace LI2Sup
 
 #endif  // FD_HARNESS_H_

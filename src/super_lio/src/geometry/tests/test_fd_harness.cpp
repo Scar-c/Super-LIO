@@ -87,6 +87,16 @@ int main() {
     assert(fdQuotaNext(-1) == -1);
   }
 
+  // mean single-source: mean == arithmetic mean of stored values
+  {
+    std::vector<double> v = {10.0, 20.0, 30.0, 40.0};
+    assert(meanOfStored(v) == 25.0);
+    std::vector<double> e;
+    assert(meanOfStored(e) == 0.0);
+    std::vector<double> one = {7.5};
+    assert(meanOfStored(one) == 7.5);
+  }
+
   std::printf("all fd harness tests passed\n");
   return 0;
 }
