@@ -432,10 +432,21 @@ int main(int argc, char** argv) {
                     ? lio->visualResidualSse() /
                           (double)lio->visualResidualSamples()
                     : 0.0);
-    std::printf("V-2 6DOF FD gate: double_math_fail=%d trials_complete=%d trials_attempted=%d distinct_epochs=%zu distinct_landmarks=%zu\n",
-                lio->doubleMathFail() ? 1 : 0, lio->fdTrialsComplete(),
-                lio->fdTrialsAttempted(), lio->fdDistinctEpochs(),
-                lio->fdDistinctLandmarks());
+    std::printf("V-2 6DOF FD gate: double_math_fail=%d trials_attempted=%lld structurally_complete=%lld all6_smooth=%lld with_nonsmooth=%lld distinct_epochs=%zu distinct_landmarks=%zu\n",
+                lio->doubleMathFail() ? 1 : 0, (long long)lio->fdTrialsAttempted(),
+                (long long)lio->fdTrialsStructurallyComplete(),
+                (long long)lio->fdTrialsAll6Smooth(),
+                (long long)lio->fdTrialsWithNonsmooth(),
+                lio->fdDistinctEpochs(), lio->fdDistinctLandmarks());
+    {
+      const char* dn2[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
+      for (int d = 0; d < 6; ++d) {
+        std::printf("V-2 BUNDLE %s: smooth=%lld nonsmooth_support=%lld nonsmooth_cell=%lld\n",
+                    dn2[d], (long long)lio->bundleSmooth()[d],
+                    (long long)lio->bundleNonsmoothSupport()[d],
+                    (long long)lio->bundleNonsmoothCell()[d]);
+      }
+    }
     const char* dn[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
     for (int d = 0; d < 6; ++d) {
       std::printf("V-2 FLOAT FD %s: strong_n=%lld strong_max_rel=%.6g max_abs=%.6g weak_n=%lld\n",

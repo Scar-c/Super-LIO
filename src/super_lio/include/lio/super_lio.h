@@ -194,7 +194,19 @@ public:
   std::array<int64_t, 6> fd_double_weak_n_{};
   std::array<int64_t, 6> fd_double_non_smooth_{};
   std::array<double, 6> fd_double_worst_rel_{};
+  std::array<int64_t, 6> bundle_smooth_count_{};
+  std::array<int64_t, 6> bundle_nonsmooth_support_{};
+  std::array<int64_t, 6> bundle_nonsmooth_cell_{};
+  int64_t fd_trials_structurally_complete_ = 0;
+  int64_t fd_trials_all6_smooth_ = 0;
+  int64_t fd_trials_with_nonsmooth_ = 0;
   bool double_math_fail_ = false;
+  const std::array<int64_t, 6>& bundleSmooth() const { return bundle_smooth_count_; }
+  const std::array<int64_t, 6>& bundleNonsmoothSupport() const { return bundle_nonsmooth_support_; }
+  const std::array<int64_t, 6>& bundleNonsmoothCell() const { return bundle_nonsmooth_cell_; }
+  int64_t fdTrialsStructurallyComplete() const { return fd_trials_structurally_complete_; }
+  int64_t fdTrialsAll6Smooth() const { return fd_trials_all6_smooth_; }
+  int64_t fdTrialsWithNonsmooth() const { return fd_trials_with_nonsmooth_; }
   int fd_dbg_count_ = 0;
   bool doubleMathFail() const { return double_math_fail_; }
   const std::array<double, 6>& fdFloatMaxRel() const { return fd_float_max_rel_; }

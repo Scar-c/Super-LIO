@@ -1158,19 +1158,10 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       if (M < 32) continue;  // P-C provisional min valid samples (v1 49)
 
       // DC normalization over the same valid set (v1 50)
+      // E2: single-source DC mean — use the exact stored sample values
       double mean_ref = 0.0, mean_cur = 0.0;
       for (size_t k = 0; k < M; ++k) {
-        const int u0 = static_cast<int>(std::floor(warped[k].x()));
-        const int v0 = static_cast<int>(std::floor(warped[k].y()));
-        const double fu = warped[k].x() - u0, fv = warped[k].y() - v0;
-        const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
-        const double I00 = img[static_cast<size_t>(v0) * W + u0];
-        const double I10 = img[static_cast<size_t>(v0) * W + up];
-        const double I01 = img[static_cast<size_t>(vp) * W + u0];
-        const double I11 = img[static_cast<size_t>(vp) * W + up];
-        const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
-                          fv * ((1.0 - fu) * I01 + fu * I11);
-        mean_cur += Ic;
+        mean_cur += ic_vals[k];
         mean_ref += ref_vals[k];
       }
       mean_cur /= M;
@@ -1342,7 +1333,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         // oracle we use the double means of each perturbed set (same rule)
         const double eps_d = 1e-5;  // double oracle step (diagnostic §8)
 
-        bool all_dirs_ok = true;
+        int64_t trial_nonsmooth = 0;
         for (int d = 0; d < 6; ++d) {
           // float perturb (registered eps: 1e-4, rz 1e-3)
           const double eps = (d == 2) ? 1e-3 : 1e-4;
@@ -1366,13 +1357,34 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           const double mean_pd = mean_ic(pd_), mean_md = mean_ic(md_);
           const double mean_pf = mean_ic(pf), mean_mf = mean_ic(mf);
 
+          // E1: bundle-level smoothness — the DC mean couples every sample, so
+          // the direction bundle is smooth only if ALL production-valid
+          // samples keep support and bilinear cell across -eps/base/+eps.
+          bool bundle_support_ok = true;
+          bool bundle_cell_ok = true;
+          for (size_t j = 0; j < ref_idx.size(); ++j) {
+            if (!base_f[j].valid) continue;  // production-valid (DC mean domain)
+            if (!base_d[j].valid || !pd_[j].valid || !md_[j].valid) {
+              bundle_support_ok = false;
+              continue;
+            }
+            const bool cu = std::floor(base_d[j].u) == std::floor(pd_[j].u) &&
+                            std::floor(base_d[j].u) == std::floor(md_[j].u);
+            const bool cv = std::floor(base_d[j].v) == std::floor(pd_[j].v) &&
+                            std::floor(base_d[j].v) == std::floor(md_[j].v);
+            if (!cu || !cv) bundle_cell_ok = false;
+          }
+          const bool bundle_smooth = bundle_support_ok && bundle_cell_ok;
+          if (!bundle_support_ok) { bundle_nonsmooth_support_[d]++; trial_nonsmooth++; }
+          if (!bundle_cell_ok) { bundle_nonsmooth_cell_[d]++; trial_nonsmooth++; }
+          if (bundle_smooth) bundle_smooth_count_[d]++;
+
           double float_max_rel = 0.0, double_max_rel = 0.0;
           double float_max_abs = 0.0, double_max_abs = 0.0;
           int64_t float_strong_n = 0, float_weak_n = 0;
           int64_t double_strong_n = 0, double_weak_n = 0;
-          int64_t double_non_smooth = 0;
           std::vector<double> drels, frels;
-          // worst-double record (H1/H9)
+          // worst-double record (H1/H9, only on smooth bundles)
           double wd_rel = -1.0, wd_fd = 0.0, wd_an = 0.0;
           double wd_xc0 = 0.0, wd_xc1 = 0.0, wd_xc2 = 0.0;
           for (size_t k = 0; k < ref_idx.size(); ++k) {
@@ -1394,15 +1406,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               else { float_weak_n++; }
               (void)fd;
             }
-            // double mathematical oracle (independent classification)
+            // double mathematical oracle: only clean smooth bundles gate;
+            // bundle non-smooth directions are classified, not relative-gated
+            if (!bundle_smooth) continue;
             if (!base_d[k].valid) continue;
             if (!pd_[k].valid || !md_[k].valid) continue;  // support change
-            const bool dsmooth =
-                std::floor(pd_[k].u) == std::floor(md_[k].u) &&
-                std::floor(pd_[k].v) == std::floor(md_[k].v) &&
-                std::floor(pd_[k].u) == std::floor(base_d[k].u) &&
-                std::floor(pd_[k].v) == std::floor(base_d[k].v);
-            if (!dsmooth) { double_non_smooth++; continue; }  // H5
             const double fdd = ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
             const double red = std::abs(fdd - an) / std::max(1e-12, std::abs(fdd));
             const double aed = std::abs(fdd - an);
@@ -1437,7 +1445,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           fd_double_max_abs_[d] = std::max(fd_double_max_abs_[d], double_max_abs);
           fd_double_strong_n_[d] += double_strong_n;
           fd_double_weak_n_[d] += double_weak_n;
-          fd_double_non_smooth_[d] += double_non_smooth;
+
           // true double worst (H1)
           fd_double_worst_rel_[d] = std::max(fd_double_worst_rel_[d], wd_rel);
           if (double_max_rel > 1e-2) {
@@ -1475,6 +1483,69 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                              << " Xc=(" << Xcw.x() << "," << Xcw.y() << "," << Xcw.z() << ")"
                              << " Js=" << Js[k].transpose()
                              << " Jmean=" << Jmean.transpose();
+                  // §16 five-level decomposition (analytic vs double FD) on
+                  // this frozen smooth-bundle worst sample
+                  {
+                    const double uu2 = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
+                    const double vv2 = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
+                    const Eigen::Vector3d rayw((uu2 - cx) / fx, (vv2 - cy) / fy, 1.0);
+                    const Eigen::Vector3d dirw = R_ref * rayw;
+                    const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
+                    const Eigen::Vector3d Xw = t_ref + sw * dirw;
+                    const Eigen::Vector3d Xc0 = R_cur.transpose() * (Xw - t_cur);
+                    // Level1: dXc/dxi analytic vs FD
+                    Eigen::Matrix<double, 3, 6> dXc_dxi;
+                    dXc_dxi.setZero();
+                    dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
+                    const Eigen::Vector3d Xc_t = Xc0 + R_bc.transpose() * t_bc;
+                    Eigen::Matrix3d Xct_skew;
+                    Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(), -Xc_t.y(), Xc_t.x(), 0.0;
+                    dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
+                    // FD Xc: perturb pose, recompute Xc via eval? -> recompute directly
+                    Eigen::Matrix3d Rpp3 = Rb0, Rpm3 = Rb0;
+                    Eigen::Vector3d tpp3 = tb0, tpm3 = tb0;
+                    if (d < 3) {
+                      const Eigen::Matrix3d Rm3 = Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
+                      Rpp3 = Rb0 * Rm3; Rpm3 = Rb0 * Rm3.transpose();
+                    } else { tpp3[d - 3] += eps_d; tpm3[d - 3] -= eps_d; }
+                    const Eigen::Matrix3d Rcp = Rpp3 * R_bc, Rcm = Rpm3 * R_bc;
+                    const Eigen::Vector3d tcp = tpp3 + Rpp3 * t_bc, tcm = tpm3 + Rpm3 * t_bc;
+                    const Eigen::Vector3d Xcp = Rcp.transpose() * (Xw - tcp);
+                    const Eigen::Vector3d Xcm = Rcm.transpose() * (Xw - tcm);
+                    const Eigen::Vector3d Xc_fd = (Xcp - Xcm) / (2.0 * eps_d);
+                    const Eigen::Vector3d Xc_an = dXc_dxi.col(d);
+                    LOG(ERROR) << "V-2 L1 Xc an=(" << Xc_an.x() << "," << Xc_an.y() << "," << Xc_an.z()
+                               << ") fd=(" << Xc_fd.x() << "," << Xc_fd.y() << "," << Xc_fd.z() << ")";
+                    // Level2: du/dv analytic vs FD
+                    const double zz = Xc0.z();
+                    Eigen::Matrix<double, 2, 3> du_dXc;
+                    du_dXc << fx / zz, 0.0, -fx * Xc0.x() / (zz * zz),
+                              0.0, fy / zz, -fy * Xc0.y() / (zz * zz);
+                    const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
+                    const double uap = fx * Xcp.x() / Xcp.z() + cx, uam = fx * Xcm.x() / Xcm.z() + cx;
+                    const double vap = fy * Xcp.y() / Xcp.z() + cy, vam = fy * Xcm.y() / Xcm.z() + cy;
+                    LOG(ERROR) << "V-2 L2 uv an=(" << du_dxi(0, d) << "," << du_dxi(1, d)
+                               << ") fd=(" << (uap - uam) / (2.0 * eps_d) << "," << (vap - vam) / (2.0 * eps_d) << ")";
+                    // Level3: raw intensity derivative
+                    const double Iu_k = grad_u[k], Iv_k = grad_v[k];
+                    const double raw_an = Iu_k * du_dxi(0, d) + Iv_k * du_dxi(1, d);
+                    const double raw_fd = ((pd_[k].ic) - (md_[k].ic)) / (2.0 * eps_d);
+                    LOG(ERROR) << "V-2 L3 raw an=" << raw_an << " fd=" << raw_fd
+                               << " Iu=" << Iu_k << " Iv=" << Iv_k;
+                    // Level4: mean derivative
+                    double Jmean_sum = 0.0;
+                    for (size_t jj = 0; jj < ref_idx.size(); ++jj) {
+                      if (!base_f[jj].valid) continue;
+                      Jmean_sum += (Js[jj] - Jmean)(d) + Jmean(d);
+                    }
+                    const double Jmean_d = Jmean_sum / static_cast<double>(M);
+                    const double mean_fd = (mean_pd - mean_md) / (2.0 * eps_d);
+                    LOG(ERROR) << "V-2 L4 mean an=" << Jmean_d << " fd=" << mean_fd;
+                    // Level5: DC
+                    const double dc_an = (Js[k] - Jmean)(d);
+                    const double dc_fd = ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
+                    LOG(ERROR) << "V-2 L5 DC an=" << dc_an << " fd=" << dc_fd;
+                  }
                   // §8 epsilon-convergence on this frozen sample/direction
                   const double ees[7] = {1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6};
                   const double an_k = (Js[k] - Jmean)(d);
@@ -1506,17 +1577,20 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             }
           }
         }
-        if (all_dirs_ok) {
-          fd_trials_complete_++;
-          if (fd_samples_needed_ > 1) {
-            --fd_samples_needed_;
-          } else if (fd_samples_needed_ == 1) {
-            fd_samples_needed_ = -1;
-          }
-          // == 0: continuous, remain 0
-          fd_epoch_set_.insert(measures_.epoch_ts);
-          fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
+        // E3: a trial is structurally complete when all six directions were
+        // evaluated/classified (smooth or explicitly non-smooth); a separate
+        // all6_smooth counter tracks fully smooth trials. complete != PASS.
+        fd_trials_structurally_complete_++;
+        if (trial_nonsmooth == 0) fd_trials_all6_smooth_++;
+        if (trial_nonsmooth > 0) fd_trials_with_nonsmooth_++;
+        if (fd_samples_needed_ > 1) {
+          --fd_samples_needed_;
+        } else if (fd_samples_needed_ == 1) {
+          fd_samples_needed_ = -1;
         }
+        // == 0: continuous, remain 0
+        fd_epoch_set_.insert(measures_.epoch_ts);
+        fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
       }
     }
   }
