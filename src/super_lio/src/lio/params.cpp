@@ -88,6 +88,8 @@ namespace LI2Sup{
   bool g_lio_v2_enabled = false;
   bool g_lio_v2_skip_fd = false;
   bool g_lio_v4_apply = false;
+  bool g_lio_v4_outlier_gate = false;
+  double g_v4_outlier_mse_threshold = 1000.0;
 
   /// V-0/V-1 production visual landmark lifecycle (no estimator feedback)
   bool g_lio_v0_enabled = false;

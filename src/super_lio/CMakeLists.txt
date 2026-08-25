@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11P V-4R0 outlier gate tests
+add_executable(v4r0_test
+  src/geometry/tests/test_v4r0.cpp
+)
+target_include_directories(v4r0_test PUBLIC include)
+target_link_libraries(v4r0_test
+  Eigen3::Eigen
+)
+
 # Round 11N VI-0 weighted information tests
 add_executable(vi0_test
   src/geometry/tests/test_vi0.cpp

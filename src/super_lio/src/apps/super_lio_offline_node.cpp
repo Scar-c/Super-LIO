@@ -68,6 +68,8 @@ int main(int argc, char** argv) {
   nh.getParam("/lio/v4/photo_variance", v4_photo_var);
   lio->setPhotoResidualVariance(v4_photo_var);
   nh.getParam("/lio/v4/apply", g_lio_v4_apply);
+  nh.getParam("/lio/v4/outlier_gate", g_lio_v4_outlier_gate);
+  nh.getParam("/lio/v4/outlier_mse_threshold", g_v4_outlier_mse_threshold);
   g_lio_v2_skip_fd = v2_skip_fd;
   lio->setROSWrapper(data_wrapper);
   // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
@@ -537,6 +539,13 @@ int main(int argc, char** argv) {
       const auto& et = lio->v4cEtaDc();
       const auto& rn = lio->v4cRotNorm();
       const auto& tn = lio->v4cTransNorm();
+      std::printf("V-4R0 gate: pre=%lld accepted=%lld rejected=%lld reject_frac=%.4f\n",
+                  (long long)lio->v4r0PreGate(),
+                  (long long)lio->v4r0Accepted(),
+                  (long long)lio->v4r0Rejected(),
+                  lio->v4r0PreGate() > 0
+                      ? (double)lio->v4r0Rejected() / lio->v4r0PreGate()
+                      : 0.0);
       std::printf("V-4C counters: same_frame_ref=%lld current_created_used=%lld inserted_pre=%lld lifecycle_in_solve=%lld\n",
                   (long long)lio->v4cSameFrameRefCount(),
                   (long long)lio->v4cCurrentCreatedUsedCount(),

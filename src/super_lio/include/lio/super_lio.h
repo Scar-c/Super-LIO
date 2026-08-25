@@ -298,6 +298,11 @@ public:
   int64_t v4cEpochsVisual() const { return v4c_epochs_visual_; }
   int64_t v4cCostImproved() const { return v4c_cost_improved_; }
   double lastVisualCost() const { return last_visual_cost_; }
+  int64_t v4r0PreGate() const { return v4r0_pre_gate_landmarks_; }
+  int64_t v4r0Accepted() const { return v4r0_accepted_landmarks_; }
+  int64_t v4r0Rejected() const { return v4r0_rejected_landmarks_; }
+  const std::vector<double>& v4r0AcceptedEta() const { return v4r0_accepted_eta_; }
+  const std::vector<double>& v4r0RejectedEta() const { return v4r0_rejected_eta_; }
   int64_t v4ApplyCount() const { return v4_apply_count_; }
   int64_t v4CovFailCount() const { return v4_cov_fail_count_; }
   double v4MaxSymRatio() const { return v4_max_sym_ratio_; }
@@ -459,6 +464,12 @@ protected:
   std::vector<double> v4c_eta_dc_;
   std::vector<double> v4c_rot_norm_;
   std::vector<double> v4c_trans_norm_;
+  // V-4R0 A1 gate counters
+  int64_t v4r0_pre_gate_landmarks_ = 0;
+  int64_t v4r0_accepted_landmarks_ = 0;
+  int64_t v4r0_rejected_landmarks_ = 0;
+  std::vector<double> v4r0_accepted_eta_;
+  std::vector<double> v4r0_rejected_eta_;
   int64_t v4c_epochs_visual_ = 0;
   double last_visual_cost_ = 0.0;
   int64_t v4c_cost_improved_ = 0;

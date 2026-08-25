@@ -2164,6 +2164,77 @@ void SuperLIO::runVisualLifecycle(const SE3& pose, bool pre_only){
   const int W = frame->width, H = frame->height;
   const std::vector<uint8_t>& img = *frame->data;
   const Pinhole cam{calib.fx, calib.fy, calib.cx, calib.cy};
+  // V-4R0 A1: reference-grounded pre-solve DC landmark MSE outlier gate
+  // (strict >; threshold * actual valid M; frozen through solve).
+  const Eigen::Matrix4d T_cb4 = calib.T_cam_body();
+  const Eigen::Matrix3d R_CB4 = T_cb4.block<3, 3>(0, 0).cast<double>();
+  const Eigen::Vector3d t_CB4 = T_cb4.block<3, 1>(0, 3).cast<double>();
+  const Eigen::Matrix3d R_BC4 = R_CB4.transpose();
+  const Eigen::Vector3d t_BC4 = -R_CB4.transpose() * t_CB4;
+  const double fx4 = calib.fx, fy4 = calib.fy, cx4 = calib.cx, cy4 = calib.cy;
+  auto xw2xc4 = [&](const Eigen::Vector3d& X, const Eigen::Matrix3d& Rwb,
+                    const Eigen::Vector3d& pwb) {
+    return R_CB4 * (Rwb.transpose() * (X - pwb)) + t_CB4;
+  };
+  auto lmGatePass = [&](const std::pair<int64_t, size_t>& entry) -> bool {
+    auto itr = visual_map_.container().find(entry.first);
+    if (itr == visual_map_.container().end()) return false;
+    if (entry.second >= itr->second.size()) return false;
+    const auto& lm = itr->second[entry.second];
+    if (!lm.geometry_valid) return false;
+    if (lm.active_ref_slot >= kMaxObsPerLandmark ||
+        !lm.observations[lm.active_ref_slot].valid)
+      return false;
+    const VisualObservation* ref = &lm.observations[lm.active_ref_slot];
+    const Eigen::Vector3d P_patch =
+        lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
+    const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
+    const Eigen::Matrix3d R_body_ref =
+        ref->cam_q.toRotationMatrix().cast<double>();
+    const Eigen::Matrix3d R_ref = R_body_ref * R_BC4;
+    const Eigen::Vector3d t_ref =
+        ref->cam_pos.cast<double>() + R_body_ref * t_BC4;
+    const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+    const Eigen::Vector3d t_cur = pose.t_.cast<double>();
+    const double ref_u = ref->ref_u, ref_v = ref->ref_v;
+    std::vector<double> ic_vals, ref_vals;
+    ic_vals.reserve(64);
+    ref_vals.reserve(64);
+    for (int j = 0; j < 8; ++j) {
+      for (int i = 0; i < 8; ++i) {
+        const double u = ref_u + (i - 4);
+        const double v = ref_v + (j - 4);
+        const Eigen::Vector3d ray_cam((u - cx4) / fx4, (v - cy4) / fy4, 1.0);
+        const Eigen::Vector3d dir_w = R_ref * ray_cam;
+        const double denom = n_sync.dot(dir_w);
+        if (std::abs(denom) < 1e-9) continue;
+        const double s = n_sync.dot(P_patch - t_ref) / denom;
+        if (s <= 1e-4) continue;
+        const Eigen::Vector3d X = t_ref + s * dir_w;
+        const Eigen::Vector3d Xc = xw2xc4(X, R_cur, t_cur);
+        if (Xc.z() <= 0.05) continue;
+        const double u2 = fx4 * Xc.x() / Xc.z() + cx4;
+        const double v2 = fy4 * Xc.y() / Xc.z() + cy4;
+        if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
+        const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
+        const BilinearSample bs = sampleBilinearWithGradient(img, W, H, u2, v2);
+        if (!bs.valid) continue;
+        ic_vals.push_back(bs.value);
+        ref_vals.push_back(rv);
+      }
+    }
+    const size_t Mg = ic_vals.size();
+    if (Mg < 32) return false;  // existing min-valid-sample check (unchanged)
+    const double mean_ref = meanOfStored(ref_vals);
+    const double mean_cur = meanOfStored(ic_vals);
+    double sse = 0.0;
+    for (size_t k = 0; k < Mg; ++k) {
+      const double rdc = (ic_vals[k] - mean_cur) - (ref_vals[k] - mean_ref);
+      sse += rdc * rdc;
+    }
+    return sse <= g_v4_outlier_mse_threshold * static_cast<double>(Mg);
+  };
+
   const Eigen::Matrix4d T_cb = calib.T_cam_body();
   const Eigen::Vector3d cam_center_body(0, 0, 0);
 
@@ -2335,8 +2406,21 @@ void SuperLIO::runVisualLifecycle(const SE3& pose, bool pre_only){
   // are deferred to post-solve (pre_only=false).
   if (pre_only) {
     active_visual_landmarks_.clear();
-    for (int ci = 0; ci < n_cells; ++ci) {
-      if (cell_lm[ci].first >= 0) active_visual_landmarks_.push_back(cell_lm[ci]);
+    if (g_lio_v4_outlier_gate) {
+      for (int ci = 0; ci < n_cells; ++ci) {
+        if (cell_lm[ci].first < 0) continue;
+        v4r0_pre_gate_landmarks_++;
+        if (lmGatePass(cell_lm[ci])) {
+          active_visual_landmarks_.push_back(cell_lm[ci]);
+          v4r0_accepted_landmarks_++;
+        } else {
+          v4r0_rejected_landmarks_++;
+        }
+      }
+    } else {
+      for (int ci = 0; ci < n_cells; ++ci) {
+        if (cell_lm[ci].first >= 0) active_visual_landmarks_.push_back(cell_lm[ci]);
+      }
     }
     return;
   }
@@ -2483,7 +2567,18 @@ void SuperLIO::runVisualLifecycle(const SE3& pose, bool pre_only){
   // of this epoch's participating landmarks for the residual evaluator ----
   active_visual_landmarks_.clear();
   for (int ci = 0; ci < n_cells; ++ci) {
-    if (cell_lm[ci].first >= 0) active_visual_landmarks_.push_back(cell_lm[ci]);
+    if (cell_lm[ci].first < 0) continue;
+    if (g_lio_v4_outlier_gate) {
+      v4r0_pre_gate_landmarks_++;
+      if (lmGatePass(cell_lm[ci])) {
+        active_visual_landmarks_.push_back(cell_lm[ci]);
+        v4r0_accepted_landmarks_++;
+      } else {
+        v4r0_rejected_landmarks_++;
+      }
+    } else {
+      active_visual_landmarks_.push_back(cell_lm[ci]);
+    }
   }
 
   // ---- pass 5: bounded active-reference reselection (solve boundary,
