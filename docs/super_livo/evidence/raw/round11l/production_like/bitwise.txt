@@ -1,0 +1,2 @@
+eee full: serial d94fd50d742c1cab0424546f8f10923d == TBB d94fd50... == C0 d94fd50... PASS
+nya full: serial d1e6e5f6007bd3c60c309ed23e037c2d == TBB d1e6e5f6... == C0 d1e6e5f6... PASS

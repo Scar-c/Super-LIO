@@ -227,6 +227,19 @@ public:
   bool math_gate_fail_ = false;
   // Round 11L PERF-0 deterministic visual TBB
   bool visual_parallel_enabled_ = false;
+  // Production-like mode: skip FD/Gate-M instrumentation (photometric H/b on)
+  bool v2_skip_fd_ = false;
+  std::vector<double> lidar_cycle_lat_ms_;
+  std::vector<double> visual_epoch_lat_ms_;
+  std::vector<double> visual_epoch_sensor_time_;
+  std::vector<double> frame_sensor_time_;
+  std::vector<double> frame_rss_kb_;
+  std::vector<int64_t> frame_map_voxels_;
+  std::vector<int64_t> frame_lm_count_;
+  std::vector<double> frame_cpu_tick_;
+  double vp_start_sensor_s_ = 0.0;
+  double vp_end_sensor_s_ = 0.0;
+  int64_t vp_total_lidar_frames_ = 0;
   double vp_existing_projection_us_ = 0.0;
   double vp_candidate_projection_us_ = 0.0;
   double vp_grid_commit_us_ = 0.0;
@@ -255,6 +268,18 @@ public:
   bool mathGateFail() const { return math_gate_fail_; }
   void setHb0AuditEnabled(bool e) { hb0_audit_enabled_ = e; }
   void setVisualParallelEnabled(bool e) { visual_parallel_enabled_ = e; }
+  void setV2SkipFd(bool e) { v2_skip_fd_ = e; }
+  const std::vector<double>& lidarCycleLatMs() const { return lidar_cycle_lat_ms_; }
+  const std::vector<double>& visualEpochLatMs() const { return visual_epoch_lat_ms_; }
+  const std::vector<double>& visualEpochSensorTime() const { return visual_epoch_sensor_time_; }
+  const std::vector<double>& frameSensorTime() const { return frame_sensor_time_; }
+  const std::vector<double>& frameRssKb() const { return frame_rss_kb_; }
+  const std::vector<int64_t>& frameMapVoxels() const { return frame_map_voxels_; }
+  const std::vector<int64_t>& frameLmCount() const { return frame_lm_count_; }
+  const std::vector<double>& frameCpuTick() const { return frame_cpu_tick_; }
+  double vpStartSensorS() const { return vp_start_sensor_s_; }
+  double vpEndSensorS() const { return vp_end_sensor_s_; }
+  int64_t vpTotalLidarFrames() const { return vp_total_lidar_frames_; }
   double vpExistingProjectionUs() const { return vp_existing_projection_us_; }
   double vpCandidateProjectionUs() const { return vp_candidate_projection_us_; }
   double vpGridCommitUs() const { return vp_grid_commit_us_; }

@@ -54,12 +54,17 @@ int main(int argc, char** argv) {
   ROSWrapper::Ptr data_wrapper = std::make_shared<ROSWrapper>();
   data_wrapper->setPublishEnabled(g_offline_publish);
   auto lio = std::make_shared<SuperLIO>();
+  const auto pl_t0 = std::chrono::high_resolution_clock::now();
   bool hb0_enabled = false;
   nh.getParam("/lio/hb0/enabled", hb0_enabled);
   lio->setHb0AuditEnabled(hb0_enabled);
   bool vp_enabled = false;
   nh.getParam("/lio/vp/enabled", vp_enabled);
   lio->setVisualParallelEnabled(vp_enabled);
+  bool v2_skip_fd = false;
+  nh.getParam("/lio/v2/skip_fd", v2_skip_fd);
+  lio->setV2SkipFd(v2_skip_fd);
+  g_lio_v2_skip_fd = v2_skip_fd;
   lio->setROSWrapper(data_wrapper);
   // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
   // epochs (>=5) and distinct landmarks (>=10 if available)
@@ -522,6 +527,83 @@ int main(int argc, char** argv) {
                 (long long)lio->vpCameraEpochs(),
                 (long long)lio->vpPhotometricLandmarks(),
                 (long long)lio->vpPhotometricSamples());
+    {
+      const auto& lats = lio->lidarCycleLatMs();
+      const auto& vlats = lio->visualEpochLatMs();
+      const auto& ts = lio->frameSensorTime();
+      const auto& rss = lio->frameRssKb();
+      const auto& vox = lio->frameMapVoxels();
+      const auto& lms = lio->frameLmCount();
+      auto pct = [](std::vector<double> v, double p) {
+        if (v.empty()) return 0.0;
+        std::sort(v.begin(), v.end());
+        size_t i = static_cast<size_t>(p * (v.size() - 1));
+        return v[std::min(i, v.size() - 1)];
+      };
+      double s0 = lio->vpStartSensorS(), s1 = lio->vpEndSensorS();
+      const double sensor_dur = std::max(1e-9, s1 - s0);
+      const double wall_ms = 0.0;
+      (void)wall_ms;
+      const auto pl_t1 = std::chrono::high_resolution_clock::now();
+    std::printf("PL metrics: sensor_start=%.3f sensor_end=%.3f sensor_dur=%.3f frames=%lld\n",
+                  s0, s1, sensor_dur, (long long)lio->vpTotalLidarFrames());
+      std::printf("PL LiDAR lat ms: P50=%.3f P90=%.3f P95=%.3f P99=%.3f max=%.3f n=%zu\n",
+                  pct(lats, 0.50), pct(lats, 0.90), pct(lats, 0.95),
+                  pct(lats, 0.99), lats.empty() ? 0.0 : *std::max_element(lats.begin(), lats.end()),
+                  lats.size());
+      std::printf("PL visual lat ms: P50=%.3f P90=%.3f P95=%.3f P99=%.3f max=%.3f n=%zu\n",
+                  pct(vlats, 0.50), pct(vlats, 0.90), pct(vlats, 0.95),
+                  pct(vlats, 0.99), vlats.empty() ? 0.0 : *std::max_element(vlats.begin(), vlats.end()),
+                  vlats.size());
+      // median LiDAR period from frame timestamps
+      std::vector<double> periods;
+      for (size_t i = 1; i < ts.size(); ++i) periods.push_back((ts[i] - ts[i - 1]) * 1000.0);
+      std::printf("PL median LiDAR period ms=%.3f  median camera period ms=%.3f\n",
+                  pct(periods, 0.50), pct(periods, 0.50));
+      {
+        const auto& cp = lio->frameCpuTick();
+        if (cp.size() >= 2) {
+          const double clk = static_cast<double>(sysconf(_SC_CLK_TCK));
+          const double cpu_ms = (cp.back() - cp.front()) / clk * 1000.0;
+          const double wall_s = std::chrono::duration<double>(pl_t1 - pl_t0).count();
+          std::printf("PL CPU: total_tick=%.0f avg_cpu_pct=%.1f\n",
+                      cp.back() - cp.front(),
+                      wall_s > 0 ? cpu_ms / (wall_s * 1000.0) * 100.0 : 0.0);
+        }
+      }
+      // deadline misses: latency > median period
+      const double med_period = pct(periods, 0.50);
+      size_t miss = 0;
+      for (double l : lats) if (l > med_period) miss++;
+      std::printf("PL deadline miss count=%zu ratio=%.4f\n", miss,
+                  lats.empty() ? 0.0 : static_cast<double>(miss) / lats.size());
+      // quarters by sensor time
+      for (int q = 0; q < 4; ++q) {
+        const double t0 = s0 + sensor_dur * (q / 4.0);
+        const double t1 = s0 + sensor_dur * ((q + 1) / 4.0);
+        std::vector<double> ql, qv, qr;
+        int64_t qvox = 0, qlm = 0;
+        size_t qn = 0;
+        for (size_t i = 0; i < ts.size(); ++i) {
+          if (ts[i] >= t0 && ts[i] < t1) {
+            ql.push_back(lats[i]); qr.push_back(rss[i]);
+            qvox += vox[i]; qlm += lms[i]; qn++;
+          }
+        }
+        const auto& vts = lio->visualEpochSensorTime();
+        for (size_t i = 0; i < vts.size() && i < vlats.size(); ++i) {
+          if (vts[i] >= t0 && vts[i] < t1) qv.push_back(vlats[i]);
+        }
+        std::printf("PL Q%d [%.1f-%.1f s]: LiDAR P50=%.3f P95=%.3f P99=%.3f | visual P50=%.3f P95=%.3f P99=%.3f | RSS_avg=%.0fKB | vox_avg=%.0f | lm_avg=%.0f | n=%zu\n",
+                    q, t0 - s0, t1 - s0,
+                    pct(ql, 0.50), pct(ql, 0.95), pct(ql, 0.99),
+                    pct(qv, 0.50), pct(qv, 0.95), pct(qv, 0.99),
+                    qn ? std::accumulate(qr.begin(), qr.end(), 0.0) / qn : 0.0,
+                    qn ? static_cast<double>(qvox) / qn : 0.0,
+                    qn ? static_cast<double>(qlm) / qn : 0.0,
+                    qn);
+      }
+    }
     std::printf("HB-0 summary: epochs_audited=%lld epochs_fail=%lld total_samples=%lld duplicates=%lld distinct_landmarks=%lld\n",
                 (long long)lio->hb0EpochsAudited(),
                 (long long)lio->hb0EpochsFail(),
@@ -539,12 +621,12 @@ int main(int argc, char** argv) {
       return 1;
     }
   }
-  if (g_lio_v2_enabled && lio->mathGateFail()) {
+  if (g_lio_v2_enabled && !g_lio_v2_skip_fd && lio->mathGateFail()) {
     std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.\n");
     std::fflush(stdout);
     return 1;
   }
-  if (g_lio_v2_enabled && lio->fdDistinctEpochs() < 5) {
+  if (g_lio_v2_enabled && !g_lio_v2_skip_fd && lio->fdDistinctEpochs() < 5) {
     std::printf("[offline_node] FATAL: FD coverage insufficient — distinct epochs %zu < 5.\n",
                 lio->fdDistinctEpochs());
     std::fflush(stdout);

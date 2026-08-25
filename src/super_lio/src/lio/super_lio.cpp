@@ -181,11 +181,39 @@ void SuperLIO::stateWaitMapInit()
   }
 }
 
+static long long cpuTick() {
+  std::ifstream st("/proc/self/stat");
+  std::string tok;
+  for (int i = 0; i < 14 && st >> tok; ++i) {}
+  long long ut = 0, stt = 0;
+  st >> ut >> stt;
+  return ut + stt;
+}
+
 void SuperLIO::process(){
   if(!data_wrapper_->sync_measure(measures_)){
     return;
   }
+  const auto pf_t0 = std::chrono::high_resolution_clock::now();
+  const double sensor_t = measures_.lidar.start_time;
+  if (vp_total_lidar_frames_ == 0) vp_start_sensor_s_ = sensor_t;
+  vp_end_sensor_s_ = sensor_t;
+  vp_total_lidar_frames_++;
   (this->*state_fn_)();
+  const auto pf_t1 = std::chrono::high_resolution_clock::now();
+  lidar_cycle_lat_ms_.push_back(
+      std::chrono::duration<double, std::milli>(pf_t1 - pf_t0).count());
+  // RSS sampling (KB) from /proc/self/statm
+  {
+    std::ifstream statm("/proc/self/statm");
+    long pages = 0;
+    if (statm >> pages) frame_rss_kb_.push_back(static_cast<double>(pages) * (sysconf(_SC_PAGESIZE) / 1024));
+    else frame_rss_kb_.push_back(0.0);
+  }
+  frame_cpu_tick_.push_back(static_cast<double>(cpuTick()));
+  frame_sensor_time_.push_back(sensor_t);
+  frame_map_voxels_.push_back(static_cast<int64_t>(mapVoxelCount()));
+  frame_lm_count_.push_back(static_cast<int64_t>(visual_map_.parentCount()));
 }
 
 
@@ -1333,6 +1361,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       visual_residual_sse_ += sse_before;
 
       // 6DOF FD (Round 11D): clean double mathematical oracle.
+      // Production-like mode skips FD/Gate-M instrumentation entirely.
+      if (v2_skip_fd_) continue;
       // Sample identity is fixed by the original patch index (ref_idx[k]);
       // float diagnostic and double oracle are classified independently;
       // double NON_SMOOTH is computed from double perturbations (support
@@ -1906,19 +1936,6 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       if (kv.second.second > 0)
         for (int a = 0; a < 6; ++a) kv.second.first[a] /= static_cast<double>(kv.second.second);
     }
-    // debug: first 2 samples J comparison (production vs oracle)
-    for (size_t dbg_i = 0; dbg_i < std::min<size_t>(2, hb0_samples_.size()); ++dbg_i) {
-      const auto& s = hb0_samples_[dbg_i];
-      std::printf("HB0DBG s=%zu Jp=(%.6g,%.6g,%.6g,%.6g,%.6g,%.6g) Jd=(%.6g,%.6g,%.6g,%.6g,%.6g,%.6g) r=%.6g\n",
-                  dbg_i, s.J[0], s.J[1], s.J[2], s.J[3], s.J[4], s.J[5],
-                  s.oracle_valid ? s.Jd[0] : 0.0,
-                  s.oracle_valid ? s.Jd[1] : 0.0,
-                  s.oracle_valid ? s.Jd[2] : 0.0,
-                  s.oracle_valid ? s.Jd[3] : 0.0,
-                  s.oracle_valid ? s.Jd[4] : 0.0,
-                  s.oracle_valid ? s.Jd[5] : 0.0,
-                  s.r);
-    }
     double H_D[36] = {0.0}, b_D[6] = {0.0}, H_Q[36] = {0.0}, b_Q[6] = {0.0};
     double S_H_D[36] = {0.0}, S_b_D[6] = {0.0}, S_H_P[36] = {0.0}, S_b_P[6] = {0.0};
     for (const auto& s : hb0_samples_) {
@@ -2027,8 +2044,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 fail ? "FAIL" : "PASS");
     std::fflush(stdout);
   }
-  vp_total_us_ += std::chrono::duration<double, std::micro>(
+  const double vp_call_us = std::chrono::duration<double, std::micro>(
       std::chrono::high_resolution_clock::now() - vp_t_total0).count();
+  vp_total_us_ += vp_call_us;
+  visual_epoch_lat_ms_.push_back(vp_call_us / 1000.0);
+  visual_epoch_sensor_time_.push_back(measures_.lidar.end_time);
   return accepted;
 }
 
