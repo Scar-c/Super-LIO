@@ -1,0 +1,6 @@
+M2DGR/hall_02: bag 1.8s（GT hall_02.txt 311s 完整——bag 为片段）velodyne fields: x/y/z/intensity/ring/time(float64)
+M2DGR/door_02: bag 4.1s（片段）
+M3DGR/Outdoor01: bag 411s 完整；topics /livox/avia/lidar(CustomMsg 24000pts) /livox/avia/imu(83695) /camera/color/image_raw/compressed(12338)
+M3DGR/Outdoor04: bag 782s 完整
+M3DGR GT: Outdoor01.tum 6174 行（quaternion 全 identity——POSITION_ONLY_RTK）
+标定：M2DGR calibration_results.txt 本地缺失；M3DGR calibration.md 本地缺失（仅 FAST_LIVO2 模板 yaml 非 Outdoor 序列）
