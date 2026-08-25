@@ -109,6 +109,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Exact bilinear sample+gradient primitive tests
+add_executable(bilinear_test
+  src/geometry/tests/test_bilinear.cpp
+)
+target_include_directories(bilinear_test PUBLIC include)
+target_link_libraries(bilinear_test
+  Eigen3::Eigen
+)
+
 # V-2 plane-aware warp Jacobian synthetic tests (T_cb-aware)
 add_executable(v2_jacobian_test
   src/lio/tests/test_v2_jacobian.cpp

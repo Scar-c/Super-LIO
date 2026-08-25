@@ -187,6 +187,8 @@ public:
   std::array<int64_t, 6> fd_weak_count_{};           // |fd| < 1e-3 (reported layer)
   std::array<double, 6> fd_weak_max_abs_{};          // weak-layer max abs
   std::array<double, 6> fd_global_med_rel_{};        // global median per direction
+  std::array<int64_t, 6> fd_non_smooth_{};           // NON_SMOOTH_FD samples/dir
+  const std::array<int64_t, 6>& fdNonSmooth() const { return fd_non_smooth_; }
   std::array<double, 4> fd_conv_rz_{};               // rz eps convergence (frozen sample)
   int fd_conv_done_ = 0;
   int fdTrialsComplete() const { return fd_trials_complete_; }

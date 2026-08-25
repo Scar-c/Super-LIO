@@ -1,4 +1,5 @@
 
+#include "geometry/BilinearSample.h"
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
@@ -1100,10 +1101,12 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       // project the 3D point into the current camera.
       std::vector<Eigen::Vector2d> warped;  // current image coords
       std::vector<double> ref_vals;
+      std::vector<double> ic_vals;
       std::vector<double> grad_u, grad_v;
       std::vector<int> ref_idx;  // patch pixel index of each valid sample
       warped.reserve(64);
       ref_vals.reserve(64);
+      ic_vals.reserve(64);
       grad_u.reserve(64);
       grad_v.reserve(64);
       ref_idx.reserve(64);
@@ -1129,22 +1132,16 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
           // ref intensity (from stored patch, valid overlap == warped set)
           const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
+          // exact bilinear sample + gradient from the SAME interpolant
+          const BilinearSample bs =
+              sampleBilinearWithGradient(img, W, H, u2, v2);
+          if (!bs.valid) continue;
           warped.emplace_back(u2, v2);
           ref_idx.push_back(j * 8 + i);
           ref_vals.push_back(rv);
-          // current bilinear + gradient
-          const int u0 = static_cast<int>(std::floor(u2));
-          const int v0 = static_cast<int>(std::floor(v2));
-          const double fu = u2 - u0, fv = v2 - v0;
-          const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
-          const double I00 = img[static_cast<size_t>(v0) * W + u0];
-          const double I10 = img[static_cast<size_t>(v0) * W + up];
-          const double I01 = img[static_cast<size_t>(vp) * W + u0];
-          const double I11 = img[static_cast<size_t>(vp) * W + up];
-          const double Iu = (1.0 - fv) * (I10 - I00) + fv * (I11 - I01);
-          const double Iv = (1.0 - fu) * (I01 - I00) + fu * (I11 - I10);
-          grad_u.push_back(Iu);
-          grad_v.push_back(Iv);
+          ic_vals.push_back(bs.value);
+          grad_u.push_back(bs.du);
+          grad_v.push_back(bs.dv);
           samples_total++;
         }
       }
@@ -1179,19 +1176,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       std::vector<Eigen::Matrix<double, 6, 1>> Js(M);
       std::vector<double> rs(M);
       for (size_t k = 0; k < M; ++k) {
-        const int u0 = static_cast<int>(std::floor(warped[k].x()));
-        const int v0 = static_cast<int>(std::floor(warped[k].y()));
-        const double fu = warped[k].x() - u0, fv = warped[k].y() - v0;
-        const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
-        const double I00 = img[static_cast<size_t>(v0) * W + u0];
-        const double I10 = img[static_cast<size_t>(v0) * W + up];
-        const double I01 = img[static_cast<size_t>(vp) * W + u0];
-        const double I11 = img[static_cast<size_t>(vp) * W + up];
-        const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
-                          fv * ((1.0 - fu) * I01 + fu * I11);
-        rs[k] = (Ic - mean_cur) - (ref_vals[k] - mean_ref);
-        const double Iu = (1.0 - fv) * (I10 - I00) + fv * (I11 - I01);
-        const double Iv = (1.0 - fu) * (I01 - I00) + fu * (I11 - I10);
+        // residual and gradient use the exact bilinear primitive results
+        // stored by the warp loop (same interpolant, same alpha/beta)
+        rs[k] = (ic_vals[k] - mean_cur) - (ref_vals[k] - mean_ref);
+        const double Iu = grad_u[k];
+        const double Iv = grad_v[k];
 
         // 3D point in current camera frame (recompute from stored X? we need
         // X_c; recompute via ray-plane from ref side is heavy; store it)
@@ -1260,11 +1249,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       if (fd_samples_needed_ >= 0) {
         fd_trials_attempted_++;
         auto warp_all = [&](const SE3& p_, std::vector<Eigen::Vector2d>& w,
-                            std::vector<double>& ic, double& mcur,
-                            std::vector<double>* zs = nullptr) {
+                            std::vector<double>& ic, double& mcur) {
           w.clear();
           ic.clear();
-          if (zs) zs->clear();
           // camera pose = body pose + extrinsic (matches the main loop)
           const Eigen::Matrix3d Rc = p_.R_.cast<double>() * R_bc;
           const Eigen::Vector3d tc =
@@ -1285,34 +1272,29 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             const double u2 = fx * Xc.x() / Xc.z() + cx;
             const double v2 = fy * Xc.y() / Xc.z() + cy;
             if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
-            const int u0 = static_cast<int>(std::floor(u2));
-            const int v0 = static_cast<int>(std::floor(v2));
-            const double fu = u2 - u0, fv = v2 - v0;
-            const int up = std::min(W - 1, u0 + 1), vp = std::min(H - 1, v0 + 1);
-            const double I00 = img[static_cast<size_t>(v0) * W + u0];
-            const double I10 = img[static_cast<size_t>(v0) * W + up];
-            const double I01 = img[static_cast<size_t>(vp) * W + u0];
-            const double I11 = img[static_cast<size_t>(vp) * W + up];
-            const double Ic = (1.0 - fv) * ((1.0 - fu) * I00 + fu * I10) +
-                              fv * ((1.0 - fu) * I01 + fu * I11);
+            const BilinearSample bs =
+                sampleBilinearWithGradient(img, W, H, u2, v2);
+            if (!bs.valid) continue;
             w.emplace_back(u2, v2);
-            ic.push_back(Ic);
-            if (zs) zs->push_back(Xc.z());
-            acc += Ic;
+            ic.push_back(bs.value);
+            acc += bs.value;
           }
           mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
         };
         std::vector<Eigen::Vector2d> w0;
-        std::vector<double> ic0, z0;
+        std::vector<double> ic0;
         double mc0 = 0.0;
-        warp_all(pose, w0, ic0, mc0, &z0);
+        warp_all(pose, w0, ic0, mc0);
         if (w0.size() == M) {
           bool all_dirs_ok = true;
           for (int d = 0; d < 6; ++d) {
             // central-difference step. eps=1e-4 default; d=2 (body-frame
             // right-perturbation about the body z axis, NOT the camera
             // optical axis) uses 1e-3 pending epsilon-convergence evidence
-            const double eps = (d == 2) ? 1e-3 : 1e-4;
+            // central-difference step: rz (body z) needs a larger step for
+          // near-axis samples (epsilon-convergence verified: 1e-3 optimal);
+          // others 1e-4 (registered policy, Owner §10.2)
+          const double eps = (d == 2) ? 1e-3 : 1e-4;
             SE3 pp = pose, pm = pose;
             const float e = static_cast<float>(eps);
             if (d < 3) {
@@ -1327,41 +1309,36 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               pm.t_[d - 3] -= e;
             }
             std::vector<Eigen::Vector2d> w1, wm;
-            std::vector<double> ic1, icm, z1, zm;
+            std::vector<double> ic1, icm;
             double mc1 = 0.0, mcm = 0.0;
-            warp_all(pp, w1, ic1, mc1, &z1);
-            warp_all(pm, wm, icm, mcm, &zm);
+            warp_all(pp, w1, ic1, mc1);
+            warp_all(pm, wm, icm, mcm);
             if (w1.size() != M || wm.size() != M) { all_dirs_ok = false; continue; }
             double max_abs = 0.0, max_rel = 0.0, med_rel = 0.0;
             double strong_max_rel = 0.0, strong_med_rel = 0.0;
             double weak_max_abs = 0.0;
-            int64_t strong_n = 0, weak_n = 0;
+            int64_t strong_n = 0, weak_n = 0, non_smooth = 0;
             std::vector<double> rels, srels;
             rels.reserve(M);
             srels.reserve(M);
             for (size_t k = 0; k < M; ++k) {
-              // smoothness: count only samples away from projection
-              // singularities in the perturbed frames (depth > 0.5 m,
-              // image margin 8 px); weak-derivative samples (|fd| < 1e-3)
-              // are REPORTED separately and never gate PASS/FAIL
-              const Eigen::Vector3d ray0((ref_u + (ref_idx[k] % 8) - 4 - cx) /
-                                             fx,
-                                         (ref_v + (ref_idx[k] / 8) - 4 - cy) /
-                                             fy,
-                                         1.0);
-              const Eigen::Vector3d dir0 = R_ref * ray0;
-              const double s0 = n_sync.dot(P_patch - t_ref) /
-                                std::max(1e-9, n_sync.dot(dir0));
-              const Eigen::Vector3d Xc0 =
-                  R_cur.transpose() * (t_ref + s0 * dir0 - t_cur);
-              if (Xc0.z() <= 0.5) continue;
-              if (z1[k] <= 0.5 || zm[k] <= 0.5) continue;  // perturbed depth
-              if (w0[k].x() < 8.0 || w0[k].x() >= W - 8.0 ||
-                  w0[k].y() < 8.0 || w0[k].y() >= H - 8.0) continue;
-              if (w1[k].x() < 8.0 || w1[k].x() >= W - 8.0 ||
-                  w1[k].y() < 8.0 || w1[k].y() >= H - 8.0) continue;
-              if (wm[k].x() < 8.0 || wm[k].x() >= W - 8.0 ||
-                  wm[k].y() < 8.0 || wm[k].y() >= H - 8.0) continue;
+              // NON_SMOOTH_FD (Owner §10.1): the numerical perturbation
+              // changes the discrete bilinear support (floor crosses an
+              // integer boundary) -> not differentiable under this
+              // interpolant; counted separately. No texture/lever/relative
+              // error exclusion is allowed.
+              const bool smooth_u =
+                  std::floor(w0[k].x()) == std::floor(w1[k].x()) &&
+                  std::floor(w0[k].x()) == std::floor(wm[k].x());
+              const bool smooth_v =
+                  std::floor(w0[k].y()) == std::floor(w1[k].y()) &&
+                  std::floor(w0[k].y()) == std::floor(wm[k].y());
+              if (!smooth_u || !smooth_v) {
+                non_smooth++;
+                continue;
+              }
+              // weak-derivative samples (|fd| < 1e-3) are REPORTED
+              // separately and never gate PASS/FAIL
               const double r0 = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
               const double r1 = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
               const double rm = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
@@ -1381,6 +1358,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               }
             }
             if (rels.empty()) { all_dirs_ok = false; continue; }
+            fd_non_smooth_[d] += non_smooth;
             std::sort(rels.begin(), rels.end());
             med_rel = rels[rels.size() / 2];
             if (!srels.empty()) {
@@ -1396,8 +1374,33 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             fd_weak_count_[d] += weak_n;
             fd_weak_max_abs_[d] = std::max(fd_weak_max_abs_[d], weak_max_abs);
             if (strong_max_rel > 1e-2) {
+              // locate worst strong sample and verify truncation vs bug
+              double wrel = -1.0, wfd = 0.0, wan = 0.0, wx = 0.0, wy = 0.0, wz = 0.0;
+              for (size_t k = 0; k < M; ++k) {
+                const double r0w = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
+                const double r1w = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
+                const double rmw = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
+                const double fdw = (r1w - rmw) / (2.0 * eps);
+                const double anw = (Js[k] - Jmean)(d);
+                const double rew = std::abs(fdw - anw) /
+                                   std::max(1e-12, std::abs(fdw));
+                if (rew > wrel) {
+                  wrel = rew; wfd = fdw; wan = anw;
+                  const Eigen::Vector3d rayw((ref_u + (ref_idx[k] % 8) - 4 - cx) / fx,
+                                             (ref_v + (ref_idx[k] / 8) - 4 - cy) / fy, 1.0);
+                  const Eigen::Vector3d dirw = R_ref * rayw;
+                  const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
+                  const Eigen::Vector3d Xw = t_ref + sw * dirw;
+                  const Eigen::Vector3d Xcw = R_cur.transpose() * (Xw - t_cur);
+                  wx = Xcw.x(); wy = Xcw.y(); wz = Xcw.z();
+                }
+              }
               LOG(ERROR) << "V-2 6DOF FD gate FAIL dir=" << d
-                         << " strong_max_rel=" << strong_max_rel;
+                         << " strong_max_rel=" << strong_max_rel
+                         << " worst fd=" << wfd << " an=" << wan
+                         << " Xc=(" << wx << "," << wy << "," << wz << ")"
+                         << " xz=" << wx / wz << " yz=" << wy / wz
+                         << " eps=" << eps;
               fd_gate_fail_ = true;
             }
             // rz epsilon-convergence on a frozen sample (first complete trial)
