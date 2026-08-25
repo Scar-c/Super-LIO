@@ -229,6 +229,9 @@ public:
   bool visual_parallel_enabled_ = false;
   // Production-like mode: skip FD/Gate-M instrumentation (photometric H/b on)
   bool v2_skip_fd_ = false;
+  // V-4 frozen information: sigma_photo^2 = 100 -> omega_photo = 0.01
+  double visual_photo_residual_variance_ = 100.0;
+  double omega_photo_ = 0.01;
   std::vector<double> lidar_cycle_lat_ms_;
   std::vector<double> visual_epoch_lat_ms_;
   std::vector<double> visual_epoch_sensor_time_;
@@ -264,12 +267,31 @@ public:
   double hb0_worst_src_H_ratio_ = 0.0, hb0_worst_src_b_ratio_ = 0.0;
   double hb0_worst_acc_H_ratio_ = 0.0, hb0_worst_acc_b_ratio_ = 0.0;
   double hb0_hsum_ = 0.0;
+  // V-4 state/covariance health (lightweight)
+  int64_t v4_apply_count_ = 0;
+  int64_t v4_cov_fail_count_ = 0;
+  double v4_max_sym_ratio_ = 0.0;
+  double v4_last_lambda_min_ = 0.0;
+  double v4_last_lambda_max_ = 0.0;
   double hb_worst_h_rel_ = 0.0;
   double hb_worst_b_rel_ = 0.0;
   bool mathGateFail() const { return math_gate_fail_; }
   void setHb0AuditEnabled(bool e) { hb0_audit_enabled_ = e; }
   void setVisualParallelEnabled(bool e) { visual_parallel_enabled_ = e; }
   void setV2SkipFd(bool e) { v2_skip_fd_ = e; }
+  void setPhotoResidualVariance(double v) {
+    if (!std::isfinite(v) || v <= 0.0) {
+      LOG(FATAL) << "visual_photo_residual_variance must be finite and > 0";
+    }
+    visual_photo_residual_variance_ = v;
+    omega_photo_ = 1.0 / v;
+  }
+  double omegaPhoto() const { return omega_photo_; }
+  int64_t v4ApplyCount() const { return v4_apply_count_; }
+  int64_t v4CovFailCount() const { return v4_cov_fail_count_; }
+  double v4MaxSymRatio() const { return v4_max_sym_ratio_; }
+  double v4LastLambdaMin() const { return v4_last_lambda_min_; }
+  double v4LastLambdaMax() const { return v4_last_lambda_max_; }
   const std::vector<double>& lidarCycleLatMs() const { return lidar_cycle_lat_ms_; }
   const std::vector<double>& visualEpochLatMs() const { return visual_epoch_lat_ms_; }
   const std::vector<double>& visualEpochSensorTime() const { return visual_epoch_sensor_time_; }

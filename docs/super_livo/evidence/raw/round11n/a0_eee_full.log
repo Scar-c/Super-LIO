@@ -1,0 +1,132 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0825 23:09:10.152874 145796 ROSWrapper.cpp:38] [32m ---> [Param] map/save_map: false[0m
+I0825 23:09:10.156311 145796 ROSWrapper.cpp:57] [32m ---> [Param] eva/instrumentation: false[0m
+I0825 23:09:10.165373 145796 ROSWrapper.cpp:257] [32m ---> Using Lidar type: OUSTER[0m
+I0825 23:09:10.166242 145796 ROSWrapper.cpp:275] [32m ---> [Param] camera calibration loaded: /home/lc/super_livo/bag/NTU/eee_01/camera_left.yaml[0m
+I0825 23:09:10.168812 145796 super_lio.cpp:117] [32m ---> [SuperLIO]: G-1 visual support diagnostics enabled[0m
+I0825 23:09:10.168823 145796 super_lio.cpp:136] [32m ---> [SuperLIO]: G-0 shadow sidecar enabled[0m
+I0825 23:09:10.168828 145796 super_lio.cpp:163] [32m ---> [SuperLIO]: initialized.[0m
+I0825 23:09:10.329082 145796 super_lio.cpp:171] [32m ---> [SuperLIO]: KF init done[0m
+I0825 23:09:10.337791 145796 super_lio.cpp:180] [32m ---> [SuperLIO]: Map init done[0m
+I0825 23:10:24.964241 145796 timer.h:40] >>> ===== Printing run time =====
+I0825 23:10:24.964277 145796 timer.h:46] > [ DownSample ] average time usage: 0.157972 ms , called times: 3980
+I0825 23:10:24.964298 145796 timer.h:46] > [ Observe ] average time usage: 11.5292 ms , called times: 3980
+I0825 23:10:24.964305 145796 timer.h:46] > [ Undistort ] average time usage: 0.190867 ms , called times: 3980
+I0825 23:10:24.964311 145796 timer.h:46] > [ UpdateMap ] average time usage: 0.497511 ms , called times: 3980
+[offline_node] camera_epoch=1 camera_enabled=1
+[offline_node] processing /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag (publish=false)
+[diag] sensor_time=1609059063.186 epochs=500 wall=2.240s imu_consumed=19254 lidar_consumed=501 imu_depth=1 lidar_depth=0 voxels=7547 rss=135684KB
+[diag] sensor_time=1609059113.202 epochs=1000 wall=10.032s imu_consumed=38535 lidar_consumed=1001 imu_depth=1 lidar_depth=0 voxels=92043 rss=227008KB
+[diag] sensor_time=1609059163.217 epochs=1500 wall=20.395s imu_consumed=57723 lidar_consumed=1501 imu_depth=1 lidar_depth=0 voxels=136201 rss=313064KB
+[diag] sensor_time=1609059213.233 epochs=2000 wall=31.405s imu_consumed=77009 lidar_consumed=2001 imu_depth=1 lidar_depth=0 voxels=149046 rss=333120KB
+[diag] sensor_time=1609059263.249 epochs=2500 wall=41.888s imu_consumed=96283 lidar_consumed=2501 imu_depth=1 lidar_depth=0 voxels=180951 rss=355288KB
+[diag] sensor_time=1609059313.264 epochs=3000 wall=53.808s imu_consumed=115545 lidar_consumed=3002 imu_depth=2 lidar_depth=0 voxels=191395 rss=369008KB
+[diag] sensor_time=1609059363.280 epochs=3500 wall=65.755s imu_consumed=134764 lidar_consumed=3502 imu_depth=2 lidar_depth=0 voxels=199689 rss=380092KB
+
+=== Offline accounting ===
+bag_relevant_messages: 161320
+lidar read/dispatched/skipped: 3987/3987/0
+imu   read/dispatched/skipped: 153347/153347/0
+other messages: 0
+first/last bag time: 1609059013.114720 / 1609059411.797588
+first/last sensor timestamp: 1609059013.173238 / 1609059411.797436
+first/last estimator timestamp: 1609059013.270444 / 1609059411.795316
+images read/dispatched/skipped: 3986/3986/0
+first/last image timestamp: 1609059013.170260 / 1609059411.795316
+camera buffer: size=0 peak=10 dropped=1
+G-0 sidecar: accepted=3306346 rejected=10050824 allocations=111943 evictions=0 active=111943 peak=111943 updates=2565536
+G-0 N histogram: 1:0 2:378409 3:282239 4:231215 5:197447 6:172924 7:153453 8:137619 9:124305 10:113197 11:103663 12:95595 13:88582 14:82638 15:77415 16:72811 17:68728 18:64957 19:61658 20:58681
+G-1 q_flat distribution (percentiles of 0..1): P50=0.005 P90=0.005 P95=0.005 P99=0.005
+G-1 parent(0.5m) q_flat distribution: P50=0.005 P90=0.005 P95=0.005 P99=0.005
+G-1 child q_flat by N (P50/P90/P95): N5-7=0.055/0.145/0.175 N8-10=0.095/0.185/0.205 N11-19=0.125/0.205/0.225 N20=0.125/0.205/0.225
+G-1 parent q_flat by N_parent (P50/P90/P95): N5-9=0.015/0.045/0.075 N10-19=0.025/0.075/0.105 N20-39=0.035/0.105/0.135 N40-79=0.035/0.115/0.155 N80+=0.045/0.135/0.175
+
+G-1 q_line distribution: P50=0.005 P90=0.005 P95=0.005 P99=0.005
+process invocations: 161321
+sync epochs (heavy process): 3985 / 3985
+remaining imu/lidar in buffer: 2/0
+front_lidar_end_time: 0.000000  last_imu_time: 1609059411.797436
+unprocessed_reason: trailing IMU beyond last lidar end_time
+sensor_duration_s: 398.624
+wall_processing_s: 74.787
+speed_factor: 5.330x
+peak RSS during loop: 383900 KB
+G-2 child maturity: cells=315241 first_visible->N5 median=926 P90=3686; ->valid median=1038 P90=3780
+G-2 parent maturity: parents=94459 first_visible->valid median=134 P90=2014
+G-2 mature_while_visible: child=181302/315241 parent_valid_while_visible=78739/94459
+G-2 parent sync events: E0=78739 E3=0 E1(>1deg)=720586 >2=447228 >3=328859 >5=220242
+G-3 (n=7236064) normal angle vs HKNN (deg, P50/P90/P95): child=26.00/75.10/82.50 parent=15.60/55.60/70.70
+G-3 residual diff vs HKNN (m, P50/P90/P95): child=0.3630/1.2550/1.6400 parent=0.3300/1.0740/1.4140
+G-3 child d_n/d_t (m, P50/P90/P95): dn=0.2530/1.0160/1.3510 dt=1.0090/1.7550/1.9360
+S-0 camera-epoch: epochs=3985 images_consumed=3980 stale_image_drop=5 empty_slice=0
+S-0 camera-epoch: lidar_points_emitted=15400788 future_points_retained=8237660 last_epoch=1609059411.795
+S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=3985 median=100.0 P90=100.0 P95=100.0 P99=100.0
+V-0C frontend: entered=3177 frame_null=0
+V-0C coverage: frames=3177 cells_total=1458243 cells_with_candidates=3177 occupied_existing=693313 filled_new=62270
+V-0C visible_existing/frame P10/P50/P90: 157/228/262
+V-0C new_created/frame P10/P50/P90: 3/16/39
+V-0C accepted/frame P10/P50/P90: 0/0/0
+V-2 photometric: frames=14653 accepted_landmarks=198 total_samples=215963857 meanSSE_per_sample=551.67
+V-2 6DOF FD gate: double_math_fail=0 trials_attempted=0 structurally_complete=0 all6_smooth=0 with_nonsmooth=0 distinct_epochs=0 distinct_landmarks=0
+V-2 BUNDLE rx: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 BUNDLE ry: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 BUNDLE rz: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 BUNDLE tx: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 BUNDLE ty: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 BUNDLE tz: smooth=0 nonsmooth_support=0 nonsmooth_cell=0
+V-2 FLOAT FD rx: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD rx: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-2 FLOAT FD ry: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD ry: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-2 FLOAT FD rz: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD rz: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-2 FLOAT FD tx: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD tx: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-2 FLOAT FD ty: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD ty: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-2 FLOAT FD tz: strong_n=0 strong_max_rel=0 max_abs=0 weak_n=0
+V-2 DOUBLE FD tz: strong_n=0 strong_max_rel=0 strong_med_rel=0 weak_n=0 weak_max_abs=0 nonsmooth=0 worst_rel=0
+V-0 VisualMap: parents=59185 landmarks=62270 slots_used=150529 created=62270 frames=3177 attempts=755583
+V-1 lifecycle: geo_syncs=0 obs_adds=559153 obs_drops=408624 ref_switches=160580
+V-0 sizeof(VisualObservation)=128 sizeof(VisualLandmark)=496
+V-0 visual map bytes ~= 50.15 MB (slots=150529 x 128 B + landmarks 62270 x 496 B)
+V-2 GATE-M rx: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC rx: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P rx: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M ry: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC ry: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P ry: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M rz: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC rz: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P rz: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M tx: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC tx: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P tx: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M ty: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC ty: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P ty: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M tz: strong_n=0 weak_n=0 med_rel=0 max_abs=0 max_kappa=0
+V-2 GATE-RC tz: regular_n=0 conditioned_n=0 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0 cond_max_raw_rel=0 cond_max_mean_rel=0 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=0
+V-2 AUDIT-P tz: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 H/B audit: worst_h_rel=0 worst_b_rel=0
+V-4 health: apply_count=3980 cov_fail=0 max_sym_ratio=6.29e-11 lam_min=3.77548e-10 lam_max=0.000105299
+VP timing us: total=17486385 patch_eval=4415573 hb_commit=7943360 epochs=14653 lm=3404805 samples=215963857
+PL metrics: sensor_start=1609059013.270 sensor_end=1609059411.697 sensor_dur=398.427 frames=3985
+PL LiDAR lat ms: P50=19.523 P90=24.080 P95=24.737 P99=26.161 max=52.793 n=3985
+PL visual lat ms: P50=1.235 P90=1.408 P95=1.459 P99=1.580 max=3.208 n=14653
+PL median LiDAR period ms=100.047  median camera period ms=100.047
+PL CPU: total_tick=3877 avg_cpu_pct=51.7
+PL deadline miss count=0 ratio=0.0000
+PL Q0 [0.0-99.6 s]: LiDAR P50=5.122 P95=18.591 P99=19.875 | visual P50=1.014 P95=1.294 P99=1.384 | RSS_avg=2662200KB | vox_avg=32918 | lm_avg=2533 | n=997
+PL Q1 [99.6-199.2 s]: LiDAR P50=19.999 P95=23.790 P99=26.370 | visual P50=1.256 P95=1.470 P99=1.596 | RSS_avg=2795737KB | vox_avg=131078 | lm_avg=20354 | n=996
+PL Q2 [199.2-298.8 s]: LiDAR P50=22.084 P95=24.928 P99=27.136 | visual P50=1.294 P95=1.481 P99=1.593 | RSS_avg=2849492KB | vox_avg=176079 | lm_avg=43959 | n=996
+PL Q3 [298.8-398.4 s]: LiDAR P50=22.756 P95=25.266 P99=26.214 | visual P50=1.283 P95=1.466 P99=1.592 | RSS_avg=2871598KB | vox_avg=199074 | lm_avg=54256 | n=995
+HB-0 summary: epochs_audited=0 epochs_fail=0 total_samples=0 duplicates=0 distinct_landmarks=0
+HB-0 worst: rhoH=0 rhoB=0 srcH=0 srcB=0 accH=0 accB=0 last_Hsum=0
+=== End offline accounting ===

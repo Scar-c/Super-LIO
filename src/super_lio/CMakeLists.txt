@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11N VI-0 weighted information tests
+add_executable(vi0_test
+  src/geometry/tests/test_vi0.cpp
+)
+target_include_directories(vi0_test PUBLIC include)
+target_link_libraries(vi0_test
+  Eigen3::Eigen
+)
+
 # Round 11K HB-0 production H/b audit helper tests
 add_executable(hb0_audit_test
   src/geometry/tests/test_hb0_audit.cpp

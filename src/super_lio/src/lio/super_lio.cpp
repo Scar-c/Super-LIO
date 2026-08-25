@@ -302,11 +302,42 @@ void SuperLIO::stateProcess(){
     time_record_.Evaluate([this](){Propagation_Undistort();}, "Undistort");
     time_record_.Evaluate([this]() { DownSample(); }, "DownSample");
     time_record_.Evaluate([this]() { Observe(); }, "Observe");
-    time_record_.Evaluate([this]() { UpdateMap(); }, "UpdateMap");
   }else{
     Propagation_Undistort();
     DownSample();
     Observe();
+  }
+  // V-4A/B: sequential visual update from final LiDAR posterior
+  if (g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled &&
+      g_lio_v0_enabled) {
+    ESKF::SequentialPrior prior;
+    prior.time = kf_->GetTime();
+    prior.x = kf_->GetSysState();
+    prior.P = kf_->GetCov();
+    const auto v4_snap = kf_->UpdateObserveFromPrior(
+        prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
+          const SE3 pose = s.pose;
+          runVisualResidual(pose, H, b, false);
+        });
+    v4_apply_count_++;
+    const auto& Pv = v4_snap.P;
+    if (!Pv.allFinite()) v4_cov_fail_count_++;
+    const double Pscale = std::max(1.0, static_cast<double>(Pv.cwiseAbs().maxCoeff()));
+    const double sym_err = static_cast<double>((Pv - Pv.transpose()).cwiseAbs().maxCoeff());
+    const double sym_ratio = sym_err / Pscale;
+    v4_max_sym_ratio_ = std::max(v4_max_sym_ratio_, sym_ratio);
+    if (sym_ratio > 1e-5) v4_cov_fail_count_++;
+    if (v4_apply_count_ % 50 == 0) {
+      const Eigen::Matrix<double, 18, 18> Pvd = Pv.cast<double>();
+      const Eigen::Matrix<double, 18, 18> Ps = 0.5 * (Pvd + Pvd.transpose());
+      const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 18, 18>> es(Ps);
+      v4_last_lambda_min_ = es.eigenvalues()(0);
+      v4_last_lambda_max_ = es.eigenvalues()(17);
+    }
+  }
+  if(g_time_eva){
+    time_record_.Evaluate([this]() { UpdateMap(); }, "UpdateMap");
+  }else{
     UpdateMap();
   }
   epoch_timings_.total_ms = NowMs() - t_epoch_start;
@@ -655,7 +686,7 @@ void SuperLIO::Observe(){
         if(g_lio_v0_enabled){
           runVisualLifecycle(pose);
         }
-        if(g_lio_v2_enabled){
+        if(g_lio_v2_enabled && !g_lio_v4_apply){
           BASIC::M6 vh = BASIC::M6::Zero();
           BASIC::V6 vr = BASIC::V6::Zero();
           visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
@@ -1229,10 +1260,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       out.b_addend.resize(M);
       for (size_t k = 0; k < M; ++k) {
         const Eigen::Matrix<double, 6, 1> Jdc = out.Js[k] - out.Jmean;
+        // V-4 frozen information: omega multiply in double BEFORE float cast
         const Eigen::Matrix<float, 6, 6> hf =
-            (Jdc * Jdc.transpose()).cast<float>();
+            (omega_photo_ * (Jdc * Jdc.transpose())).cast<float>();
         const Eigen::Matrix<float, 6, 1> bf =
-            -(Jdc * out.rs[k]).cast<float>();
+            -(omega_photo_ * (Jdc * out.rs[k])).cast<float>();
         for (int a = 0; a < 36; ++a) out.h_addend[k][a] = hf.data()[a];
         for (int a = 0; a < 6; ++a) out.b_addend[k][a] = bf(a);
       }
@@ -1317,8 +1349,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           for (int a = 0; a < 6; ++a) rec.J[a] = Jdc_a(a);
           rec.r = rs[k];
           const Eigen::Matrix<float, 6, 6> hf =
-              (Jdc_a * Jdc_a.transpose()).cast<float>();
-          const Eigen::Matrix<float, 6, 1> gf = (Jdc_a * rs[k]).cast<float>();
+              (omega_photo_ * (Jdc_a * Jdc_a.transpose())).cast<float>();
+          const Eigen::Matrix<float, 6, 1> gf =
+              (omega_photo_ * (Jdc_a * rs[k])).cast<float>();
           for (int a = 0; a < 36; ++a) rec.h_addend[a] = hf.data()[a];
           for (int a = 0; a < 6; ++a) rec.g_addend[a] = gf(a);
           // independent all-double oracle (frozen Gate-X/Gate-M formula,
@@ -1964,6 +1997,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         JD[a] = lm_m ? (s.Jd[a] - lm_m[a]) : s.J[a];
       double hD[36];
       hbOuter(hD, JD);
+      for (int a = 0; a < 36; ++a) hD[a] *= omega_photo_;
       for (int a = 0; a < 36; ++a) {
         H_D[a] += hD[a];
         S_H_D[a] += std::abs(hD[a]);
@@ -1971,7 +2005,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         S_H_P[a] += std::abs(static_cast<double>(s.h_addend[a]));
       }
       for (int a = 0; a < 6; ++a) {
-        const double gD = -JD[a] * s.r;
+        const double gD = -omega_photo_ * JD[a] * s.r;
         b_D[a] += gD;
         S_b_D[a] += std::abs(gD);
         const double gP = -static_cast<double>(s.g_addend[a]);
@@ -2059,6 +2093,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       for (int a = 0; a < 36; ++a) hsum += H_P[a];
       hb0_hsum_ = hsum;
     }
+    std::printf("HB0DBG2 H_P[0]=%.17g H_Q[0]=%.17g H_D[0]=%.17g S_HD[0]=%.17g S_HP[0]=%.17g omega=%.6g\n",
+                H_P[0], H_Q[0], H_D[0], S_H_D[0], S_H_P[0], omega_photo_);
     std::printf("HB-0 epoch=%lld samples=%zu oracle_valid=%zu dup=%zu rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g sym=%.3g sym_budget=%.3g lamD=%.6g lamP=%.6g finite=%d Hsum=%.17g %s\n",
                 static_cast<long long>(hb0_epochs_audited_),
                 hb0_samples_.size(), nD, hb0_total_duplicates_,

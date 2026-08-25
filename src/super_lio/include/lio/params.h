@@ -111,6 +111,7 @@ namespace LI2Sup{
   /// V-2/V-3/V-4 photometric residual + MODE-A update
   extern bool g_lio_v2_enabled;
   extern bool g_lio_v2_skip_fd;
+  extern bool g_lio_v4_apply;
 
   /// V-0/V-1 production visual landmark lifecycle (no estimator feedback)
   extern bool g_lio_v0_enabled;

@@ -64,6 +64,10 @@ int main(int argc, char** argv) {
   bool v2_skip_fd = false;
   nh.getParam("/lio/v2/skip_fd", v2_skip_fd);
   lio->setV2SkipFd(v2_skip_fd);
+  double v4_photo_var = 100.0;
+  nh.getParam("/lio/v4/photo_variance", v4_photo_var);
+  lio->setPhotoResidualVariance(v4_photo_var);
+  nh.getParam("/lio/v4/apply", g_lio_v4_apply);
   g_lio_v2_skip_fd = v2_skip_fd;
   lio->setROSWrapper(data_wrapper);
   // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
@@ -522,6 +526,11 @@ int main(int argc, char** argv) {
     }
     std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
                 lio->hbWorstHRel(), lio->hbWorstBRel());
+    std::printf("V-4 health: apply_count=%lld cov_fail=%lld max_sym_ratio=%.3g lam_min=%.6g lam_max=%.6g\n",
+                (long long)lio->v4ApplyCount(),
+                (long long)lio->v4CovFailCount(),
+                lio->v4MaxSymRatio(),
+                lio->v4LastLambdaMin(), lio->v4LastLambdaMax());
     std::printf("VP timing us: total=%.0f patch_eval=%.0f hb_commit=%.0f epochs=%lld lm=%lld samples=%lld\n",
                 lio->vpTotalUs(), lio->vpPatchEvalUs(), lio->vpHbCommitUs(),
                 (long long)lio->vpCameraEpochs(),
