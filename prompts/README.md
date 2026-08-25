@@ -24,7 +24,8 @@ Canonical directory：本 `prompts/` 目录。文件命名规范：`NN_short_sna
 | 15 | 04_v1_implementation/15_round11_scheme_b_multiobs_mode_a_ate.md | Super-LIVO_Round11_CoordOrigin_MultiObs_ModeA_ATE_DS | ACTIVE — S-0 corrective | Correct Scheme-B to coordinate-origin-only semantics, add bounded multi-observation visual landmarks, enable first MODE-A visual update, and measure first visual ATE | 36b02c3 | 本轮产出 | — |
 | 16 | 04_v1_implementation/16_round11_s0_fastlivo2_sync_corrective.md | Super-LIVO_Round11_S0_FASTLIVO2_Sync_Corrective_DS | EXECUTED — S-0 completed | Fix S-0 camera-epoch segfault by rebuilding sync around FAST-LIVO2 semantics | 19c6e2d | ad1278f | S-0 PASS 后恢复 S-1 |
 | 17 | 04_v1_implementation/17_round11_visual_frontend_corrective_before_mode_a.md | Super-LIVO_Round11_VisualFrontend_Corrective_Before_ModeA_DS | ACTIVE — superseded by #18 from 8bc1d24 | Freeze architecture, repair visual frontend (image-grid selection, parent coupling, full trigger, 6DOF FD) before MODE-A | 5bba1cf | 05017cf + 8bc1d24 | superseded |
-| 18 | 04_v1_implementation/18_round11_fd_tbb_before_mode_a.md | Super-LIVO_Round11_FD_ExactBilinear_TBB_ModeA_Origin_DS | ACTIVE | FD exactness (exact bilinear derivative) + deterministic visual TBB + MODE-A first ATE | 8bc1d24 | 本轮产出 | FD-1 → PERF-0 → V-3P → V-4 → ATE | — |
+| 18 | 04_v1_implementation/18_round11_fd_tbb_before_mode_a.md | Super-LIVO_Round11_FD_ExactBilinear_TBB_ModeA_Origin_DS | ACTIVE — superseded by #19 from 2b5e1f8 | FD exactness (exact bilinear derivative) + deterministic visual TBB + MODE-A first ATE | 8bc1d24 | 2b5e1f8 | superseded |
+| 19 | 04_v1_implementation/19_round11c_owner_audit_fd_tbb_mode_a.md | Super-LIVO_Round11C_OwnerAudit_FD_TBB_ModeA_DS | ACTIVE | Owner code-audit corrective: 9 implementation defects (grid/identity/ref/lifecycle/scan/provenance) + raw evidence + FD closure + deterministic TBB + MODE-A | 2b5e1f8 | 本轮产出 | A-E → PERF-0 → V-4 → ATE | — |
 
 ## 说明
 

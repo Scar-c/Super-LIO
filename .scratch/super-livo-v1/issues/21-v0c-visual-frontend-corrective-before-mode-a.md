@@ -1,6 +1,6 @@
 # 21: [Super-LIVO v1][V-0C] Repair visual frontend before MODE-A
 
-**Status:** ready-for-agent（Round 11 corrective；V-4 前必须完成）
+**Status:** CORRECTIVE REQUIRED（Round 11C Owner code audit：P0-1..P0-9 待修）
 
 ## Parent
 
