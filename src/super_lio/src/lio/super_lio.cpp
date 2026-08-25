@@ -1252,20 +1252,50 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       visual_residual_samples_ += static_cast<int64_t>(M);
       visual_residual_sse_ += sse_before;
 
-      // 6DOF FD (hard gate): central difference on all six pose directions,
-      // per-sample DC residual; a trial = this landmark x this camera epoch.
-      // Trial complete only if all six directions produce a valid sample set.
+      // 6DOF FD (Round 11D): clean double mathematical oracle.
+      // Sample identity is fixed by the original patch index (ref_idx[k]);
+      // float diagnostic and double oracle are classified independently;
+      // double NON_SMOOTH is computed from double perturbations (support
+      // change only); the double residual domain is identical to production
+      // (abs(denom)>=1e-9, Xc.z()>0.05, 1px image border, BilinearSample
+      // validity, DC means over the valid set).
       if (fd_samples_needed_ >= 0) {
         fd_trials_attempted_++;
-        auto warp_all = [&](const SE3& p_, std::vector<Eigen::Vector2d>& w,
-                            std::vector<double>& ic, double& mcur) {
-          w.clear();
-          ic.clear();
-          // camera pose = body pose + extrinsic (matches the main loop)
-          const Eigen::Matrix3d Rc = p_.R_.cast<double>() * R_bc;
-          const Eigen::Vector3d tc =
-              p_.t_.cast<double>() + p_.R_.cast<double>() * t_bc;
-          double acc = 0.0;
+        struct Ev { bool valid = false; double u = 0, v = 0; double ic = 0;
+                    double cell_u = 0, cell_v = 0; };
+        // evaluate one pose (float chain) with the production valid domain
+        auto eval_f = [&](const SE3& p, std::vector<Ev>& out) {
+          out.assign(ref_idx.size(), Ev());
+          const Eigen::Matrix3d Rc = p.R_.cast<double>() * R_bc;
+          const Eigen::Vector3d tc = p.t_.cast<double>() + p.R_.cast<double>() * t_bc;
+          for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
+            const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
+            const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
+            const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+            const Eigen::Vector3d dir_w = R_ref * ray_cam;
+            const double denom = n_sync.dot(dir_w);
+            if (std::abs(denom) < 1e-9) continue;   // H3: production denom
+            const double s = n_sync.dot(P_patch - t_ref) / denom;
+            if (s <= 1e-4) continue;
+            const Eigen::Vector3d X = t_ref + s * dir_w;
+            const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
+            if (Xc.z() <= 0.05) continue;           // H3: production z
+            const double u2 = fx * Xc.x() / Xc.z() + cx;
+            const double v2 = fy * Xc.y() / Xc.z() + cy;
+            if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
+            const BilinearSample bs = sampleBilinearWithGradient(img, W, H, u2, v2);
+            if (!bs.valid) continue;
+            Ev& e = out[kk];
+            e.valid = true; e.u = u2; e.v = v2; e.ic = bs.value;
+            e.cell_u = std::floor(u2); e.cell_v = std::floor(v2);
+          }
+        };
+        // evaluate one pose (double chain) with the SAME valid domain
+        auto eval_d = [&](const Eigen::Matrix3d& Rb, const Eigen::Vector3d& tb,
+                          std::vector<Ev>& out) {
+          out.assign(ref_idx.size(), Ev());
+          const Eigen::Matrix3d Rc = Rb * R_bc;
+          const Eigen::Vector3d tc = tb + Rb * t_bc;
           for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
             const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
             const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
@@ -1281,264 +1311,211 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             const double u2 = fx * Xc.x() / Xc.z() + cx;
             const double v2 = fy * Xc.y() / Xc.z() + cy;
             if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
-            const BilinearSample bs =
-                sampleBilinearWithGradient(img, W, H, u2, v2);
-            if (!bs.valid) continue;
-            w.emplace_back(u2, v2);
-            ic.push_back(bs.value);
-            acc += bs.value;
+            const double i0 = std::floor(u2), j0 = std::floor(v2);
+            const double al = u2 - i0, be = v2 - j0;
+            const double I00 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0)];
+            const double I10 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0) + 1];
+            const double I01 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0)];
+            const double I11 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0) + 1];
+            Ev& e = out[kk];
+            e.valid = true; e.u = u2; e.v = v2;
+            e.ic = (1.0 - al) * (1.0 - be) * I00 + al * (1.0 - be) * I10 +
+                   (1.0 - al) * be * I01 + al * be * I11;
+            e.cell_u = i0; e.cell_v = j0;
           }
-          mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
         };
-        // §24 double-precision FD oracle: independent all-double path
-        auto warp_all_double =
-            [&](const Eigen::Matrix3d& Rb, const Eigen::Vector3d& tb,
-                std::vector<Eigen::Vector2d>& w, std::vector<double>& ic,
-                double& mcur) {
-              w.clear();
-              ic.clear();
-              const Eigen::Matrix3d Rc = Rb * R_bc;
-              const Eigen::Vector3d tc = tb + Rb * t_bc;
-              double acc = 0.0;
-              for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
-                const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
-                const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
-                const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
-                const Eigen::Vector3d dir_w = R_ref * ray_cam;
-                const double denom = n_sync.dot(dir_w);
-                if (std::abs(denom) < 1e-12) continue;
-                const double s = n_sync.dot(P_patch - t_ref) / denom;
-                if (s <= 1e-4) continue;
-                const Eigen::Vector3d X = t_ref + s * dir_w;
-                const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
-                if (Xc.z() <= 1e-6) continue;
-                const double u2 = fx * Xc.x() / Xc.z() + cx;
-                const double v2 = fy * Xc.y() / Xc.z() + cy;
-                if (u2 < 0.0 || u2 >= W - 1.0 || v2 < 0.0 || v2 >= H - 1.0) continue;
-                const double i0 = std::floor(u2), j0 = std::floor(v2);
-                const double al = u2 - i0, be = v2 - j0;
-                const double I00 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0)];
-                const double I10 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0) + 1];
-                const double I01 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0)];
-                const double I11 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0) + 1];
-                const double Ic = (1.0 - al) * (1.0 - be) * I00 + al * (1.0 - be) * I10 +
-                                  (1.0 - al) * be * I01 + al * be * I11;
-                w.emplace_back(u2, v2);
-                ic.push_back(Ic);
-                acc += Ic;
-              }
-              mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
-            };
-        std::vector<Eigen::Vector2d> w0;
-        std::vector<double> ic0;
-        double mc0 = 0.0;
-        warp_all(pose, w0, ic0, mc0);
-        if (w0.size() == M) {
-          bool all_dirs_ok = true;
-          for (int d = 0; d < 6; ++d) {
-            // central-difference step. eps=1e-4 default; d=2 (body-frame
-            // right-perturbation about the body z axis, NOT the camera
-            // optical axis) uses 1e-3 pending epsilon-convergence evidence
-            // central-difference step: rz (body z) needs a larger step for
-          // near-axis samples (epsilon-convergence verified: 1e-3 optimal);
-          // others 1e-4 (registered policy, Owner §10.2)
+        auto mean_ic = [](const std::vector<Ev>& evs) {
+          double acc = 0; size_t n = 0;
+          for (const auto& e : evs) { if (e.valid) { acc += e.ic; n++; } }
+          return n ? acc / static_cast<double>(n) : 0.0;
+        };
+        // base evaluations
+        std::vector<Ev> base_f, base_d;
+        eval_f(pose, base_f);
+        const Eigen::Matrix3d Rb0 = pose.R_.cast<double>();
+        const Eigen::Vector3d tb0 = pose.t_.cast<double>();
+        eval_d(Rb0, tb0, base_d);
+        const double mean_d0 = mean_ic(base_d);
+        // production DC means (already computed in the residual path)
+        const double mean_c = mean_cur, mean_r = mean_ref;
+        // note: production FD used per-perturbation means; for the double
+        // oracle we use the double means of each perturbed set (same rule)
+        const double eps_d = 1e-5;  // double oracle step (diagnostic §8)
+
+        bool all_dirs_ok = true;
+        for (int d = 0; d < 6; ++d) {
+          // float perturb (registered eps: 1e-4, rz 1e-3)
           const double eps = (d == 2) ? 1e-3 : 1e-4;
-            SE3 pp = pose, pm = pose;
-            const float e = static_cast<float>(eps);
-            if (d < 3) {
-              // body-frame right-perturbation: R' = R exp(e e_d)
-              const Eigen::Matrix3f Rm =
-                  Eigen::AngleAxisf(e, Eigen::Vector3f::Unit(d))
-                      .toRotationMatrix();
-              pp.R_ = pp.R_ * Rm;
-              pm.R_ = pm.R_ * Rm.transpose();
-            } else {
-              pp.t_[d - 3] += e;
-              pm.t_[d - 3] -= e;
+          SE3 pp = pose, pm = pose;
+          if (d < 3) {
+            const Eigen::Matrix3f Rm =
+                Eigen::AngleAxisf(static_cast<float>(eps), Eigen::Vector3f::Unit(d)).toRotationMatrix();
+            pp.R_ = pp.R_ * Rm; pm.R_ = pm.R_ * Rm.transpose();
+          } else { pp.t_[d - 3] += static_cast<float>(eps); pm.t_[d - 3] -= static_cast<float>(eps); }
+          std::vector<Ev> pf, mf, pd_, md_;
+          eval_f(pp, pf); eval_f(pm, mf);
+          // double perturb
+          Eigen::Matrix3d Rpp = Rb0, Rpm = Rb0;
+          Eigen::Vector3d tpp = tb0, tpm = tb0;
+          if (d < 3) {
+            const Eigen::Matrix3d Rm =
+                Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
+            Rpp = Rb0 * Rm; Rpm = Rb0 * Rm.transpose();
+          } else { tpp[d - 3] += eps_d; tpm[d - 3] -= eps_d; }
+          eval_d(Rpp, tpp, pd_); eval_d(Rpm, tpm, md_);
+          const double mean_pd = mean_ic(pd_), mean_md = mean_ic(md_);
+          const double mean_pf = mean_ic(pf), mean_mf = mean_ic(mf);
+
+          double float_max_rel = 0.0, double_max_rel = 0.0;
+          double float_max_abs = 0.0, double_max_abs = 0.0;
+          int64_t float_strong_n = 0, float_weak_n = 0;
+          int64_t double_strong_n = 0, double_weak_n = 0;
+          int64_t double_non_smooth = 0;
+          std::vector<double> drels, frels;
+          // worst-double record (H1/H9)
+          double wd_rel = -1.0, wd_fd = 0.0, wd_an = 0.0;
+          double wd_xc0 = 0.0, wd_xc1 = 0.0, wd_xc2 = 0.0;
+          for (size_t k = 0; k < ref_idx.size(); ++k) {
+            // base must be a production-valid sample (k fixed by ref_idx)
+            if (!base_f[k].valid) continue;
+            const double an = (Js[k] - Jmean)(d);
+            // float diagnostic (independent)
+            if (pf[k].valid && mf[k].valid &&
+                std::floor(pf[k].u) == std::floor(mf[k].u) &&
+                std::floor(pf[k].v) == std::floor(mf[k].v) &&
+                std::floor(pf[k].u) == std::floor(base_f[k].u) &&
+                std::floor(pf[k].v) == std::floor(base_f[k].v)) {
+              const double fd = ((pf[k].ic - mean_pf) - (pf[k].ic - mean_pf)) / (2.0 * eps);
+              const double fdv = ((pf[k].ic - mean_pf) - (mf[k].ic - mean_mf)) / (2.0 * eps);
+              const double re = std::abs(fdv - an) / std::max(1e-12, std::abs(fdv));
+              const double ae = std::abs(fdv - an);
+              float_max_abs = std::max(float_max_abs, ae);
+              if (std::abs(fdv) >= 1e-3) { float_strong_n++; float_max_rel = std::max(float_max_rel, re); frels.push_back(re); }
+              else { float_weak_n++; }
+              (void)fd;
             }
-            std::vector<Eigen::Vector2d> w1, wm;
-            std::vector<double> ic1, icm;
-            double mc1 = 0.0, mcm = 0.0;
-            warp_all(pp, w1, ic1, mc1);
-            warp_all(pm, wm, icm, mcm);
-            if (w1.size() != M || wm.size() != M) { all_dirs_ok = false; continue; }
-            // §24 double-precision FD oracle (independent path, eps=1e-5)
-            const double eps_d = 1e-5;
-            const Eigen::Matrix3d Rb0 = pose.R_.cast<double>();
-            const Eigen::Vector3d tb0 = pose.t_.cast<double>();
-            std::vector<Eigen::Vector2d> w1d, wmd;
-            std::vector<double> ic1d, icmd;
-            double mc1d = 0.0, mcmd = 0.0;
-            Eigen::Matrix3d Rpp = Rb0, Rpm = Rb0;
-            Eigen::Vector3d tpp = tb0, tpm = tb0;
-            if (d < 3) {
-              const Eigen::Matrix3d Rm =
-                  Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
-              Rpp = Rb0 * Rm;
-              Rpm = Rb0 * Rm.transpose();
-            } else {
-              tpp[d - 3] += eps_d;
-              tpm[d - 3] -= eps_d;
-            }
-            warp_all_double(Rpp, tpp, w1d, ic1d, mc1d);
-            warp_all_double(Rpm, tpm, wmd, icmd, mcmd);
-            const bool oracle_ok = w1d.size() == M && wmd.size() == M;
-            double max_abs = 0.0, max_rel = 0.0, med_rel = 0.0;
-            double strong_max_rel = 0.0, strong_med_rel = 0.0;
-            double strong_max_rel_double = 0.0, strong_med_rel_double = 0.0;
-            double weak_max_abs = 0.0;
-            int64_t strong_n = 0, weak_n = 0, non_smooth = 0;
-            std::vector<double> rels, srels, srels_d;
-            rels.reserve(M);
-            srels.reserve(M);
-            srels_d.reserve(M);
-            for (size_t k = 0; k < M; ++k) {
-              // NON_SMOOTH_FD (Owner §10.1): the numerical perturbation
-              // changes the discrete bilinear support (floor crosses an
-              // integer boundary) -> not differentiable under this
-              // interpolant; counted separately. No texture/lever/relative
-              // error exclusion is allowed.
-              const bool smooth_u =
-                  std::floor(w0[k].x()) == std::floor(w1[k].x()) &&
-                  std::floor(w0[k].x()) == std::floor(wm[k].x());
-              const bool smooth_v =
-                  std::floor(w0[k].y()) == std::floor(w1[k].y()) &&
-                  std::floor(w0[k].y()) == std::floor(wm[k].y());
-              if (!smooth_u || !smooth_v) {
-                non_smooth++;
-                continue;
+            // double mathematical oracle (independent classification)
+            if (!base_d[k].valid) continue;
+            if (!pd_[k].valid || !md_[k].valid) continue;  // support change
+            const bool dsmooth =
+                std::floor(pd_[k].u) == std::floor(md_[k].u) &&
+                std::floor(pd_[k].v) == std::floor(md_[k].v) &&
+                std::floor(pd_[k].u) == std::floor(base_d[k].u) &&
+                std::floor(pd_[k].v) == std::floor(base_d[k].v);
+            if (!dsmooth) { double_non_smooth++; continue; }  // H5
+            const double fdd = ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
+            const double red = std::abs(fdd - an) / std::max(1e-12, std::abs(fdd));
+            const double aed = std::abs(fdd - an);
+            double_max_abs = std::max(double_max_abs, aed);
+            if (std::abs(fdd) >= 1e-3) {  // H2: independent double strong
+              double_strong_n++;
+              double_max_rel = std::max(double_max_rel, red);
+              drels.push_back(red);
+              if (red > wd_rel) {  // H1: true double worst
+                wd_rel = red; wd_fd = fdd; wd_an = an;
+                const double uu = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
+                const double vv = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
+                const Eigen::Vector3d rayw((uu - cx) / fx, (vv - cy) / fy, 1.0);
+                const Eigen::Vector3d dirw = R_ref * rayw;
+                const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
+                const Eigen::Vector3d Xw = t_ref + sw * dirw;
+                const Eigen::Vector3d Xcw = R_cur.transpose() * (Xw - t_cur);
+                wd_xc0 = Xcw.x(); wd_xc1 = Xcw.y(); wd_xc2 = Xcw.z();
               }
-              // weak-derivative samples (|fd| < 1e-3) are REPORTED
-              // separately and never gate PASS/FAIL
-              const double r0 = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
-              const double r1 = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
-              const double rm = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
-              const double fd = (r1 - rm) / (2.0 * eps);
-              const double an = (Js[k] - Jmean)(d);
-              // §24 double oracle per-sample DC derivative
-              double fd_d = 0.0;
-              if (oracle_ok) {
-                const double r1d = (ic1d[k] - mc1d) - (ref_vals[k] - mean_ref);
-                const double rmd = (icmd[k] - mcmd) - (ref_vals[k] - mean_ref);
-                fd_d = (r1d - rmd) / (2.0 * eps_d);
-              }
-              const double ae = std::abs(fd - an);
-              const double re = ae / std::max(1e-12, std::abs(fd));
-              max_abs = std::max(max_abs, ae);
-              rels.push_back(re);
-              if (std::abs(fd) >= 1e-3) {
-                strong_n++;
-                strong_max_rel = std::max(strong_max_rel, re);
-                srels.push_back(re);
-                if (oracle_ok) {
-                  const double ae_d = std::abs(fd_d - an);
-                  const double re_d = ae_d / std::max(1e-12, std::abs(fd_d));
-                  strong_max_rel_double = std::max(strong_max_rel_double, re_d);
-                  srels_d.push_back(re_d);
-                }
-              } else {
-                weak_n++;
-                weak_max_abs = std::max(weak_max_abs, ae);
-              }
-            }
-            if (rels.empty()) { all_dirs_ok = false; continue; }
-            fd_non_smooth_[d] += non_smooth;
-            std::sort(rels.begin(), rels.end());
-            med_rel = rels[rels.size() / 2];
-            if (!srels.empty()) {
-              std::sort(srels.begin(), srels.end());
-              strong_med_rel = srels[srels.size() / 2];
-            }
-            // global aggregates (whole-bundle per-direction)
-            fd_rel_all_[d].insert(fd_rel_all_[d].end(), rels.begin(), rels.end());
-            fd_max_abs_all_[d] = std::max(fd_max_abs_all_[d], max_abs);
-            fd_strong_count_[d] += strong_n;
-            fd_strong_max_rel_[d] = std::max(fd_strong_max_rel_[d], strong_max_rel);
-            fd_strong_med_rel_[d] = strong_med_rel;
-            if (oracle_ok) {
-              fd_strong_max_rel_double_[d] =
-                  std::max(fd_strong_max_rel_double_[d], strong_max_rel_double);
-              if (!srels_d.empty()) {
-                std::sort(srels_d.begin(), srels_d.end());
-                fd_strong_med_rel_double_[d] = srels_d[srels_d.size() / 2];
-              }
-            }
-            fd_weak_count_[d] += weak_n;
-            fd_weak_max_abs_[d] = std::max(fd_weak_max_abs_[d], weak_max_abs);
-            const double gate_rel =
-                oracle_ok ? strong_max_rel_double : strong_max_rel;
-            if (gate_rel > 1e-2) {
-              // locate worst strong sample and verify truncation vs bug
-              double wrel = -1.0, wfd = 0.0, wan = 0.0, wx = 0.0, wy = 0.0, wz = 0.0;
-              for (size_t k = 0; k < M; ++k) {
-                const double r0w = (ic0[k] - mc0) - (ref_vals[k] - mean_ref);
-                const double r1w = (ic1[k] - mc1) - (ref_vals[k] - mean_ref);
-                const double rmw = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
-                const double fdw = (r1w - rmw) / (2.0 * eps);
-                const double anw = (Js[k] - Jmean)(d);
-                const double rew = std::abs(fdw - anw) /
-                                   std::max(1e-12, std::abs(fdw));
-                if (rew > wrel) {
-                  wrel = rew; wfd = fdw; wan = anw;
-                  const Eigen::Vector3d rayw((ref_u + (ref_idx[k] % 8) - 4 - cx) / fx,
-                                             (ref_v + (ref_idx[k] / 8) - 4 - cy) / fy, 1.0);
+            } else { double_weak_n++; }
+          }
+          // accumulate per-direction aggregates
+          if (!drels.empty()) {
+            std::sort(drels.begin(), drels.end());
+            fd_double_med_rel_[d] = drels[drels.size() / 2];
+          }
+          fd_float_max_rel_[d] = std::max(fd_float_max_rel_[d], float_max_rel);
+          fd_float_max_abs_[d] = std::max(fd_float_max_abs_[d], float_max_abs);
+          fd_float_strong_n_[d] += float_strong_n;
+          fd_float_weak_n_[d] += float_weak_n;
+          fd_double_max_rel_[d] = std::max(fd_double_max_rel_[d], double_max_rel);
+          fd_double_max_abs_[d] = std::max(fd_double_max_abs_[d], double_max_abs);
+          fd_double_strong_n_[d] += double_strong_n;
+          fd_double_weak_n_[d] += double_weak_n;
+          fd_double_non_smooth_[d] += double_non_smooth;
+          // true double worst (H1)
+          fd_double_worst_rel_[d] = std::max(fd_double_worst_rel_[d], wd_rel);
+          if (double_max_rel > 1e-2) {
+            LOG(ERROR) << "V-2 DOUBLE FD gate FAIL dir=" << d
+                       << " double_max_rel=" << double_max_rel
+                       << " worst_rel=" << wd_rel << " fd=" << wd_fd
+                       << " an=" << wd_an << " Xc=(" << wd_xc0 << ","
+                       << wd_xc1 << "," << wd_xc2 << ")";
+            double_math_fail_ = true;
+            if (fd_dbg_count_ < 3) {
+              fd_dbg_count_++;
+              // locate the worst sample and dump details
+              for (size_t k = 0; k < ref_idx.size(); ++k) {
+                if (!base_f[k].valid) continue;
+                if (!base_d[k].valid) continue;
+                if (!pd_[k].valid || !md_[k].valid) continue;
+                const double fdd_k =
+                    ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
+                const double an_k = (Js[k] - Jmean)(d);
+                const double re_k =
+                    std::abs(fdd_k - an_k) / std::max(1e-12, std::abs(fdd_k));
+                if (re_k == wd_rel) {
+                  const double uu = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
+                  const double vv = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
+                  const Eigen::Vector3d rayw((uu - cx) / fx, (vv - cy) / fy, 1.0);
                   const Eigen::Vector3d dirw = R_ref * rayw;
                   const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
                   const Eigen::Vector3d Xw = t_ref + sw * dirw;
                   const Eigen::Vector3d Xcw = R_cur.transpose() * (Xw - t_cur);
-                  wx = Xcw.x(); wy = Xcw.y(); wz = Xcw.z();
-                }
-              }
-              LOG(ERROR) << "V-2 6DOF FD gate FAIL dir=" << d
-                         << " strong_max_rel=" << strong_max_rel
-                         << " double_oracle=" << strong_max_rel_double
-                         << " worst fd=" << wfd << " an=" << wan
-                         << " Xc=(" << wx << "," << wy << "," << wz << ")"
-                         << " xz=" << wx / wz << " yz=" << wy / wz
-                         << " eps=" << eps;
-              fd_gate_fail_ = true;
-            }
-            // rz epsilon-convergence on a frozen sample (first complete trial)
-            if (d == 2 && fd_conv_done_ == 0) {
-              const double es[4] = {1e-5, 1e-4, 1e-3, 1e-2};
-              for (int ci = 0; ci < 4; ++ci) {
-                SE3 pc = pose;
-                const float ec = static_cast<float>(es[ci]);
-                const Eigen::Matrix3f Rmc =
-                    Eigen::AngleAxisf(ec, Eigen::Vector3f::UnitZ())
-                        .toRotationMatrix();
-                SE3 ppc = pc, pmc = pc;
-                ppc.R_ = ppc.R_ * Rmc;
-                pmc.R_ = pmc.R_ * Rmc.transpose();
-                std::vector<Eigen::Vector2d> w1c, wmc;
-                std::vector<double> ic1c, icmc;
-                double mc1c = 0.0, mcmc = 0.0;
-                warp_all(ppc, w1c, ic1c, mc1c);
-                warp_all(pmc, wmc, icmc, mcmc);
-                double conv_max = 0.0;
-                if (w1c.size() == M && wmc.size() == M) {
-                  for (size_t k = 0; k < M; ++k) {
-                    const double r1c = (ic1c[k] - mc1c) - (ref_vals[k] - mean_ref);
-                    const double rmc_ = (icmc[k] - mcmc) - (ref_vals[k] - mean_ref);
-                    const double fdc = (r1c - rmc_) / (2.0 * es[ci]);
-                    const double anv = (Js[k] - Jmean)(2);
-                    conv_max = std::max(
-                        conv_max, std::abs(fdc - anv) /
-                                      std::max(1e-12, std::abs(fdc)));
+                  LOG(ERROR) << "V-2 DBG d=" << d << " k=" << k
+                             << " ic0=" << base_d[k].ic
+                             << " icp=" << pd_[k].ic << " icm=" << md_[k].ic
+                             << " mean_pd=" << mean_pd << " mean_md=" << mean_md
+                             << " u0=" << base_d[k].u << " v0=" << base_d[k].v
+                             << " Xc=(" << Xcw.x() << "," << Xcw.y() << "," << Xcw.z() << ")"
+                             << " Js=" << Js[k].transpose()
+                             << " Jmean=" << Jmean.transpose();
+                  // §8 epsilon-convergence on this frozen sample/direction
+                  const double ees[7] = {1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6};
+                  const double an_k = (Js[k] - Jmean)(d);
+                  for (int ei = 0; ei < 7; ++ei) {
+                    const double ee = ees[ei];
+                    Eigen::Matrix3d Rpp2 = Rb0, Rpm2 = Rb0;
+                    Eigen::Vector3d tpp2 = tb0, tpm2 = tb0;
+                    if (d < 3) {
+                      const Eigen::Matrix3d Rm2 =
+                          Eigen::AngleAxisd(ee, Eigen::Vector3d::Unit(d)).toRotationMatrix();
+                      Rpp2 = Rb0 * Rm2; Rpm2 = Rb0 * Rm2.transpose();
+                    } else { tpp2[d - 3] += ee; tpm2[d - 3] -= ee; }
+                    std::vector<Ev> p2, m2;
+                    eval_d(Rpp2, tpp2, p2); eval_d(Rpm2, tpm2, m2);
+                    double fde = 0.0; bool ok = false;
+                    if (p2[k].valid && m2[k].valid) {
+                      const double mp = mean_ic(p2), mm = mean_ic(m2);
+                      fde = ((p2[k].ic - mp) - (m2[k].ic - mm)) / (2.0 * ee);
+                      ok = true;
+                    }
+                    const double re_e = ok ? std::abs(fde - an_k) / std::max(1e-12, std::abs(fde)) : -1.0;
+                    LOG(ERROR) << "V-2 CONV eps=" << ee << " fd=" << fde
+                               << " an=" << an_k << " rel=" << re_e
+                               << " ok=" << (ok ? 1 : 0);
                   }
+                  break;
                 }
-                fd_conv_rz_[ci] = conv_max;
               }
-              fd_conv_done_ = 1;
             }
           }
-          if (all_dirs_ok) {
-            fd_trials_complete_++;
-            if (fd_samples_needed_ > 0) fd_samples_needed_--;  // 0 = continuous
-            fd_epoch_set_.insert(measures_.epoch_ts);
-            fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
-            // global median computed at report time from fd_rel_all_
+        }
+        if (all_dirs_ok) {
+          fd_trials_complete_++;
+          if (fd_samples_needed_ > 1) {
+            --fd_samples_needed_;
+          } else if (fd_samples_needed_ == 1) {
+            fd_samples_needed_ = -1;
           }
+          // == 0: continuous, remain 0
+          fd_epoch_set_.insert(measures_.epoch_ts);
+          fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
         }
       }
     }

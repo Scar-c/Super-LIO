@@ -432,19 +432,23 @@ int main(int argc, char** argv) {
                     ? lio->visualResidualSse() /
                           (double)lio->visualResidualSamples()
                     : 0.0);
-    std::printf("V-2 6DOF FD gate: fail=%d trials_complete=%d trials_attempted=%d distinct_epochs=%zu distinct_landmarks=%zu\n",
-                lio->fdGateFail() ? 1 : 0, lio->fdTrialsComplete(),
+    std::printf("V-2 6DOF FD gate: double_math_fail=%d trials_complete=%d trials_attempted=%d distinct_epochs=%zu distinct_landmarks=%zu\n",
+                lio->doubleMathFail() ? 1 : 0, lio->fdTrialsComplete(),
                 lio->fdTrialsAttempted(), lio->fdDistinctEpochs(),
                 lio->fdDistinctLandmarks());
     const char* dn[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
     for (int d = 0; d < 6; ++d) {
-      std::printf("V-2 FD %s: global_med_rel=%.6g max_abs_all=%.6g strong_n=%lld strong_max_rel=%.6g strong_med_rel=%.6g weak_n=%lld weak_max_abs=%.6g nonsmooth=%lld double_max_rel=%.6g\n",
-                  dn[d], lio->fdGlobalMedRel()[d], lio->fdMaxAbsAll()[d],
-                  (long long)lio->fdStrongCount()[d],
-                  lio->fdStrongMaxRel()[d], lio->fdStrongMedRel()[d],
-                  (long long)lio->fdWeakCount()[d],
-                  lio->fdWeakMaxAbs()[d], (long long)lio->fdNonSmooth()[d],
-                  lio->fdStrongMaxRelDouble()[d]);
+      std::printf("V-2 FLOAT FD %s: strong_n=%lld strong_max_rel=%.6g max_abs=%.6g weak_n=%lld\n",
+                  dn[d], (long long)lio->fdFloatStrongN()[d],
+                  lio->fdFloatMaxRel()[d], lio->fdFloatMaxAbs()[d],
+                  (long long)lio->fdFloatWeakN()[d]);
+      std::printf("V-2 DOUBLE FD %s: strong_n=%lld strong_max_rel=%.6g strong_med_rel=%.6g weak_n=%lld weak_max_abs=%.6g nonsmooth=%lld worst_rel=%.6g\n",
+                  dn[d], (long long)lio->fdDoubleStrongN()[d],
+                  lio->fdDoubleMaxRel()[d], lio->fdDoubleMedRel()[d],
+                  (long long)lio->fdDoubleWeakN()[d],
+                  lio->fdDoubleMaxAbs()[d],
+                  (long long)lio->fdDoubleNonSmooth()[d],
+                  lio->fdDoubleWorstRel()[d]);
     }
     if (lio->fdConvDone()) {
       std::printf("V-2 rz eps-convergence (frozen sample, max_rel): 1e-5=%.6g 1e-4=%.6g 1e-3=%.6g 1e-2=%.6g\n",
@@ -471,8 +475,8 @@ int main(int argc, char** argv) {
                 bytes / 1e6, (long long)slots, sizeof(VisualObservation),
                 (long long)lio->visualLandmarksCreated(), sizeof(VisualLandmark));
   }
-  if (g_lio_v2_enabled && lio->fdGateFail()) {
-    std::printf("[offline_node] FATAL: V-2 6DOF FD gate FAILED — hard gate.\n");
+  if (g_lio_v2_enabled && lio->doubleMathFail()) {
+    std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle FAILED.\n");
     return 1;
   }
   if (g_lio_v2_enabled && lio->fdDistinctEpochs() < 5) {

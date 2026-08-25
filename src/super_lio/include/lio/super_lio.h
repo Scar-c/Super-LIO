@@ -182,33 +182,38 @@ public:
   std::set<int64_t> fd_lmk_set_;
   int fd_trials_complete_ = 0;
   int fd_trials_attempted_ = 0;
-  std::array<std::vector<double>, 6> fd_rel_all_;    // global rel samples/dir
-  std::array<double, 6> fd_max_abs_all_{};           // all samples, abs error
-  std::array<int64_t, 6> fd_strong_count_{};         // |fd| >= 1e-3 (reported layer)
-  std::array<double, 6> fd_strong_max_rel_{};        // strong-layer max rel (float FD)
-  std::array<double, 6> fd_strong_med_rel_{};
-  std::array<double, 6> fd_strong_max_rel_double_{};  // §24 double-oracle max rel
-  std::array<double, 6> fd_strong_med_rel_double_{};
-  const std::array<double, 6>& fdStrongMaxRelDouble() const { return fd_strong_max_rel_double_; }
-  const std::array<double, 6>& fdStrongMedRelDouble() const { return fd_strong_med_rel_double_; }
-  std::array<int64_t, 6> fd_weak_count_{};           // |fd| < 1e-3 (reported layer)
-  std::array<double, 6> fd_weak_max_abs_{};          // weak-layer max abs
-  std::array<double, 6> fd_global_med_rel_{};        // global median per direction
-  std::array<int64_t, 6> fd_non_smooth_{};           // NON_SMOOTH_FD samples/dir
-  const std::array<int64_t, 6>& fdNonSmooth() const { return fd_non_smooth_; }
+  // Round 11D: independent float diagnostic and double mathematical oracle
+  std::array<double, 6> fd_float_max_rel_{};
+  std::array<double, 6> fd_float_max_abs_{};
+  std::array<int64_t, 6> fd_float_strong_n_{};
+  std::array<int64_t, 6> fd_float_weak_n_{};
+  std::array<double, 6> fd_double_max_rel_{};
+  std::array<double, 6> fd_double_max_abs_{};
+  std::array<double, 6> fd_double_med_rel_{};
+  std::array<int64_t, 6> fd_double_strong_n_{};
+  std::array<int64_t, 6> fd_double_weak_n_{};
+  std::array<int64_t, 6> fd_double_non_smooth_{};
+  std::array<double, 6> fd_double_worst_rel_{};
+  bool double_math_fail_ = false;
+  int fd_dbg_count_ = 0;
+  bool doubleMathFail() const { return double_math_fail_; }
+  const std::array<double, 6>& fdFloatMaxRel() const { return fd_float_max_rel_; }
+  const std::array<double, 6>& fdFloatMaxAbs() const { return fd_float_max_abs_; }
+  const std::array<int64_t, 6>& fdFloatStrongN() const { return fd_float_strong_n_; }
+  const std::array<int64_t, 6>& fdFloatWeakN() const { return fd_float_weak_n_; }
+  const std::array<double, 6>& fdDoubleMaxRel() const { return fd_double_max_rel_; }
+  const std::array<double, 6>& fdDoubleMaxAbs() const { return fd_double_max_abs_; }
+  const std::array<double, 6>& fdDoubleMedRel() const { return fd_double_med_rel_; }
+  const std::array<int64_t, 6>& fdDoubleStrongN() const { return fd_double_strong_n_; }
+  const std::array<int64_t, 6>& fdDoubleWeakN() const { return fd_double_weak_n_; }
+  const std::array<int64_t, 6>& fdDoubleNonSmooth() const { return fd_double_non_smooth_; }
+  const std::array<double, 6>& fdDoubleWorstRel() const { return fd_double_worst_rel_; }
   std::array<double, 4> fd_conv_rz_{};               // rz eps convergence (frozen sample)
   int fd_conv_done_ = 0;
   int fdTrialsComplete() const { return fd_trials_complete_; }
   int fdTrialsAttempted() const { return fd_trials_attempted_; }
   size_t fdDistinctEpochs() const { return fd_epoch_set_.size(); }
   size_t fdDistinctLandmarks() const { return fd_lmk_set_.size(); }
-  const std::array<double, 6>& fdGlobalMedRel() const { return fd_global_med_rel_; }
-  const std::array<double, 6>& fdMaxAbsAll() const { return fd_max_abs_all_; }
-  const std::array<int64_t, 6>& fdStrongCount() const { return fd_strong_count_; }
-  const std::array<double, 6>& fdStrongMaxRel() const { return fd_strong_max_rel_; }
-  const std::array<double, 6>& fdStrongMedRel() const { return fd_strong_med_rel_; }
-  const std::array<int64_t, 6>& fdWeakCount() const { return fd_weak_count_; }
-  const std::array<double, 6>& fdWeakMaxAbs() const { return fd_weak_max_abs_; }
   const std::array<double, 4>& fdConvRz() const { return fd_conv_rz_; }
   int fdConvDone() const { return fd_conv_done_; }
   // V-0C coverage per-epoch distributions
