@@ -1,0 +1,4 @@
+ M .scratch/super-livo-v1/issues/21-v0c-visual-frontend-corrective-before-mode-a.md
+ M prompts/README.md
+?? docs/super_livo/evidence/raw/round11j/
+?? prompts/04_v1_implementation/26_round11j_gatem_condition_aware_closure.md
