@@ -1,0 +1,6 @@
+pre-fix Gate-X FAIL evidence:
+Xc_A=(1.321953652,1.548332306,2.140713292)
+Xc_P(production-as-coded)=(1.626762772,1.997254548,1.186853274)
+||Xc_A-Xc_P|| ~= 1.1 m
+||Jp_A-Jp_P|| ~= 2.48
+Jtheta_A == Jtheta_correct; Jtheta_P differs strongly
