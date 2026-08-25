@@ -314,11 +314,29 @@ void SuperLIO::stateProcess(){
     prior.time = kf_->GetTime();
     prior.x = kf_->GetSysState();
     prior.P = kf_->GetCov();
+    const SE3 v4_pose_L(prior.x.R, prior.x.p);
+    BASIC::M6 h0 = BASIC::M6::Zero();
+    BASIC::V6 b0 = BASIC::V6::Zero();
+    runVisualResidual(v4_pose_L, h0, b0, false);
+    const double cost_init = last_visual_cost_;
     const auto v4_snap = kf_->UpdateObserveFromPrior(
         prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
           const SE3 pose = s.pose;
           runVisualResidual(pose, H, b, false);
         });
+    const SE3 v4_pose_V(v4_snap.x.R, v4_snap.x.p);
+    BASIC::M6 hf0 = BASIC::M6::Zero();
+    BASIC::V6 bf0 = BASIC::V6::Zero();
+    runVisualResidual(v4_pose_V, hf0, bf0, false);
+    const double cost_final = last_visual_cost_;
+    v4c_epochs_visual_++;
+    if (cost_final < cost_init) v4c_cost_improved_++;
+    v4c_photo_ratio_.push_back(cost_final / std::max(cost_init, 1e-30));
+    const double drot =
+        (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
+    const double dp = (v4_snap.x.p - prior.x.p).norm();
+    v4c_rot_norm_.push_back(drot);
+    v4c_trans_norm_.push_back(dp);
     v4_apply_count_++;
     const auto& Pv = v4_snap.P;
     if (!Pv.allFinite()) v4_cov_fail_count_++;
@@ -339,6 +357,12 @@ void SuperLIO::stateProcess(){
     time_record_.Evaluate([this]() { UpdateMap(); }, "UpdateMap");
   }else{
     UpdateMap();
+  }
+  // V-4C: post-solve lifecycle with final visual posterior state
+  if (g_lio_v4_apply && g_lio_camera_epoch && g_lio_v0_enabled) {
+    const auto xs = kf_->GetSysState();
+    const SE3 v4_pose(xs.R, xs.p);
+    runVisualLifecycle(v4_pose, false);
   }
   epoch_timings_.total_ms = NowMs() - t_epoch_start;
   // V-0C: the camera frame of this epoch is consumed only after the whole
@@ -684,7 +708,7 @@ void SuperLIO::Observe(){
           runG1VShadow(pose);
         }
         if(g_lio_v0_enabled){
-          runVisualLifecycle(pose);
+          runVisualLifecycle(pose, g_lio_v4_apply);
         }
         if(g_lio_v2_enabled && !g_lio_v4_apply){
           BASIC::M6 vh = BASIC::M6::Zero();
@@ -1299,7 +1323,17 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       // active slot makes the landmark ineligible for this solve
       if (lm.active_ref_slot >= kMaxObsPerLandmark ||
           !lm.observations[lm.active_ref_slot].valid) {
+        if (g_lio_v4_apply) v4c_current_created_used_count_++;
         continue;
+      }
+      if (g_lio_v4_apply) {
+        const CameraFrame* cf4 = data_wrapper_->cameraEpochFrame();
+        const int64_t cur_fid =
+            (cf4 && cf4->data && !cf4->data->empty()) ? cf4->sequence_id : -1;
+        if (cur_fid >= 0 &&
+            lm.observations[lm.active_ref_slot].frame_id >= cur_fid) {
+          v4c_same_frame_ref_count_++;
+        }
       }
       const VisualObservation* ref = &lm.observations[lm.active_ref_slot];
       const Eigen::Vector3d P_patch =
@@ -1405,6 +1439,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           std::chrono::high_resolution_clock::now() - vp_t_hb0).count();
       vp_photometric_landmarks_++;
       vp_photometric_samples_ += static_cast<int64_t>(M);
+      if (g_lio_v4_apply && M >= 2) {
+        double ss_dc = 0.0;
+        for (size_t kk = 0; kk < M; ++kk) ss_dc += rs[kk] * rs[kk];
+        v4c_eta_dc_.push_back((ss_dc / 100.0) / static_cast<double>(M - 1));
+      }
       accepted++;
       (void)sse_before;
       (void)sse_after;
@@ -2107,11 +2146,12 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       std::chrono::high_resolution_clock::now() - vp_t_total0).count();
   vp_total_us_ += vp_call_us;
   visual_epoch_lat_ms_.push_back(vp_call_us / 1000.0);
+  last_visual_cost_ = sum_before;
   visual_epoch_sensor_time_.push_back(measures_.lidar.end_time);
   return accepted;
 }
 
-void SuperLIO::runVisualLifecycle(const SE3& pose){
+void SuperLIO::runVisualLifecycle(const SE3& pose, bool pre_only){
   visual_frames_processed_++;
   const float sub_inv = 1.0f / (g_ivox_resolution * 0.5f);
   const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
@@ -2290,6 +2330,16 @@ void SuperLIO::runVisualLifecycle(const SE3& pose){
     }
   }
 
+  // V-4C: pre-solve mode builds the active landmark snapshot from existing
+  // landmarks only (pass 1+2 retrieval); creation/insertion/reselection
+  // are deferred to post-solve (pre_only=false).
+  if (pre_only) {
+    active_visual_landmarks_.clear();
+    for (int ci = 0; ci < n_cells; ++ci) {
+      if (cell_lm[ci].first >= 0) active_visual_landmarks_.push_back(cell_lm[ci]);
+    }
+    return;
+  }
   // ---- pass 3: create landmarks for selected unoccupied cells ----
   int64_t new_created = 0;
   for (int ci = 0; ci < n_cells; ++ci) {

@@ -287,6 +287,17 @@ public:
     omega_photo_ = 1.0 / v;
   }
   double omegaPhoto() const { return omega_photo_; }
+  int64_t v4cSameFrameRefCount() const { return v4c_same_frame_ref_count_; }
+  int64_t v4cCurrentCreatedUsedCount() const { return v4c_current_created_used_count_; }
+  int64_t v4cInsertedPreSolveCount() const { return v4c_inserted_pre_solve_count_; }
+  int64_t v4cLifecycleInSolveCount() const { return v4c_lifecycle_in_solve_count_; }
+  const std::vector<double>& v4cPhotoRatio() const { return v4c_photo_ratio_; }
+  const std::vector<double>& v4cEtaDc() const { return v4c_eta_dc_; }
+  const std::vector<double>& v4cRotNorm() const { return v4c_rot_norm_; }
+  const std::vector<double>& v4cTransNorm() const { return v4c_trans_norm_; }
+  int64_t v4cEpochsVisual() const { return v4c_epochs_visual_; }
+  int64_t v4cCostImproved() const { return v4c_cost_improved_; }
+  double lastVisualCost() const { return last_visual_cost_; }
   int64_t v4ApplyCount() const { return v4_apply_count_; }
   int64_t v4CovFailCount() const { return v4_cov_fail_count_; }
   double v4MaxSymRatio() const { return v4_max_sym_ratio_; }
@@ -437,7 +448,20 @@ protected:
   void runG1Shadow(const BASIC::SE3& pose);
   void runG2G3Shadow(const BASIC::SE3& pose);
   void runG1VShadow(const BASIC::SE3& pose);
-  void runVisualLifecycle(const BASIC::SE3& pose);
+  void runVisualLifecycle(const BASIC::SE3& pose, bool pre_only);
+  // V-4C same-frame / lifecycle hard counters
+  int64_t v4c_same_frame_ref_count_ = 0;
+  int64_t v4c_current_created_used_count_ = 0;
+  int64_t v4c_inserted_pre_solve_count_ = 0;
+  int64_t v4c_lifecycle_in_solve_count_ = 0;
+  // V-4C attribution diagnostics
+  std::vector<double> v4c_photo_ratio_;
+  std::vector<double> v4c_eta_dc_;
+  std::vector<double> v4c_rot_norm_;
+  std::vector<double> v4c_trans_norm_;
+  int64_t v4c_epochs_visual_ = 0;
+  double last_visual_cost_ = 0.0;
+  int64_t v4c_cost_improved_ = 0;
   // V-2/V-3: photometric residual + analytic 6-DOF Jacobian + streaming
   // equations. apply=false -> V-3 state-off (equations only).
   int runVisualResidual(const BASIC::SE3& pose, BASIC::M6& HTVH,

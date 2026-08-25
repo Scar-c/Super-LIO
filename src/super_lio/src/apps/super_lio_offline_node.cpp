@@ -526,6 +526,37 @@ int main(int argc, char** argv) {
     }
     std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
                 lio->hbWorstHRel(), lio->hbWorstBRel());
+    {
+      auto pct = [](std::vector<double> v, double p) {
+        if (v.empty()) return 0.0;
+        std::sort(v.begin(), v.end());
+        size_t i = static_cast<size_t>(p * (v.size() - 1));
+        return v[std::min(i, v.size() - 1)];
+      };
+      const auto& pr = lio->v4cPhotoRatio();
+      const auto& et = lio->v4cEtaDc();
+      const auto& rn = lio->v4cRotNorm();
+      const auto& tn = lio->v4cTransNorm();
+      std::printf("V-4C counters: same_frame_ref=%lld current_created_used=%lld inserted_pre=%lld lifecycle_in_solve=%lld\n",
+                  (long long)lio->v4cSameFrameRefCount(),
+                  (long long)lio->v4cCurrentCreatedUsedCount(),
+                  (long long)lio->v4cInsertedPreSolveCount(),
+                  (long long)lio->v4cLifecycleInSolveCount());
+      std::printf("V-4C photo ratio: epochs=%lld improved_frac=%.3f P10=%.3g P50=%.3g P90=%.3g P95=%.3g P99=%.3g\n",
+                  (long long)lio->v4cEpochsVisual(),
+                  lio->v4cEpochsVisual() > 0 ? (double)lio->v4cCostImproved() / lio->v4cEpochsVisual() : 0.0,
+                  pct(pr, 0.10), pct(pr, 0.50), pct(pr, 0.90), pct(pr, 0.95), pct(pr, 0.99));
+      std::printf("V-4C eta_dc: n=%zu P10=%.3g P25=%.3g P50=%.3g P75=%.3g P90=%.3g P95=%.3g P99=%.3g mean=%.3g\n",
+                  et.size(), pct(et, 0.10), pct(et, 0.25), pct(et, 0.50),
+                  pct(et, 0.75), pct(et, 0.90), pct(et, 0.95), pct(et, 0.99),
+                  et.empty() ? 0.0 : std::accumulate(et.begin(), et.end(), 0.0) / et.size());
+      std::printf("V-4C update norm rot(rad): n=%zu P10=%.3g P50=%.3g P90=%.3g P95=%.3g P99=%.3g max=%.3g\n",
+                  rn.size(), pct(rn, 0.10), pct(rn, 0.50), pct(rn, 0.90),
+                  pct(rn, 0.95), pct(rn, 0.99), rn.empty() ? 0.0 : *std::max_element(rn.begin(), rn.end()));
+      std::printf("V-4C update norm trans(m): n=%zu P10=%.3g P50=%.3g P90=%.3g P95=%.3g P99=%.3g max=%.3g\n",
+                  tn.size(), pct(tn, 0.10), pct(tn, 0.50), pct(tn, 0.90),
+                  pct(tn, 0.95), pct(tn, 0.99), tn.empty() ? 0.0 : *std::max_element(tn.begin(), tn.end()));
+    }
     std::printf("V-4 health: apply_count=%lld cov_fail=%lld max_sym_ratio=%.3g lam_min=%.6g lam_max=%.6g\n",
                 (long long)lio->v4ApplyCount(),
                 (long long)lio->v4CovFailCount(),

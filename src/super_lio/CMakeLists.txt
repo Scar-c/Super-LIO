@@ -179,6 +179,21 @@ target_link_libraries(v2_jacobian_test
   glog
 )
 
+# V-4C synthetic sequential-update tests (no ROS dependency)
+add_executable(v4c_test
+  src/lio/tests/test_v4c.cpp
+  src/lio/ESKF.cpp
+  src/lio/params.cpp
+)
+target_include_directories(v4c_test PUBLIC include)
+target_link_libraries(v4c_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+  gflags
+  glog
+)
+
 # S-1 sequential-prior ESKF tests (no ROS dependency)
 add_executable(s1_prior_test
   src/lio/tests/test_s1_prior.cpp
