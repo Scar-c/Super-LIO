@@ -1,0 +1,8 @@
+V-2 6DOF FD gate: double_math_fail=1 trials_attempted=2611 structurally_complete=2611 all6_smooth=2475 with_nonsmooth=136 distinct_epochs=13 distinct_landmarks=443
+V-2 GATE-M rx: strong_n=149634 weak_n=40 max_rel=0.000459467 med_rel=5.32023e-09 max_abs=0.000131404
+V-2 GATE-M ry: strong_n=149061 weak_n=40 max_rel=0.0182576 med_rel=4.77427e-09 max_abs=0.000227887
+V-2 GATE-M rz: strong_n=146572 weak_n=40 max_rel=0.000226567 med_rel=6.99521e-09 max_abs=0.000292603
+V-2 GATE-M tx: strong_n=151784 weak_n=44 max_rel=9.40686e-05 med_rel=1.72331e-09 max_abs=7.09148e-06
+V-2 GATE-M ty: strong_n=151403 weak_n=40 max_rel=0.000424409 med_rel=1.03174e-09 max_abs=6.03371e-06
+V-2 GATE-M tz: strong_n=151386 weak_n=40 max_rel=0.00023663 med_rel=6.04887e-10 max_abs=6.2202e-06
+[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.

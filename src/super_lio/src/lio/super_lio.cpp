@@ -1590,92 +1590,135 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                              << " Xc=(" << Xcw.x() << "," << Xcw.y() << "," << Xcw.z() << ")"
                              << " Js=" << Js[k].transpose()
                              << " Jmean=" << Jmean.transpose();
-                  // §16 five-level decomposition (analytic vs double FD) on
-                  // this frozen smooth-bundle worst sample
+                  // Round 11I: cancellation-conditioned sweep on the frozen
+                  // worst sample (formal Gate M eps remains 1e-6; diagnostic
+                  // sweep 3e-6..1e-8; analytic once, FD per eps)
                   {
+                    static bool csv_header = false;
+                    FILE* csv = fopen("/tmp/opencode/tb0/epsilon_sweep.csv", "a");
+                    if (csv && !csv_header) {
+                      fprintf(csv, "eps,smooth,support_same,cells_same,L1_abs,L1_rel,du_abs,du_rel,dv_abs,dv_rel,Jraw_an,Jraw_fd,Jraw_abs,Jraw_rel,Iu,Iv,Jmean_an,Jmean_fd,Jmean_abs,Jmean_rel,Jdc_an,Jdc_fd,Jdc_abs,Jdc_rel,Jdc_fd_closure,dc_closure_abs,kappa_an,kappa_fd,e_raw,e_mean,e_dc,e_raw_plus_e_mean\n");
+                      csv_header = true;
+                    }
                     const double uu2 = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
                     const double vv2 = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
-                    const Eigen::Vector3d rayw((uu2 - cx) / fx, (vv2 - cy) / fy, 1.0);
-                    const Eigen::Vector3d dirw = R_ref * rayw;
-                    const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
-                    const Eigen::Vector3d Xw = t_ref + sw * dirw;
-                    const Eigen::Vector3d Xc0 = Xw_to_Xc(Xw, R_cur, t_cur);
-                    // Level1: dXc/dxi analytic vs FD
-                    Eigen::Matrix<double, 3, 6> dXc_dxi;
-                    dXc_dxi.setZero();
-                    dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
-                    const Eigen::Vector3d X_B = R_cur.transpose() * (Xw - t_cur);
-                    const Eigen::Vector3d Xc_m_t = R_CB * X_B;
-                    Eigen::Matrix3d Xct_skew;
-                    Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(), -Xc_m_t.y(), Xc_m_t.x(), 0.0;
-                    dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
-                    // FD Xc: perturb current body pose only (reference frozen)
-                    Eigen::Matrix3d Rpp3 = Rb0, Rpm3 = Rb0;
-                    Eigen::Vector3d tpp3 = tb0, tpm3 = tb0;
-                    if (d < 3) {
-                      const Eigen::Matrix3d Rm3 = Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
-                      Rpp3 = Rb0 * Rm3; Rpm3 = Rb0 * Rm3.transpose();
-                    } else { tpp3[d - 3] += eps_d; tpm3[d - 3] -= eps_d; }
-                    const Eigen::Vector3d Xcp = Xw_to_Xc(Xw, Rpp3, tpp3);
-                    const Eigen::Vector3d Xcm = Xw_to_Xc(Xw, Rpm3, tpm3);
-                    const Eigen::Vector3d Xc_fd = (Xcp - Xcm) / (2.0 * eps_d);
-                    const Eigen::Vector3d Xc_an = dXc_dxi.col(d);
-                    LOG(ERROR) << "V-2 L1 Xc an=(" << Xc_an.x() << "," << Xc_an.y() << "," << Xc_an.z()
-                               << ") fd=(" << Xc_fd.x() << "," << Xc_fd.y() << "," << Xc_fd.z() << ")";
-                    // Level2: du/dv analytic vs FD
-                    const double zz = Xc0.z();
-                    Eigen::Matrix<double, 2, 3> du_dXc;
-                    du_dXc << fx / zz, 0.0, -fx * Xc0.x() / (zz * zz),
-                              0.0, fy / zz, -fy * Xc0.y() / (zz * zz);
-                    const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
-                    const double uap = fx * Xcp.x() / Xcp.z() + cx, uam = fx * Xcm.x() / Xcm.z() + cx;
-                    const double vap = fy * Xcp.y() / Xcp.z() + cy, vam = fy * Xcm.y() / Xcm.z() + cy;
-                    LOG(ERROR) << "V-2 L2 uv an=(" << du_dxi(0, d) << "," << du_dxi(1, d)
-                               << ") fd=(" << (uap - uam) / (2.0 * eps_d) << "," << (vap - vam) / (2.0 * eps_d) << ")";
-                    // Level3: raw intensity derivative
-                    const double Iu_k = grad_u[k], Iv_k = grad_v[k];
-                    const double raw_an = Iu_k * du_dxi(0, d) + Iv_k * du_dxi(1, d);
-                    const double raw_fd = ((pd_[k].ic) - (md_[k].ic)) / (2.0 * eps_d);
-                    LOG(ERROR) << "V-2 L3 raw an=" << raw_an << " fd=" << raw_fd
-                               << " Iu=" << Iu_k << " Iv=" << Iv_k;
-                    // Level4: mean derivative
-                    double Jmean_sum = 0.0;
+                    const Eigen::Vector3d rayw2((uu2 - cx) / fx, (vv2 - cy) / fy, 1.0);
+                    const Eigen::Vector3d dirw2 = R_ref * rayw2;
+                    const double sw2 = n_sync.dot(P_patch - t_ref) / dirw2.dot(n_sync);
+                    const Eigen::Vector3d Xw2 = t_ref + sw2 * dirw2;
+                    const Eigen::Vector3d Xc02 = Xw_to_Xc(Xw2, R_cur, t_cur);
+                    Eigen::Matrix<double, 3, 6> dXc2;
+                    dXc2.setZero();
+                    dXc2.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
+                    const Eigen::Vector3d Xb2 = R_cur.transpose() * (Xw2 - t_cur);
+                    const Eigen::Vector3d Xmt2 = R_CB * Xb2;
+                    Eigen::Matrix3d sk2;
+                    sk2 << 0.0, -Xmt2.z(), Xmt2.y(), Xmt2.z(), 0.0, -Xmt2.x(),
+                        -Xmt2.y(), Xmt2.x(), 0.0;
+                    dXc2.block<3, 3>(0, 0) = sk2 * R_CB;
+                    const double zz2 = Xc02.z();
+                    Eigen::Matrix<double, 2, 3> dudXc2;
+                    dudXc2 << fx / zz2, 0.0, -fx * Xc02.x() / (zz2 * zz2),
+                              0.0, fy / zz2, -fy * Xc02.y() / (zz2 * zz2);
+                    const Eigen::Matrix<double, 2, 6> dudx2 = dudXc2 * dXc2;
+                    const double du_an = dudx2(0, d), dv_an = dudx2(1, d);
+                    const double Iu2 = grad_u[k], Iv2 = grad_v[k];
+                    const double raw_an = Iu2 * du_an + Iv2 * dv_an;
+                    double mean_an = 0.0;
                     for (size_t jj = 0; jj < ref_idx.size(); ++jj) {
                       if (!base_f[jj].valid) continue;
-                      Jmean_sum += (Js[jj] - Jmean)(d) + Jmean(d);
+                      mean_an += Js[jj](d);
                     }
-                    const double Jmean_d = Jmean_sum / static_cast<double>(M);
-                    const double mean_fd = (mean_pd - mean_md) / (2.0 * eps_d);
-                    LOG(ERROR) << "V-2 L4 mean an=" << Jmean_d << " fd=" << mean_fd;
-                    // Level5: DC
+                    mean_an /= static_cast<double>(M);
                     const double dc_an = (Js[k] - Jmean)(d);
-                    const double dc_fd = ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
-                    LOG(ERROR) << "V-2 L5 DC an=" << dc_an << " fd=" << dc_fd;
-                  }
-                  // §8 epsilon-convergence on this frozen sample/direction
-                  const double ees[7] = {1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6};
-                  const double an_k = (Js[k] - Jmean)(d);
-                  for (int ei = 0; ei < 7; ++ei) {
-                    const double ee = ees[ei];
-                    Eigen::Matrix3d Rpp2 = Rb0, Rpm2 = Rb0;
-                    Eigen::Vector3d tpp2 = tb0, tpm2 = tb0;
-                    if (d < 3) {
-                      const Eigen::Matrix3d Rm2 =
-                          Eigen::AngleAxisd(ee, Eigen::Vector3d::Unit(d)).toRotationMatrix();
-                      Rpp2 = Rb0 * Rm2; Rpm2 = Rb0 * Rm2.transpose();
-                    } else { tpp2[d - 3] += ee; tpm2[d - 3] -= ee; }
-                    std::vector<Ev> p2, m2;
-                    eval_d(Rpp2, tpp2, p2); eval_d(Rpm2, tpm2, m2);
-                    double fde = 0.0; bool ok = false;
-                    if (p2[k].valid && m2[k].valid) {
-                      const double mp = mean_ic(p2), mm = mean_ic(m2);
-                      fde = ((p2[k].ic - mp) - (m2[k].ic - mm)) / (2.0 * ee);
-                      ok = true;
+                    const double kappa_an =
+                        (std::abs(raw_an) + std::abs(mean_an)) / std::max(1e-30, std::abs(dc_an));
+                    const double ees[6] = {3e-6, 1e-6, 3e-7, 1e-7, 3e-8, 1e-8};
+                    for (int ei = 0; ei < 6; ++ei) {
+                      const double ee = ees[ei];
+                      Eigen::Matrix3d Rpp3 = Rb0, Rpm3 = Rb0;
+                      Eigen::Vector3d tpp3 = tb0, tpm3 = tb0;
+                      if (d < 3) {
+                        const Eigen::Matrix3d Rm3 =
+                            Eigen::AngleAxisd(ee, Eigen::Vector3d::Unit(d)).toRotationMatrix();
+                        Rpp3 = Rb0 * Rm3; Rpm3 = Rb0 * Rm3.transpose();
+                      } else { tpp3[d - 3] += ee; tpm3[d - 3] -= ee; }
+                      std::vector<Ev> pd3, md3;
+                      eval_d(Rpp3, tpp3, pd3); eval_d(Rpm3, tpm3, md3);
+                      bool smooth = true; std::string cls = "SMOOTH";
+                      for (size_t jj = 0; jj < ref_idx.size() && smooth; ++jj) {
+                        const bool bv = base_d[jj].valid;
+                        if (bv != pd3[jj].valid || bv != md3[jj].valid) {
+                          smooth = false; cls = "NON_SMOOTH_SUPPORT"; break;
+                        }
+                        if (bv) {
+                          if (std::floor(base_d[jj].u) != std::floor(pd3[jj].u) ||
+                              std::floor(base_d[jj].v) != std::floor(pd3[jj].v) ||
+                              std::floor(base_d[jj].u) != std::floor(md3[jj].u) ||
+                              std::floor(base_d[jj].v) != std::floor(md3[jj].v)) {
+                            smooth = false; cls = "NON_SMOOTH_CELL"; break;
+                          }
+                        }
+                      }
+                      const int support_same = (cls == "SMOOTH") ? 1 : 0;
+                      const int cells_same = (cls == "SMOOTH") ? 1 : 0;
+                      const Eigen::Vector3d Xcp3 = Xw_to_Xc(Xw2, Rpp3, tpp3);
+                      const Eigen::Vector3d Xcm3 = Xw_to_Xc(Xw2, Rpm3, tpm3);
+                      const Eigen::Vector3d Xcf = (Xcp3 - Xcm3) / (2.0 * ee);
+                      const double l1_abs = (dXc2.col(d) - Xcf).norm();
+                      const double l1_rel = l1_abs / std::max(1e-30, Xcf.norm());
+                      const double up = fx * Xcp3.x() / Xcp3.z() + cx;
+                      const double um = fx * Xcm3.x() / Xcm3.z() + cx;
+                      const double vp = fy * Xcp3.y() / Xcp3.z() + cy;
+                      const double vm = fy * Xcm3.y() / Xcm3.z() + cy;
+                      const double du_fd = (up - um) / (2.0 * ee);
+                      const double dv_fd = (vp - vm) / (2.0 * ee);
+                      const double du_abs = std::abs(du_an - du_fd);
+                      const double du_rel = du_abs / std::max(1e-30, std::abs(du_fd));
+                      const double dv_abs = std::abs(dv_an - dv_fd);
+                      const double dv_rel = dv_abs / std::max(1e-30, std::abs(dv_fd));
+                      const bool pk = pd3[k].valid && md3[k].valid;
+                      const double raw_fd = pk ? (pd3[k].ic - md3[k].ic) / (2.0 * ee) : 0.0;
+                      const double e_raw = std::abs(raw_an - raw_fd);
+                      double mp = 0.0, mm = 0.0; int mn = 0;
+                      for (size_t jj = 0; jj < ref_idx.size(); ++jj) {
+                        if (base_f[jj].valid) { mp += pd3[jj].ic; mm += md3[jj].ic; mn++; }
+                      }
+                      const double mean_pd3 = mp / std::max(1, mn);
+                      const double mean_md3 = mm / std::max(1, mn);
+                      const double mean_fd = (mean_pd3 - mean_md3) / (2.0 * ee);
+                      const double e_mean = std::abs(mean_an - mean_fd);
+                      const double Jraw_rel = e_raw / std::max(1e-30, std::abs(raw_fd));
+                      const double Jmean_rel = e_mean / std::max(1e-30, std::abs(mean_fd));
+                      const double dc_fd = pk ? ((pd3[k].ic - mean_pd3) - (md3[k].ic - mean_md3)) / (2.0 * ee) : 0.0;
+                      const double dc_fd_closure = raw_fd - mean_fd;
+                      const double dc_closure_abs = std::abs(dc_fd - dc_fd_closure);
+                      const double e_dc = std::abs(dc_an - dc_fd);
+                      const double kappa_fd =
+                          (std::abs(raw_fd) + std::abs(mean_fd)) / std::max(1e-30, std::abs(dc_fd));
+                      const double e_raw_p_mean = e_raw + e_mean;
+                      if (csv) {
+                        fprintf(csv, "%.3g,%s,%d,%d,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g\n",
+                                ee, cls.c_str(), support_same, cells_same,
+                                l1_abs, l1_rel, du_abs, du_rel, dv_abs, dv_rel,
+                                raw_an, raw_fd, e_raw, Jraw_rel, Iu2, Iv2,
+                                mean_an, mean_fd, e_mean, Jmean_rel,
+                                dc_an, dc_fd, e_dc, std::abs(e_dc) / std::max(1e-30, std::abs(dc_fd)),
+                                dc_fd_closure, dc_closure_abs, kappa_an, kappa_fd,
+                                e_raw, e_mean, e_dc, e_raw_p_mean);
+                      }
+                      LOG(ERROR) << "V-2I eps=" << ee << " cls=" << cls
+                                 << " L1_rel=" << l1_rel
+                                 << " du_an=" << du_an << " du_fd=" << du_fd << " du_abs=" << du_abs
+                                 << " dv_an=" << dv_an << " dv_fd=" << dv_fd
+                                 << " raw_an=" << raw_an << " raw_fd=" << raw_fd
+                                 << " mean_an=" << mean_an << " mean_fd=" << mean_fd
+                                 << " dc_an=" << dc_an << " dc_fd=" << dc_fd
+                                 << " closure_abs=" << dc_closure_abs
+                                 << " kappa_fd=" << kappa_fd
+                                 << " e_raw=" << e_raw << " e_mean=" << e_mean << " e_dc=" << e_dc;
                     }
-                    const double re_e = ok ? std::abs(fde - an_k) / std::max(1e-12, std::abs(fde)) : -1.0;
-                    LOG(ERROR) << "V-2 CONV eps=" << ee << " fd=" << fde
-                               << " an=" << an_k << " rel=" << re_e
-                               << " ok=" << (ok ? 1 : 0);
+                    if (csv) fclose(csv);
                   }
                   break;
                 }
