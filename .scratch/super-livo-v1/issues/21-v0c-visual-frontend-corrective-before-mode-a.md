@@ -1,6 +1,6 @@
 # 21: [Super-LIVO v1][V-0C] Repair visual frontend before MODE-A
 
-**Status:** ACTIVE（Round 11H owner contract；Gate X extrinsic corrective）；历史：Round11G 29c28ea
+**Status:** ACTIVE（Round 11I owner contract；Gate M cancellation oracle audit）；历史：Round11H 213cac0
 
 ## Parent
 
