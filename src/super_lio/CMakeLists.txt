@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11G extrinsic/rotation convention parity tests
+add_executable(extrinsic_parity_test
+  src/geometry/tests/test_extrinsic_parity.cpp
+)
+target_include_directories(extrinsic_parity_test PUBLIC include)
+target_link_libraries(extrinsic_parity_test
+  Eigen3::Eigen
+)
+
 # FD harness pure-logic tests (bundle smoothness + quota state)
 add_executable(fd_harness_test
   src/geometry/tests/test_fd_harness.cpp
