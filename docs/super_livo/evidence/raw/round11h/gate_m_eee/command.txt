@@ -1,0 +1,2 @@
+RUN:
+  ./devel/.private/super_lio/lib/super_lio/super_lio_offline_node

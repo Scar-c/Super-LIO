@@ -1063,11 +1063,18 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   if (!calib.valid) return 0;
   const int W = frame->width, H = frame->height;
   const std::vector<uint8_t>& img = *frame->data;
-  const Eigen::Matrix4d T_cb = calib.T_cam_body();
-  // camera world pose from body pose: R_cam = R_body * R_bc, t_cam = t_body + R_body * t_bc
-  const Eigen::Matrix3d R_bc = T_cb.block<3, 3>(0, 0).cast<double>();
-  const Eigen::Vector3d t_bc = T_cb.block<3, 1>(0, 3).cast<double>();
+  const Eigen::Matrix4d T_cb = calib.T_cam_body();  // T_CB: Body->Camera
+  const Eigen::Matrix3d R_CB = T_cb.block<3, 3>(0, 0).cast<double>();
+  const Eigen::Vector3d t_CB = T_cb.block<3, 1>(0, 3).cast<double>();
+  // T_BC = T_CB^-1 (Camera->Body) for reference camera-pose composition
+  const Eigen::Matrix3d R_BC = R_CB.transpose();
+  const Eigen::Vector3d t_BC = -R_CB.transpose() * t_CB;
   const double fx = calib.fx, fy = calib.fy, cx = calib.cx, cy = calib.cy;
+  // X_C = R_CB * R_WB^T (X_W - p_WB) + t_CB  (direct, canonical)
+  auto Xw_to_Xc = [&](const Eigen::Vector3d& X, const Eigen::Matrix3d& Rwb,
+                      const Eigen::Vector3d& pwb) {
+    return R_CB * (Rwb.transpose() * (X - pwb)) + t_CB;
+  };
 
   int accepted = 0;
   int64_t samples_total = 0;
@@ -1094,17 +1101,16 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
       const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
 
-      // ref camera pose = stored body pose + extrinsic (R_bc / t_bc)
+      // ref camera world pose: T_WC = T_WB * T_BC (T_BC = T_CB^-1)
       const Eigen::Matrix3d R_body_ref = ref->cam_q.toRotationMatrix().cast<double>();
-      const Eigen::Matrix3d R_ref = R_body_ref * R_bc;
+      const Eigen::Matrix3d R_ref = R_body_ref * R_BC;
       const Eigen::Vector3d t_ref =
-          ref->cam_pos.cast<double>() + R_body_ref * t_bc;
+          ref->cam_pos.cast<double>() + R_body_ref * t_BC;
 
       // current camera pose (body pose + extrinsic)
-      const Eigen::Vector3d t_cur =
-          pose.t_.cast<double>() + pose.R_.cast<double>() * t_bc;
-      const Eigen::Matrix3d R_cur =
-          pose.R_.cast<double>() * R_bc;
+      // current point transform uses the direct T_CB form (no T_WC)
+      const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+      const Eigen::Vector3d t_cur = pose.t_.cast<double>();
 
       // warp the 8x8 patch: for each sample pixel, ray from ref camera
       // through the pixel, intersect patch plane (P_patch, n_sync), then
@@ -1134,8 +1140,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           const double s = n_sync.dot(P_patch - t_ref) / denom;
           if (s <= 1e-4) continue;
           const Eigen::Vector3d X = t_ref + s * dir_w;
-          // project into current camera
-          const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+          // project into current camera (direct T_CB)
+          const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
           if (Xc.z() <= 0.05) continue;
           const double u2 = fx * Xc.x() / Xc.z() + cx;
           const double v2 = fy * Xc.y() / Xc.z() + cy;
@@ -1189,7 +1195,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         const double denom = n_sync.dot(dir_w);
         const double s = n_sync.dot(P_patch - t_ref) / denom;
         const Eigen::Vector3d X = t_ref + s * dir_w;
-        const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+        const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
         // projection Jacobian du/dXc (camera frame):
         const double z = Xc.z();
         // du/dXc = [fx/z, 0, -fx*Xc.x/z^2]; dv/dXc = [0, fy/z, -fy*Xc.y/z^2]
@@ -1198,19 +1204,18 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         //   t -> t + delta_p
         //   dXc/dtheta = [Xc]x ; dXc/dp = -Rc^T
         Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
-        dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();  // = -R_bc^T R_body^T
+        // dXc/dp = -R_CB * R_WB^T
+        dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
         // build skew of Xc
         Eigen::Matrix3d Xc_skew;
         Xc_skew << 0.0, -Xc.z(), Xc.y(), Xc.z(), 0.0, -Xc.x(), -Xc.y(), Xc.x(), 0.0;
-        // body-frame right-perturbation with extrinsic: R' = R_body exp(dth)
-        // Xc = R_bc^T R_body^T (X - t) - R_bc^T t_bc
-        // dXc/dth = [Xc + R_bc^T t_bc]x R_bc^T  (reduces to [Xc]x when
-        // R_bc=I, t_bc=0)
-        const Eigen::Vector3d Xc_t = Xc + R_bc.transpose() * t_bc;
+        // dXc/dth = [X_C - t_CB]x R_CB = [R_CB X_B]x R_CB  (right perturbation)
+        const Eigen::Vector3d X_B = R_cur.transpose() * (X - t_cur);
+        const Eigen::Vector3d Xc_m_t = R_CB * X_B;
         Eigen::Matrix3d Xct_skew;
-        Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(),
-            -Xc_t.y(), Xc_t.x(), 0.0;
-        dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
+        Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(),
+            -Xc_m_t.y(), Xc_m_t.x(), 0.0;
+        dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
 
         Eigen::Matrix<double, 2, 3> du_dXc;
         du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
@@ -1253,8 +1258,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         // evaluate one pose (float chain) with the production valid domain
         auto eval_f = [&](const SE3& p, std::vector<Ev>& out) {
           out.assign(ref_idx.size(), Ev());
-          const Eigen::Matrix3d Rc = p.R_.cast<double>() * R_bc;
-          const Eigen::Vector3d tc = p.t_.cast<double>() + p.R_.cast<double>() * t_bc;
+          const Eigen::Matrix3d Rc = p.R_.cast<double>();
+          const Eigen::Vector3d tc = p.t_.cast<double>();
           for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
             const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
             const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
@@ -1265,7 +1270,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             const double s = n_sync.dot(P_patch - t_ref) / denom;
             if (s <= 1e-4) continue;
             const Eigen::Vector3d X = t_ref + s * dir_w;
-            const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
+            const Eigen::Vector3d Xc = Xw_to_Xc(X, Rc, tc);
             if (Xc.z() <= 0.05) continue;           // H3: production z
             const double u2 = fx * Xc.x() / Xc.z() + cx;
             const double v2 = fy * Xc.y() / Xc.z() + cy;
@@ -1281,8 +1286,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         auto eval_d = [&](const Eigen::Matrix3d& Rb, const Eigen::Vector3d& tb,
                           std::vector<Ev>& out) {
           out.assign(ref_idx.size(), Ev());
-          const Eigen::Matrix3d Rc = Rb * R_bc;
-          const Eigen::Vector3d tc = tb + Rb * t_bc;
+          const Eigen::Matrix3d Rc = Rb;
+          const Eigen::Vector3d tc = tb;
           for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
             const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
             const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
@@ -1293,7 +1298,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             const double s = n_sync.dot(P_patch - t_ref) / denom;
             if (s <= 1e-4) continue;
             const Eigen::Vector3d X = t_ref + s * dir_w;
-            const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
+            const Eigen::Vector3d Xc = Xw_to_Xc(X, Rc, tc);
             if (Xc.z() <= 0.05) continue;
             const double u2 = fx * Xc.x() / Xc.z() + cx;
             const double v2 = fy * Xc.y() / Xc.z() + cy;
@@ -1331,7 +1336,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           const double s = n_sync.dot(P_patch - t_ref) / denom;
           if (s <= 1e-4) return false;
           const Eigen::Vector3d X = t_ref + s * dir_w;
-          const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+          const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
           if (Xc.z() <= 0.05) return false;
           const double u2 = fx * Xc.x() / Xc.z() + cx;
           const double v2 = fy * Xc.y() / Xc.z() + cy;
@@ -1343,12 +1348,13 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
                     0.0, fy / z, -fy * Xc.y() / (z * z);
           Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
-          dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
-          const Eigen::Vector3d Xc_t = Xc + R_bc.transpose() * t_bc;
+          dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
+          const Eigen::Vector3d X_B = R_cur.transpose() * (X - t_cur);
+          const Eigen::Vector3d Xc_m_t = R_CB * X_B;
           Eigen::Matrix3d Xct_skew;
-          Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(),
-              -Xc_t.y(), Xc_t.x(), 0.0;
-          dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
+          Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(),
+              -Xc_m_t.y(), Xc_m_t.x(), 0.0;
+          dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
           const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
           Jraw_out = bs.du * du_dxi(0, 0) * 0.0;  // placeholder; filled below
           Eigen::Matrix<double, 6, 1> Jraw;
@@ -1528,7 +1534,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 const Eigen::Vector3d dirw = R_ref * rayw;
                 const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
                 const Eigen::Vector3d Xw = t_ref + sw * dirw;
-                const Eigen::Vector3d Xcw = R_cur.transpose() * (Xw - t_cur);
+                const Eigen::Vector3d Xcw = Xw_to_Xc(Xw, R_cur, t_cur);
                 wd_xc0 = Xcw.x(); wd_xc1 = Xcw.y(); wd_xc2 = Xcw.z();
               }
             } else { double_weak_n++; }
@@ -1575,7 +1581,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                   const Eigen::Vector3d dirw = R_ref * rayw;
                   const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
                   const Eigen::Vector3d Xw = t_ref + sw * dirw;
-                  const Eigen::Vector3d Xcw = R_cur.transpose() * (Xw - t_cur);
+                  const Eigen::Vector3d Xcw = Xw_to_Xc(Xw, R_cur, t_cur);
                   LOG(ERROR) << "V-2 DBG d=" << d << " k=" << k
                              << " ic0=" << base_d[k].ic
                              << " icp=" << pd_[k].ic << " icm=" << md_[k].ic
@@ -1593,26 +1599,25 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                     const Eigen::Vector3d dirw = R_ref * rayw;
                     const double sw = n_sync.dot(P_patch - t_ref) / dirw.dot(n_sync);
                     const Eigen::Vector3d Xw = t_ref + sw * dirw;
-                    const Eigen::Vector3d Xc0 = R_cur.transpose() * (Xw - t_cur);
+                    const Eigen::Vector3d Xc0 = Xw_to_Xc(Xw, R_cur, t_cur);
                     // Level1: dXc/dxi analytic vs FD
                     Eigen::Matrix<double, 3, 6> dXc_dxi;
                     dXc_dxi.setZero();
-                    dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
-                    const Eigen::Vector3d Xc_t = Xc0 + R_bc.transpose() * t_bc;
+                    dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
+                    const Eigen::Vector3d X_B = R_cur.transpose() * (Xw - t_cur);
+                    const Eigen::Vector3d Xc_m_t = R_CB * X_B;
                     Eigen::Matrix3d Xct_skew;
-                    Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(), -Xc_t.y(), Xc_t.x(), 0.0;
-                    dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
-                    // FD Xc: perturb pose, recompute Xc via eval? -> recompute directly
+                    Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(), -Xc_m_t.y(), Xc_m_t.x(), 0.0;
+                    dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
+                    // FD Xc: perturb current body pose only (reference frozen)
                     Eigen::Matrix3d Rpp3 = Rb0, Rpm3 = Rb0;
                     Eigen::Vector3d tpp3 = tb0, tpm3 = tb0;
                     if (d < 3) {
                       const Eigen::Matrix3d Rm3 = Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
                       Rpp3 = Rb0 * Rm3; Rpm3 = Rb0 * Rm3.transpose();
                     } else { tpp3[d - 3] += eps_d; tpm3[d - 3] -= eps_d; }
-                    const Eigen::Matrix3d Rcp = Rpp3 * R_bc, Rcm = Rpm3 * R_bc;
-                    const Eigen::Vector3d tcp = tpp3 + Rpp3 * t_bc, tcm = tpm3 + Rpm3 * t_bc;
-                    const Eigen::Vector3d Xcp = Rcp.transpose() * (Xw - tcp);
-                    const Eigen::Vector3d Xcm = Rcm.transpose() * (Xw - tcm);
+                    const Eigen::Vector3d Xcp = Xw_to_Xc(Xw, Rpp3, tpp3);
+                    const Eigen::Vector3d Xcm = Xw_to_Xc(Xw, Rpm3, tpm3);
                     const Eigen::Vector3d Xc_fd = (Xcp - Xcm) / (2.0 * eps_d);
                     const Eigen::Vector3d Xc_an = dXc_dxi.col(d);
                     LOG(ERROR) << "V-2 L1 Xc an=(" << Xc_an.x() << "," << Xc_an.y() << "," << Xc_an.z()

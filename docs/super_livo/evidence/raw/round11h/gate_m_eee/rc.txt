@@ -1,0 +1,2 @@
+rc=1 (FATAL Gate M FAIL)
+command: /tmp/opencode/tb0/dbg_v0c.sh (30s slice, camera-epoch ON, v0+v2 ON)
