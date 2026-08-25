@@ -1,6 +1,7 @@
 
 #include "geometry/BilinearSample.h"
 #include "geometry/FDHarness.h"
+#include "geometry/GateClassifier.h"
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
@@ -1492,6 +1493,42 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 double_math_strong_n_[d]++;
                 double_math_max_rel_[d] = std::max(double_math_max_rel_[d], re_m);
                 double_math_med_vals_[d].push_back(re_m);
+                // Round 11J condition-aware Gate M (frozen R/C branches)
+                GateSample gs;
+                gs.Jraw_A = Bjraw[k](d);
+                gs.Jraw_C = (pd_[k].ic - md_[k].ic) / (2.0 * eps_d);
+                gs.Jmean_A = Bjmean(d);
+                gs.Jmean_C = (mean_pd - mean_md) / (2.0 * eps_d);
+                gs.Jdc_A = b_dc;
+                gs.Jdc_C = fdd;
+                gs.closure_abs = std::abs(fdd - (gs.Jraw_C - gs.Jmean_C));
+                const double kk = gs.kappa();
+                double_math_max_kappa_[d] = std::max(double_math_max_kappa_[d], kk);
+                if (!gs.conditioned()) {
+                  double_math_regular_n_[d]++;
+                  double_math_regular_max_dc_rel_[d] =
+                      std::max(double_math_regular_max_dc_rel_[d], gs.dcRel());
+                  if (gs.classify() != "") {
+                    double_math_regular_fail_n_[d]++;
+                    math_gate_fail_ = true;
+                  }
+                } else {
+                  double_math_conditioned_n_[d]++;
+                  double_math_cond_max_raw_rel_[d] =
+                      std::max(double_math_cond_max_raw_rel_[d], gs.rawRel());
+                  double_math_cond_max_mean_rel_[d] =
+                      std::max(double_math_cond_max_mean_rel_[d], gs.meanRel());
+                  double_math_cond_max_closure_abs_[d] =
+                      std::max(double_math_cond_max_closure_abs_[d], gs.closure_abs);
+                  double_math_cond_max_prop_excess_[d] =
+                      std::max(double_math_cond_max_prop_excess_[d], gs.propExcess());
+                  double_math_cond_max_source_rel_[d] =
+                      std::max(double_math_cond_max_source_rel_[d], gs.sourceRel());
+                  if (gs.classify() != "") {
+                    double_math_conditioned_fail_n_[d]++;
+                    math_gate_fail_ = true;
+                  }
+                }
               } else {
                 double_math_weak_n_[d]++;
               }
@@ -1561,7 +1598,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                        << " worst_rel=" << wd_rel << " fd=" << wd_fd
                        << " an=" << wd_an << " Xc=(" << wd_xc0 << ","
                        << wd_xc1 << "," << wd_xc2 << ")";
-            double_math_fail_ = true;
+            // Round 11J: old universal dc_rel<1e-2 superseded by the
+            // condition-aware R/C classifier; fail flag driven by the
+            // classifier (math_gate_fail_) only.
             if (fd_dbg_count_ < 3) {
               fd_dbg_count_++;
               // locate the worst sample and dump details
@@ -1742,12 +1781,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           hb_worst_h_rel_ = std::max(hb_worst_h_rel_, h_rel);
           hb_worst_b_rel_ = std::max(hb_worst_b_rel_, b_rel);
         }
-        // Gate M: per-direction math fail flag
-        for (int dd = 0; dd < 6; ++dd) {
-          if (double_math_max_rel_[dd] > 1e-2) {
-            math_gate_fail_ = true;
-          }
-        }
+        // Gate M fail flag updated per-sample inside the classifier above.
         if (fd_samples_needed_ > 1) {
           --fd_samples_needed_;
         } else if (fd_samples_needed_ == 1) {

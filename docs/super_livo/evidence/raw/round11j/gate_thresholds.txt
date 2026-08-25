@@ -1,0 +1,10 @@
+eps=1e-6
+strong |Jdc_C|>=1e-3
+kappa_switch=1e3
+R: dc_rel<1e-2
+C1 raw_rel<1e-5 (tiny: e_raw<1e-10)
+C2 mean_rel<1e-5 (tiny: e_mean<1e-10)
+C3 closure_abs<1e-7
+C4 e_dc<=e_raw+e_mean+1e-7
+C5 source_rel<1e-6
+no max_abs/median escape

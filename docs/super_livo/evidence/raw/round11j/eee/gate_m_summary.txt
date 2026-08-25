@@ -1,0 +1,13 @@
+V-2 6DOF FD gate: double_math_fail=0 trials_attempted=2611 structurally_complete=2611 all6_smooth=2475 with_nonsmooth=136 distinct_epochs=13 distinct_landmarks=443
+V-2 GATE-M rx: strong_n=149634 weak_n=40 med_rel=5.32023e-09 max_abs=0.000131404 max_kappa=103467
+V-2 GATE-RC rx: regular_n=149516 conditioned_n=118 regular_fail=0 conditioned_fail=0
+V-2 GATE-M ry: strong_n=149061 weak_n=40 med_rel=4.77427e-09 max_abs=0.000227887 max_kappa=432193
+V-2 GATE-RC ry: regular_n=148953 conditioned_n=108 regular_fail=0 conditioned_fail=0
+V-2 GATE-M rz: strong_n=146572 weak_n=40 med_rel=6.99521e-09 max_abs=0.000292603 max_kappa=24001.7
+V-2 GATE-RC rz: regular_n=146500 conditioned_n=72 regular_fail=0 conditioned_fail=0
+V-2 GATE-M tx: strong_n=151784 weak_n=44 med_rel=1.72331e-09 max_abs=7.09148e-06 max_kappa=55702.4
+V-2 GATE-RC tx: regular_n=151685 conditioned_n=99 regular_fail=0 conditioned_fail=0
+V-2 GATE-M ty: strong_n=151403 weak_n=40 med_rel=1.03174e-09 max_abs=6.03371e-06 max_kappa=280098
+V-2 GATE-RC ty: regular_n=151326 conditioned_n=77 regular_fail=0 conditioned_fail=0
+V-2 GATE-M tz: strong_n=151386 weak_n=40 med_rel=6.04887e-10 max_abs=6.2202e-06 max_kappa=96193.2
+V-2 GATE-RC tz: regular_n=151290 conditioned_n=96 regular_fail=0 conditioned_fail=0

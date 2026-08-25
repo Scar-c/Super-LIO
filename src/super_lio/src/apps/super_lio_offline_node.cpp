@@ -490,11 +490,20 @@ int main(int argc, char** argv) {
   if (g_lio_v2_enabled) {
     const char* dn3[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
     for (int d = 0; d < 6; ++d) {
-      std::printf("V-2 GATE-M %s: strong_n=%lld weak_n=%lld max_rel=%.6g med_rel=%.6g max_abs=%.6g\n",
+      std::printf("V-2 GATE-M %s: strong_n=%lld weak_n=%lld med_rel=%.6g max_abs=%.6g max_kappa=%.6g\n",
                   dn3[d], (long long)lio->mathStrongN()[d],
                   (long long)lio->mathWeakN()[d],
-                  lio->mathMaxRel()[d], lio->mathMedRel()[d],
-                  lio->mathMaxAbs()[d]);
+                  lio->mathMedRel()[d], lio->mathMaxAbs()[d],
+                  lio->mathMaxKappa()[d]);
+      std::printf("V-2 GATE-RC %s: regular_n=%lld conditioned_n=%lld regular_fail=%lld conditioned_fail=%lld\n"
+                  "  regular_max_dc_rel=%.6g cond_max_raw_rel=%.6g cond_max_mean_rel=%.6g cond_max_closure_abs=%.6g cond_max_prop_excess=%.6g cond_max_source_rel=%.6g\n",
+                  dn3[d], (long long)lio->mathRegularN()[d],
+                  (long long)lio->mathConditionedN()[d],
+                  (long long)lio->mathRegularFailN()[d],
+                  (long long)lio->mathConditionedFailN()[d],
+                  lio->mathRegularMaxDcRel()[d], lio->mathCondMaxRawRel()[d],
+                  lio->mathCondMaxMeanRel()[d], lio->mathCondMaxClosureAbs()[d],
+                  lio->mathCondMaxPropExcess()[d], lio->mathCondMaxSourceRel()[d]);
       std::printf("V-2 AUDIT-P %s: raw_max_abs=%.6g mean_max_abs=%.6g dc_max_abs=%.6g dc_med_abs=%.6g\n",
                   dn3[d], lio->prodVsDoubleRawMaxAbs()[d],
                   lio->prodVsDoubleMeanMaxAbs()[d],
@@ -503,7 +512,7 @@ int main(int argc, char** argv) {
     std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
                 lio->hbWorstHRel(), lio->hbWorstBRel());
   }
-  if (g_lio_v2_enabled && (lio->doubleMathFail() || lio->mathGateFail())) {
+  if (g_lio_v2_enabled && lio->mathGateFail()) {
     std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.\n");
     std::fflush(stdout);
     return 1;

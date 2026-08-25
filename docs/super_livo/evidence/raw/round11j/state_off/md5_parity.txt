@@ -1,0 +1,3 @@
+eee: baseline(visual off,camera/CE on)=0874e895bb3d83511aa58efcf3a4933c == all-on=0874e895bb3d83511aa58efcf3a4933c PASS
+nya: baseline=a83f2302cd28e2699a176ad9ff99ef73 == all-on=a83f2302cd28e2699a176ad9ff99ef73 PASS
+(camera-disabled pure-LIO run is a different config, not a parity control)

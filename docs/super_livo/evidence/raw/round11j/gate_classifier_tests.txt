@@ -1,0 +1,21 @@
+T1 regular PASS: PASS
+T1 branch regular: PASS
+T2 regular FAIL: PASS
+T3 kappa conditioned: PASS
+T3 dc_rel > 1e-2: PASS
+T3 C1 raw ok: PASS
+T3 C2 mean ok: PASS
+T3 C3 closure ok: PASS
+T3 C4 prop ok: PASS
+T3 C5 source ok: PASS
+T3 conditioned PASS: PASS
+T4 conditioned FAIL: PASS
+T5 closure FAIL: PASS
+T6 propagation FAIL: PASS
+T7 source FAIL: PASS
+T8 kappa<1e3 regular: PASS
+T8 kappa==1e3 conditioned: PASS
+T9 kappa conditioned: PASS
+T9 tiny raw ok: PASS
+T9 tiny raw FAIL: PASS
+gate classifier T1-T9: ALL PASS

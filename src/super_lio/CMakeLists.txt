@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11J condition-aware Gate M classifier tests
+add_executable(gate_classifier_test
+  src/geometry/tests/test_gate_classifier.cpp
+)
+target_include_directories(gate_classifier_test PUBLIC include)
+target_link_libraries(gate_classifier_test
+  Eigen3::Eigen
+)
+
 # Round 11G extrinsic/rotation convention parity tests
 add_executable(extrinsic_parity_test
   src/geometry/tests/test_extrinsic_parity.cpp

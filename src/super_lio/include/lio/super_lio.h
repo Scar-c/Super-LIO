@@ -207,6 +207,18 @@ public:
   std::array<double, 6> double_math_max_rel_{};
   std::array<double, 6> double_math_max_abs_{};
   std::array<std::vector<double>, 6> double_math_med_vals_{};
+  // Round 11J condition-aware Gate M statistics
+  std::array<int64_t, 6> double_math_regular_n_{};
+  std::array<int64_t, 6> double_math_conditioned_n_{};
+  std::array<int64_t, 6> double_math_regular_fail_n_{};
+  std::array<int64_t, 6> double_math_conditioned_fail_n_{};
+  std::array<double, 6> double_math_regular_max_dc_rel_{};
+  std::array<double, 6> double_math_cond_max_raw_rel_{};
+  std::array<double, 6> double_math_cond_max_mean_rel_{};
+  std::array<double, 6> double_math_cond_max_closure_abs_{};
+  std::array<double, 6> double_math_cond_max_prop_excess_{};
+  std::array<double, 6> double_math_cond_max_source_rel_{};
+  std::array<double, 6> double_math_max_kappa_{};
   std::array<double, 6> prod_vs_double_raw_max_abs_{};
   std::array<double, 6> prod_vs_double_mean_max_abs_{};
   std::array<double, 6> prod_vs_double_dc_max_abs_{};
@@ -222,6 +234,17 @@ public:
   const std::array<int64_t, 6>& mathWeakN() const { return double_math_weak_n_; }
   std::array<double, 6> mathMedRel() const { return double_math_med_rel_view(); }
   const std::array<int64_t, 6>& mathStrongN() const { return double_math_strong_n_; }
+  const std::array<int64_t, 6>& mathRegularN() const { return double_math_regular_n_; }
+  const std::array<int64_t, 6>& mathConditionedN() const { return double_math_conditioned_n_; }
+  const std::array<int64_t, 6>& mathRegularFailN() const { return double_math_regular_fail_n_; }
+  const std::array<int64_t, 6>& mathConditionedFailN() const { return double_math_conditioned_fail_n_; }
+  const std::array<double, 6>& mathRegularMaxDcRel() const { return double_math_regular_max_dc_rel_; }
+  const std::array<double, 6>& mathCondMaxRawRel() const { return double_math_cond_max_raw_rel_; }
+  const std::array<double, 6>& mathCondMaxMeanRel() const { return double_math_cond_max_mean_rel_; }
+  const std::array<double, 6>& mathCondMaxClosureAbs() const { return double_math_cond_max_closure_abs_; }
+  const std::array<double, 6>& mathCondMaxPropExcess() const { return double_math_cond_max_prop_excess_; }
+  const std::array<double, 6>& mathCondMaxSourceRel() const { return double_math_cond_max_source_rel_; }
+  const std::array<double, 6>& mathMaxKappa() const { return double_math_max_kappa_; }
   const std::array<double, 6>& prodVsDoubleRawMaxAbs() const { return prod_vs_double_raw_max_abs_; }
   const std::array<double, 6>& prodVsDoubleMeanMaxAbs() const { return prod_vs_double_mean_max_abs_; }
   const std::array<double, 6>& prodVsDoubleDcMaxAbs() const { return prod_vs_double_dc_max_abs_; }
