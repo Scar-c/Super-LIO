@@ -610,10 +610,11 @@ int main(int argc, char** argv) {
                 (long long)lio->hb0TotalSamples(),
                 (long long)lio->hb0TotalDuplicates(),
                 (long long)lio->hb0DistinctLandmarks());
-    std::printf("HB-0 worst: rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g\n",
+    std::printf("HB-0 worst: rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g last_Hsum=%.17g\n",
                 lio->hb0WorstRhoH(), lio->hb0WorstRhoB(),
                 lio->hb0WorstSrcHRatio(), lio->hb0WorstSrcBRatio(),
-                lio->hb0WorstAccHRatio(), lio->hb0WorstAccBRatio());
+                lio->hb0WorstAccHRatio(), lio->hb0WorstAccBRatio(),
+                lio->hb0Hsum());
     if (lio->hb0EpochsFail() > 0) {
       std::printf("[offline_node] FATAL: HB-0 production H/b audit FAILED (%lld epochs).\n",
                   (long long)lio->hb0EpochsFail());

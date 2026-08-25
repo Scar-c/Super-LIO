@@ -1127,6 +1127,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
     Eigen::Matrix<double, 6, 1> Jmean;
     double mean_cur = 0.0, mean_ref = 0.0;
     size_t M = 0;
+    // PERF-1A: per-sample float H/b addends computed in the worker
+    std::vector<std::array<float, 36>> h_addend;
+    std::vector<std::array<float, 6>> b_addend;
   };
   std::vector<LandmarkPhotoEval> photo(active_visual_landmarks_.size());
   const auto t0_photo = std::chrono::high_resolution_clock::now();
@@ -1221,6 +1224,18 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         sum_J += out.Js[k];
       }
       out.Jmean = sum_J / static_cast<double>(M);
+      // PERF-1A: per-sample H/b addend computation (same frozen expressions)
+      out.h_addend.resize(M);
+      out.b_addend.resize(M);
+      for (size_t k = 0; k < M; ++k) {
+        const Eigen::Matrix<double, 6, 1> Jdc = out.Js[k] - out.Jmean;
+        const Eigen::Matrix<float, 6, 6> hf =
+            (Jdc * Jdc.transpose()).cast<float>();
+        const Eigen::Matrix<float, 6, 1> bf =
+            -(Jdc * out.rs[k]).cast<float>();
+        for (int a = 0; a < 36; ++a) out.h_addend[k][a] = hf.data()[a];
+        for (int a = 0; a < 6; ++a) out.b_addend[k][a] = bf(a);
+      }
       out.valid = true;
       photo[pidx] = out;
     };
@@ -1287,20 +1302,23 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       double sse_before = 0.0, sse_after = 0.0;
       for (size_t k = 0; k < M; ++k) {
         sse_before += rs[k] * rs[k];
-        const Eigen::Matrix<double, 6, 1> Jdc = Js[k] - Jmean;
-        HTVH += (Jdc * Jdc.transpose()).cast<float>();
-        HTVr -= (Jdc * rs[k]).cast<float>();
+        // PERF-1A: addends precomputed in worker; exact-order float addition
+        for (int a = 0; a < 6; ++a)
+          for (int b = 0; b < 6; ++b)
+            HTVH(a, b) += ph.h_addend[k][a * 6 + b];
+        for (int a = 0; a < 6; ++a) HTVr(a) += ph.b_addend[k][a];
         if (hb0_audit_enabled_) {
           Hb0SampleRec rec;
           rec.id = (((int64_t)measures_.epoch_ts * 131) ^
                     ((int64_t)lm.landmark_id * 17)) * 65536 +
                    (int64_t)lm.active_ref_slot * 64 + (int64_t)ref_idx[k];
           rec.lm_id = static_cast<int64_t>(lm.landmark_id);
-          for (int a = 0; a < 6; ++a) rec.J[a] = Jdc(a);
+          const Eigen::Matrix<double, 6, 1> Jdc_a = Js[k] - Jmean;
+          for (int a = 0; a < 6; ++a) rec.J[a] = Jdc_a(a);
           rec.r = rs[k];
           const Eigen::Matrix<float, 6, 6> hf =
-              (Jdc * Jdc.transpose()).cast<float>();
-          const Eigen::Matrix<float, 6, 1> gf = (Jdc * rs[k]).cast<float>();
+              (Jdc_a * Jdc_a.transpose()).cast<float>();
+          const Eigen::Matrix<float, 6, 1> gf = (Jdc_a * rs[k]).cast<float>();
           for (int a = 0; a < 36; ++a) rec.h_addend[a] = hf.data()[a];
           for (int a = 0; a < 6; ++a) rec.g_addend[a] = gf(a);
           // independent all-double oracle (frozen Gate-X/Gate-M formula,
@@ -2036,12 +2054,17 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
     hb0_worst_src_b_ratio_ = std::max(hb0_worst_src_b_ratio_, worst_srcB);
     hb0_worst_acc_H_ratio_ = std::max(hb0_worst_acc_H_ratio_, worst_accH);
     hb0_worst_acc_b_ratio_ = std::max(hb0_worst_acc_b_ratio_, worst_accB);
-    std::printf("HB-0 epoch=%lld samples=%zu oracle_valid=%zu dup=%zu rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g sym=%.3g sym_budget=%.3g lamD=%.6g lamP=%.6g finite=%d %s\n",
+    {
+      double hsum = 0.0;
+      for (int a = 0; a < 36; ++a) hsum += H_P[a];
+      hb0_hsum_ = hsum;
+    }
+    std::printf("HB-0 epoch=%lld samples=%zu oracle_valid=%zu dup=%zu rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g sym=%.3g sym_budget=%.3g lamD=%.6g lamP=%.6g finite=%d Hsum=%.17g %s\n",
                 static_cast<long long>(hb0_epochs_audited_),
                 hb0_samples_.size(), nD, hb0_total_duplicates_,
                 rhoH, rhoB, worst_srcH, worst_srcB, worst_accH, worst_accB,
                 max_sym, sym_budget, lam_min_D, lam_min_P, finite_ok ? 1 : 0,
-                fail ? "FAIL" : "PASS");
+                hb0_hsum_, fail ? "FAIL" : "PASS");
     std::fflush(stdout);
   }
   const double vp_call_us = std::chrono::duration<double, std::micro>(

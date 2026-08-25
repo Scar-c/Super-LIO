@@ -1,0 +1,11 @@
+VP timing us: total=15374750 patch_eval=12241467 hb_commit=2002947 epochs=3059 lm=702374 samples=44825819
+PL metrics: sensor_start=1609043643.394 sensor_end=1609044038.109 sensor_dur=394.715 frames=3947
+PL LiDAR lat ms: P50=26.675 P90=31.043 P95=32.452 P99=36.296 max=50.264 n=3947
+PL visual lat ms: P50=5.047 P90=5.711 P95=5.925 P99=6.614 max=9.096 n=3059
+PL median LiDAR period ms=100.039  median camera period ms=100.039
+PL CPU: total_tick=2882 avg_cpu_pct=31.5
+PL deadline miss count=0 ratio=0.0000
+PL Q0 [0.0-98.7 s]: LiDAR P50=3.307 P95=24.920 P99=27.529 | visual P50=4.616 P95=5.579 P99=6.641 | RSS_avg=2653526KB | vox_avg=9686 | lm_avg=1378 | n=988
+PL Q1 [98.7-197.4 s]: LiDAR P50=28.497 P95=34.323 P99=40.278 | visual P50=5.259 P95=6.153 P99=6.975 | RSS_avg=2702115KB | vox_avg=29933 | lm_avg=9453 | n=985
+PL Q2 [197.4-296.0 s]: LiDAR P50=27.299 P95=31.382 P99=34.975 | visual P50=4.917 P95=5.586 P99=6.083 | RSS_avg=2719082KB | vox_avg=42543 | lm_avg=17578 | n=987
+PL Q3 [296.0-394.7 s]: LiDAR P50=28.126 P95=33.432 P99=35.946 | visual P50=5.196 P95=5.970 P99=6.439 | RSS_avg=2730452KB | vox_avg=50831 | lm_avg=19888 | n=986

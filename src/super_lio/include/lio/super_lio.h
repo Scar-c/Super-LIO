@@ -263,6 +263,7 @@ public:
   double hb0_worst_rho_H_ = 0.0, hb0_worst_rho_b_ = 0.0;
   double hb0_worst_src_H_ratio_ = 0.0, hb0_worst_src_b_ratio_ = 0.0;
   double hb0_worst_acc_H_ratio_ = 0.0, hb0_worst_acc_b_ratio_ = 0.0;
+  double hb0_hsum_ = 0.0;
   double hb_worst_h_rel_ = 0.0;
   double hb_worst_b_rel_ = 0.0;
   bool mathGateFail() const { return math_gate_fail_; }
@@ -301,6 +302,7 @@ public:
   double hb0WorstSrcBRatio() const { return hb0_worst_src_b_ratio_; }
   double hb0WorstAccHRatio() const { return hb0_worst_acc_H_ratio_; }
   double hb0WorstAccBRatio() const { return hb0_worst_acc_b_ratio_; }
+  double hb0Hsum() const { return hb0_hsum_; }
   double hbWorstHRel() const { return hb_worst_h_rel_; }
   double hbWorstBRel() const { return hb_worst_b_rel_; }
   const std::array<double, 6>& mathMaxRel() const { return double_math_max_rel_; }
