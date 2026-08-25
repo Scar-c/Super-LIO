@@ -1320,6 +1320,47 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           for (const auto& e : evs) { if (e.valid) { acc += e.ic; n++; } }
           return n ? acc / static_cast<double>(n) : 0.0;
         };
+        // Round 11F: independent all-double analytic Jacobian (DOUBLE_ANALYTIC
+        // REFERENCE, B). Never reuses production Js/Jmean. Recomputes Xc,
+        // projection derivative, bilinear gradient, raw J, mean J, DC J in
+        // double with the same frozen residual semantics.
+        auto doubleAnalyticJd = [&](size_t k, Eigen::Matrix<double, 6, 1>& Jdc_out,
+                                    double& Jraw_out) -> bool {
+          const double uu = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
+          const double vv = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
+          const Eigen::Vector3d ray_cam((uu - cx) / fx, (vv - cy) / fy, 1.0);
+          const Eigen::Vector3d dir_w = R_ref * ray_cam;
+          const double denom = n_sync.dot(dir_w);
+          if (std::abs(denom) < 1e-9) return false;
+          const double s = n_sync.dot(P_patch - t_ref) / denom;
+          if (s <= 1e-4) return false;
+          const Eigen::Vector3d X = t_ref + s * dir_w;
+          const Eigen::Vector3d Xc = R_cur.transpose() * (X - t_cur);
+          if (Xc.z() <= 0.05) return false;
+          const double u2 = fx * Xc.x() / Xc.z() + cx;
+          const double v2 = fy * Xc.y() / Xc.z() + cy;
+          if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) return false;
+          const BilinearSample bs = sampleBilinearWithGradient(img, W, H, u2, v2);
+          if (!bs.valid) return false;
+          const double z = Xc.z();
+          Eigen::Matrix<double, 2, 3> du_dXc;
+          du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
+                    0.0, fy / z, -fy * Xc.y() / (z * z);
+          Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
+          dXc_dxi.block<3, 3>(0, 3) = -R_cur.transpose();
+          const Eigen::Vector3d Xc_t = Xc + R_bc.transpose() * t_bc;
+          Eigen::Matrix3d Xct_skew;
+          Xct_skew << 0.0, -Xc_t.z(), Xc_t.y(), Xc_t.z(), 0.0, -Xc_t.x(),
+              -Xc_t.y(), Xc_t.x(), 0.0;
+          dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_bc.transpose();
+          const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
+          Jraw_out = bs.du * du_dxi(0, 0) * 0.0;  // placeholder; filled below
+          Eigen::Matrix<double, 6, 1> Jraw;
+          Jraw = (bs.du * du_dxi.row(0) + bs.dv * du_dxi.row(1)).transpose();
+          Jraw_out = Jraw(0);
+          Jdc_out = Jraw;  // caller subtracts Jmean
+          return true;
+        };
         // base evaluations
         std::vector<Ev> base_f, base_d;
         eval_f(pose, base_f);
@@ -1333,6 +1374,28 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         // oracle we use the double means of each perturbed set (same rule)
         const double eps_d = 1e-5;  // double oracle step (diagnostic §8)
 
+        // Round 11F: independent double-analytic reference (B) for the base
+        // bundle: Jraw_double[k], then Jmean_double and Jdc_double.
+        std::vector<Eigen::Matrix<double, 6, 1>> Bjraw(ref_idx.size(),
+                                                        Eigen::Matrix<double, 6, 1>::Zero());
+        std::vector<bool> Bvalid(ref_idx.size(), false);
+        Eigen::Matrix<double, 6, 1> Bjmean = Eigen::Matrix<double, 6, 1>::Zero();
+        int64_t Bn = 0;
+        for (size_t j = 0; j < ref_idx.size(); ++j) {
+          if (!base_f[j].valid) continue;
+          Eigen::Matrix<double, 6, 1> jdc;
+          double jraw = 0.0;
+          if (doubleAnalyticJd(j, jdc, jraw)) {
+            Bjraw[j] = jdc;  // currently raw J; caller subtracts mean
+            Bvalid[j] = true;
+            Bjmean += jdc;
+            Bn++;
+          }
+        }
+        if (Bn > 0) Bjmean /= static_cast<double>(Bn);
+
+        H_accum_n_ = 0;
+        H_prod_.setZero(); H_dbl_.setZero(); b_prod_.setZero(); b_dbl_.setZero();
         int64_t trial_nonsmooth = 0;
         for (int d = 0; d < 6; ++d) {
           // float perturb (registered eps: 1e-4, rz 1e-3)
@@ -1412,6 +1475,43 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             if (!base_d[k].valid) continue;
             if (!pd_[k].valid || !md_[k].valid) continue;  // support change
             const double fdd = ((pd_[k].ic - mean_pd) - (md_[k].ic - mean_md)) / (2.0 * eps_d);
+            // Gate M: independent double analytic (B) vs double FD (C)
+            if (Bvalid[k]) {
+              const double b_dc = (Bjraw[k] - Bjmean)(d);
+              const double re_m = std::abs(b_dc - fdd) / std::max(1e-12, std::abs(fdd));
+              const double ae_m = std::abs(b_dc - fdd);
+              double_math_max_abs_[d] = std::max(double_math_max_abs_[d], ae_m);
+              if (std::abs(fdd) >= 1e-3) {
+                double_math_strong_n_[d]++;
+                double_math_max_rel_[d] = std::max(double_math_max_rel_[d], re_m);
+                double_math_med_vals_[d].push_back(re_m);
+              } else {
+                double_math_weak_n_[d]++;
+              }
+              // Audit P: production analytic (A = Js[k]-Jmean) vs B
+              const double a_dc = (Js[k] - Jmean)(d);
+              const double pd_abs = std::abs(a_dc - b_dc);
+              prod_vs_double_dc_max_abs_[d] =
+                  std::max(prod_vs_double_dc_max_abs_[d], pd_abs);
+              prod_vs_double_dc_med_abs_[d].push_back(pd_abs);
+              prod_vs_double_raw_max_abs_[d] =
+                  std::max(prod_vs_double_raw_max_abs_[d],
+                           std::abs((Js[k])(d) - Bjraw[k](d)));
+              prod_vs_double_mean_max_abs_[d] =
+                  std::max(prod_vs_double_mean_max_abs_[d],
+                           std::abs(Jmean(d) - Bjmean(d)));
+              // H/b numeric audit (per trial, using A=production vs B=double)
+              {
+                const Eigen::Matrix<double, 6, 1> Av = (Js[k] - Jmean);
+                const Eigen::Matrix<double, 6, 1> Bv = (Bjraw[k] - Bjmean);
+                const double r_prod = rs[k];
+                H_prod_ += Av * Av.transpose();
+                b_prod_ -= Av * r_prod;
+                H_dbl_ += Bv * Bv.transpose();
+                b_dbl_ -= Bv * r_prod;
+                H_accum_n_++;
+              }
+            }
             const double red = std::abs(fdd - an) / std::max(1e-12, std::abs(fdd));
             const double aed = std::abs(fdd - an);
             double_max_abs = std::max(double_max_abs, aed);
@@ -1583,6 +1683,25 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         fd_trials_structurally_complete_++;
         if (trial_nonsmooth == 0) fd_trials_all6_smooth_++;
         if (trial_nonsmooth > 0) fd_trials_with_nonsmooth_++;
+        // H/b numeric audit: compare production vs double reference for this
+        // bundle (only when it was smooth enough to accumulate)
+        if (H_accum_n_ > 0) {
+          const double h_rel =
+              (H_prod_ - H_dbl_).norm() / std::max(1e-12, H_dbl_.norm());
+          const double b_rel =
+              (b_prod_ - b_dbl_).norm() / std::max(1e-12, b_dbl_.norm());
+          hb_worst_h_rel_ = std::max(hb_worst_h_rel_, h_rel);
+          hb_worst_b_rel_ = std::max(hb_worst_b_rel_, b_rel);
+          H_accum_n_ = 0;
+        }
+        H_prod_.setZero(); H_dbl_.setZero();
+        b_prod_.setZero(); b_dbl_.setZero();
+        // Gate M: per-direction math fail flag
+        for (int dd = 0; dd < 6; ++dd) {
+          if (double_math_max_rel_[dd] > 1e-2) {
+            math_gate_fail_ = true;
+          }
+        }
         if (fd_samples_needed_ > 1) {
           --fd_samples_needed_;
         } else if (fd_samples_needed_ == 1) {

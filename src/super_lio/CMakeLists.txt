@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# FD harness pure-logic tests (bundle smoothness + quota state)
+add_executable(fd_harness_test
+  src/geometry/tests/test_fd_harness.cpp
+)
+target_include_directories(fd_harness_test PUBLIC include)
+target_link_libraries(fd_harness_test
+  Eigen3::Eigen
+)
+
 # Exact bilinear sample+gradient primitive tests
 add_executable(bilinear_test
   src/geometry/tests/test_bilinear.cpp

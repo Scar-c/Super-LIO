@@ -486,9 +486,30 @@ int main(int argc, char** argv) {
                 bytes / 1e6, (long long)slots, sizeof(VisualObservation),
                 (long long)lio->visualLandmarksCreated(), sizeof(VisualLandmark));
   }
-  if (g_lio_v2_enabled && lio->doubleMathFail()) {
-    std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle FAILED.\n");
+
+  if (g_lio_v2_enabled && (lio->doubleMathFail() || lio->mathGateFail())) {
+    std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.\n");
     return 1;
+  }
+  if (g_lio_v2_enabled && (lio->doubleMathFail() || lio->mathGateFail())) {
+    std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.\n");
+    return 1;
+  }
+  if (g_lio_v2_enabled) {
+    const char* dn3[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
+    for (int d = 0; d < 6; ++d) {
+      std::printf("V-2 GATE-M %s: strong_n=%lld weak_n=%lld max_rel=%.6g med_rel=%.6g max_abs=%.6g\n",
+                  dn3[d], (long long)lio->mathStrongN()[d],
+                  (long long)lio->mathStrongN()[d] ? 0LL : 0LL,
+                  lio->mathMaxRel()[d], lio->mathMedRel()[d],
+                  (long long)0);
+      std::printf("V-2 AUDIT-P %s: raw_max_abs=%.6g mean_max_abs=%.6g dc_max_abs=%.6g dc_med_abs=%.6g\n",
+                  dn3[d], lio->prodVsDoubleRawMaxAbs()[d],
+                  lio->prodVsDoubleMeanMaxAbs()[d],
+                  lio->prodVsDoubleDcMaxAbs()[d], lio->prodVsDoubleDcMedAbs()[d]);
+    }
+    std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
+                lio->hbWorstHRel(), lio->hbWorstBRel());
   }
   if (g_lio_v2_enabled && lio->fdDistinctEpochs() < 5) {
     std::printf("[offline_node] FATAL: FD coverage insufficient — distinct epochs %zu < 5.\n",

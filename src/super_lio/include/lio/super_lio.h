@@ -201,6 +201,51 @@ public:
   int64_t fd_trials_all6_smooth_ = 0;
   int64_t fd_trials_with_nonsmooth_ = 0;
   bool double_math_fail_ = false;
+  // Round 11F: Gate M (double analytic vs double FD) + Audit P (prod vs double)
+  std::array<int64_t, 6> double_math_strong_n_{};
+  std::array<int64_t, 6> double_math_weak_n_{};
+  std::array<double, 6> double_math_max_rel_{};
+  std::array<double, 6> double_math_max_abs_{};
+  std::array<std::vector<double>, 6> double_math_med_vals_{};
+  std::array<double, 6> prod_vs_double_raw_max_abs_{};
+  std::array<double, 6> prod_vs_double_mean_max_abs_{};
+  std::array<double, 6> prod_vs_double_dc_max_abs_{};
+  std::array<std::vector<double>, 6> prod_vs_double_dc_med_abs_{};
+  bool math_gate_fail_ = false;
+  double hb_worst_h_rel_ = 0.0;
+  double hb_worst_b_rel_ = 0.0;
+  // per-trial H/b accumulators
+  Eigen::Matrix<double, 6, 6> H_prod_ = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 6> H_dbl_ = Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 1> b_prod_ = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 1> b_dbl_ = Eigen::Matrix<double, 6, 1>::Zero();
+  int64_t H_accum_n_ = 0;
+  bool mathGateFail() const { return math_gate_fail_; }
+  double hbWorstHRel() const { return hb_worst_h_rel_; }
+  double hbWorstBRel() const { return hb_worst_b_rel_; }
+  const std::array<double, 6>& mathMaxRel() const { return double_math_max_rel_; }
+  const std::array<double, 6>& mathMedRel() const { return double_math_med_rel_view(); }
+  const std::array<int64_t, 6>& mathStrongN() const { return double_math_strong_n_; }
+  const std::array<double, 6>& prodVsDoubleRawMaxAbs() const { return prod_vs_double_raw_max_abs_; }
+  const std::array<double, 6>& prodVsDoubleMeanMaxAbs() const { return prod_vs_double_mean_max_abs_; }
+  const std::array<double, 6>& prodVsDoubleDcMaxAbs() const { return prod_vs_double_dc_max_abs_; }
+  const std::array<double, 6>& prodVsDoubleDcMedAbs() const { return prod_vs_double_dc_med_abs_view(); }
+  std::array<double, 6> double_math_med_rel_view() const {
+    std::array<double, 6> out{};
+    for (int d = 0; d < 6; ++d) {
+      const auto& v = double_math_med_vals_[d];
+      if (!v.empty()) { std::vector<double> s = v; std::sort(s.begin(), s.end()); out[d] = s[s.size() / 2]; }
+    }
+    return out;
+  }
+  std::array<double, 6> prod_vs_double_dc_med_abs_view() const {
+    std::array<double, 6> out{};
+    for (int d = 0; d < 6; ++d) {
+      const auto& v = prod_vs_double_dc_med_abs_[d];
+      if (!v.empty()) { std::vector<double> s = v; std::sort(s.begin(), s.end()); out[d] = s[s.size() / 2]; }
+    }
+    return out;
+  }
   const std::array<int64_t, 6>& bundleSmooth() const { return bundle_smooth_count_; }
   const std::array<int64_t, 6>& bundleNonsmoothSupport() const { return bundle_nonsmooth_support_; }
   const std::array<int64_t, 6>& bundleNonsmoothCell() const { return bundle_nonsmooth_cell_; }
