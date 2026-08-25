@@ -41,6 +41,7 @@ struct OfflineAccounting {
   size_t process_invocations = 0;
   size_t heavy_process_count = 0;
   size_t images_read = 0;
+  size_t images_malformed = 0;
   size_t images_dispatched = 0;
   size_t images_skipped = 0;
   double first_image_time = 0.0;

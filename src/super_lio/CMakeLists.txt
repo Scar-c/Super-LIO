@@ -83,6 +83,7 @@ target_include_directories(lio PUBLIC
 target_link_libraries(lio
   ${EIGEN3_LIBRARIES}
   ${catkin_LIBRARIES}
+  jpeg
   ${PCL_LIBRARIES}
   ${PYTHON_LIBRARIES}
   tbb 

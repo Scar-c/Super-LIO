@@ -7,6 +7,9 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CompressedImage.h>
+#include <csetjmp>
+#include <jpeglib.h>
 
 namespace LI2Sup {
 
@@ -76,6 +79,46 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
     return false;
   }
 
+  auto jpegDecodeGray = [](const std::vector<uint8_t>& jpg, int& w, int& h,
+                            std::vector<uint8_t>& gray) -> bool {
+    struct ErrMgr {
+      jpeg_error_mgr pub;
+      jmp_buf setjmp_buffer;
+    };
+    ErrMgr jerr;
+    jpeg_decompress_struct cinfo;
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = [](j_common_ptr cinfo) {
+      ErrMgr* e = reinterpret_cast<ErrMgr*>(cinfo->err);
+      longjmp(e->setjmp_buffer, 1);
+    };
+    if (setjmp(jerr.setjmp_buffer)) {
+      jpeg_destroy_decompress(&cinfo);
+      return false;
+    }
+    jpeg_create_decompress(&cinfo);
+    jpeg_mem_src(&cinfo, jpg.data(), jpg.size());
+    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
+      jpeg_destroy_decompress(&cinfo);
+      return false;
+    }
+    cinfo.out_color_space = JCS_GRAYSCALE;
+    if (!jpeg_start_decompress(&cinfo)) {
+      jpeg_destroy_decompress(&cinfo);
+      return false;
+    }
+    w = cinfo.output_width;
+    h = cinfo.output_height;
+    gray.resize(static_cast<size_t>(w) * h);
+    while (cinfo.output_scanline < h) {
+      JSAMPROW row = gray.data() + static_cast<size_t>(cinfo.output_scanline) * w;
+      jpeg_read_scanlines(&cinfo, &row, 1);
+    }
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    return true;
+  };
+
   const std::string dt_imu = "sensor_msgs/Imu";
   const std::string dt_custom = "livox_ros_driver/CustomMsg";
   const std::string dt_pc2 = "sensor_msgs/PointCloud2";
@@ -125,6 +168,36 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         lio.process();
         accounting_.process_invocations++;
         continue;
+      }
+    }
+    // Round 11Q: compressed camera adapter (M3DGR /camera/color/image_raw/compressed)
+    if (!opts_.camera_topic.empty() && topic == opts_.camera_topic &&
+        dt == "sensor_msgs/CompressedImage") {
+      auto msg = mi.instantiate<sensor_msgs::CompressedImage>();
+      if (msg) {
+        int jw = 0, jh = 0;
+        std::vector<uint8_t> gray;
+        if (jpegDecodeGray(msg->data, jw, jh, gray) && jw > 0 && jh > 0) {
+          sensor_msgs::Image im;
+          im.header = msg->header;
+          im.width = static_cast<uint32_t>(jw);
+          im.height = static_cast<uint32_t>(jh);
+          im.encoding = "mono8";
+          im.step = static_cast<uint32_t>(jw);
+          im.data = gray;
+          accounting_.images_read++;
+          if (accounting_.images_dispatched == 0) {
+            accounting_.first_image_time = msg->header.stamp.toSec();
+          }
+          accounting_.last_image_time = msg->header.stamp.toSec();
+          wrapper.HandleImage(
+              boost::make_shared<sensor_msgs::Image>(im));
+          accounting_.images_dispatched++;
+          lio.process();
+          accounting_.process_invocations++;
+          continue;
+        }
+        accounting_.images_malformed++;
       }
     }
 
