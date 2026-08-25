@@ -1057,6 +1057,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                                 BASIC::V6& HTVr, bool apply) {
   HTVH.setZero();
   HTVr.setZero();
+  const auto vp_t_total0 = std::chrono::high_resolution_clock::now();
+  vp_camera_epochs_++;
   (void)apply;  // V-3 state-off: equations only; state apply reserved for V-4
   const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return 0;
@@ -1085,9 +1087,133 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   // Round 11K HB-0 audit capture state (cleared per solve/epoch)
   hb0_samples_.clear();
 
+  // Round 11L PERF-0: parallel read-only photometric prepare, serial
+  // commit. Frozen semantics: per-sample Jdc/r in exact landmark order;
+  // H/b committed serially with the same expressions/order as serial.
+  struct LandmarkPhotoEval {
+    bool valid = false;
+    std::vector<int> ref_idx;
+    std::vector<double> ref_vals, ic_vals, grad_u, grad_v;
+    std::vector<Eigen::Matrix<double, 6, 1>> Js;
+    std::vector<double> rs;
+    Eigen::Matrix<double, 6, 1> Jmean;
+    double mean_cur = 0.0, mean_ref = 0.0;
+    size_t M = 0;
+  };
+  std::vector<LandmarkPhotoEval> photo(active_visual_landmarks_.size());
+  const auto t0_photo = std::chrono::high_resolution_clock::now();
+  {
+    auto photo_lm = [&](size_t pidx) {
+      LandmarkPhotoEval out;
+      const auto& a = active_visual_landmarks_[pidx];
+      auto aitr = visual_map_.container().find(a.first);
+      if (aitr == visual_map_.container().end()) { photo[pidx] = out; return; }
+      if (a.second >= aitr->second.size()) { photo[pidx] = out; return; }
+      auto& lm = aitr->second[a.second];
+      if (!lm.geometry_valid) { photo[pidx] = out; return; }
+      if (lm.active_ref_slot >= kMaxObsPerLandmark ||
+          !lm.observations[lm.active_ref_slot].valid) {
+        photo[pidx] = out; return;
+      }
+      const VisualObservation* ref = &lm.observations[lm.active_ref_slot];
+      const Eigen::Vector3d P_patch =
+          lm.mu_sync.cast<double>() + lm.delta_sync.cast<double>();
+      const Eigen::Vector3d n_sync = lm.n_sync.cast<double>();
+      const Eigen::Matrix3d R_body_ref = ref->cam_q.toRotationMatrix().cast<double>();
+      const Eigen::Matrix3d R_ref = R_body_ref * R_BC;
+      const Eigen::Vector3d t_ref =
+          ref->cam_pos.cast<double>() + R_body_ref * t_BC;
+      const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
+      const Eigen::Vector3d t_cur = pose.t_.cast<double>();
+      const double ref_u = ref->ref_u, ref_v = ref->ref_v;
+      size_t M = 0;
+      for (int j = 0; j < 8; ++j) {
+        for (int i = 0; i < 8; ++i) {
+          const double u = ref_u + (i - 4);
+          const double v = ref_v + (j - 4);
+          const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+          const Eigen::Vector3d dir_w = R_ref * ray_cam;
+          const double denom = n_sync.dot(dir_w);
+          if (std::abs(denom) < 1e-9) continue;
+          const double s = n_sync.dot(P_patch - t_ref) / denom;
+          if (s <= 1e-4) continue;
+          const Eigen::Vector3d X = t_ref + s * dir_w;
+          const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
+          if (Xc.z() <= 0.05) continue;
+          const double u2 = fx * Xc.x() / Xc.z() + cx;
+          const double v2 = fy * Xc.y() / Xc.z() + cy;
+          if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
+          const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
+          const BilinearSample bs =
+              sampleBilinearWithGradient(img, W, H, u2, v2);
+          if (!bs.valid) continue;
+          out.ref_idx.push_back(j * 8 + i);
+          out.ref_vals.push_back(rv);
+          out.ic_vals.push_back(bs.value);
+          out.grad_u.push_back(bs.du);
+          out.grad_v.push_back(bs.dv);
+          M++;
+        }
+      }
+      if (M < 32) { photo[pidx] = out; return; }
+      out.M = M;
+      out.mean_ref = meanOfStored(out.ref_vals);
+      out.mean_cur = meanOfStored(out.ic_vals);
+      out.Js.resize(M);
+      out.rs.resize(M);
+      Eigen::Matrix<double, 6, 1> sum_J = Eigen::Matrix<double, 6, 1>::Zero();
+      for (size_t k = 0; k < M; ++k) {
+        out.rs[k] = (out.ic_vals[k] - out.mean_cur) -
+                    (out.ref_vals[k] - out.mean_ref);
+        const double Iu = out.grad_u[k];
+        const double Iv = out.grad_v[k];
+        const double u = ref_u + (static_cast<double>(out.ref_idx[k] % 8) - 4);
+        const double v = ref_v + (static_cast<double>(out.ref_idx[k] / 8) - 4);
+        const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+        const Eigen::Vector3d dir_w = R_ref * ray_cam;
+        const double denom = n_sync.dot(dir_w);
+        const double s = n_sync.dot(P_patch - t_ref) / denom;
+        const Eigen::Vector3d X = t_ref + s * dir_w;
+        const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
+        const double z = Xc.z();
+        Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
+        dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
+        const Eigen::Vector3d X_B = R_cur.transpose() * (X - t_cur);
+        const Eigen::Vector3d Xc_m_t = R_CB * X_B;
+        Eigen::Matrix3d Xct_skew;
+        Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(),
+            -Xc_m_t.y(), Xc_m_t.x(), 0.0;
+        dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
+        Eigen::Matrix<double, 2, 3> du_dXc;
+        du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
+                  0.0, fy / z, -fy * Xc.y() / (z * z);
+        const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
+        out.Js[k] =
+            (Iu * du_dxi.row(0) + Iv * du_dxi.row(1)).transpose();
+        sum_J += out.Js[k];
+      }
+      out.Jmean = sum_J / static_cast<double>(M);
+      out.valid = true;
+      photo[pidx] = out;
+    };
+    if (visual_parallel_enabled_) {
+      tbb::parallel_for(tbb::blocked_range<size_t>(0, photo.size()),
+                        [&](const tbb::blocked_range<size_t>& r) {
+                          for (size_t i = r.begin(); i != r.end(); ++i)
+                            photo_lm(i);
+                        });
+    } else {
+      for (size_t i = 0; i < photo.size(); ++i) photo_lm(i);
+    }
+  }
+  const auto t1_photo = std::chrono::high_resolution_clock::now();
+  vp_patch_eval_us_ += std::chrono::duration<double, std::micro>(t1_photo - t0_photo).count();
+
   // P0-8: process only the active visual list built by the frontend this
   // epoch (candidate/local retrieval), never a global VisualMap scan
-  for (const auto& a : active_visual_landmarks_) {
+  for (size_t pidx = 0; pidx < active_visual_landmarks_.size(); ++pidx) {
+    const auto& a = active_visual_landmarks_[pidx];
+    auto& ph = photo[pidx];
     auto aitr = visual_map_.container().find(a.first);
     if (aitr == visual_map_.container().end()) continue;
     if (a.second >= aitr->second.size()) continue;
@@ -1116,122 +1242,20 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       const Eigen::Matrix3d R_cur = pose.R_.cast<double>();
       const Eigen::Vector3d t_cur = pose.t_.cast<double>();
 
-      // warp the 8x8 patch: for each sample pixel, ray from ref camera
-      // through the pixel, intersect patch plane (P_patch, n_sync), then
-      // project the 3D point into the current camera.
-      std::vector<Eigen::Vector2d> warped;  // current image coords
-      std::vector<double> ref_vals;
-      std::vector<double> ic_vals;
-      std::vector<double> grad_u, grad_v;
-      std::vector<int> ref_idx;  // patch pixel index of each valid sample
-      warped.reserve(64);
-      ref_vals.reserve(64);
-      ic_vals.reserve(64);
-      grad_u.reserve(64);
-      grad_v.reserve(64);
-      ref_idx.reserve(64);
-
+      if (!ph.valid) continue;
+      const size_t M = ph.M;
+      const std::vector<int>& ref_idx = ph.ref_idx;
+      const std::vector<double>& ref_vals = ph.ref_vals;
+      const std::vector<double>& ic_vals = ph.ic_vals;
+      const std::vector<double>& grad_u = ph.grad_u;
+      const std::vector<double>& grad_v = ph.grad_v;
+      const std::vector<Eigen::Matrix<double, 6, 1>>& Js = ph.Js;
+      const std::vector<double>& rs = ph.rs;
+      const Eigen::Matrix<double, 6, 1> Jmean = ph.Jmean;
+      const double mean_cur = ph.mean_cur, mean_ref = ph.mean_ref;
       const double ref_u = ref->ref_u, ref_v = ref->ref_v;
-      for (int j = 0; j < 8; ++j) {
-        for (int i = 0; i < 8; ++i) {
-          const double u = ref_u + (i - 4);
-          const double v = ref_v + (j - 4);
-          // ref ray direction in camera frame (z=1 plane)
-          const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
-          const Eigen::Vector3d dir_w = R_ref * ray_cam;
-          const double denom = n_sync.dot(dir_w);
-          if (std::abs(denom) < 1e-9) continue;
-          const double s = n_sync.dot(P_patch - t_ref) / denom;
-          if (s <= 1e-4) continue;
-          const Eigen::Vector3d X = t_ref + s * dir_w;
-          // project into current camera (direct T_CB)
-          const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
-          if (Xc.z() <= 0.05) continue;
-          const double u2 = fx * Xc.x() / Xc.z() + cx;
-          const double v2 = fy * Xc.y() / Xc.z() + cy;
-          if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) continue;
-          // ref intensity (from stored patch, valid overlap == warped set)
-          const double rv = ref->patch[static_cast<size_t>(j) * 8 + i];
-          // exact bilinear sample + gradient from the SAME interpolant
-          const BilinearSample bs =
-              sampleBilinearWithGradient(img, W, H, u2, v2);
-          if (!bs.valid) continue;
-          warped.emplace_back(u2, v2);
-          ref_idx.push_back(j * 8 + i);
-          ref_vals.push_back(rv);
-          ic_vals.push_back(bs.value);
-          grad_u.push_back(bs.du);
-          grad_v.push_back(bs.dv);
-          samples_total++;
-        }
-      }
-      const size_t M = warped.size();
-      if (M < 32) continue;  // P-C provisional min valid samples (v1 49)
-
-      // DC normalization over the same valid set (v1 50)
-      // E2: single-source DC mean — use the exact stored sample values
-      const double mean_ref = meanOfStored(ref_vals);
-      const double mean_cur = meanOfStored(ic_vals);
-
-      // residuals + Jacobian: r_k = (I_c(w_k)-mean_c) - (I_r(k)-mean_r)
-      // dr/dx = J_k - (1/M) sum_j J_j  (v1 51)
-      // w_k depends on pose via X(w_k) projection.
-      // For each valid sample, J_k (1x6): dI/du * du/dpose + dI/dv * dv/dpose
-      // du/dpose via pinhole projection derivative at (Xc).
-      Eigen::Matrix<double, 6, 1> sum_J = Eigen::Matrix<double, 6, 1>::Zero();
-      std::vector<Eigen::Matrix<double, 6, 1>> Js(M);
-      std::vector<double> rs(M);
-      for (size_t k = 0; k < M; ++k) {
-        // residual and gradient use the exact bilinear primitive results
-        // stored by the warp loop (same interpolant, same alpha/beta)
-        rs[k] = (ic_vals[k] - mean_cur) - (ref_vals[k] - mean_ref);
-        const double Iu = grad_u[k];
-        const double Iv = grad_v[k];
-
-        // 3D point in current camera frame (recompute from stored X? we need
-        // X_c; recompute via ray-plane from ref side is heavy; store it)
-        // -- recompute X: keep it simple via the ref-frame ray (using the
-        //    stored patch index of this valid sample)
-        const double u = ref_u + (static_cast<double>(ref_idx[k] % 8) - 4);
-        const double v = ref_v + (static_cast<double>(ref_idx[k] / 8) - 4);
-        const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
-        const Eigen::Vector3d dir_w = R_ref * ray_cam;
-        const double denom = n_sync.dot(dir_w);
-        const double s = n_sync.dot(P_patch - t_ref) / denom;
-        const Eigen::Vector3d X = t_ref + s * dir_w;
-        const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
-        // projection Jacobian du/dXc (camera frame):
-        const double z = Xc.z();
-        // du/dXc = [fx/z, 0, -fx*Xc.x/z^2]; dv/dXc = [0, fy/z, -fy*Xc.y/z^2]
-        // dXc/dpose: pose left-perturbation (SO3 exp, p):
-        //   Xc = Rc^T (X - t); perturb Rc -> (I - [delta_theta]x) Rc,
-        //   t -> t + delta_p
-        //   dXc/dtheta = [Xc]x ; dXc/dp = -Rc^T
-        Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
-        // dXc/dp = -R_CB * R_WB^T
-        dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
-        // build skew of Xc
-        Eigen::Matrix3d Xc_skew;
-        Xc_skew << 0.0, -Xc.z(), Xc.y(), Xc.z(), 0.0, -Xc.x(), -Xc.y(), Xc.x(), 0.0;
-        // dXc/dth = [X_C - t_CB]x R_CB = [R_CB X_B]x R_CB  (right perturbation)
-        const Eigen::Vector3d X_B = R_cur.transpose() * (X - t_cur);
-        const Eigen::Vector3d Xc_m_t = R_CB * X_B;
-        Eigen::Matrix3d Xct_skew;
-        Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(),
-            -Xc_m_t.y(), Xc_m_t.x(), 0.0;
-        dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
-
-        Eigen::Matrix<double, 2, 3> du_dXc;
-        du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
-                  0.0, fy / z, -fy * Xc.y() / (z * z);
-        const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
-        Eigen::Matrix<double, 6, 1> Jk;
-        Jk = (Iu * du_dxi.row(0) + Iv * du_dxi.row(1)).transpose();
-        Js[k] = Jk;
-        sum_J += Jk;
-      }
       // DC Jacobian: J_k - mean(J)
-      Eigen::Matrix<double, 6, 1> Jmean = sum_J / static_cast<double>(M);
+      const auto vp_t_hb0 = std::chrono::high_resolution_clock::now();
       double sse_before = 0.0, sse_after = 0.0;
       for (size_t k = 0; k < M; ++k) {
         sse_before += rs[k] * rs[k];
@@ -1298,6 +1322,10 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         sum_before += rs[k] * rs[k];
         sum_after += sse_after;  // placeholder: real after-solve not available here
       }
+      vp_hb_commit_us_ += std::chrono::duration<double, std::micro>(
+          std::chrono::high_resolution_clock::now() - vp_t_hb0).count();
+      vp_photometric_landmarks_++;
+      vp_photometric_samples_ += static_cast<int64_t>(M);
       accepted++;
       (void)sse_before;
       (void)sse_after;
@@ -1999,6 +2027,8 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 fail ? "FAIL" : "PASS");
     std::fflush(stdout);
   }
+  vp_total_us_ += std::chrono::duration<double, std::micro>(
+      std::chrono::high_resolution_clock::now() - vp_t_total0).count();
   return accepted;
 }
 

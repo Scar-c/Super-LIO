@@ -1,0 +1,15 @@
+eee serial x3 wall(ms): 2247 2215 2227 -> med 2227
+  visual_total(us): 405395 411272 394869 -> med 405395
+  patch_eval(us): 23363  hb_commit(us): 32950
+  trajectory MD5: 0874e895bb3d83511aa58efcf3a4933c (==C0)
+eee TBB x3 wall(ms): 2246 2121 2161 -> med 2161
+  visual_total(us): 409064 370131 409866 -> med 409064
+  patch_eval(us): 3893 (6.0x)  hb_commit(us): 35447
+  trajectory MD5: 0874e895bb3d83511aa58efcf3a4933c (==serial)
+nya serial x3 wall(ms): 1622 1492 1600 -> med 1600
+  visual_total(us): 131468 129673 130017 -> med 130017
+  trajectory MD5: 2e962c7e411fbdd57d9418c04ef841cc
+nya TBB x3 wall(ms): 1542 1500 1639 -> med 1542
+  visual_total(us): 125695 127672 125396 -> med 125396
+  trajectory MD5: 2e962c7e411fbdd57d9418c04ef841cc (==serial)
+NOTE: nya 30s rc=1 due to FD coverage epochs<5 (performance/parity unaffected)

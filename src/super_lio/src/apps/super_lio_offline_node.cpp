@@ -57,6 +57,9 @@ int main(int argc, char** argv) {
   bool hb0_enabled = false;
   nh.getParam("/lio/hb0/enabled", hb0_enabled);
   lio->setHb0AuditEnabled(hb0_enabled);
+  bool vp_enabled = false;
+  nh.getParam("/lio/vp/enabled", vp_enabled);
+  lio->setVisualParallelEnabled(vp_enabled);
   lio->setROSWrapper(data_wrapper);
   // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
   // epochs (>=5) and distinct landmarks (>=10 if available)
@@ -514,6 +517,11 @@ int main(int argc, char** argv) {
     }
     std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
                 lio->hbWorstHRel(), lio->hbWorstBRel());
+    std::printf("VP timing us: total=%.0f patch_eval=%.0f hb_commit=%.0f epochs=%lld lm=%lld samples=%lld\n",
+                lio->vpTotalUs(), lio->vpPatchEvalUs(), lio->vpHbCommitUs(),
+                (long long)lio->vpCameraEpochs(),
+                (long long)lio->vpPhotometricLandmarks(),
+                (long long)lio->vpPhotometricSamples());
     std::printf("HB-0 summary: epochs_audited=%lld epochs_fail=%lld total_samples=%lld duplicates=%lld distinct_landmarks=%lld\n",
                 (long long)lio->hb0EpochsAudited(),
                 (long long)lio->hb0EpochsFail(),

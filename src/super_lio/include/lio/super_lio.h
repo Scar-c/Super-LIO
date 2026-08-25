@@ -225,6 +225,19 @@ public:
   std::array<double, 6> prod_vs_double_dc_max_abs_{};
   std::array<std::vector<double>, 6> prod_vs_double_dc_med_abs_{};
   bool math_gate_fail_ = false;
+  // Round 11L PERF-0 deterministic visual TBB
+  bool visual_parallel_enabled_ = false;
+  double vp_existing_projection_us_ = 0.0;
+  double vp_candidate_projection_us_ = 0.0;
+  double vp_grid_commit_us_ = 0.0;
+  double vp_patch_eval_us_ = 0.0;
+  double vp_hb_commit_us_ = 0.0;
+  double vp_lifecycle_us_ = 0.0;
+  double vp_total_us_ = 0.0;
+  int64_t vp_camera_epochs_ = 0;
+  int64_t vp_photometric_landmarks_ = 0;
+  int64_t vp_photometric_samples_ = 0;
+
   // Round 11K HB-0 production H/b numeric audit
   bool hb0_audit_enabled_ = false;
   std::vector<Hb0SampleRec> hb0_samples_;
@@ -241,6 +254,17 @@ public:
   double hb_worst_b_rel_ = 0.0;
   bool mathGateFail() const { return math_gate_fail_; }
   void setHb0AuditEnabled(bool e) { hb0_audit_enabled_ = e; }
+  void setVisualParallelEnabled(bool e) { visual_parallel_enabled_ = e; }
+  double vpExistingProjectionUs() const { return vp_existing_projection_us_; }
+  double vpCandidateProjectionUs() const { return vp_candidate_projection_us_; }
+  double vpGridCommitUs() const { return vp_grid_commit_us_; }
+  double vpPatchEvalUs() const { return vp_patch_eval_us_; }
+  double vpHbCommitUs() const { return vp_hb_commit_us_; }
+  double vpLifecycleUs() const { return vp_lifecycle_us_; }
+  double vpTotalUs() const { return vp_total_us_; }
+  int64_t vpCameraEpochs() const { return vp_camera_epochs_; }
+  int64_t vpPhotometricLandmarks() const { return vp_photometric_landmarks_; }
+  int64_t vpPhotometricSamples() const { return vp_photometric_samples_; }
   int64_t hb0EpochsAudited() const { return hb0_epochs_audited_; }
   int64_t hb0EpochsFail() const { return hb0_epochs_fail_; }
   int64_t hb0TotalSamples() const { return hb0_total_samples_; }
