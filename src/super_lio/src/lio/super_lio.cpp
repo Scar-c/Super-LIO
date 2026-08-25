@@ -1290,6 +1290,45 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           }
           mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
         };
+        // §24 double-precision FD oracle: independent all-double path
+        auto warp_all_double =
+            [&](const Eigen::Matrix3d& Rb, const Eigen::Vector3d& tb,
+                std::vector<Eigen::Vector2d>& w, std::vector<double>& ic,
+                double& mcur) {
+              w.clear();
+              ic.clear();
+              const Eigen::Matrix3d Rc = Rb * R_bc;
+              const Eigen::Vector3d tc = tb + Rb * t_bc;
+              double acc = 0.0;
+              for (size_t kk = 0; kk < ref_idx.size(); ++kk) {
+                const double u = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
+                const double v = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
+                const Eigen::Vector3d ray_cam((u - cx) / fx, (v - cy) / fy, 1.0);
+                const Eigen::Vector3d dir_w = R_ref * ray_cam;
+                const double denom = n_sync.dot(dir_w);
+                if (std::abs(denom) < 1e-12) continue;
+                const double s = n_sync.dot(P_patch - t_ref) / denom;
+                if (s <= 1e-4) continue;
+                const Eigen::Vector3d X = t_ref + s * dir_w;
+                const Eigen::Vector3d Xc = Rc.transpose() * (X - tc);
+                if (Xc.z() <= 1e-6) continue;
+                const double u2 = fx * Xc.x() / Xc.z() + cx;
+                const double v2 = fy * Xc.y() / Xc.z() + cy;
+                if (u2 < 0.0 || u2 >= W - 1.0 || v2 < 0.0 || v2 >= H - 1.0) continue;
+                const double i0 = std::floor(u2), j0 = std::floor(v2);
+                const double al = u2 - i0, be = v2 - j0;
+                const double I00 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0)];
+                const double I10 = img[static_cast<size_t>(j0) * W + static_cast<int>(i0) + 1];
+                const double I01 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0)];
+                const double I11 = img[static_cast<size_t>(j0 + 1) * W + static_cast<int>(i0) + 1];
+                const double Ic = (1.0 - al) * (1.0 - be) * I00 + al * (1.0 - be) * I10 +
+                                  (1.0 - al) * be * I01 + al * be * I11;
+                w.emplace_back(u2, v2);
+                ic.push_back(Ic);
+                acc += Ic;
+              }
+              mcur = w.empty() ? 0.0 : acc / static_cast<double>(w.size());
+            };
         std::vector<Eigen::Vector2d> w0;
         std::vector<double> ic0;
         double mc0 = 0.0;
@@ -1323,13 +1362,36 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             warp_all(pp, w1, ic1, mc1);
             warp_all(pm, wm, icm, mcm);
             if (w1.size() != M || wm.size() != M) { all_dirs_ok = false; continue; }
+            // §24 double-precision FD oracle (independent path, eps=1e-5)
+            const double eps_d = 1e-5;
+            const Eigen::Matrix3d Rb0 = pose.R_.cast<double>();
+            const Eigen::Vector3d tb0 = pose.t_.cast<double>();
+            std::vector<Eigen::Vector2d> w1d, wmd;
+            std::vector<double> ic1d, icmd;
+            double mc1d = 0.0, mcmd = 0.0;
+            Eigen::Matrix3d Rpp = Rb0, Rpm = Rb0;
+            Eigen::Vector3d tpp = tb0, tpm = tb0;
+            if (d < 3) {
+              const Eigen::Matrix3d Rm =
+                  Eigen::AngleAxisd(eps_d, Eigen::Vector3d::Unit(d)).toRotationMatrix();
+              Rpp = Rb0 * Rm;
+              Rpm = Rb0 * Rm.transpose();
+            } else {
+              tpp[d - 3] += eps_d;
+              tpm[d - 3] -= eps_d;
+            }
+            warp_all_double(Rpp, tpp, w1d, ic1d, mc1d);
+            warp_all_double(Rpm, tpm, wmd, icmd, mcmd);
+            const bool oracle_ok = w1d.size() == M && wmd.size() == M;
             double max_abs = 0.0, max_rel = 0.0, med_rel = 0.0;
             double strong_max_rel = 0.0, strong_med_rel = 0.0;
+            double strong_max_rel_double = 0.0, strong_med_rel_double = 0.0;
             double weak_max_abs = 0.0;
             int64_t strong_n = 0, weak_n = 0, non_smooth = 0;
-            std::vector<double> rels, srels;
+            std::vector<double> rels, srels, srels_d;
             rels.reserve(M);
             srels.reserve(M);
+            srels_d.reserve(M);
             for (size_t k = 0; k < M; ++k) {
               // NON_SMOOTH_FD (Owner §10.1): the numerical perturbation
               // changes the discrete bilinear support (floor crosses an
@@ -1353,6 +1415,13 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               const double rm = (icm[k] - mcm) - (ref_vals[k] - mean_ref);
               const double fd = (r1 - rm) / (2.0 * eps);
               const double an = (Js[k] - Jmean)(d);
+              // §24 double oracle per-sample DC derivative
+              double fd_d = 0.0;
+              if (oracle_ok) {
+                const double r1d = (ic1d[k] - mc1d) - (ref_vals[k] - mean_ref);
+                const double rmd = (icmd[k] - mcmd) - (ref_vals[k] - mean_ref);
+                fd_d = (r1d - rmd) / (2.0 * eps_d);
+              }
               const double ae = std::abs(fd - an);
               const double re = ae / std::max(1e-12, std::abs(fd));
               max_abs = std::max(max_abs, ae);
@@ -1361,6 +1430,12 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
                 strong_n++;
                 strong_max_rel = std::max(strong_max_rel, re);
                 srels.push_back(re);
+                if (oracle_ok) {
+                  const double ae_d = std::abs(fd_d - an);
+                  const double re_d = ae_d / std::max(1e-12, std::abs(fd_d));
+                  strong_max_rel_double = std::max(strong_max_rel_double, re_d);
+                  srels_d.push_back(re_d);
+                }
               } else {
                 weak_n++;
                 weak_max_abs = std::max(weak_max_abs, ae);
@@ -1380,9 +1455,19 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
             fd_strong_count_[d] += strong_n;
             fd_strong_max_rel_[d] = std::max(fd_strong_max_rel_[d], strong_max_rel);
             fd_strong_med_rel_[d] = strong_med_rel;
+            if (oracle_ok) {
+              fd_strong_max_rel_double_[d] =
+                  std::max(fd_strong_max_rel_double_[d], strong_max_rel_double);
+              if (!srels_d.empty()) {
+                std::sort(srels_d.begin(), srels_d.end());
+                fd_strong_med_rel_double_[d] = srels_d[srels_d.size() / 2];
+              }
+            }
             fd_weak_count_[d] += weak_n;
             fd_weak_max_abs_[d] = std::max(fd_weak_max_abs_[d], weak_max_abs);
-            if (strong_max_rel > 1e-2) {
+            const double gate_rel =
+                oracle_ok ? strong_max_rel_double : strong_max_rel;
+            if (gate_rel > 1e-2) {
               // locate worst strong sample and verify truncation vs bug
               double wrel = -1.0, wfd = 0.0, wan = 0.0, wx = 0.0, wy = 0.0, wz = 0.0;
               for (size_t k = 0; k < M; ++k) {
@@ -1406,6 +1491,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
               }
               LOG(ERROR) << "V-2 6DOF FD gate FAIL dir=" << d
                          << " strong_max_rel=" << strong_max_rel
+                         << " double_oracle=" << strong_max_rel_double
                          << " worst fd=" << wfd << " an=" << wan
                          << " Xc=(" << wx << "," << wy << "," << wz << ")"
                          << " xz=" << wx / wz << " yz=" << wy / wz
@@ -1448,7 +1534,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           }
           if (all_dirs_ok) {
             fd_trials_complete_++;
-            fd_samples_needed_--;
+            if (fd_samples_needed_ > 0) fd_samples_needed_--;  // 0 = continuous
             fd_epoch_set_.insert(measures_.epoch_ts);
             fd_lmk_set_.insert(static_cast<int64_t>(lm.landmark_id));  // P0-6
             // global median computed at report time from fd_rel_all_

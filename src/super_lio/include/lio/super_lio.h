@@ -185,8 +185,12 @@ public:
   std::array<std::vector<double>, 6> fd_rel_all_;    // global rel samples/dir
   std::array<double, 6> fd_max_abs_all_{};           // all samples, abs error
   std::array<int64_t, 6> fd_strong_count_{};         // |fd| >= 1e-3 (reported layer)
-  std::array<double, 6> fd_strong_max_rel_{};        // strong-layer max rel
+  std::array<double, 6> fd_strong_max_rel_{};        // strong-layer max rel (float FD)
   std::array<double, 6> fd_strong_med_rel_{};
+  std::array<double, 6> fd_strong_max_rel_double_{};  // §24 double-oracle max rel
+  std::array<double, 6> fd_strong_med_rel_double_{};
+  const std::array<double, 6>& fdStrongMaxRelDouble() const { return fd_strong_max_rel_double_; }
+  const std::array<double, 6>& fdStrongMedRelDouble() const { return fd_strong_med_rel_double_; }
   std::array<int64_t, 6> fd_weak_count_{};           // |fd| < 1e-3 (reported layer)
   std::array<double, 6> fd_weak_max_abs_{};          // weak-layer max abs
   std::array<double, 6> fd_global_med_rel_{};        // global median per direction

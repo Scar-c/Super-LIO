@@ -438,12 +438,13 @@ int main(int argc, char** argv) {
                 lio->fdDistinctLandmarks());
     const char* dn[6] = {"rx", "ry", "rz", "tx", "ty", "tz"};
     for (int d = 0; d < 6; ++d) {
-      std::printf("V-2 FD %s: global_med_rel=%.6g max_abs_all=%.6g strong_n=%lld strong_max_rel=%.6g strong_med_rel=%.6g weak_n=%lld weak_max_abs=%.6g nonsmooth=%lld\n",
+      std::printf("V-2 FD %s: global_med_rel=%.6g max_abs_all=%.6g strong_n=%lld strong_max_rel=%.6g strong_med_rel=%.6g weak_n=%lld weak_max_abs=%.6g nonsmooth=%lld double_max_rel=%.6g\n",
                   dn[d], lio->fdGlobalMedRel()[d], lio->fdMaxAbsAll()[d],
                   (long long)lio->fdStrongCount()[d],
                   lio->fdStrongMaxRel()[d], lio->fdStrongMedRel()[d],
                   (long long)lio->fdWeakCount()[d],
-                  lio->fdWeakMaxAbs()[d], (long long)lio->fdNonSmooth()[d]);
+                  lio->fdWeakMaxAbs()[d], (long long)lio->fdNonSmooth()[d],
+                  lio->fdStrongMaxRelDouble()[d]);
     }
     if (lio->fdConvDone()) {
       std::printf("V-2 rz eps-convergence (frozen sample, max_rel): 1e-5=%.6g 1e-4=%.6g 1e-3=%.6g 1e-2=%.6g\n",
