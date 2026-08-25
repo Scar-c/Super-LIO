@@ -111,6 +111,15 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11K HB-0 production H/b audit helper tests
+add_executable(hb0_audit_test
+  src/geometry/tests/test_hb0_audit.cpp
+)
+target_include_directories(hb0_audit_test PUBLIC include)
+target_link_libraries(hb0_audit_test
+  Eigen3::Eigen
+)
+
 # Round 11J condition-aware Gate M classifier tests
 add_executable(gate_classifier_test
   src/geometry/tests/test_gate_classifier.cpp

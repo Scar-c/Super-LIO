@@ -25,6 +25,7 @@
 #include "ros/ROSWrapper.h"
 #include "instrumentation/ExperimentLogger.h"
 #include "instrumentation/RunStats.h"
+#include "geometry/Hb0Audit.h"
 #include "geometry/MicroSurfelStats.h"
 #include "geometry/VisualSupportStats.h"
 #include "geometry/SchemeBShadow.h"
@@ -224,9 +225,33 @@ public:
   std::array<double, 6> prod_vs_double_dc_max_abs_{};
   std::array<std::vector<double>, 6> prod_vs_double_dc_med_abs_{};
   bool math_gate_fail_ = false;
+  // Round 11K HB-0 production H/b numeric audit
+  bool hb0_audit_enabled_ = false;
+  std::vector<Hb0SampleRec> hb0_samples_;
+  int64_t hb0_epochs_audited_ = 0;
+  int64_t hb0_epochs_fail_ = 0;
+  int64_t hb0_total_samples_ = 0;
+  int64_t hb0_total_duplicates_ = 0;
+  int64_t hb0_distinct_landmarks_ = 0;
+  std::unordered_set<int64_t> hb0_landmark_ids_;
+  double hb0_worst_rho_H_ = 0.0, hb0_worst_rho_b_ = 0.0;
+  double hb0_worst_src_H_ratio_ = 0.0, hb0_worst_src_b_ratio_ = 0.0;
+  double hb0_worst_acc_H_ratio_ = 0.0, hb0_worst_acc_b_ratio_ = 0.0;
   double hb_worst_h_rel_ = 0.0;
   double hb_worst_b_rel_ = 0.0;
   bool mathGateFail() const { return math_gate_fail_; }
+  void setHb0AuditEnabled(bool e) { hb0_audit_enabled_ = e; }
+  int64_t hb0EpochsAudited() const { return hb0_epochs_audited_; }
+  int64_t hb0EpochsFail() const { return hb0_epochs_fail_; }
+  int64_t hb0TotalSamples() const { return hb0_total_samples_; }
+  int64_t hb0TotalDuplicates() const { return hb0_total_duplicates_; }
+  int64_t hb0DistinctLandmarks() const { return hb0_distinct_landmarks_; }
+  double hb0WorstRhoH() const { return hb0_worst_rho_H_; }
+  double hb0WorstRhoB() const { return hb0_worst_rho_b_; }
+  double hb0WorstSrcHRatio() const { return hb0_worst_src_H_ratio_; }
+  double hb0WorstSrcBRatio() const { return hb0_worst_src_b_ratio_; }
+  double hb0WorstAccHRatio() const { return hb0_worst_acc_H_ratio_; }
+  double hb0WorstAccBRatio() const { return hb0_worst_acc_b_ratio_; }
   double hbWorstHRel() const { return hb_worst_h_rel_; }
   double hbWorstBRel() const { return hb_worst_b_rel_; }
   const std::array<double, 6>& mathMaxRel() const { return double_math_max_rel_; }

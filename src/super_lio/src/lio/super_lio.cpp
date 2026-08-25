@@ -1082,6 +1082,9 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   double sum_before = 0.0, sum_after = 0.0;
   static thread_local double fd_debug_printed = 0.0;
 
+  // Round 11K HB-0 audit capture state (cleared per solve/epoch)
+  hb0_samples_.clear();
+
   // P0-8: process only the active visual list built by the frontend this
   // epoch (candidate/local retrieval), never a global VisualMap scan
   for (const auto& a : active_visual_landmarks_) {
@@ -1235,6 +1238,62 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
         const Eigen::Matrix<double, 6, 1> Jdc = Js[k] - Jmean;
         HTVH += (Jdc * Jdc.transpose()).cast<float>();
         HTVr -= (Jdc * rs[k]).cast<float>();
+        if (hb0_audit_enabled_) {
+          Hb0SampleRec rec;
+          rec.id = (((int64_t)measures_.epoch_ts * 131) ^
+                    ((int64_t)lm.landmark_id * 17)) * 65536 +
+                   (int64_t)lm.active_ref_slot * 64 + (int64_t)ref_idx[k];
+          rec.lm_id = static_cast<int64_t>(lm.landmark_id);
+          for (int a = 0; a < 6; ++a) rec.J[a] = Jdc(a);
+          rec.r = rs[k];
+          const Eigen::Matrix<float, 6, 6> hf =
+              (Jdc * Jdc.transpose()).cast<float>();
+          const Eigen::Matrix<float, 6, 1> gf = (Jdc * rs[k]).cast<float>();
+          for (int a = 0; a < 36; ++a) rec.h_addend[a] = hf.data()[a];
+          for (int a = 0; a < 6; ++a) rec.g_addend[a] = gf(a);
+          // independent all-double oracle (frozen Gate-X/Gate-M formula,
+          // audit-only replica; never replaces production accumulation)
+          auto oracleJd = [&](size_t kk, Eigen::Matrix<double, 6, 1>& Jd_out) -> bool {
+            const double uu = ref_u + (static_cast<double>(ref_idx[kk] % 8) - 4);
+            const double vv = ref_v + (static_cast<double>(ref_idx[kk] / 8) - 4);
+            const Eigen::Vector3d ray_cam((uu - cx) / fx, (vv - cy) / fy, 1.0);
+            const Eigen::Vector3d dir_w = R_ref * ray_cam;
+            const double denom = n_sync.dot(dir_w);
+            if (std::abs(denom) < 1e-9) return false;
+            const double s = n_sync.dot(P_patch - t_ref) / denom;
+            if (s <= 1e-4) return false;
+            const Eigen::Vector3d X = t_ref + s * dir_w;
+            const Eigen::Vector3d Xc = Xw_to_Xc(X, R_cur, t_cur);
+            if (Xc.z() <= 0.05) return false;
+            const double u2 = fx * Xc.x() / Xc.z() + cx;
+            const double v2 = fy * Xc.y() / Xc.z() + cy;
+            if (u2 < 1.0 || u2 >= W - 1.0 || v2 < 1.0 || v2 >= H - 1.0) return false;
+            const BilinearSample bs = sampleBilinearWithGradient(img, W, H, u2, v2);
+            if (!bs.valid) return false;
+            const double z = Xc.z();
+            Eigen::Matrix<double, 2, 3> du_dXc;
+            du_dXc << fx / z, 0.0, -fx * Xc.x() / (z * z),
+                      0.0, fy / z, -fy * Xc.y() / (z * z);
+            Eigen::Matrix<double, 3, 6> dXc_dxi = Eigen::Matrix<double, 3, 6>::Zero();
+            dXc_dxi.block<3, 3>(0, 3) = -R_CB * R_cur.transpose();
+            const Eigen::Vector3d X_B = R_cur.transpose() * (X - t_cur);
+            const Eigen::Vector3d Xc_m_t = R_CB * X_B;
+            Eigen::Matrix3d Xct_skew;
+            Xct_skew << 0.0, -Xc_m_t.z(), Xc_m_t.y(), Xc_m_t.z(), 0.0, -Xc_m_t.x(),
+                -Xc_m_t.y(), Xc_m_t.x(), 0.0;
+            dXc_dxi.block<3, 3>(0, 0) = Xct_skew * R_CB;
+            const Eigen::Matrix<double, 2, 6> du_dxi = du_dXc * dXc_dxi;
+            Jd_out = (bs.du * du_dxi.row(0) + bs.dv * du_dxi.row(1)).transpose();
+            return true;
+          };
+          Eigen::Matrix<double, 6, 1> jdc_d;
+          if (oracleJd(k, jdc_d)) {
+            rec.oracle_valid = true;
+            for (int a = 0; a < 6; ++a) rec.Jd[a] = jdc_d(a);
+          }
+          hb0_samples_.push_back(rec);
+          hb0_landmark_ids_.insert(static_cast<int64_t>(lm.landmark_id));
+        }
         sse_after += rs[k] * rs[k];
         sum_before += rs[k] * rs[k];
         sum_after += sse_after;  // placeholder: real after-solve not available here
@@ -1593,7 +1652,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
           // true double worst (H1)
           fd_double_worst_rel_[d] = std::max(fd_double_worst_rel_[d], wd_rel);
           if (double_max_rel > 1e-2) {
-            LOG(ERROR) << "V-2 DOUBLE FD gate FAIL dir=" << d
+            LOG(ERROR) << "V-2 legacy dc_rel diagnostic exceeded dir=" << d
                        << " double_max_rel=" << double_max_rel
                        << " worst_rel=" << wd_rel << " fd=" << wd_fd
                        << " an=" << wd_an << " Xc=(" << wd_xc0 << ","
@@ -1795,6 +1854,151 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   }
   visual_residual_landmarks_ = accepted;
   visual_residual_frames_++;
+  // Round 11K HB-0: per-epoch production H/b numeric audit (OFF by default)
+  if (hb0_audit_enabled_ && !hb0_samples_.empty()) {
+    hb0_epochs_audited_++;
+    hb0_distinct_landmarks_ = static_cast<int64_t>(hb0_landmark_ids_.size());
+    std::unordered_set<int64_t> ids;
+    for (const auto& s : hb0_samples_) {
+      if (!ids.insert(s.id).second) hb0_total_duplicates_++;
+    }
+    hb0_total_samples_ += static_cast<int64_t>(hb0_samples_.size());
+    // per-landmark oracle raw means (production DC mean is landmark-level)
+    std::unordered_map<int64_t, std::pair<double[6], int64_t>> lm_means;
+    int64_t nD = 0;
+    for (const auto& s : hb0_samples_) {
+      if (s.oracle_valid) {
+        auto& p = lm_means[s.lm_id];
+        for (int a = 0; a < 6; ++a) p.first[a] += s.Jd[a];
+        p.second++;
+        nD++;
+      }
+    }
+    for (auto& kv : lm_means) {
+      if (kv.second.second > 0)
+        for (int a = 0; a < 6; ++a) kv.second.first[a] /= static_cast<double>(kv.second.second);
+    }
+    // debug: first 2 samples J comparison (production vs oracle)
+    for (size_t dbg_i = 0; dbg_i < std::min<size_t>(2, hb0_samples_.size()); ++dbg_i) {
+      const auto& s = hb0_samples_[dbg_i];
+      std::printf("HB0DBG s=%zu Jp=(%.6g,%.6g,%.6g,%.6g,%.6g,%.6g) Jd=(%.6g,%.6g,%.6g,%.6g,%.6g,%.6g) r=%.6g\n",
+                  dbg_i, s.J[0], s.J[1], s.J[2], s.J[3], s.J[4], s.J[5],
+                  s.oracle_valid ? s.Jd[0] : 0.0,
+                  s.oracle_valid ? s.Jd[1] : 0.0,
+                  s.oracle_valid ? s.Jd[2] : 0.0,
+                  s.oracle_valid ? s.Jd[3] : 0.0,
+                  s.oracle_valid ? s.Jd[4] : 0.0,
+                  s.oracle_valid ? s.Jd[5] : 0.0,
+                  s.r);
+    }
+    double H_D[36] = {0.0}, b_D[6] = {0.0}, H_Q[36] = {0.0}, b_Q[6] = {0.0};
+    double S_H_D[36] = {0.0}, S_b_D[6] = {0.0}, S_H_P[36] = {0.0}, S_b_P[6] = {0.0};
+    for (const auto& s : hb0_samples_) {
+      double JD[6];
+      const auto mit = lm_means.find(s.lm_id);
+      const double* lm_m = (s.oracle_valid && mit != lm_means.end()) ? mit->second.first : nullptr;
+      for (int a = 0; a < 6; ++a)
+        JD[a] = lm_m ? (s.Jd[a] - lm_m[a]) : s.J[a];
+      double hD[36];
+      hbOuter(hD, JD);
+      for (int a = 0; a < 36; ++a) {
+        H_D[a] += hD[a];
+        S_H_D[a] += std::abs(hD[a]);
+        H_Q[a] += static_cast<double>(s.h_addend[a]);
+        S_H_P[a] += std::abs(static_cast<double>(s.h_addend[a]));
+      }
+      for (int a = 0; a < 6; ++a) {
+        const double gD = -JD[a] * s.r;
+        b_D[a] += gD;
+        S_b_D[a] += std::abs(gD);
+        const double gP = -static_cast<double>(s.g_addend[a]);
+        b_Q[a] += gP;
+        S_b_P[a] += std::abs(gP);
+      }
+    }
+    double H_P[36], b_P[6];
+    for (int a = 0; a < 6; ++a)
+      for (int b = 0; b < 6; ++b) H_P[a * 6 + b] = static_cast<double>(HTVH(a, b));
+    for (int a = 0; a < 6; ++a) b_P[a] = static_cast<double>(HTVr(a));
+    double S_Hmax_D = 0.0, S_bmax_D = 0.0, S_Hmax_P = 0.0, S_bmax_P = 0.0;
+    for (int a = 0; a < 36; ++a) { S_Hmax_D = std::max(S_Hmax_D, S_H_D[a]); S_Hmax_P = std::max(S_Hmax_P, S_H_P[a]); }
+    for (int a = 0; a < 6; ++a) { S_bmax_D = std::max(S_bmax_D, S_b_D[a]); S_bmax_P = std::max(S_bmax_P, S_b_P[a]); }
+    const double uA = Hb0Constants::uAccFloat;
+    const double gamma = hbGammaN(hb0_samples_.size(), uA);
+    double rhoH = 0.0, rhoB = 0.0, worst_srcH = 0.0, worst_srcB = 0.0;
+    double worst_accH = 0.0, worst_accB = 0.0, max_sym = 0.0, sym_budget = 0.0;
+    for (int a = 0; a < 36; ++a) {
+      const double B_src = Hb0Constants::kSrcCoef * S_H_D[a] + Hb0Constants::kSrcTiny * S_Hmax_D;
+      const double B_acc = 2.0 * gamma * S_H_P[a] + 8.0 * uA * S_Hmax_P;
+      const double E_src = std::abs(H_Q[a] - H_D[a]);
+      const double E_acc = std::abs(H_P[a] - H_Q[a]);
+      const double B_tot = B_src + B_acc;
+      const double rho = B_tot > 0 ? (E_src + E_acc) / B_tot : 0.0;
+      rhoH = std::max(rhoH, rho);
+      if (B_src > 0) worst_srcH = std::max(worst_srcH, E_src / B_src);
+      if (B_acc > 0) worst_accH = std::max(worst_accH, E_acc / B_acc);
+    }
+    for (int a = 0; a < 6; ++a) {
+      const double B_src = Hb0Constants::kSrcCoef * S_b_D[a] + Hb0Constants::kSrcTiny * S_bmax_D;
+      const double B_acc = 2.0 * gamma * S_b_P[a] + 8.0 * uA * S_bmax_P;
+      const double E_src = std::abs(b_Q[a] - b_D[a]);
+      const double E_acc = std::abs(b_P[a] - b_Q[a]);
+      const double B_tot = B_src + B_acc;
+      const double rho = B_tot > 0 ? (E_src + E_acc) / B_tot : 0.0;
+      rhoB = std::max(rhoB, rho);
+      if (B_src > 0) worst_srcB = std::max(worst_srcB, E_src / B_src);
+      if (B_acc > 0) worst_accB = std::max(worst_accB, E_acc / B_acc);
+    }
+    for (int a = 0; a < 6; ++a)
+      for (int b = 0; b < 6; ++b)
+        max_sym = std::max(max_sym, std::abs(H_P[a * 6 + b] - H_P[b * 6 + a]));
+    sym_budget = 8.0 * uA * S_Hmax_P;
+    Eigen::Matrix<double, 6, 6> HDs;
+    for (int a = 0; a < 6; ++a)
+      for (int b = 0; b < 6; ++b) HDs(a, b) = H_D[a * 6 + b];
+    const Eigen::Matrix<double, 6, 6> HDsym = 0.5 * (HDs + HDs.transpose());
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> esD(HDsym);
+    const double lam_min_D = esD.eigenvalues()(0);
+    const double lam_max_D = esD.eigenvalues()(5);
+    const double psd_min = -1e-12 * std::max(lam_max_D, 1e-30);
+    double BtotF = 0.0;
+    for (int a = 0; a < 36; ++a) {
+      const double B_tot = Hb0Constants::kSrcCoef * S_H_D[a] + Hb0Constants::kSrcTiny * S_Hmax_D +
+                           2.0 * gamma * S_H_P[a] + 8.0 * uA * S_Hmax_P;
+      BtotF += B_tot * B_tot;
+    }
+    BtotF = std::sqrt(BtotF);
+    Eigen::Matrix<double, 6, 6> HPs;
+    for (int a = 0; a < 6; ++a)
+      for (int b = 0; b < 6; ++b) HPs(a, b) = H_P[a * 6 + b];
+    const Eigen::Matrix<double, 6, 6> HPsym = 0.5 * (HPs + HPs.transpose());
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> esP(HPsym);
+    const double lam_min_P = esP.eigenvalues()(0);
+    bool finite_ok = true;
+    for (int a = 0; a < 36; ++a) {
+      if (!std::isfinite(H_P[a]) || !std::isfinite(H_D[a]) || !std::isfinite(H_Q[a])) finite_ok = false;
+    }
+    for (int a = 0; a < 6; ++a) {
+      if (!std::isfinite(b_P[a]) || !std::isfinite(b_D[a]) || !std::isfinite(b_Q[a])) finite_ok = false;
+    }
+    const bool fail = (rhoH > 1.0 || rhoB > 1.0 || max_sym > sym_budget ||
+                       lam_min_D < psd_min || lam_min_P < -2.0 * BtotF ||
+                       hb0_total_duplicates_ > 0 || !finite_ok);
+    if (fail) hb0_epochs_fail_++;
+    hb0_worst_rho_H_ = std::max(hb0_worst_rho_H_, rhoH);
+    hb0_worst_rho_b_ = std::max(hb0_worst_rho_b_, rhoB);
+    hb0_worst_src_H_ratio_ = std::max(hb0_worst_src_H_ratio_, worst_srcH);
+    hb0_worst_src_b_ratio_ = std::max(hb0_worst_src_b_ratio_, worst_srcB);
+    hb0_worst_acc_H_ratio_ = std::max(hb0_worst_acc_H_ratio_, worst_accH);
+    hb0_worst_acc_b_ratio_ = std::max(hb0_worst_acc_b_ratio_, worst_accB);
+    std::printf("HB-0 epoch=%lld samples=%zu oracle_valid=%zu dup=%zu rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g sym=%.3g sym_budget=%.3g lamD=%.6g lamP=%.6g finite=%d %s\n",
+                static_cast<long long>(hb0_epochs_audited_),
+                hb0_samples_.size(), nD, hb0_total_duplicates_,
+                rhoH, rhoB, worst_srcH, worst_srcB, worst_accH, worst_accB,
+                max_sym, sym_budget, lam_min_D, lam_min_P, finite_ok ? 1 : 0,
+                fail ? "FAIL" : "PASS");
+    std::fflush(stdout);
+  }
   return accepted;
 }
 

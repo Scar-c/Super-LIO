@@ -1,0 +1,15 @@
+HB-0 epoch=1 samples=10951 oracle_valid=10951 dup=0 rhoH=0.014816 rhoB=0.000317911 srcH=0.000534743 srcB=0.000275574 accH=0.0149094 accB=0.00031964 sym=0 sym_budget=1.13e+05 lamD=7.12484e+08 lamP=7.12475e+08 finite=1 PASS
+HB-0 epoch=2 samples=11152 oracle_valid=11152 dup=0 rhoH=0.00629755 rhoB=0.00344661 srcH=0.000984031 srcB=0.00107399 accH=0.00633696 accB=0.0034712 sym=0 sym_budget=1.04e+05 lamD=8.43374e+08 lamP=8.4337e+08 finite=1 PASS
+HB-0 epoch=3 samples=11452 oracle_valid=11452 dup=0 rhoH=0.0143253 rhoB=0.0017137 srcH=0.000344067 srcB=0.000785964 accH=0.0144291 accB=0.00172462 sym=0 sym_budget=1.04e+05 lamD=8.26501e+08 lamP=8.26495e+08 finite=1 PASS
+HB-0 epoch=4 samples=11250 oracle_valid=11250 dup=0 rhoH=0.00976984 rhoB=0.0029714 srcH=0.000774541 srcB=0.000248514 accH=0.00982744 accB=0.00299166 sym=0 sym_budget=9.72e+04 lamD=7.31646e+08 lamP=7.31639e+08 finite=1 PASS
+HB-0 epoch=5 samples=11520 oracle_valid=11520 dup=0 rhoH=0.014095 rhoB=0.00221832 srcH=0.000545274 srcB=0.000329978 accH=0.0141971 accB=0.00223413 sym=0 sym_budget=1.01e+05 lamD=8.25693e+08 lamP=8.25685e+08 finite=1 PASS
+HB-0 epoch=6 samples=11821 oracle_valid=11821 dup=0 rhoH=0.0135764 rhoB=0.00638886 srcH=0.000476038 srcB=0.00041602 accH=0.0136713 accB=0.00643112 sym=0 sym_budget=1.03e+05 lamD=8.4023e+08 lamP=8.40228e+08 finite=1 PASS
+HB-0 epoch=7 samples=11740 oracle_valid=11740 dup=0 rhoH=0.014657 rhoB=0.00339679 srcH=0.000831718 srcB=0.000310262 accH=0.0147609 accB=0.0034204 sym=0 sym_budget=1.04e+05 lamD=7.20491e+08 lamP=7.20486e+08 finite=1 PASS
+HB-0 epoch=8 samples=11909 oracle_valid=11909 dup=0 rhoH=0.0131039 rhoB=0.000928885 srcH=0.000789725 srcB=0.000357078 accH=0.0131824 accB=0.000934357 sym=0 sym_budget=1.06e+05 lamD=7.71167e+08 lamP=7.71157e+08 finite=1 PASS
+HB-0 epoch=9 samples=12125 oracle_valid=12125 dup=0 rhoH=0.0156926 rhoB=0.00189598 srcH=0.0013772 srcB=0.000861463 accH=0.0157889 accB=0.00190895 sym=0 sym_budget=1.08e+05 lamD=7.92162e+08 lamP=7.92157e+08 finite=1 PASS
+HB-0 epoch=10 samples=12251 oracle_valid=12251 dup=0 rhoH=0.0133694 rhoB=0.00118275 srcH=0.000752605 srcB=0.00059097 accH=0.0134567 accB=0.00118679 sym=0 sym_budget=1.16e+05 lamD=9.29033e+08 lamP=9.29027e+08 finite=1 PASS
+HB-0 epoch=11 samples=11896 oracle_valid=11896 dup=0 rhoH=0.0124197 rhoB=0.00228066 srcH=0.000706175 srcB=0.000590564 accH=0.012507 accB=0.00229431 sym=0 sym_budget=1.11e+05 lamD=8.44633e+08 lamP=8.44626e+08 finite=1 PASS
+HB-0 epoch=12 samples=11718 oracle_valid=11718 dup=0 rhoH=0.00649383 rhoB=0.00207722 srcH=0.000815883 srcB=0.000268953 accH=0.00653796 accB=0.00209041 sym=0 sym_budget=1e+05 lamD=8.66723e+08 lamP=8.66721e+08 finite=1 PASS
+HB-0 epoch=13 samples=12363 oracle_valid=12363 dup=0 rhoH=0.0111956 rhoB=0.00093298 srcH=0.000505638 srcB=0.00050065 accH=0.0112608 accB=0.000938791 sym=0 sym_budget=1.13e+05 lamD=8.44121e+08 lamP=8.44114e+08 finite=1 PASS
+HB-0 summary: epochs_audited=13 epochs_fail=0 total_samples=152148 duplicates=0 distinct_landmarks=443
+HB-0 worst: rhoH=0.0156926 rhoB=0.00638886 srcH=0.0013772 srcB=0.00107399 accH=0.0157889 accB=0.00643112

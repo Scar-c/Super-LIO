@@ -1,0 +1,160 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0825 20:21:56.110546 57095 ROSWrapper.cpp:38] [32m ---> [Param] map/save_map: false[0m
+I0825 20:21:56.113447 57095 ROSWrapper.cpp:57] [32m ---> [Param] eva/instrumentation: false[0m
+I0825 20:21:56.121014 57095 ROSWrapper.cpp:257] [32m ---> Using Lidar type: UNKNOWN[0m
+I0825 20:21:56.122215 57095 ROSWrapper.cpp:275] [32m ---> [Param] camera calibration loaded: /home/lc/super_livo/bag/NTU/eee_01/camera_left.yaml[0m
+I0825 20:21:56.125783 57095 super_lio.cpp:117] [32m ---> [SuperLIO]: G-1 visual support diagnostics enabled[0m
+I0825 20:21:56.125795 57095 super_lio.cpp:136] [32m ---> [SuperLIO]: G-0 shadow sidecar enabled[0m
+I0825 20:21:56.125802 57095 super_lio.cpp:163] [32m ---> [SuperLIO]: initialized.[0m
+I0825 20:21:56.350495 57095 super_lio.cpp:171] [32m ---> [SuperLIO]: KF init done[0m
+I0825 20:21:56.356686 57095 super_lio.cpp:180] [32m ---> [SuperLIO]: Map init done[0m
+[offline_node] camera_epoch=1 camera_enabled=1
+[offline_node] processing /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag (publish=false)
+HB0DBG s=0 Jp=(4641.6,6341.19,-1298.07,-98.262,-21.5272,244.476) Jd=(4822.01,3679.61,4860.53,47.0596,-173.884,201.199) r=0.326698
+HB0DBG s=1 Jp=(2824.59,4646.39,-2465.72,-98.601,26.4711,162.229) Jd=(3005,1984.81,3692.87,46.7207,-125.885,118.952) r=0.186553
+HB-0 epoch=1 samples=10951 oracle_valid=10951 dup=0 rhoH=0.014816 rhoB=0.000317911 srcH=0.000534743 srcB=0.000275574 accH=0.0149094 accB=0.00031964 sym=0 sym_budget=1.13e+05 lamD=7.12484e+08 lamP=7.12475e+08 finite=1 PASS
+HB0DBG s=0 Jp=(-4940.41,-8904.08,5298.75,352.013,-107.361,-576.118) Jd=(634.855,741.955,164.69,-2.90512,-4.52181,13.8186) r=-0.303136
+HB0DBG s=1 Jp=(-5123.93,-10009.8,7111.96,373.575,-127.091,-588.437) Jd=(451.337,-363.742,1977.91,18.6564,-24.2511,1.50056) r=-0.273427
+HB-0 epoch=2 samples=11152 oracle_valid=11152 dup=0 rhoH=0.00629755 rhoB=0.00344661 srcH=0.000984031 srcB=0.00107399 accH=0.00633696 accB=0.0034712 sym=0 sym_budget=1.04e+05 lamD=8.43374e+08 lamP=8.4337e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1210.05,-1700.67,6825.16,143.35,-166.758,-3.22819) Jd=(817.787,5.76028,2097.95,37.5039,-54.0788,18.8263) r=0.279933
+HB0DBG s=1 Jp=(2084.93,-3898.15,13811.1,293.776,-330.272,-22.7533) Jd=(1692.67,-2191.72,9083.85,187.93,-217.593,-0.698804) r=0.0974534
+HB-0 epoch=3 samples=11452 oracle_valid=11452 dup=0 rhoH=0.0143253 rhoB=0.0017137 srcH=0.000344067 srcB=0.000785964 accH=0.0144291 accB=0.00172462 sym=0 sym_budget=1.04e+05 lamD=8.26501e+08 lamP=8.26495e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1103.14,-2165.7,7551.88,161.942,-182.083,-13.9806) Jd=(714.983,-453.94,2824.86,56.0341,-69.4905,8.23046) r=-1.35844
+HB0DBG s=1 Jp=(1406.31,-4149.25,12599.6,275.198,-297.314,-42.6594) Jd=(1018.15,-2437.5,7872.55,169.29,-184.722,-20.4484) r=-0.467908
+HB-0 epoch=4 samples=11250 oracle_valid=11250 dup=0 rhoH=0.00976984 rhoB=0.0029714 srcH=0.000774541 srcB=0.000248514 accH=0.00982744 accB=0.00299166 sym=0 sym_budget=9.72e+04 lamD=7.31646e+08 lamP=7.31639e+08 finite=1 PASS
+HB0DBG s=0 Jp=(-4657.54,-8671.24,5560.24,349.531,-109.851,-566.74) Jd=(961.382,979.776,549.909,-1.02818,-10.2691,19.5881) r=-1.91795
+HB0DBG s=1 Jp=(-5258,-9605.74,5891.63,357.677,-111.05,-582.015) Jd=(360.927,45.2768,881.293,7.11859,-11.4686,4.31334) r=-1.25885
+HB-0 epoch=5 samples=11520 oracle_valid=11520 dup=0 rhoH=0.014095 rhoB=0.00221832 srcH=0.000545274 srcB=0.000329978 accH=0.0141971 accB=0.00223413 sym=0 sym_budget=1.01e+05 lamD=8.25693e+08 lamP=8.25685e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1585.27,-887.572,6038.54,119.565,-152.386,20.0346) Jd=(1187.07,807.006,1321.85,13.9884,-39.86,41.6451) r=-1.38631
+HB0DBG s=1 Jp=(1855.37,-3782.81,12969.6,277.464,-309.534,-25.8289) Jd=(1457.17,-2088.23,8252.9,171.888,-197.008,-4.2184) r=-0.390554
+HB-0 epoch=6 samples=11821 oracle_valid=11821 dup=0 rhoH=0.0135764 rhoB=0.00638886 srcH=0.000476038 srcB=0.00041602 accH=0.0136713 accB=0.00643112 sym=0 sym_budget=1.03e+05 lamD=8.4023e+08 lamP=8.40228e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1267.06,-2155.65,7960.94,169.195,-192.668,-9.92827) Jd=(645.468,-822.392,3439.96,71.4777,-82.6909,0.0491931) r=2.31096
+HB0DBG s=1 Jp=(1401.16,-3325.34,10819.5,233.68,-257.482,-27.8545) Jd=(779.573,-1992.08,6298.57,135.963,-147.505,-17.877) r=6.20913
+HB-0 epoch=7 samples=11740 oracle_valid=11740 dup=0 rhoH=0.014657 rhoB=0.00339679 srcH=0.000831718 srcB=0.000310262 accH=0.0147609 accB=0.0034204 sym=0 sym_budget=1.04e+05 lamD=7.20491e+08 lamP=7.20486e+08 finite=1 PASS
+HB0DBG s=0 Jp=(239.997,-1267.74,3388.62,79.834,-83.8191,-20.0499) Jd=(-198.729,332.818,-1231.74,-28.8739,32.505,1.56899) r=-0.106192
+HB0DBG s=1 Jp=(1792.76,-2858.86,10825.6,250.118,-285.702,-12.2599) Jd=(1354.04,-1258.3,6205.21,141.41,-169.378,9.35901) r=0.208116
+HB-0 epoch=8 samples=11909 oracle_valid=11909 dup=0 rhoH=0.0131039 rhoB=0.000928885 srcH=0.000789725 srcB=0.000357078 accH=0.0131824 accB=0.000934357 sym=0 sym_budget=1.06e+05 lamD=7.71167e+08 lamP=7.71157e+08 finite=1 PASS
+HB0DBG s=0 Jp=(6909.21,8934.69,-2840.57,-302.496,6.59693,591.318) Jd=(5216.61,7675.19,-4301.03,-326.443,92.1559,479.078) r=0.0845747
+HB0DBG s=1 Jp=(6254.5,8676.65,-3857.94,-333.229,59.5762,555.247) Jd=(4561.91,7417.16,-5318.4,-357.176,145.135,443.006) r=-0.435878
+HB-0 epoch=9 samples=12125 oracle_valid=12125 dup=0 rhoH=0.0156926 rhoB=0.00189598 srcH=0.0013772 srcB=0.000861463 accH=0.0157889 accB=0.00190895 sym=0 sym_budget=1.08e+05 lamD=7.92162e+08 lamP=7.92157e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1248.59,-1322.23,6112.41,134.245,-160.742,4.54215) Jd=(827.95,341.454,1399.44,23.2355,-42.6658,27.7904) r=0.0106104
+HB0DBG s=1 Jp=(1989.22,-3292.11,12269.3,284.5,-323.509,-15.8442) Jd=(1568.58,-1628.42,7556.33,173.491,-205.432,7.40405) r=-1.89793
+HB-0 epoch=10 samples=12251 oracle_valid=12251 dup=0 rhoH=0.0133694 rhoB=0.00118275 srcH=0.000752605 srcB=0.00059097 accH=0.0134567 accB=0.00118679 sym=0 sym_budget=1.16e+05 lamD=9.29033e+08 lamP=9.29027e+08 finite=1 PASS
+HB0DBG s=0 Jp=(6343.72,7933.43,-2012.51,-285.709,-10.7611,589.808) Jd=(4746.76,6739.09,-3382.43,-313.341,71.2487,491.625) r=-0.112343
+HB0DBG s=1 Jp=(5538.54,7215.34,-2370.48,-282.708,21.7358,524.288) Jd=(3941.57,6021,-3740.4,-310.34,103.746,426.105) r=0.200526
+HB-0 epoch=11 samples=11896 oracle_valid=11896 dup=0 rhoH=0.0124197 rhoB=0.00228066 srcH=0.000706175 srcB=0.000590564 accH=0.012507 accB=0.00229431 sym=0 sym_budget=1.11e+05 lamD=8.44633e+08 lamP=8.44626e+08 finite=1 PASS
+E0825 20:21:56.882758 57095 super_lio.cpp:1655] V-2 DOUBLE FD gate FAIL dir=1 double_max_rel=0.0182576 worst_rel=0.0182576 fd=0.00326953 an=0.00332923 Xc=(-7.66809,-0.138009,19.2256)
+E0825 20:21:56.882802 57095 super_lio.cpp:1683] V-2 DBG d=1 k=20 ic0=120.073 icp=120.073 icm=120.072 mean_pd=153.055 mean_md=153.054 u0=216.495 v0=238.849 Xc=(-7.66809,-0.138009,19.2256) Js=0415.668 00636.98 00-18349 -346.908 0814.097 04.08155 Jmean=0320.021 0636.977 -3854.73 -71.6354 0154.251 069.4845
+E0825 20:21:56.882881 57095 super_lio.cpp:1808] V-2I eps=3e-06 cls=SMOOTH L1_rel=6.5812e-09 du_an=-0.0001159 du_fd=-0.000117931 du_abs=2.03135e-06 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00326986 closure_abs=0 kappa_fd=389606 e_raw=7.23055e-05 e_mean=1.29385e-05 e_dc=5.9367e-05
+E0825 20:21:56.882918 57095 super_lio.cpp:1808] V-2I eps=1e-06 cls=SMOOTH L1_rel=6.62497e-09 du_an=-0.0001159 du_fd=-0.000117936 du_abs=2.03609e-06 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00326953 closure_abs=0 kappa_fd=389645 e_raw=7.27745e-05 e_mean=1.30806e-05 e_dc=5.96938e-05
+E0825 20:21:56.882944 57095 super_lio.cpp:1808] V-2I eps=3e-07 cls=SMOOTH L1_rel=6.36778e-09 du_an=-0.0001159 du_fd=-0.000117855 du_abs=1.95556e-06 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00327248 closure_abs=0 kappa_fd=389295 e_raw=6.97807e-05 e_mean=1.30285e-05 e_dc=5.67522e-05
+E0825 20:21:56.882969 57095 super_lio.cpp:1808] V-2I eps=1e-07 cls=SMOOTH L1_rel=7.1907e-09 du_an=-0.0001159 du_fd=-0.000118092 du_abs=2.19241e-06 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00326352 closure_abs=0 kappa_fd=390362 e_raw=7.86862e-05 e_mean=1.29811e-05 e_dc=6.5705e-05
+E0825 20:21:56.883008 57095 super_lio.cpp:1808] V-2I eps=3e-08 cls=SMOOTH L1_rel=5.00779e-09 du_an=-0.0001159 du_fd=-0.000116529 du_abs=6.29213e-07 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00331823 closure_abs=4.33681e-19 kappa_fd=383926 e_raw=2.00427e-05 e_mean=9.04948e-06 e_dc=1.09932e-05
+E0825 20:21:56.883033 57095 super_lio.cpp:1808] V-2I eps=1e-08 cls=SMOOTH L1_rel=1.3516e-08 du_an=-0.0001159 du_fd=-0.000119371 du_abs=3.47138e-06 dv_an=423.128 dv_fd=423.128 raw_an=636.98 raw_fd=636.98 mean_an=636.977 mean_fd=636.977 dc_an=0.00332923 dc_fd=0.00321307 closure_abs=0 kappa_fd=396492 e_raw=0.000124729 e_mean=8.57578e-06 e_dc=0.000116154
+HB0DBG s=0 Jp=(1725.72,-1366.96,7438.97,150.519,-185.155,14.371) Jd=(1337.82,425.576,2534.39,40.2796,-68.3414,38.2543) r=-1.52753
+HB0DBG s=1 Jp=(1409.73,-4204.06,12729.8,278.374,-300.509,-43.7962) Jd=(1021.84,-2411.53,7825.19,168.134,-183.695,-19.9128) r=-0.881485
+HB-0 epoch=12 samples=11718 oracle_valid=11718 dup=0 rhoH=0.00649383 rhoB=0.00207722 srcH=0.000815883 srcB=0.000268953 accH=0.00653796 accB=0.00209041 sym=0 sym_budget=1e+05 lamD=8.66723e+08 lamP=8.66721e+08 finite=1 PASS
+HB0DBG s=0 Jp=(1940.6,-400.338,5906.35,117.744,-162.026,40.113) Jd=(1587.08,1443.27,979.974,0.252805,-39.4939,68.9386) r=-0.679613
+HB0DBG s=1 Jp=(2093.75,-3259.1,12466.8,287.77,-329.26,-12.7446) Jd=(1740.22,-1415.49,7540.4,170.278,-206.728,16.081) r=-3.52926
+HB-0 epoch=13 samples=12363 oracle_valid=12363 dup=0 rhoH=0.0111956 rhoB=0.00093298 srcH=0.000505638 srcB=0.00050065 accH=0.0112608 accB=0.000938791 sym=0 sym_budget=1.13e+05 lamD=8.44121e+08 lamP=8.44114e+08 finite=1 PASS
+I0825 20:21:58.013710 57095 timer.h:40] >>> ===== Printing run time =====
+I0825 20:21:58.013757 57095 timer.h:46] > [ DownSample ] average time usage: 0.225381 ms , called times: 294
+I0825 20:21:58.013782 57095 timer.h:46] > [ Observe ] average time usage: 3.32122 ms , called times: 294
+I0825 20:21:58.013793 57095 timer.h:46] > [ Undistort ] average time usage: 0.411059 ms , called times: 294
+I0825 20:21:58.013803 57095 timer.h:46] > [ UpdateMap ] average time usage: 0.36057 ms , called times: 294
+
+=== Offline accounting ===
+bag_relevant_messages: 12125
+lidar read/dispatched/skipped: 300/300/0
+imu   read/dispatched/skipped: 11525/11525/0
+other messages: 0
+first/last bag time: 1609059013.114720 / 1609059043.114693
+first/last sensor timestamp: 1609059013.173238 / 1609059043.114502
+first/last estimator timestamp: 1609059013.270444 / 1609059043.080206
+images read/dispatched/skipped: 300/300/0
+first/last image timestamp: 1609059013.170260 / 1609059043.080206
+camera buffer: size=0 peak=10 dropped=1
+G-0 sidecar: accepted=109718 rejected=586147 allocations=4745 evictions=0 active=4745 peak=4745 updates=100405
+G-0 N histogram: 1:0 2:7404 3:6752 4:6378 5:6060 6:5809 7:5617 8:5437 9:5287 10:5156 11:5039 12:4936 13:4829 14:4742 15:4649 16:4581 17:4516 18:4460 19:4406 20:4347
+G-1 q_flat distribution (percentiles of 0..1): P50=0.005 P90=0.005 P95=0.005 P99=0.005
+G-1 parent(0.5m) q_flat distribution: P50=0.005 P90=0.005 P95=0.005 P99=0.005
+G-1 child q_flat by N (P50/P90/P95): N5-7=0.005/0.005/0.015 N8-10=0.005/0.005/0.015 N11-19=0.005/0.005/0.015 N20=0.005/0.005/0.005
+G-1 parent q_flat by N_parent (P50/P90/P95): N5-9=0.005/0.005/0.015 N10-19=0.005/0.005/0.005 N20-39=0.005/0.005/0.005 N40-79=0.005/0.005/0.005 N80+=-1.000/-1.000/-1.000
+
+G-1 q_line distribution: P50=0.005 P90=0.005 P95=0.005 P99=0.005
+process invocations: 12126
+sync epochs (heavy process): 299 / 299
+remaining imu/lidar in buffer: 14/0
+front_lidar_end_time: 0.000000  last_imu_time: 1609059043.114502
+unprocessed_reason: trailing IMU beyond last lidar end_time
+sensor_duration_s: 29.941
+wall_processing_s: 1.869
+speed_factor: 16.016x
+peak RSS during loop: 153020 KB
+G-2 child maturity: cells=2907 first_visible->N5 median=0 P90=14; ->valid median=2 P90=18
+G-2 parent maturity: parents=2198 first_visible->valid median=0 P90=10
+G-2 mature_while_visible: child=2244/2907 parent_valid_while_visible=1935/2198
+G-2 parent sync events: E0=1935 E3=0 E1(>1deg)=4703 >2=2549 >3=1606 >5=804
+G-3 (n=19395) normal angle vs HKNN (deg, P50/P90/P95): child=7.10/85.10/86.70 parent=8.60/85.70/87.40
+G-3 residual diff vs HKNN (m, P50/P90/P95): child=0.0220/0.1410/0.2460 parent=0.0380/0.2690/0.4420
+G-3 child d_n/d_t (m, P50/P90/P95): dn=0.0100/0.0300/0.0390 dt=0.1660/0.7000/1.2360
+S-0 camera-epoch: epochs=299 images_consumed=294 stale_image_drop=5 empty_slice=0
+S-0 camera-epoch: lidar_points_emitted=1013446 future_points_retained=399166 last_epoch=1609059043.080
+S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=299 median=100.0 P90=100.0 P95=100.0 P99=101.0
+V-0C frontend: entered=13 frame_null=0
+V-0C coverage: frames=13 cells_total=5967 cells_with_candidates=13 occupied_existing=2219 filled_new=452
+V-0C visible_existing/frame P10/P50/P90: 107/194/209
+V-0C new_created/frame P10/P50/P90: 5/13/86
+V-0C accepted/frame P10/P50/P90: 185/202/209
+V-2 photometric: frames=13 accepted_landmarks=214 total_samples=152148 meanSSE_per_sample=14.95
+V-2 6DOF FD gate: double_math_fail=0 trials_attempted=2611 structurally_complete=2611 all6_smooth=2475 with_nonsmooth=136 distinct_epochs=13 distinct_landmarks=443
+V-2 BUNDLE rx: smooth=2570 nonsmooth_support=0 nonsmooth_cell=41
+V-2 BUNDLE ry: smooth=2560 nonsmooth_support=0 nonsmooth_cell=51
+V-2 BUNDLE rz: smooth=2518 nonsmooth_support=0 nonsmooth_cell=93
+V-2 BUNDLE tx: smooth=2606 nonsmooth_support=0 nonsmooth_cell=5
+V-2 BUNDLE ty: smooth=2599 nonsmooth_support=0 nonsmooth_cell=12
+V-2 BUNDLE tz: smooth=2599 nonsmooth_support=0 nonsmooth_cell=12
+V-2 FLOAT FD rx: strong_n=144427 strong_max_rel=36.8159 max_abs=1356.44 weak_n=40
+V-2 DOUBLE FD rx: strong_n=149634 strong_max_rel=0.000459467 strong_med_rel=6.67284e-09 weak_n=40 weak_max_abs=0.000131404 nonsmooth=0 worst_rel=0.000459467
+V-2 FLOAT FD ry: strong_n=139472 strong_max_rel=40.5848 max_abs=1907.71 weak_n=25
+V-2 DOUBLE FD ry: strong_n=149061 strong_max_rel=0.0182576 strong_med_rel=6.5713e-09 weak_n=40 weak_max_abs=0.000227887 nonsmooth=0 worst_rel=0.0182576
+V-2 FLOAT FD rz: strong_n=6183 strong_max_rel=58.4364 max_abs=739.421 weak_n=0
+V-2 DOUBLE FD rz: strong_n=146572 strong_max_rel=0.000226567 strong_med_rel=7.54292e-09 weak_n=40 weak_max_abs=0.000292603 nonsmooth=0 worst_rel=0.000226567
+V-2 FLOAT FD tx: strong_n=151052 strong_max_rel=120.996 max_abs=43.1716 weak_n=44
+V-2 DOUBLE FD tx: strong_n=151784 strong_max_rel=9.40686e-05 strong_med_rel=2.59488e-10 weak_n=44 weak_max_abs=7.09148e-06 nonsmooth=0 worst_rel=9.40686e-05
+V-2 FLOAT FD ty: strong_n=150621 strong_max_rel=736.438 max_abs=270.852 weak_n=40
+V-2 DOUBLE FD ty: strong_n=151403 strong_max_rel=0.000424409 strong_med_rel=2.42595e-10 weak_n=40 weak_max_abs=6.03371e-06 nonsmooth=0 worst_rel=0.000424409
+V-2 FLOAT FD tz: strong_n=150410 strong_max_rel=173.906 max_abs=615.685 weak_n=40
+V-2 DOUBLE FD tz: strong_n=151386 strong_max_rel=0.00023663 strong_med_rel=1.26073e-10 weak_n=40 weak_max_abs=6.2202e-06 nonsmooth=0 worst_rel=0.00023663
+V-0 VisualMap: parents=437 landmarks=452 slots_used=452 created=452 frames=13 attempts=2671
+V-1 lifecycle: geo_syncs=0 obs_adds=452 obs_drops=0 ref_switches=0
+V-0 sizeof(VisualObservation)=128 sizeof(VisualLandmark)=496
+V-0 visual map bytes ~= 0.28 MB (slots=452 x 128 B + landmarks 452 x 496 B)
+V-2 GATE-M rx: strong_n=149634 weak_n=40 med_rel=5.32023e-09 max_abs=0.000131404 max_kappa=103467
+V-2 GATE-RC rx: regular_n=149516 conditioned_n=118 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0.000184556 cond_max_raw_rel=8.93242e-08 cond_max_mean_rel=3.66283e-08 cond_max_closure_abs=4.54747e-13 cond_max_prop_excess=0 cond_max_source_rel=3.71246e-08
+V-2 AUDIT-P rx: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M ry: strong_n=149061 weak_n=40 med_rel=4.77427e-09 max_abs=0.000227887 max_kappa=432193
+V-2 GATE-RC ry: regular_n=148953 conditioned_n=108 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=0.000175837 cond_max_raw_rel=1.14249e-07 cond_max_mean_rel=4.5477e-08 cond_max_closure_abs=9.09495e-13 cond_max_prop_excess=0 cond_max_source_rel=5.94375e-08
+V-2 AUDIT-P ry: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M rz: strong_n=146572 weak_n=40 med_rel=6.99521e-09 max_abs=0.000292603 max_kappa=24001.7
+V-2 GATE-RC rz: regular_n=146500 conditioned_n=72 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=5.12043e-05 cond_max_raw_rel=1.91962e-07 cond_max_mean_rel=7.77876e-08 cond_max_closure_abs=7.10497e-09 cond_max_prop_excess=0 cond_max_source_rel=5.70531e-08
+V-2 AUDIT-P rz: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M tx: strong_n=151784 weak_n=44 med_rel=1.72331e-09 max_abs=7.09148e-06 max_kappa=55702.4
+V-2 GATE-RC tx: regular_n=151685 conditioned_n=99 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=2.23571e-05 cond_max_raw_rel=8.01584e-08 cond_max_mean_rel=2.43714e-08 cond_max_closure_abs=3.55271e-09 cond_max_prop_excess=0 cond_max_source_rel=2.6722e-08
+V-2 AUDIT-P tx: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M ty: strong_n=151403 weak_n=40 med_rel=1.03174e-09 max_abs=6.03371e-06 max_kappa=280098
+V-2 GATE-RC ty: regular_n=151326 conditioned_n=77 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=2.04044e-05 cond_max_raw_rel=2.13364e-07 cond_max_mean_rel=7.31994e-09 cond_max_closure_abs=0 cond_max_prop_excess=0 cond_max_source_rel=1.05859e-07
+V-2 AUDIT-P ty: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 GATE-M tz: strong_n=151386 weak_n=40 med_rel=6.04887e-10 max_abs=6.2202e-06 max_kappa=96193.2
+V-2 GATE-RC tz: regular_n=151290 conditioned_n=96 regular_fail=0 conditioned_fail=0
+  regular_max_dc_rel=3.46712e-05 cond_max_raw_rel=7.14931e-08 cond_max_mean_rel=3.49035e-09 cond_max_closure_abs=7.10543e-09 cond_max_prop_excess=0 cond_max_source_rel=3.49108e-08
+V-2 AUDIT-P tz: raw_max_abs=0 mean_max_abs=0 dc_max_abs=0 dc_med_abs=0
+V-2 H/B audit: worst_h_rel=0 worst_b_rel=0
+HB-0 summary: epochs_audited=13 epochs_fail=0 total_samples=152148 duplicates=0 distinct_landmarks=443
+HB-0 worst: rhoH=0.0156926 rhoB=0.00638886 srcH=0.0013772 srcB=0.00107399 accH=0.0157889 accB=0.00643112
+=== End offline accounting ===

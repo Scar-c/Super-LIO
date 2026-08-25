@@ -54,6 +54,9 @@ int main(int argc, char** argv) {
   ROSWrapper::Ptr data_wrapper = std::make_shared<ROSWrapper>();
   data_wrapper->setPublishEnabled(g_offline_publish);
   auto lio = std::make_shared<SuperLIO>();
+  bool hb0_enabled = false;
+  nh.getParam("/lio/hb0/enabled", hb0_enabled);
+  lio->setHb0AuditEnabled(hb0_enabled);
   lio->setROSWrapper(data_wrapper);
   // V-0C 6DOF FD coverage: continuous collection; gate checks distinct
   // epochs (>=5) and distinct landmarks (>=10 if available)
@@ -511,6 +514,22 @@ int main(int argc, char** argv) {
     }
     std::printf("V-2 H/B audit: worst_h_rel=%.6g worst_b_rel=%.6g\n",
                 lio->hbWorstHRel(), lio->hbWorstBRel());
+    std::printf("HB-0 summary: epochs_audited=%lld epochs_fail=%lld total_samples=%lld duplicates=%lld distinct_landmarks=%lld\n",
+                (long long)lio->hb0EpochsAudited(),
+                (long long)lio->hb0EpochsFail(),
+                (long long)lio->hb0TotalSamples(),
+                (long long)lio->hb0TotalDuplicates(),
+                (long long)lio->hb0DistinctLandmarks());
+    std::printf("HB-0 worst: rhoH=%.6g rhoB=%.6g srcH=%.6g srcB=%.6g accH=%.6g accB=%.6g\n",
+                lio->hb0WorstRhoH(), lio->hb0WorstRhoB(),
+                lio->hb0WorstSrcHRatio(), lio->hb0WorstSrcBRatio(),
+                lio->hb0WorstAccHRatio(), lio->hb0WorstAccBRatio());
+    if (lio->hb0EpochsFail() > 0) {
+      std::printf("[offline_node] FATAL: HB-0 production H/b audit FAILED (%lld epochs).\n",
+                  (long long)lio->hb0EpochsFail());
+      std::fflush(stdout);
+      return 1;
+    }
   }
   if (g_lio_v2_enabled && lio->mathGateFail()) {
     std::printf("[offline_node] FATAL: V-2 DOUBLE FD math oracle / Gate M FAILED.\n");

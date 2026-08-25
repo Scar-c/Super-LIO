@@ -1,0 +1,14 @@
+T1 H[0,0]: PASS
+T1 H[0,1] sym: PASS
+T1 b sign: PASS
+T2 counts: PASS
+T3 S_b large: PASS
+T3 bD tiny: PASS
+T4 duplicate detected: PASS
+T5 sixfold detected: PASS
+T6 sign check: PASS
+T7 1/M detectable: PASS
+T8 float acc within bound: PASS
+T9 symmetry: PASS
+T10 PSD: PASS
+HB0 audit T1-T10: ALL PASS
