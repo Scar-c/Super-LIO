@@ -1,8 +1,8 @@
 # Super-LIVO Round 11X — Codex Takeover: Parallel-Safety Reaudit + Partial-LiDAR Cadence Decoupling Tracer
 
-**Executor:** Codex  
-**ROS:** ROS1 Noetic only  
-**Codex current local HEAD:** `37b92e6`  
+**Executor:** Codex
+**ROS:** ROS1 Noetic only
+**Codex current local HEAD:** `37b92e6`
 **Owner latest accepted remote frontier:** `ab33fa2`
 
 Repository:
