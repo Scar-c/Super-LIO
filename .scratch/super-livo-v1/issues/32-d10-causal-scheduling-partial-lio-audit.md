@@ -28,3 +28,5 @@ Outcome:
 - frozen cut hard gate FAIL: `wrong_side_count=4,284,862` because the pending tail is appended wholesale without a new `tc` cut;
 - geometry-cadence instrumentation and B0/C0 reruns were not started after the mandatory hard stop;
 - evidence: `docs/super_livo/evidence/day10_causal_scheduling_partial_lio_audit_round11u.md`.
+
+Evidence commit: `200961e`
