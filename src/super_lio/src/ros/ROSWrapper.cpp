@@ -372,8 +372,15 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
       auto& pt = pl_orig.points[i];
       if (!validPoint(pt.x, pt.y, pt.z)) continue;
       offset_time = pt.timestamp - time_begin;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, offset_time);
+      if (g_lio_s0_audit) {
+        PointXTZIT p(pt.x, pt.y, pt.z, pt.intensity, offset_time);
+        p.audit_scan_id = s0_scan_seq_;
+        p.audit_idx = static_cast<int32_t>(i);
+        lidar_data.pc->push_back(p);
+      } else {
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, pt.intensity, offset_time);
+      }
     }
     lidar_data.end_time = time_begin + offset_time;
     break;
@@ -389,8 +396,15 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
       auto& pt = pl_orig.points[i];
       if (!validPoint(pt.x, pt.y, pt.z)) continue;
       offset_time = pt.time * 1e-6;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, 1.0, offset_time);
+      if (g_lio_s0_audit) {
+        PointXTZIT p(pt.x, pt.y, pt.z, 1.0, offset_time);
+        p.audit_scan_id = s0_scan_seq_;
+        p.audit_idx = static_cast<int32_t>(i);
+        lidar_data.pc->push_back(p);
+      } else {
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, 1.0, offset_time);
+      }
     }
     lidar_data.end_time = lidar_data.start_time + offset_time;
     break;
@@ -406,8 +420,15 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
     for(std::size_t i = 0; i < pl_orig.size(); i += g_filter_rate){
       auto& pt = pl_orig.points[i];
       if (!validPoint(pt.x, pt.y, pt.z)) continue;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, pt.time);
+      if (g_lio_s0_audit) {
+        PointXTZIT p(pt.x, pt.y, pt.z, pt.intensity, pt.time);
+        p.audit_scan_id = s0_scan_seq_;
+        p.audit_idx = static_cast<int32_t>(i);
+        lidar_data.pc->push_back(p);
+      } else {
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, pt.intensity, pt.time);
+      }
     }
     lidar_data.end_time = lidar_data.start_time + lidar_data.pc->points.back().offset_time;
     break;
@@ -423,8 +444,15 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
       auto& pt = pl_orig.points[i];
       if (!validPoint(pt.x, pt.y, pt.z)) continue;
       offset_time = pt.t * 1e-9;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, offset_time);
+      if (g_lio_s0_audit) {
+        PointXTZIT p(pt.x, pt.y, pt.z, pt.intensity, offset_time);
+        p.audit_scan_id = s0_scan_seq_;
+        p.audit_idx = static_cast<int32_t>(i);
+        lidar_data.pc->push_back(p);
+      } else {
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, pt.intensity, offset_time);
+      }
     }
     lidar_data.end_time = lidar_data.start_time + offset_time;
     break;

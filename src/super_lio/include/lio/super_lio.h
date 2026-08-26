@@ -505,8 +505,8 @@ protected:
 
   std::size_t effect_knn_num_ = 0;
   BASIC::VV3 points_world_v3_, points_body_v3_;
-  alignas(64) bool effect_mask_[20000] = {false};
-  alignas(64) bool effect_knn_mask_[20000] = {false};
+  std::vector<bool> effect_mask_;
+  std::vector<bool> effect_knn_mask_;
   std::vector<int> effect_knn_idxs_;
   std::vector<std::pair<BASIC::M6, BASIC::V6>> H_R_;
   std::vector<std::array<double, 4>> abcd_vec_;

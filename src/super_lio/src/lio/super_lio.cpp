@@ -93,8 +93,6 @@ void SuperLIO::init(){
   }
   
   points_world_v3_.reserve(21000);
-  abcd_vec_.resize(20000);
-  effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
   if(g_lio_g1_enabled && !g_lio_g1_out_dir.empty()){
@@ -616,7 +614,17 @@ struct ThreadACC{
 
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
-  
+
+  // Dynamic per-epoch sizing: the S0 camera-epoch slice can merge parts of
+  // two scans, so a single cloud may exceed the old fixed 20000 capacity
+  // (latent OOB, exposed by OS1-scale scans under camera epochs).
+  if (ptsize > effect_mask_.size()) {
+    effect_mask_.resize(ptsize, false);
+    effect_knn_mask_.resize(ptsize, false);
+    effect_knn_idxs_.resize(ptsize);
+    abcd_vec_.resize(ptsize);
+  }
+
   static std::vector<float> _lengths;
   points_body_v3_.resize(ptsize);
   _lengths.resize(ptsize);
