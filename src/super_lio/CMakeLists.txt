@@ -248,6 +248,16 @@ target_link_libraries(s0_slice_test
   ${PCL_LIBRARIES}
 )
 
+# Round 11Z mixed-rate camera temporal sampler tests.
+add_executable(round11z_sampler_test
+  src/common/tests/test_round11z_sampler.cpp
+)
+target_include_directories(round11z_sampler_test PUBLIC include)
+target_link_libraries(round11z_sampler_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # Round 11X camera-epoch/full-scan cadence policy and ownership tests.
 add_executable(round11x_cadence_test
   src/common/tests/test_round11x_cadence.cpp
