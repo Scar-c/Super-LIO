@@ -80,12 +80,6 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/camera/topic", g_camera_topic);
   nh.getParam("/camera/calib_file", g_camera_calib_file);
   nh.getParam("/camera/time_offset", g_camera_time_offset);
-  nh.getParam("/camera/temporal_stride", camera_temporal_stride_);
-  if (camera_temporal_stride_ < 1) {
-    LOG(ERROR) << "[Param] /camera/temporal_stride invalid: "
-               << camera_temporal_stride_ << " (fail closed)";
-    camera_temporal_stride_ = 1;
-  }
   nh.getParam("/camera/frame_buffer_capacity", g_camera_frame_buffer_capacity);
 
   nh.getParam("/lio/offline/bag", g_offline_bag);
@@ -262,6 +256,13 @@ std::string lidarTypeToString(int type) {
 }
 
 ROSWrapper::ROSWrapper(){
+  ros::NodeHandle nh;
+  nh.getParam("/camera/temporal_stride", camera_temporal_stride_);
+  if (camera_temporal_stride_ < 1) {
+    LOG(ERROR) << "[Param] /camera/temporal_stride invalid: "
+               << camera_temporal_stride_ << " (fail closed)";
+    camera_temporal_stride_ = 1;
+  }
   ros::SubscribeOptions ops;
   ops.transport_hints = ros::TransportHints().tcpNoDelay();
   

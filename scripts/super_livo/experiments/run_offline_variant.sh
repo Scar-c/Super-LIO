@@ -20,6 +20,7 @@ DURATION="${7:--1}"
 S0_AUDIT="${8:-0}"
 LIDAR_UPDATE_POLICY="${9:-partial}"
 LAYER_AUDIT="${10:-0}"
+CAMERA_TEMPORAL_STRIDE="${11:-1}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
