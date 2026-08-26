@@ -19,3 +19,16 @@ Owner prompt #47.
   （Tier A/B/C: eee/nya/Corridor01/Corridor02/Flat）；ntu_night_08 bag+GT
   存在但非注册表指定 → §9.1 硬规则解析不同 → STOP（不替代）
 - 分类: D_FAMILY_DAY10_GREEN_PIPELINE_STOPPED_AT_MCD2
+
+## Pipeline evidence
+- MCD2 ntu_night_08（Owner 注册为第二指定序列）: filtered bags 入 cache
+  manifest（9d534e9d/34723499）；B0 01250860 RMSE 1.7416；D-S3 4d6d224e
+  RMSE 1.9964（D/B0=1.146 AMBER band，延续规则满足）；ownership dup=0
+  never=0；temporal 13991=9328+4663 ✓
+- NTU eee/nya（stride1，冻结 t_shift 偏移经 runner 12 参）: eee B0
+  9af9b9d9 ✓ nya B0 d547a22 ✓（锚精确复现）；eee D0 cc92834d；nya D0
+  644e78f7；无提交 NTU GT 评估器 → 比值不可算（健康检查延续）；
+  online/offline parity NOT VERIFIED
+- Oxford Quarter01: bag/GT/官方标定存在，但无提交的 Super-LIO 配置、
+  Hesai Pandar 解析未验证、相机标定/GT 语义需推导 → §9.3 缺前置 STOP
+- 分类: D_FAMILY_DAY10_GREEN_PIPELINE_STOPPED_AT_OXFORD
