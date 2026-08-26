@@ -86,6 +86,7 @@ rosparam set /lio/hb0/enabled false
 rosparam set /lio/vp/enabled true
 rosparam set /lio/s0/audit "$S0_AUDIT"
 rosparam set /lio/offline/layer_audit "$LAYER_AUDIT"
+rosparam set /camera/temporal_stride "$CAMERA_TEMPORAL_STRIDE"
 rosparam set /lio/camera_epoch/lidar_update_policy "$LIDAR_UPDATE_POLICY"
 # Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
 # super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
@@ -138,6 +139,7 @@ read_param() {
 is_true() { [ "$1" = "True" ] || [ "$1" = "true" ]; }
 is_false() { [ "$1" = "False" ] || [ "$1" = "false" ]; }
 cam_en=$(read_param /camera/enabled)
+cam_stride=$(read_param /camera/temporal_stride)
 cam_ep=$(read_param /lio/camera_epoch/enabled)
 app=$(read_param /lio/v4/apply)
 gate=$(read_param /lio/v4/outlier_gate)
@@ -148,7 +150,9 @@ hb0=$(read_param /lio/hb0/enabled)
 vp=$(read_param /lio/vp/enabled)
 s0_aud=$(read_param /lio/s0/audit)
 lidar_policy=$(read_param /lio/camera_epoch/lidar_update_policy)
-echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud lidar_update_policy=$lidar_policy ==="
+echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud lidar_update_policy=$lidar_policy cam_stride=$cam_stride ==="
+[ "$cam_stride" -ge 1 ] 2>/dev/null || { echo "FAIL readback temporal_stride"; exit 4; }
+[ "$cam_stride" = "$CAMERA_TEMPORAL_STRIDE" ] || { echo "FAIL readback temporal_stride value"; exit 4; }
 case "$LIDAR_UPDATE_POLICY" in
   partial|shadow_fullscan|imu_fullscan) ;;
   *) echo "FAIL readback unknown lidar update policy $LIDAR_UPDATE_POLICY"; exit 4 ;;
