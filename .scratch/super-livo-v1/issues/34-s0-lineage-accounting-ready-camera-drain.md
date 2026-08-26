@@ -36,3 +36,20 @@ WIP（ready-drain in OfflineReader.cpp）preserved.
 - OfflineReader：重复计时移除（WIP 内含）；drain 无限循环修正
   （固定基准 → 每迭代基准）
 - 提交 77cbac1/b456b35/ea21242/48d41ef；push PASS
+
+## 11W-P0R2 evidence（42_round11w_p0r2 — 执行完毕，gate 结果 STOP）
+- P0R2-A: oracle 真实 bag 路径 header to_nsec 直接、Livox offset int ns、
+  point_num<10 跳过不占 scan id（对齐 production）；非 CustomMsg fail closed
+- P0R2-B: lidarCoversT 真跨度覆盖（COV-T1..T7 PASS）；C0 epochs 9705
+  （9697 real + 8 map-wait），29 相机 EOF 等待（弱 guard 旧行为修正）
+- P0R2-C: processAfterSensorArrival 集中化（5 类 arrival；camera-epoch ON
+  逐迭代进度 drain；OFF 单次=B0 不变）
+- FrozenS0ReferenceOracle: 每事件 drain、真跨度覆盖、无未来数据、EOF 账目
+- 生产 exact-ns 审计: timestamp_ns/point_ns_map/emitted_epoch_ns/boundary/
+  epoch_tcs_ns + s0_audit_exact.json dump
+- Day10 C0: conservation=OK lost=0 dup=0 wrong_side=0 overlap=0;
+  camera 9736=9697+8+2+29 全对账；B0 MD5 9931f96e PASS
+- PROD-VS-EXACT: point mismatch 40（对称，20 unique）boundary 0 readiness 0
+  ——20 点全在相机 tc 边界 5-25ns 内（< float64 ULP ~370ns，double 塌缩）：
+  生产 double 判定 current、exact ns 判定 pending → §5 硬门 nonzero →
+  STOP FOR OWNER（提交 faf47ef/5c87ea3/ec055d6，push PASS）
