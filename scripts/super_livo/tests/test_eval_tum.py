@@ -1,79 +1,116 @@
 #!/usr/bin/env python3
-"""EVAL-T1..T5: translation-APE evaluator semantics (no scale, rigid only)."""
-import sys, os, math
-import numpy as np
+"""CLI contract tests for the persistent SE(3) translation evaluator."""
+import pathlib
+import subprocess
+import sys
+import tempfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'evaluation'))
-import eval_tum_translation as E
 
-def umeyama(src, dst):
-    n = src.shape[0]
-    mu_s = src.mean(0); mu_d = dst.mean(0)
-    S = (src - mu_s).T @ (dst - mu_d) / n
-    U, D, Vt = np.linalg.svd(S)
-    d = np.sign(np.linalg.det(Vt.T @ U.T))
-    D = np.diag([1, 1, d])
-    R = Vt.T @ D @ U.T
-    return R, mu_d - R @ mu_s
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+EVALUATOR = ROOT / "scripts/super_livo/evaluation/eval_tum_translation.py"
+
 
 def write_tum(path, rows):
-    with open(path, 'w') as f:
-        for r in rows:
-            f.write('%.9f %.9f %.9f %.9f 0 0 0 1\n' % r)
+    with path.open("w", encoding="utf-8") as stream:
+        for timestamp, x, y, z in rows:
+            stream.write(
+                f"{timestamp:.9f} {x:.9f} {y:.9f} {z:.9f} 0 0 0 1\n"
+            )
+
+
+def run_eval(est, gt, *extra):
+    return subprocess.run(
+        [sys.executable, str(EVALUATOR), str(est), str(gt), *extra],
+        cwd=str(ROOT),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
+def require(condition, message, output=""):
+    if not condition:
+        raise AssertionError(f"{message}\n{output}")
+
 
 def main():
-    ok = True
-    # EVAL-T1: identical
-    ts = np.arange(0, 100, 0.1)
-    pos = np.stack([np.sin(ts), np.cos(ts), ts * 0.1], axis=1)
-    rows = [(t, *p) for t, p in zip(ts, pos)]
-    write_tum('/tmp/e_t1_est.tum', rows)
-    write_tum('/tmp/e_t1_gt.tum', rows)
-    from eval_tum_translation import load_tum
-    et, ep, eq = load_tum('/tmp/e_t1_est.tum')
-    gt, gp, gq = load_tum('/tmp/e_t1_gt.tum')
-    R, t = umeyama(ep, gp)
-    err = np.linalg.norm((R @ ep.T).T + t - gp, axis=1)
-    r1 = np.sqrt((err**2).mean()) < 1e-9
-    print('EVAL-T1 identical -> RMSE ~0:', r1)
-    ok &= r1
-    # EVAL-T2: constant SE(3) only
-    Rc = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1.0]])
-    tc = np.array([1.0, -2.0, 3.0])
-    pos2 = (Rc @ pos.T).T + tc
-    rows2 = [(t, *p) for t, p in zip(ts, pos2)]
-    write_tum('/tmp/e_t2_gt.tum', rows2)
-    gt2, gp2, _ = load_tum('/tmp/e_t2_gt.tum')
-    R2, t2 = umeyama(ep, gp2)
-    err2 = np.linalg.norm((R2 @ ep.T).T + t2 - gp2, axis=1)
-    r2 = np.sqrt((err2**2).mean()) < 1e-9
-    print('EVAL-T2 rigid-only -> RMSE ~0:', r2)
-    ok &= r2
-    # EVAL-T3: scale 1.1 -> SE(3) only leaves error
-    write_tum('/tmp/e_t3_gt.tum', [(t, *(p * 1.1)) for t, p in zip(ts, pos)])
-    gt3, gp3, _ = load_tum('/tmp/e_t3_gt.tum')
-    R3, t3 = umeyama(ep, gp3)
-    err3 = np.linalg.norm((R3 @ ep.T).T + t3 - gp3, axis=1)
-    r3 = np.sqrt((err3**2).mean()) > 0.01
-    print('EVAL-T3 scale 1.1 nonzero under SE(3):', r3)
-    ok &= r3
-    # EVAL-T4: association max_diff
-    dt_ok = 0
-    for i in range(len(et)):
-        j = np.argmin(np.abs(gt - et[i]))
-        if abs(gt[j] - et[i]) <= 0.05: dt_ok += 1
-    r4 = dt_ok == len(et)
-    print('EVAL-T4 association within max_diff:', r4)
-    ok &= r4
-    # EVAL-T5: insufficient matches -> explicit failure path
-    write_tum('/tmp/e_t5_est.tum', [(1000.0 + i * 0.1, 0, 0, 0) for i in range(5)])
-    et5, ep5, _ = load_tum('/tmp/e_t5_est.tum')
-    lo = max(et5[0], gt[0]); hi = min(et5[-1], gt[-1])
-    r5 = hi < lo  # no overlap -> evaluator must report 0 matches / fail closed
-    print('EVAL-T5 no-overlap detected (fail closed):', r5)
-    ok &= r5
-    print('EVAL TDD:', 'ALL PASS' if ok else 'FAIL')
-    return 0 if ok else 1
+    with tempfile.TemporaryDirectory(prefix="round11t-eval-") as tmp:
+        tmp = pathlib.Path(tmp)
+        est = tmp / "est.tum"
+        gt = tmp / "gt.tum"
+        out = tmp / "metrics.txt"
 
-if __name__ == '__main__':
+        # One GT row is deliberately outside max_diff. Its extreme position must
+        # not contaminate alignment or error statistics.
+        write_tum(est, [
+            (0.00, 0, 0, 0),
+            (1.00, 1, 0, 0),
+            (2.00, 2, 1, 0),
+            (3.00, 3, 1, 1),
+        ])
+        write_tum(gt, [
+            (0.01, 10, -2, 3),
+            (1.02, 11, -2, 3),
+            (2.20, 999, 999, 999),
+            (3.01, 13, -1, 4),
+        ])
+        result = run_eval(
+            est,
+            gt,
+            "--frame", "VN100",
+            "--max-diff", "0.05",
+            "--min-matches", "3",
+            "--out", str(out),
+        )
+        require(result.returncode == 0, "valid evaluation failed", result.stdout)
+        for token in (
+            "git HEAD:",
+            "script path:",
+            "arguments:",
+            "comparison frame: VN100",
+            "alignment type: SE(3), no scale",
+            "association max_diff: 0.050000 s",
+            "matched count: 3",
+            "RMSE=0.0000",
+            "mean=0.0000",
+            "median=0.0000",
+            "max=0.0000",
+            "P90=0.0000",
+            "P95=0.0000",
+        ):
+            require(token in result.stdout, f"missing output token {token!r}", result.stdout)
+        require(out.exists(), "--out metrics file not written", result.stdout)
+
+        # SE(3) only: a scale mismatch must remain visible after alignment.
+        scaled = tmp / "scaled.tum"
+        write_tum(scaled, [
+            (0.00, 0.0, 0.0, 0.0),
+            (1.00, 1.1, 0.0, 0.0),
+            (2.00, 2.2, 1.1, 0.0),
+            (3.00, 3.3, 1.1, 1.1),
+        ])
+        scale_result = run_eval(
+            est, scaled, "--max-diff", "0.001", "--min-matches", "4"
+        )
+        require(scale_result.returncode == 0, "scale evaluation failed", scale_result.stdout)
+        require("RMSE=0.0000" not in scale_result.stdout,
+                "scale was incorrectly absorbed", scale_result.stdout)
+
+        # No temporal association must fail closed with an explicit message.
+        no_match = tmp / "no_match.tum"
+        write_tum(no_match, [(100.0 + i, i, 0, 0) for i in range(4)])
+        no_match_result = run_eval(
+            est, no_match, "--max-diff", "0.01", "--min-matches", "3"
+        )
+        require(no_match_result.returncode != 0,
+                "no-match evaluation did not fail closed", no_match_result.stdout)
+        require("insufficient matches" in no_match_result.stdout.lower(),
+                "no-match failure is not explicit", no_match_result.stdout)
+
+    print("EVAL CLI TDD: ALL PASS")
+    return 0
+
+
+if __name__ == "__main__":
     sys.exit(main())
