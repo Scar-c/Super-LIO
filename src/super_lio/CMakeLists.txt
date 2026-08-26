@@ -252,6 +252,19 @@ target_link_libraries(s0_slice_test
 add_executable(round11x_cadence_test
   src/common/tests/test_round11x_cadence.cpp
 )
+
+# Round 11Y IMU segmentation attribution tests (ESKF propagation semigroup).
+add_executable(y_segmentation_test
+  src/common/tests/test_y_segmentation.cpp
+  src/lio/ESKF.cpp
+)
+target_include_directories(y_segmentation_test PUBLIC include
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(y_segmentation_test
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
 target_include_directories(round11x_cadence_test PUBLIC include)
 target_link_libraries(round11x_cadence_test
   Eigen3::Eigen
