@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
   signal(SIGINT, SigHandle);
   ros::NodeHandle nh;
   LoadParamFromRos(nh);
+  std::printf("[offline_node] s0_audit=%d\n", g_lio_s0_audit ? 1 : 0);
   std::printf("[offline_node] camera_epoch=%d camera_enabled=%d\n",
               g_lio_camera_epoch ? 1 : 0, g_camera_enabled ? 1 : 0);
 
@@ -72,6 +73,11 @@ int main(int argc, char** argv) {
   nh.getParam("/lio/v4/photo_variance", v4_photo_var);
   lio->setPhotoResidualVariance(v4_photo_var);
   nh.getParam("/lio/v4/apply", g_lio_v4_apply);
+  {
+    int s0_audit_i = 0;
+    nh.getParam("/lio/s0/audit", s0_audit_i);
+    g_lio_s0_audit = (s0_audit_i != 0);
+  }
   nh.getParam("/lio/v4/outlier_gate", g_lio_v4_outlier_gate);
   nh.getParam("/lio/v4/outlier_mse_threshold", g_v4_outlier_mse_threshold);
   g_lio_v2_skip_fd = v2_skip_fd;
@@ -424,6 +430,16 @@ int main(int argc, char** argv) {
     std::printf("S-0 camera-epoch: epochs=%lld images_consumed=%lld stale_image_drop=%lld empty_slice=%lld\n",
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
                 (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount());
+    if (g_lio_s0_audit) {
+      const auto& sa = lio->dataWrapper()->s0Audit();
+      const int64_t lost = static_cast<int64_t>(sa.input_all.size()) -
+                           static_cast<int64_t>(sa.emitted.size()) -
+                           static_cast<int64_t>(sa.retained.size());
+      std::printf("S-0 audit: input=%zu emitted=%zu retained=%zu lost=%lld dup=%lld wrong_side=%lld\n",
+                  sa.input_all.size(), sa.emitted.size(), sa.retained.size(),
+                  (long long)lost, (long long)sa.duplicates,
+                  (long long)sa.wrong_side);
+    }
     std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
                 (long long)lio->dataWrapper()->lidarPointsInput(),
                 (long long)lio->dataWrapper()->lidarPointsEmitted(),

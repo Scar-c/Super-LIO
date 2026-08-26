@@ -74,6 +74,7 @@ public:
   int64_t emptySliceCount() const { return empty_slice_count_; }
   int64_t lidarPointsEmitted() const { return lidar_points_emitted_; }
   int64_t lidarPointsInput() const { return lidar_points_input_; }
+  const SliceAudit& s0Audit() const { return s0_audit_; }
   int64_t lidarPointsRetained() const { return lidar_points_retained_; }
   double lastEpochTime() const { return last_epoch_time_; }
   void spinOnce(){
@@ -205,6 +206,8 @@ private:
   int64_t empty_slice_count_ = 0;
   int64_t lidar_points_emitted_ = 0;
   int64_t lidar_points_input_ = 0;
+  SliceAudit s0_audit_;
+  int64_t s0_scan_seq_ = 0;
   int64_t lidar_points_retained_ = 0;
   ros::Subscriber subCamera_;
   uint64_t camera_sequence_ = 0;

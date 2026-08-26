@@ -88,6 +88,7 @@ namespace LI2Sup{
   bool g_lio_v2_enabled = false;
   bool g_lio_v2_skip_fd = false;
   bool g_lio_v4_apply = false;
+  bool g_lio_s0_audit = false;
   bool g_lio_v4_outlier_gate = false;
   double g_v4_outlier_mse_threshold = 1000.0;
 

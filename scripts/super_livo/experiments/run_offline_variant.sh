@@ -17,6 +17,7 @@ VARIANT="${4:?variant: b0|c0|a0|a1}"
 CAM_TOPIC="${5:-}"
 CAM_CALIB="${6:-}"
 DURATION="${7:--1}"
+S0_AUDIT="${8:-0}"
 
 RCORE=""
 cleanup() {
@@ -46,6 +47,7 @@ rosparam set /lio/offline/duration "$DURATION"
 rosparam set /lio/offline/out_dir "$OUT_DIR"
 rosparam set /lio/offline/publish false
 rosparam set /lio/eva/instrumentation false
+rosparam set /lio/s0/audit $S0_AUDIT
 rosparam set /lio/eva/out_dir "$OUT_DIR"
 
 case "$VARIANT" in
@@ -68,7 +70,7 @@ case "$VARIANT" in
     rosparam set /lio/v2/skip_fd true
     rosparam set /lio/hb0/enabled false
     rosparam set /lio/vp/enabled true
-    rosparam set /lio/camera/enabled true
+    rosparam set /camera/enabled true
     rosparam set /lio/v4/apply false
     ;;
   a0)
@@ -81,7 +83,7 @@ case "$VARIANT" in
     rosparam set /lio/v2/skip_fd true
     rosparam set /lio/hb0/enabled false
     rosparam set /lio/vp/enabled true
-    rosparam set /lio/camera/enabled true
+    rosparam set /camera/enabled true
     rosparam set /lio/v4/apply true
     ;;
   a1)
@@ -94,7 +96,7 @@ case "$VARIANT" in
     rosparam set /lio/v2/skip_fd true
     rosparam set /lio/hb0/enabled false
     rosparam set /lio/vp/enabled true
-    rosparam set /lio/camera/enabled true
+    rosparam set /camera/enabled true
     rosparam set /lio/v4/apply true
     rosparam set /lio/v4/outlier_gate true
     ;;

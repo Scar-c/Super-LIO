@@ -312,13 +312,19 @@ void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPt
       auto dis = pt.x * pt.x + pt.y * pt.y + pt.z * pt.z;
       if(dis > g_blind2 && dis < g_maxrange2){
         offset_time = pt.offset_time * 1e-9;
-        lidar_data.pc->emplace_back(pt.x, pt.y, pt.z, pt.reflectivity, offset_time);
+        PointXTZIT p(pt.x, pt.y, pt.z, pt.reflectivity, offset_time);
+        if (g_lio_s0_audit) {
+          p.audit_scan_id = s0_scan_seq_;
+          p.audit_idx = static_cast<int32_t>(_i);
+        }
+        lidar_data.pc->push_back(p);
       }
     }
   }
   lidar_data.start_time = msg->header.stamp.toSec();
   lidar_data.end_time   = lidar_data.start_time + offset_time;
   lidar_buffer_.push_back(lidar_data);
+
 }
 
 
@@ -583,8 +589,11 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   double slice_origin = 0.0;
   int64_t emitted_before = lidar_points_emitted_;
   int64_t retained_before = lidar_points_retained_;
+  SliceAudit* audit_ptr = g_lio_s0_audit ? &s0_audit_ : nullptr;
   sliceLidarAt(t_c, lidar_buffer_, pending_lidar_, pending_lidar_, cur_pc,
-               slice_origin, lidar_points_emitted_, lidar_points_retained_);
+               slice_origin, lidar_points_emitted_, lidar_points_retained_,
+               audit_ptr);
+  if (g_lio_s0_audit) s0_scan_seq_++;
   (void)emitted_before; (void)retained_before;
 
   if (cur_pc->empty()) {

@@ -1,6 +1,7 @@
 
 #ifndef LI2Sup_DS_COMMON_H
 #define LI2Sup_DS_COMMON_H
+#include <unordered_set>
 
 #include <queue>
 #include <deque>
@@ -147,16 +148,31 @@ struct PendingLidarSlice {
   std::vector<PointXTZIT> points;
 };
 
+struct SliceAudit {
+  std::unordered_set<int64_t> emitted;
+  std::unordered_set<int64_t> retained;
+  std::unordered_set<int64_t> input_all;
+  int64_t wrong_side = 0;
+  int64_t duplicates = 0;
+  int64_t scan_seq = 0;
+  // final: lost = input_all - emitted - retained (caller computes)
+};
+
 inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
                          const PendingLidarSlice& pending_in,
                          PendingLidarSlice& pending_out,
                          pcl::PointCloud<PointXTZIT>::Ptr& cur_out,
                          double& slice_origin, int64_t& emitted,
-                         int64_t& retained) {
+                         int64_t& retained, SliceAudit* audit = nullptr) {
   cur_out.reset(new pcl::PointCloud<PointXTZIT>());
   cur_out->reserve(24000 * 4);
   slice_origin = t_c;
   auto append = [&](double abs_t, const PointXTZIT& pt) {
+    if (audit) {
+      if (abs_t > t_c) audit->wrong_side++;
+      const int64_t id = (pt.audit_scan_id << 32) | static_cast<uint32_t>(pt.audit_idx);
+      if (!audit->emitted.insert(id).second) audit->duplicates++;
+    }
     PointXTZIT q = pt;
     q.offset_time = abs_t - slice_origin;
     cur_out->push_back(q);
@@ -181,6 +197,10 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
         q.offset_time = abs_t - pending_out.origin;
         pending_out.points.push_back(q);
         retained++;
+        if (audit) {
+          const int64_t id = (pt.audit_scan_id << 32) | static_cast<uint32_t>(pt.audit_idx);
+          audit->retained.insert(id);
+        }
       }
     }
   }
@@ -200,6 +220,17 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
         q.offset_time = abs_t - pending_out.origin;
         pending_out.points.push_back(q);
         retained++;
+        if (audit) {
+          const int64_t id = (pt.audit_scan_id << 32) | static_cast<uint32_t>(pt.audit_idx);
+          audit->retained.insert(id);
+        }
+      }
+    }
+    if (audit) {
+      for (size_t i = 0; i < scan.pc->points.size(); ++i) {
+        const auto& p = scan.pc->points[i];
+        const int64_t id = (p.audit_scan_id << 32) | static_cast<uint32_t>(p.audit_idx);
+        audit->input_all.insert(id);
       }
     }
     scans.pop_front();

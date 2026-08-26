@@ -94,6 +94,9 @@ struct EIGEN_ALIGN16 PointXTZIT {
   PCL_ADD_POINT4D
   float intensity;
   double offset_time;
+  // Round11V S0 stable-identity audit fields (default 0; production unused)
+  int64_t audit_scan_id = 0;
+  int32_t audit_idx = -1;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   PointXTZIT() = default;

@@ -112,6 +112,7 @@ namespace LI2Sup{
   extern bool g_lio_v2_enabled;
   extern bool g_lio_v2_skip_fd;
   extern bool g_lio_v4_apply;
+  extern bool g_lio_s0_audit;
   extern bool g_lio_v4_outlier_gate;
   extern double g_v4_outlier_mse_threshold;
 
