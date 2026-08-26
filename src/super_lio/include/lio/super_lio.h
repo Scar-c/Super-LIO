@@ -505,8 +505,10 @@ protected:
 
   std::size_t effect_knn_num_ = 0;
   BASIC::VV3 points_world_v3_, points_body_v3_;
-  std::vector<bool> effect_mask_;
-  std::vector<bool> effect_knn_mask_;
+  // byte-per-entry masks: vector<bool> is bit-packed and parallel threads
+  // writing distinct entries race on the same byte (nondeterministic)
+  std::vector<unsigned char> effect_mask_;
+  std::vector<unsigned char> effect_knn_mask_;
   std::vector<int> effect_knn_idxs_;
   std::vector<std::pair<BASIC::M6, BASIC::V6>> H_R_;
   std::vector<std::array<double, 4>> abcd_vec_;
