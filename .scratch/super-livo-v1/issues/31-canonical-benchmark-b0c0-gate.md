@@ -1,6 +1,6 @@
 # [Super-LIVO v1][R11T] Canonical benchmark B0/C0 architecture gate
 
-**Status:** ACTIVE（Round 11T owner contract）
+**Status:** BLOCKED — D10-C0-B mandatory Owner stop
 
 Round 11S:
 
@@ -19,3 +19,12 @@ Round 11T:
 - Day10 targeted C0 architecture/timing audit
 - Night08 staged B0/C0 -> conditional A0/A1
 - Oxford staged provenance+B0/C0 -> conditional A0/A1
+
+Stop evidence:
+
+- Day10 canonical record-order adjacent header inversions: 12,651
+- inversion P50/P90/P99/max: 33.854/99.626/101.614/103.450 ms
+- IMU/LiDAR/Camera record-header P50: 0.113/101.848/32.148 ms
+- decision: MULTIBAG TEMPORAL ORDERING SUSPECTED
+- input was not reordered; estimator semantics were not changed
+- Night08 and Oxford were not started
