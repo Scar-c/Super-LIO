@@ -7,3 +7,5 @@ install
 .catkin_workspace
 .catkin_tools
 src/CMakeLists.txt
+# persistent benchmark cache (bags never enter Git)
+cache/
