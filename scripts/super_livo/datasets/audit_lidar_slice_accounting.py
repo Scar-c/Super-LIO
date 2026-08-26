@@ -11,6 +11,13 @@ import sys
 from audit_common import distribution, git_head, header_seconds, iter_record_order
 
 
+def to_ns(seconds):
+    """Float seconds -> integer nanoseconds (exact classification in int ns)."""
+    if isinstance(seconds, int):
+        return seconds
+    return int(round(float(seconds) * 1e9))
+
+
 class SliceSimulator:
     """Mirror ROSWrapper::sync_camera_epoch and sliceLidarAt without estimation."""
 
@@ -35,16 +42,17 @@ class SliceSimulator:
         self.camera_dropped = 0
         self.stale_camera_dropped = 0
         self.epochs = 0
+        self.scan_epochs = {}
 
     def add_imu(self, timestamp):
-        self.imus.append(float(timestamp))
-        self.last_imu = float(timestamp)
+        self.imus.append(to_ns(timestamp))
+        self.last_imu = to_ns(timestamp)
 
     def add_camera(self, timestamp):
         while len(self.cameras) >= self.camera_capacity:
             self.cameras.popleft()
             self.camera_dropped += 1
-        self.cameras.append(float(timestamp))
+        self.cameras.append(to_ns(timestamp))
 
     def add_scan(self, start_time, indexed_offsets):
         points = []
@@ -54,35 +62,37 @@ class SliceSimulator:
             points.append({
                 "identity": identity,
                 "stable_identity": (self.scan_index, int(original_index)),
-                "time": float(start_time) + float(offset),
+                "raw_scan_id": self.scan_index,
+                "time_ns": to_ns(start_time) + to_ns(offset),
             })
-        self.scans.append({"start": float(start_time), "points": points})
+        self.scans.append({"start_ns": to_ns(start_time), "points": points})
         self.scan_index += 1
 
-    def emit(self, point, epoch):
+    def emit(self, point, epoch_ns):
         identity = point["identity"]
         self.emitted_attempts += 1
         if self.status[identity]:
             self.duplicate_emissions += 1
         else:
             self.status[identity] = 1
-        if point["time"] > epoch + 1e-12:
+        if point["time_ns"] > epoch_ns:
             self.emitted_early += 1
-        if abs(point["time"] - epoch) <= 1e-12:
+        if point["time_ns"] == epoch_ns:
             self.boundary_equality_count += 1
+        self.scan_epochs.setdefault(point["raw_scan_id"], set()).add(epoch_ns)
 
     def process_once(self):
-        # Exact entry guard in ROSWrapper::sync_camera_epoch: pending alone is
-        # insufficient when the LiDAR deque is empty.
-        if not self.cameras or not self.scans or not self.imus:
+        # F4: pending LiDAR is valid already-received data; entry needs
+        # camera + (pending OR scan) + IMU.
+        if not self.cameras or (not self.scans and not self.pending) or not self.imus:
             return False
-        epoch = self.cameras[0]
-        if epoch <= self.last_epoch:
+        epoch_ns = self.cameras[0]
+        if epoch_ns <= self.last_epoch:
             self.cameras.popleft()
             self.stale_camera_dropped += 1
             return False
-        lidar_covers = bool(self.pending) or self.scans[0]["start"] <= epoch
-        if not lidar_covers or self.last_imu < epoch:
+        lidar_covers = bool(self.pending) or self.scans[0]["start_ns"] <= epoch_ns
+        if not lidar_covers or self.last_imu < epoch_ns:
             return False
 
         current = []
@@ -90,30 +100,30 @@ class SliceSimulator:
         # point_time_ns <= tc_ns -> current; > tc_ns -> future/pending.
         pending_new = []
         for point in self.pending:
-            if point["time"] <= epoch:
+            if point["time_ns"] <= epoch_ns:
                 current.append(point)
             else:
                 pending_new.append(point)
         self.pending = pending_new
-        while self.scans and self.scans[0]["start"] <= epoch:
+        while self.scans and self.scans[0]["start_ns"] <= epoch_ns:
             scan = self.scans.popleft()
             for point in scan["points"]:
-                if point["time"] <= epoch:
+                if point["time_ns"] <= epoch_ns:
                     current.append(point)
                 else:
                     self.pending.append(point)
                     self.retained_future_events += 1
 
         for point in current:
-            self.emit(point, epoch)
+            self.emit(point, epoch_ns)
         if not current:
             self.cameras.popleft()
             self.empty_slices += 1
             return False
 
-        while self.imus and self.imus[0] <= epoch:
+        while self.imus and self.imus[0] <= epoch_ns:
             self.imus.popleft()
-        self.last_epoch = epoch
+        self.last_epoch = epoch_ns
         self.cameras.popleft()
         self.epochs += 1
         self.slice_sizes.append(len(current))
@@ -149,8 +159,12 @@ class SliceSimulator:
             and lost == 0
         )
         return {
-            "stable_identity": "(original_scan_index, point_index)",
+            "stable_identity": "(raw_scan_id, original_point_index)",
             "raw_scan_count": self.scan_index,
+            "distinct_raw_scan_ids_emitted": len(self.scan_epochs),
+            "scans_emitted_across_multiple_epochs": sum(
+                1 for epochs in self.scan_epochs.values() if len(epochs) > 1
+            ),
             "input_valid_selected_points": input_count,
             "emitted_points": self.emitted_attempts,
             "unique_emitted_points": int(sum(1 for value in self.status if value)),
@@ -215,11 +229,15 @@ def run_json_events(args, simulator):
         if kind == "imu":
             simulator.add_imu(event["header"])
         elif kind == "camera":
-            simulator.add_camera(event["header"] + 2.0 * args.camera_time_offset)
-        elif kind == "lidar":
-            simulator.add_scan(
-                event["header"], list(enumerate(event.get("offsets", [])))
+            # F5: HandleImage applies offset exactly once; t_c = frame.timestamp.
+            event_time_ns = (
+                event["header_ns"] if "header_ns" in event else to_ns(event["header"])
             )
+            simulator.add_camera(event_time_ns + to_ns(args.camera_time_offset))
+        elif kind == "lidar":
+            offsets = event.get("offsets_ns") if "offsets_ns" in event else event.get("offsets", [])
+            start_time = event["header_ns"] if "header_ns" in event else event["header"]
+            simulator.add_scan(start_time, list(enumerate(offsets)))
         else:
             raise ValueError(f"unknown event kind: {kind}")
         simulator.process_once()
@@ -231,10 +249,9 @@ def run_bags(args, simulator):
         if topic == args.imu_topic:
             simulator.add_imu(header_seconds(message))
         elif topic == args.camera_topic:
-            # HandleImage applies the configured offset, and sync_camera_epoch
-            # currently applies it again. Audit the implemented semantics.
+            # F5: /camera/time_offset applied exactly once at ingestion.
             simulator.add_camera(
-                header_seconds(message) + 2.0 * args.camera_time_offset
+                to_ns(header_seconds(message)) + to_ns(args.camera_time_offset)
             )
         elif topic == args.lidar_topic:
             simulator.add_scan(
@@ -255,6 +272,8 @@ def render(args, report, argv):
         f"arguments: {shlex.join(argv)}",
         f"stable identity: {report['stable_identity']}",
         f"raw scans: {report['raw_scan_count']}",
+        f"distinct raw scan ids emitted: {report['distinct_raw_scan_ids_emitted']}",
+        f"scans emitted across multiple epochs: {report['scans_emitted_across_multiple_epochs']}",
         f"input valid selected LiDAR points: {report['input_valid_selected_points']}",
         f"emitted points: {report['emitted_points']}",
         f"final retained: {report['final_retained_points']}",
