@@ -541,6 +541,15 @@ int main(int argc, char** argv) {
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
                 (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount(),
                 (long long)data_wrapper->popNoopCount());
+    std::printf("S-0 camera temporal: stride=%d raw_input=%lld decimated=%lld accepted_to_s0=%lld (raw = decimated + accepted: %s)\n",
+                data_wrapper->cameraTemporalStride(),
+                (long long)data_wrapper->rawCameraInput(),
+                (long long)data_wrapper->temporalDecimated(),
+                (long long)data_wrapper->acceptedToS0(),
+                data_wrapper->rawCameraInput() ==
+                        data_wrapper->temporalDecimated() +
+                            data_wrapper->acceptedToS0()
+                    ? "OK" : "MISMATCH");
     if (g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
         g_lio_s0_audit) {
       const auto& sa = lio->dataWrapper()->s0Audit();

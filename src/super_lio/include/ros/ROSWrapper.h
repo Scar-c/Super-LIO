@@ -64,6 +64,14 @@ public:
     return lidarCoversT(tc, pending_lidar_, lidar_buffer_);
   }
   bool cameraEpochEnabled() const { return g_lio_camera_epoch; }
+  // Round11Z: mixed-rate temporal sampler (increment-before-modulo)
+  bool shouldAcceptCameraFrame() {
+    return temporalStrideAccept(raw_camera_counter_, camera_temporal_stride_);
+  }
+  int cameraTemporalStride() const { return camera_temporal_stride_; }
+  int64_t rawCameraInput() const { return raw_camera_input_; }
+  int64_t temporalDecimated() const { return temporal_decimated_; }
+  int64_t acceptedToS0() const { return accepted_to_s0_; }
   // pop the frame consumed by the last successful camera epoch (called after
   // the converged visual/LIO step so the frontend still sees the frame)
   void popConsumedCameraFrame() {
@@ -233,6 +241,12 @@ private:
   int64_t images_consumed_ = 0;
   int64_t empty_slice_count_ = 0;
   int64_t pop_noop_count_ = 0;
+  // Round11Z camera temporal sampler state (per-instance; no statics)
+  int camera_temporal_stride_ = 1;
+  int64_t raw_camera_counter_ = 0;
+  int64_t raw_camera_input_ = 0;
+  int64_t temporal_decimated_ = 0;
+  int64_t accepted_to_s0_ = 0;
   int64_t lidar_points_emitted_ = 0;
   int64_t lidar_points_input_ = 0;
   int64_t raw_scan_seq_ = 0;

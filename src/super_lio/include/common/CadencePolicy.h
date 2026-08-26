@@ -36,6 +36,17 @@ inline const char* lidarUpdatePolicyName(LidarUpdatePolicy policy) {
   return "invalid";
 }
 
+// Round11Z: FAST-LIVO2 mixed-rate camera temporal sampler. Mirrors the
+// pinned reference img_cbk hilti_en gate (increment-before-modulo, decided
+// before downstream buffering): ++counter; accept iff counter % stride == 0.
+// Stride < 1 fails closed (never accept). Caller owns the counter (no
+// function-static sampler state).
+inline bool temporalStrideAccept(int64_t& counter, int stride) {
+  ++counter;
+  if (stride < 1) return false;
+  return counter % stride == 0;
+}
+
 enum class CadenceAction {
   WAIT,
   USE_PARTIAL_SCHEDULER,
