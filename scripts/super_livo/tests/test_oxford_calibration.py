@@ -8,8 +8,9 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "super_livo/datasets"))
 
-from prepare_oxford_calibration import (flatten, mat_mul, quat_to_rot,
-                                        rigid_inv, to_4x4)
+from prepare_oxford_calibration import (config_extrinsic_12, flatten,
+                                        mat_mul, quat_to_rot, rigid_inv,
+                                        to_4x4)
 
 
 def main():
@@ -51,6 +52,17 @@ def main():
     expect("to_4x4 flatten 16", len(flat) == 16 and abs(flat[3] - 1.0) < 1e-12
            and abs(flat[7] - 2.0) < 1e-12 and abs(flat[11] - 3.0) < 1e-12
            and abs(flat[15] - 1.0) < 1e-12)
+
+    # config extrinsic: t first + transposed rotation (Eigen column-major)
+    T = to_4x4([[0, -1, 0], [1, 0, 0], [0, 0, 1]], [0.1, 0.2, 0.3])
+    v12 = config_extrinsic_12(T)
+    expect("extrinsic t first", abs(v12[0] - 0.1) < 1e-12 and
+           abs(v12[1] - 0.2) < 1e-12 and abs(v12[2] - 0.3) < 1e-12)
+    import numpy as np
+    R_parsed = np.array(v12[3:]).reshape(3, 3).T  # column-major Eigen fill
+    R_intended = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    expect("extrinsic transpose convention",
+           np.allclose(R_parsed, R_intended, atol=1e-12))
 
     print("OXFORD CALIBRATION DERIVATION TDD: %s" % ("ALL PASS" if ok else "FAIL"))
     return 0 if ok else 1

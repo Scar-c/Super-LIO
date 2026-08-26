@@ -103,6 +103,18 @@ def derive(calib_dir):
     }
 
 
+def config_extrinsic_12(T):
+    """Super-LIO config format: t (3) FIRST, then 9 rotation values.
+
+    The production parser does M3(data) which fills the Eigen matrix in
+    COLUMN-major order, so the written rows are the TRANSPOSE of the
+    intended rotation (matching the working eee/mcd configs).
+    """
+    t = [T[i][3] for i in range(3)]
+    R_transposed = [T[j][i] for i in range(3) for j in range(3)]
+    return t + R_transposed
+
+
 def render_config(d, lidar_topic, imu_topic, camera_topic, calib_path):
     T = d["T_I_L"]
     return f"""# Oxford Quarter01 (Oxford Spires Multi-Modal) — derived from official
@@ -132,8 +144,7 @@ lio:
     imu_nba: {d['nba']:.15g}
     imu_nbg: {d['nbg']:.15g}
   extrinsic:
-    lidar_imu:
-{fmt_row_major(flatten(T))}
+    lidar_imu: [{', '.join('%.12g' % v for v in config_extrinsic_12(T))}]
     odom_robo: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   hash_map:
     hash_capacity: 2000000
@@ -159,7 +170,7 @@ lio:
 
 def render_camera_calib(d, camera_topic):
     T = d["T_I_C"]
-    data = " ".join("%.12g" % v for v in flatten(T))
+    data = ", ".join("%.12g" % v for v in flatten(T))
     return f"""T_Body_Cam: !!opencv-matrix
    rows: 4
    cols: 4
