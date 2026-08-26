@@ -178,12 +178,16 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
     cur_out->push_back(q);
     emitted++;
   };
+  // Alias-safe: pending_in and pending_out MAY be the same object (the
+  // production caller passes pending_lidar_ for both). Snapshot the input
+  // before clearing/rebuilding the output.
+  const PendingLidarSlice pending_snap = pending_in;
   pending_out.has = false;
   pending_out.points.clear();
-  if (pending_in.has) {
-    slice_origin = pending_in.origin;
-    for (const auto& pt : pending_in.points) {
-      const double abs_t = pending_in.origin + pt.offset_time;
+  if (pending_snap.has) {
+    slice_origin = pending_snap.origin;
+    for (const auto& pt : pending_snap.points) {
+      const double abs_t = pending_snap.origin + pt.offset_time;
       if (abs_t <= t_c) {
         // frozen S0 rule: point_time <= tc -> current (re-sliced at new tc)
         append(abs_t, pt);

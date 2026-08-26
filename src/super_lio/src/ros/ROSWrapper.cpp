@@ -324,6 +324,7 @@ void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPt
   lidar_data.start_time = msg->header.stamp.toSec();
   lidar_data.end_time   = lidar_data.start_time + offset_time;
   lidar_buffer_.push_back(lidar_data);
+  if (g_lio_s0_audit) s0_scan_seq_++;  // F2: one id per accepted raw LiDAR msg
 
 }
 
@@ -427,6 +428,7 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
   }
   
   lidar_buffer_.push_back(lidar_data);
+  if (g_lio_s0_audit) s0_scan_seq_++;  // F2: one id per accepted raw LiDAR msg
 }
 
 
@@ -566,11 +568,14 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
 //   - one image consumed per successful epoch (visual OFF: LIO only)
 bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   meas.epoch_ts = -1.0;
-  if (camera_buffer_.empty() || lidar_buffer_.empty() || imu_buffer_.empty()) {
+  if (camera_buffer_.empty() ||
+      (!pending_lidar_.has && lidar_buffer_.empty()) || imu_buffer_.empty()) {
     return false;
   }
   const CameraFrame& cf = camera_buffer_.oldest();
-  const double t_c = cf.timestamp + g_camera_time_offset;
+  // F5: /camera/time_offset applied exactly once at ingestion (HandleImage);
+  // t_c is the physical camera epoch already.
+  const double t_c = cf.timestamp;
   if (t_c <= last_epoch_time_) {
     // stale image: estimator already at/beyond this image time (7.3)
     camera_buffer_.popOldest();
@@ -593,8 +598,7 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   sliceLidarAt(t_c, lidar_buffer_, pending_lidar_, pending_lidar_, cur_pc,
                slice_origin, lidar_points_emitted_, lidar_points_retained_,
                audit_ptr);
-  if (g_lio_s0_audit) s0_scan_seq_++;
-  (void)emitted_before; (void)retained_before;
+
 
   if (cur_pc->empty()) {
     // legal boundary (t_c before any point of the started scan); the image

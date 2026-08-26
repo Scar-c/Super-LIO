@@ -153,6 +153,23 @@ int main() {
     expect("T12 pending keeps point", pout.points.size() == 1);
   }
 
-  std::printf("S0C T1..T12: ALL PASS\n");
+  // F1: same-object alias fixture — pending_in == pending_out must be safe
+  {
+    PendingLidarSlice pend;
+    pend.has = true;
+    pend.origin = 0.0;
+    pend.points.push_back(pt(0.04));
+    pend.points.push_back(pt(0.06));
+    pend.points.push_back(pt(0.08));
+    std::deque<LidarData> empty;
+    pcl::PointCloud<PointXTZIT>::Ptr cur;
+    double origin = 0;
+    int64_t em = 0, rt = 0;
+    sliceLidarAt(0.05, empty, pend, pend, cur, origin, em, rt);  // same object
+    expect("F1 alias current=1 (0.04)", cur->size() == 1 && em == 1);
+    expect("F1 alias pending=2 (0.06,0.08)", pend.points.size() == 2);
+  }
+
+  std::printf("S0C T1..T12 + F1: ALL PASS\n");
   return 0;
 }
