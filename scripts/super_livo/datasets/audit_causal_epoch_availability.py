@@ -94,8 +94,15 @@ class CausalEpochSimulator:
             self._mark_wait(camera, not scheduler_lidar_covers, not scheduler_imu_covers)
             return False
 
-        current = list(self.pending)
-        self.pending = []
+        # FROZEN S0: re-slice pending tail at this tc (<= tc current, > tc future)
+        current = []
+        pending_new = []
+        for pt in self.pending:
+            if pt <= tc:
+                current.append(pt)
+            else:
+                pending_new.append(pt)
+        self.pending = pending_new
         while self.scans and self.scans[0]["start"] <= tc:
             scan = self.scans.popleft()
             for point_time in scan["points"]:
@@ -191,7 +198,15 @@ def audit(args):
                 )
             ]
             simulator.add_lidar(start, timing["scan_end_ns"], last_record, point_times)
-        simulator.process_once(last_record)
+        # FROZEN ready-camera drain: after this record updates buffers,
+        # repeatedly process queued cameras while they are causally ready
+        # (emitted, empty-slice dropped, or stale-dropped all count as
+        # progress; a waiting camera stops the drain).
+        while True:
+            before = len(simulator.cameras)
+            simulator.process_once(last_record)
+            if len(simulator.cameras) == before:
+                break
     while simulator.process_once(last_record, eof=True):
         pass
     return simulator.report()

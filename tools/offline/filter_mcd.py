@@ -40,8 +40,18 @@ def main():
     args = ap.parse_args()
 
     selected = [args.lidar, args.imu]
-    if args.mode == 'livo' and args.camera:
+    if args.mode == 'livo':
+        if not args.camera:
+            raise SystemExit('livo mode requires --camera')
         selected.append(args.camera)
+
+    # required-topic fail-closed: each required topic must exist in >=1 bag
+    avail_all = set()
+    for path in args.bags:
+        avail_all |= set(topic_counts(path).keys())
+    for t in selected:
+        if t not in avail_all:
+            raise SystemExit('FAIL: required topic %s absent from all source bags' % t)
 
     # open bags + iterators (one per bag, covering its selected topics)
     bags = []
@@ -67,10 +77,10 @@ def main():
             return
         try:
             topic, msg, ts = next(st['it'])
+            rec_ns = ts.to_nsec()
             rec_s = ts.to_sec()
             ht = msg.header.stamp.to_sec() if hasattr(msg, 'header') else 0.0
-            st['active'] = (int(rec_s * 1e9), si, st['seq'], topic, msg,
-                            rec_s, ht)
+            st['active'] = (rec_ns, si, st['seq'], topic, msg, rec_s, ht)
             st['seq'] += 1
             heapq.heappush(heap, st['active'])
         except StopIteration:
@@ -86,33 +96,45 @@ def main():
     last_ht = {}
     hash_state = {}
 
-    out_path = args.out + ('_lio_filtered.bag' if args.mode == 'lio'
-                           else '_livo_filtered.bag')
-    with rosbag.Bag(out_path, 'w', compression='lz4') as out:
-        while heap:
-            rec_ns, si, seq, topic, msg, rec_s, ht = heapq.heappop(heap)
-            if first_rec is None:
-                first_rec = rec_s
-            if args.duration > 0.0 and rec_s - first_rec > args.duration:
-                break
-            if rec_s < prev_rec:
-                raise RuntimeError('non-monotonic record time %f < %f'
-                                   % (rec_s, prev_rec))
-            prev_rec = rec_s
-            out.write(topic, msg, t=rospy.Time.from_sec(rec_s))
-            counts[topic] = counts.get(topic, 0) + 1
-            first_ht.setdefault(topic, ht)
-            last_ht[topic] = ht
-            h = hash_state.get(topic, 0)
-            h = (h * 131 + int(ht * 1e9)) % MOD
-            hash_state[topic] = h
-            advance(si)
-
+    final_path = args.out + ('_lio_filtered.bag' if args.mode == 'lio'
+                            else '_livo_filtered.bag')
+    partial_path = final_path + '.partial'
+    try:
+        with rosbag.Bag(partial_path, 'w', compression='lz4') as out:
+            while heap:
+                rec_ns, si, seq, topic, msg, rec_s, ht = heapq.heappop(heap)
+                if first_rec is None:
+                    first_rec = rec_s
+                if args.duration > 0.0 and rec_s - first_rec > args.duration:
+                    break
+                if rec_s < prev_rec:
+                    raise RuntimeError('non-monotonic record time %f < %f'
+                                       % (rec_s, prev_rec))
+                prev_rec = rec_s
+                # preserve original record Time object for output ordering
+                out.write(topic, msg, t=rospy.Time.from_sec(rec_s))
+                counts[topic] = counts.get(topic, 0) + 1
+                first_ht.setdefault(topic, ht)
+                last_ht[topic] = ht
+                h = hash_state.get(topic, 0)
+                h = (h * 131 + int(ht * 1e9)) % MOD
+                hash_state[topic] = h
+                advance(si)
+    except Exception as e:
+        # partial output must not be confused with a complete canonical bag
+        import os
+        if os.path.exists(partial_path):
+            os.remove(partial_path)
+        raise
+    # close all bag handles deterministically
     for b in bags:
         b.close()
+    # atomic rename to final only after successful close
+    import os
+    os.rename(partial_path, final_path)
 
     rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    print('output:', out_path)
+    print('output:', final_path)
     print('counts:', counts)
     print('first_ht:', first_ht)
     print('last_ht:', last_ht)

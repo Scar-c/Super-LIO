@@ -72,7 +72,7 @@ def main():
         m[os.path.basename(args.bag)] = entry
         json.dump(m, open(args.manifest, 'w'), indent=2)
         print('registered', os.path.basename(args.bag), entry['md5'])
-    else:  # check
+    else:  # check — recompute current bag metadata, compare against manifest
         if not os.path.exists(args.manifest):
             print('FAIL: manifest missing')
             return 1
@@ -82,11 +82,20 @@ def main():
             print('FAIL: no manifest entry for', key)
             return 1
         e = m[key]
-        cur = md5(args.bag)
-        size = os.path.getsize(args.bag)
-        ok = cur == e['md5'] and size == e['size']
-        print('check %s md5=%s size=%d topics=%s' %
-              ('PASS' if ok else 'FAIL', cur, size, e['topics']))
+        cur_md5 = md5(args.bag)
+        cur_size = os.path.getsize(args.bag)
+        cur_info = bag_info(args.bag)
+        ok = (cur_md5 == e['md5'] and cur_size == e['size'] and
+              abs(cur_info['duration'] - e['duration']) < 0.01 and
+              cur_info['topics'] == e['topics'])
+        if ok and e.get('mode') == 'livo' and 'selected_topics' in e:
+            for t in ('/livox/lidar', '/vn100/imu',
+                      '/d435i/infra1/image_rect_raw'):
+                if t in e['selected_topics'] and t not in cur_info['topics']:
+                    ok = False
+        print('check %s md5=%s size=%d duration=%.2f topics=%s' %
+              ('PASS' if ok else 'FAIL', cur_md5, cur_size,
+               cur_info['duration'], cur_info['topics']))
         return 0 if ok else 1
 
 

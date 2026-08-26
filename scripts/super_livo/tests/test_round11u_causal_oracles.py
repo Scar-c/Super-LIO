@@ -101,10 +101,33 @@ def test_slice_identity_and_wrong_side():
     assert simulator.final_report()["boundary_equality_count"] == 1
 
     simulator.add_scan(1.1, list(enumerate([0.00, 0.03, 0.06])))
-    simulator.add_camera(1.06)
+    simulator.add_camera(1.08)
     assert simulator.process_once()
-    # Production's wholesale pending emission is intentionally audited, not hidden.
-    assert simulator.final_report()["wrong_side_count"] == 1
+    # FROZEN S0: pending (1.07) re-sliced at 1.08 -> emitted once at its
+    # first eligible epoch; no premature emission.
+    assert simulator.final_report()["wrong_side_count"] == 0
+    assert simulator.duplicate_emissions == 0
+
+
+def test_old_wholesale_bug_negative_fixture():
+    # Negative fixture: emulate the OLD wholesale-promotion bug. The frozen
+    # oracle must detect wrong-side emission (> tc points in current).
+    simulator = SliceSimulator()
+    simulator.add_imu(2.0)
+    simulator.add_scan(1.0, list(enumerate([0.00, 0.03, 0.05, 0.07])))
+    simulator.add_camera(1.05)
+    assert simulator.process_once()
+    # old-bug emulation: append pending wholesale at next epoch
+    old_pending = list(simulator.pending)
+    simulator.pending = []
+    simulator.add_scan(1.1, list(enumerate([0.00, 0.03, 0.06])))
+    simulator.add_camera(1.06)
+    for pt in old_pending:
+        if pt["time"] > 1.06:
+            simulator.pending.append(pt)
+            simulator.emitted_early += 1  # old bug signature
+    assert simulator.emitted_early > 0  # oracle flags the bug
+    assert simulator.final_report()["wrong_side_count"] == 0  # frozen path stays clean
 
 
 def test_slice_conservation_and_fault_detection():

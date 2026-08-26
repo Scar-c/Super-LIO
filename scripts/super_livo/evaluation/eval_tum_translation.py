@@ -137,12 +137,20 @@ def evaluate(args):
     rotation, translation = umeyama_se3(source, destination)
     aligned = (rotation @ source.T).T + translation
     errors = np.linalg.norm(aligned - destination, axis=1)
+    mt = [estimate_time[est] for est, _, _ in pairs]
+    assoc_dt = np.abs([gt_time[gt] - estimate_time[est] for est, gt, _ in pairs])
     return {
         "matched": len(pairs),
         "duration": float(
             min(estimate_time[-1], gt_time[-1])
             - max(estimate_time[0], gt_time[0])
         ),
+        "matched_duration": float(mt[-1] - mt[0]) if len(mt) > 1 else 0.0,
+        "assoc_dt_p50": float(np.percentile(assoc_dt, 50)) if len(assoc_dt) else 0.0,
+        "assoc_dt_p90": float(np.percentile(assoc_dt, 90)) if len(assoc_dt) else 0.0,
+        "assoc_dt_p95": float(np.percentile(assoc_dt, 95)) if len(assoc_dt) else 0.0,
+        "assoc_dt_p99": float(np.percentile(assoc_dt, 99)) if len(assoc_dt) else 0.0,
+        "assoc_dt_max": float(np.max(assoc_dt)) if len(assoc_dt) else 0.0,
         "rmse": float(np.sqrt(np.mean(errors ** 2))),
         "mean": float(np.mean(errors)),
         "median": float(np.median(errors)),
@@ -163,7 +171,16 @@ def render(args, metrics, argv):
         "alignment type: SE(3), no scale",
         f"association max_diff: {args.max_diff:.6f} s",
         f"matched count: {metrics['matched']}",
-        f"duration: {metrics['duration']:.3f} s",
+        f"trajectory_overlap_duration: {metrics['duration']:.3f} s",
+        f"matched_duration: {metrics['matched_duration']:.3f} s",
+        (
+            "association |dt| s: "
+            f"P50={metrics['assoc_dt_p50']:.4f} "
+            f"P90={metrics['assoc_dt_p90']:.4f} "
+            f"P95={metrics['assoc_dt_p95']:.4f} "
+            f"P99={metrics['assoc_dt_p99']:.4f} "
+            f"max={metrics['assoc_dt_max']:.4f}"
+        ),
         (
             "translation APE (m): "
             f"RMSE={metrics['rmse']:.4f} "

@@ -16,9 +16,9 @@ def main():
         tmp = pathlib.Path(tmp)
         events_path = tmp / "events.json"
         report_path = tmp / "report.json"
-        # First epoch splits scan 0 at 1.03. At the next epoch, the production
-        # algorithm emits the entire pending tail. Points at 1.06/1.08 are thus
-        # emitted before physical time 1.05, while identity conservation holds.
+        # First epoch splits scan 0 at 1.03. FROZEN S0: at epoch 1.05 the
+        # pending tail (1.04,1.06,1.08) is re-sliced; only 1.04 <= 1.05 is
+        # emitted, 1.06/1.08 remain pending (no premature emission).
         events = [
             {"record": 0.01, "kind": "imu", "header": 2.0},
             {"record": 0.02, "kind": "lidar", "header": 1.0,
@@ -46,21 +46,24 @@ def main():
             raise AssertionError(result.stdout)
         report = json.loads(report_path.read_text(encoding="utf-8"))
         assert report["input_valid_selected_points"] == 10, report
-        assert report["emitted_points"] == 5, report
-        assert report["final_retained_points"] == 5, report
+        # FROZEN S0: pending tail re-sliced at every epoch. Epoch 1.03 emits 2
+        # points (1.00,1.02); epoch 1.05 emits 1 (1.04). 1.06/1.08 stay pending.
+        assert report["emitted_points"] == 3, report
+        assert report["wrong_side_count"] == 0, report
         assert report["duplicate_emission_count"] == 0, report
+        assert report["final_retained_points"] == 7, report
         assert report["lost_point_count"] == 0, report
-        assert report["emitted_before_physical_time"] == 2, report
+        assert report["emitted_before_physical_time"] == 0, report
         assert report["conservation_pass"] is True, report
-        assert report["slice_points"]["p50"] == 2.5, report
+        assert report["slice_points"]["p50"] == 1.5, report
         for token in (
             "stable identity:",
             "input valid selected LiDAR points: 10",
-            "emitted points: 5",
-            "final retained: 5",
+            "emitted points: 3",
+            "final retained: 7",
             "duplicate emission count: 0",
             "lost point count: 0",
-            "emitted before physical time: 2",
+            "emitted before physical time: 0",
             "conservation: PASS",
         ):
             assert token in result.stdout, (token, result.stdout)

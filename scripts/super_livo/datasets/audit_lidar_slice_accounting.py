@@ -86,10 +86,15 @@ class SliceSimulator:
             return False
 
         current = []
-        # Mirrors production exactly: pending is appended in full and is not
-        # re-sliced against the new epoch.
-        current.extend(self.pending)
-        self.pending = []
+        # FROZEN S0 semantics: pending tail is re-sliced at this epoch.
+        # point_time_ns <= tc_ns -> current; > tc_ns -> future/pending.
+        pending_new = []
+        for point in self.pending:
+            if point["time"] <= epoch:
+                current.append(point)
+            else:
+                pending_new.append(point)
+        self.pending = pending_new
         while self.scans and self.scans[0]["start"] <= epoch:
             scan = self.scans.popleft()
             for point in scan["points"]:
