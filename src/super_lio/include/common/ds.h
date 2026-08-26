@@ -148,6 +148,30 @@ struct PendingLidarSlice {
   std::vector<PointXTZIT> points;
 };
 
+// P0R2-B: true spanning LiDAR coverage for camera epoch tc (frozen causal
+// rule): already-received LiDAR must physically span THROUGH tc.
+//   pending:  covered iff max pending physical point time >= tc
+//   buffered: a scan covers tc iff scan.start <= tc <= scan.end
+//   future scan (start > tc) does NOT cover; finished scan (end < tc)
+//   does NOT cover.
+// Pending points are kept in ascending physical time (construction order),
+// so points.back() is the max.
+inline bool lidarCoversT(double tc, const PendingLidarSlice& pending,
+                         const std::deque<LidarData>& scans) {
+  if (pending.has && !pending.points.empty()) {
+    const double pending_max = pending.origin + pending.points.back().offset_time;
+    if (pending_max >= tc) return true;
+  }
+  for (const auto& s : scans) {
+    if (s.start_time <= tc) {
+      if (tc <= s.end_time) return true;  // spans tc
+    } else {
+      break;  // deque ordered by start_time; later scans start even later
+    }
+  }
+  return false;
+}
+
 struct SliceAudit {
   std::unordered_set<int64_t> emitted;
   std::unordered_set<int64_t> retained;
@@ -155,6 +179,11 @@ struct SliceAudit {
   int64_t wrong_side = 0;
   int64_t duplicates = 0;
   int64_t scan_seq = 0;
+  // P0R2-A exact-ns bounded comparison structures (id, exact physical ns)
+  std::unordered_map<int64_t, int64_t> point_ns_map;   // id -> exact ns
+  std::vector<std::pair<int64_t, int64_t>> emitted_epoch_ns;   // (id, tc_ns)
+  std::vector<std::pair<int64_t, int64_t>> boundary_assign;    // (id, tc_ns)
+  std::vector<int64_t> epoch_tcs_ns;
   // final: lost = input_all - emitted - retained (caller computes)
 };
 
@@ -163,7 +192,8 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
                          PendingLidarSlice& pending_out,
                          pcl::PointCloud<PointXTZIT>::Ptr& cur_out,
                          double& slice_origin, int64_t& emitted,
-                         int64_t& retained, SliceAudit* audit = nullptr) {
+                         int64_t& retained, SliceAudit* audit = nullptr,
+                         int64_t tc_ns = 0) {
   cur_out.reset(new pcl::PointCloud<PointXTZIT>());
   cur_out->reserve(24000 * 4);
   slice_origin = t_c;
@@ -172,6 +202,13 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
       if (abs_t > t_c) audit->wrong_side++;
       const int64_t id = (pt.audit_scan_id << 32) | static_cast<uint32_t>(pt.audit_idx);
       if (!audit->emitted.insert(id).second) audit->duplicates++;
+      if (tc_ns > 0) {
+        audit->emitted_epoch_ns.emplace_back(id, tc_ns);
+        const auto it = audit->point_ns_map.find(id);
+        if (it != audit->point_ns_map.end() && it->second == tc_ns) {
+          audit->boundary_assign.emplace_back(id, tc_ns);
+        }
+      }
     }
     PointXTZIT q = pt;
     q.offset_time = abs_t - slice_origin;

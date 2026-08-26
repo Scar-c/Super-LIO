@@ -316,6 +316,12 @@ void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPt
         if (g_lio_s0_audit) {
           p.audit_scan_id = s0_scan_seq_;
           p.audit_idx = static_cast<int32_t>(_i);
+          const int64_t id = (s0_scan_seq_ << 32) | static_cast<uint32_t>(_i);
+          const int64_t pns =
+              static_cast<int64_t>(msg->header.stamp.sec) * 1000000000LL +
+              static_cast<int64_t>(msg->header.stamp.nsec) +
+              static_cast<int64_t>(pt.offset_time);
+          s0_audit_.point_ns_map[id] = pns;
         }
         lidar_data.pc->push_back(p);
       }
@@ -533,6 +539,10 @@ void ROSWrapper::HandleImage(const sensor_msgs::Image::ConstPtr& msg){
   if (!camera_enabled_) return;
   CameraFrame frame;
   frame.timestamp = msg->header.stamp.toSec() + g_camera_time_offset;
+  frame.timestamp_ns =
+      static_cast<int64_t>(msg->header.stamp.sec) * 1000000000LL +
+      static_cast<int64_t>(msg->header.stamp.nsec) +
+      static_cast<int64_t>(std::llround(g_camera_time_offset * 1e9));
   frame.width = msg->width;
   frame.height = msg->height;
   frame.encoding = msg->encoding;
@@ -583,10 +593,8 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
     return false;
   }
   // sensor support (7.4): LiDAR coverage and IMU coverage
-  const bool lidar_covers =
-      pending_lidar_.has ||
-      (!lidar_buffer_.empty() && lidar_buffer_.front().start_time <= t_c);
-  if (!lidar_covers) return false;
+  // P0R2-B: already-received LiDAR must physically span THROUGH tc
+  if (!hasAvailableLidarCoverage(t_c)) return false;
   if (last_timestamp_imu_ < t_c) return false;
 
   // ---- LiDAR: slice scans at t_c, keep future points in pending ----
@@ -595,9 +603,10 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   int64_t emitted_before = lidar_points_emitted_;
   int64_t retained_before = lidar_points_retained_;
   SliceAudit* audit_ptr = g_lio_s0_audit ? &s0_audit_ : nullptr;
+  const int64_t tc_ns = g_lio_s0_audit ? cf.timestamp_ns : 0;
   sliceLidarAt(t_c, lidar_buffer_, pending_lidar_, pending_lidar_, cur_pc,
                slice_origin, lidar_points_emitted_, lidar_points_retained_,
-               audit_ptr);
+               audit_ptr, tc_ns);
 
 
   if (cur_pc->empty()) {
@@ -638,6 +647,7 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
   // converged observation step; popConsumedCameraFrame() runs there
   lio_vio_flg_ = 1;  // LIO done; VIO no-op while visual OFF
   camera_epoch_count_++;
+  if (g_lio_s0_audit) s0_audit_.epoch_tcs_ns.push_back(tc_ns);
   return true;
 }
 

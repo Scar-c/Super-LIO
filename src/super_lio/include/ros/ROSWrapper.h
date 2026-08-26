@@ -58,6 +58,11 @@ public:
   ~ROSWrapper(){};
   using Ptr = std::shared_ptr<ROSWrapper>;
   bool sync_measure(MeasureGroup&);
+  // P0R2-B: true spanning already-received LiDAR coverage of tc
+  bool hasAvailableLidarCoverage(double tc) const {
+    return lidarCoversT(tc, pending_lidar_, lidar_buffer_);
+  }
+  bool cameraEpochEnabled() const { return g_lio_camera_epoch; }
   // pop the frame consumed by the last successful camera epoch (called after
   // the converged visual/LIO step so the frontend still sees the frame)
   void popConsumedCameraFrame() {

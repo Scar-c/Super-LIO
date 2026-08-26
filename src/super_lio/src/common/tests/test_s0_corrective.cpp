@@ -170,6 +170,49 @@ int main() {
     expect("F1 alias pending=2 (0.06,0.08)", pend.points.size() == 2);
   }
 
-  std::printf("S0C T1..T12 + F1: ALL PASS\n");
+  // P0R2-B: true spanning LiDAR coverage (COV-T1..T7)
+  {
+    const auto mkScan = [](double s, double e) {
+      LidarData d;
+      d.start_time = s;
+      d.end_time = e;
+      d.pc.reset(new pcl::PointCloud<PointXTZIT>());
+      return d;
+    };
+    std::deque<LidarData> scans;
+    PendingLidarSlice pend;
+    // COV-T1: start<end<tc -> NOT COVERED
+    scans.push_back(mkScan(1.0, 1.02));
+    expect("COV-T1 finished scan not covering",
+           !lidarCoversT(1.03, pend, scans));
+    // COV-T2: start<=tc<=end -> COVERED
+    scans.push_back(mkScan(1.01, 1.05));
+    expect("COV-T2 scan spans tc", lidarCoversT(1.03, pend, scans));
+    // COV-T3: end==tc -> COVERED
+    scans.clear();
+    scans.push_back(mkScan(1.0, 1.03));
+    expect("COV-T3 end==tc", lidarCoversT(1.03, pend, scans));
+    // COV-T4: future scan start>tc -> NOT COVERED
+    scans.clear();
+    scans.push_back(mkScan(1.05, 1.08));
+    expect("COV-T4 future scan", !lidarCoversT(1.03, pend, scans));
+    // COV-T5: pending max<tc -> NOT COVERED
+    scans.clear();
+    pend.has = true;
+    pend.origin = 1.00;
+    pend.points.clear();
+    pend.points.push_back(pt(0.01));  // 1.01
+    pend.points.push_back(pt(0.02));  // 1.02
+    expect("COV-T5 pending max<tc", !lidarCoversT(1.03, pend, scans));
+    // COV-T6: pending max>=tc -> COVERED
+    pend.points.push_back(pt(0.04));  // 1.04
+    expect("COV-T6 pending spans tc", lidarCoversT(1.03, pend, scans));
+    // COV-T7: undelivered future scan cannot make ready (no scan buffered)
+    scans.clear();
+    pend.has = false;
+    expect("COV-T7 no data", !lidarCoversT(1.03, pend, scans));
+  }
+
+  std::printf("S0C T1..T12 + F1 + COV-T1..T7: ALL PASS\n");
   return 0;
 }
