@@ -89,10 +89,17 @@ public:
   int64_t fullscanGeometryPoints() const { return fullscan_ownership_.usedPoints(); }
   int64_t fullscanDuplicatePoints() const { return fullscan_ownership_.duplicatePoints(); }
   int64_t fullscanNeverUsedPoints() const { return fullscan_ownership_.neverUsedPoints(); }
-  int64_t imuOnlySegments() const { return imu_only_segments_; }
-  const std::vector<int64_t>& geometryInputPointsPerUpdate() const {
-    return geometry_input_points_per_update_;
+  int64_t fullscanExcludedPoints() const { return fullscan_ownership_.excludedPoints(); }
+  int64_t fullscanExcludedScans() const { return fullscan_ownership_.excludedScans(); }
+  void recordFullscanGeometryUse(const LidarData& lidar) {
+    fullscan_ownership_.recordGeometryUse(
+        lidar.raw_scan_id, lidar.pc ? static_cast<int64_t>(lidar.pc->size()) : 0);
   }
+  void recordFullscanPreObserveExclusion(const LidarData& lidar) {
+    fullscan_ownership_.recordPreObserveExclusion(
+        lidar.raw_scan_id, lidar.pc ? static_cast<int64_t>(lidar.pc->size()) : 0);
+  }
+  int64_t imuOnlySegments() const { return imu_only_segments_; }
   const SliceAudit& s0Audit() const { return s0_audit_; }
   int64_t lidarPointsRetained() const { return lidar_points_retained_; }
   double lastEpochTime() const { return last_epoch_time_; }
@@ -231,7 +238,6 @@ private:
   int64_t raw_scan_seq_ = 0;
   int64_t imu_only_segments_ = 0;
   FullScanOwnershipAudit fullscan_ownership_;
-  std::vector<int64_t> geometry_input_points_per_update_;
   SliceAudit s0_audit_;
   int64_t s0_scan_seq_ = 0;
   int64_t lidar_points_retained_ = 0;

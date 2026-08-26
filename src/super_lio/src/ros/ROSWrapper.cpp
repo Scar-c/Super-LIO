@@ -808,10 +808,6 @@ bool ROSWrapper::sync_legacy_lidar_end(MeasureGroup& meas){
   }
 
   last_timestamp_lidar_ = meas.lidar.end_time;
-  fullscan_ownership_.recordGeometryUse(
-      meas.lidar.raw_scan_id, static_cast<int64_t>(meas.lidar.pc->size()));
-  geometry_input_points_per_update_.push_back(
-      static_cast<int64_t>(meas.lidar.pc->size()));
   lidar_buffer_.pop_front();
   lidar_pushed_ = false;
   sync_count_++;

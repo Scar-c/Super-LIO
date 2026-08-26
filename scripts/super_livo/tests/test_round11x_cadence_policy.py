@@ -76,7 +76,8 @@ def test_production_cadence_wiring():
            "CadenceAction::ACCOUNT_CAMERA_ONLY" in wrapper_cpp)
     expect("X-T4/X-T7 full scan measure identity wired",
            "MeasureKind::FULL_LIDAR" in wrapper_cpp and
-           "recordGeometryUse" in wrapper_cpp)
+           "recordFullscanGeometryUse" in super_cpp and
+           "recordFullscanPreObserveExclusion" in super_cpp)
     expect("X-T5 IMU-only measure wired",
            "enum class MeasureKind" in ds_h and "IMU_ONLY," in ds_h and
            "CadenceAction::IMU_ONLY" in wrapper_cpp and

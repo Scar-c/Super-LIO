@@ -314,8 +314,15 @@ int main(int argc, char** argv) {
   if (g_lio_camera_epoch &&
       g_lidar_update_policy != LidarUpdatePolicy::PARTIAL) {
     std::printf(
-        "Round11X fullscan ownership: input_points=%lld used_once=%lld "
-        "duplicate_use=%lld never_used=%lld imu_only_segments=%lld\n",
+        "Round11X fullscan ownership: raw_input_points=%lld "
+        "pre_observe_excluded_scans=%lld pre_observe_excluded_points=%lld "
+        "eligible_geometry_points=%lld used_once=%lld duplicate_use=%lld "
+        "never_used=%lld imu_only_segments=%lld\n",
+        (long long)data_wrapper->fullscanGeometryPoints() +
+            data_wrapper->fullscanNeverUsedPoints() +
+            data_wrapper->fullscanExcludedPoints(),
+        (long long)data_wrapper->fullscanExcludedScans(),
+        (long long)data_wrapper->fullscanExcludedPoints(),
         (long long)data_wrapper->fullscanGeometryPoints() +
             data_wrapper->fullscanNeverUsedPoints(),
         (long long)data_wrapper->fullscanGeometryPoints(),

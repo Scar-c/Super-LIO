@@ -195,9 +195,17 @@ void SuperLIO::process(){
     statePropagateOnly();
     return;
   }
-  geometry_update_count_++;
-  geometry_input_points_per_update_.push_back(
-      measures_.lidar.pc ? static_cast<int64_t>(measures_.lidar.pc->size()) : 0);
+  const bool uses_geometry = state_fn_ != &SuperLIO::stateWaitKFInit;
+  if (uses_geometry) {
+    geometry_update_count_++;
+    geometry_input_points_per_update_.push_back(
+        measures_.lidar.pc ? static_cast<int64_t>(measures_.lidar.pc->size()) : 0);
+    if (measures_.kind == MeasureKind::FULL_LIDAR) {
+      data_wrapper_->recordFullscanGeometryUse(measures_.lidar);
+    }
+  } else if (measures_.kind == MeasureKind::FULL_LIDAR) {
+    data_wrapper_->recordFullscanPreObserveExclusion(measures_.lidar);
+  }
   const auto pf_t0 = std::chrono::high_resolution_clock::now();
   const double sensor_t = measures_.lidar.start_time;
   if (vp_total_lidar_frames_ == 0) vp_start_sensor_s_ = sensor_t;

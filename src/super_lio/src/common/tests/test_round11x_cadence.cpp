@@ -92,6 +92,16 @@ int main() {
                                               ownership.duplicatePoints() == 0 &&
                                               ownership.neverUsedPoints() == 0);
 
+  FullScanOwnershipAudit initialized_ownership;
+  initialized_ownership.recordInput(6, 20);
+  initialized_ownership.recordPreObserveExclusion(6, 20);
+  initialized_ownership.recordInput(7, 100);
+  initialized_ownership.recordGeometryUse(7, 100);
+  expect("X-T7 pre-Observe initialization exclusion",
+         initialized_ownership.excludedPoints() == 20 &&
+             initialized_ownership.usedPoints() == 100 &&
+             initialized_ownership.neverUsedPoints() == 0);
+
   // X-T8: the next scan has a distinct ownership identity. Reusing the old
   // scan is detected without corrupting the new scan's accounting.
   ownership.recordInput(8, 80);

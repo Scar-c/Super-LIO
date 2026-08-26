@@ -111,11 +111,19 @@ class FullScanOwnershipAudit {
     used_points_ += points;
   }
 
+  void recordPreObserveExclusion(int64_t scan_id, int64_t points) {
+    if (excluded_scans_.insert(scan_id).second) {
+      excluded_points_ += points;
+    }
+  }
+
   int64_t inputPoints() const { return input_points_; }
   int64_t usedPoints() const { return used_points_; }
   int64_t duplicatePoints() const { return duplicate_points_; }
+  int64_t excludedPoints() const { return excluded_points_; }
   int64_t neverUsedPoints() const {
-    return input_points_ > used_points_ ? input_points_ - used_points_ : 0;
+    const int64_t eligible = input_points_ - excluded_points_;
+    return eligible > used_points_ ? eligible - used_points_ : 0;
   }
   int64_t inputScans() const {
     return static_cast<int64_t>(input_points_by_scan_.size());
@@ -123,13 +131,18 @@ class FullScanOwnershipAudit {
   int64_t usedScans() const {
     return static_cast<int64_t>(used_scans_.size());
   }
+  int64_t excludedScans() const {
+    return static_cast<int64_t>(excluded_scans_.size());
+  }
 
  private:
   std::unordered_map<int64_t, int64_t> input_points_by_scan_;
   std::unordered_set<int64_t> used_scans_;
+  std::unordered_set<int64_t> excluded_scans_;
   int64_t input_points_ = 0;
   int64_t used_points_ = 0;
   int64_t duplicate_points_ = 0;
+  int64_t excluded_points_ = 0;
 };
 
 }  // namespace LI2Sup
