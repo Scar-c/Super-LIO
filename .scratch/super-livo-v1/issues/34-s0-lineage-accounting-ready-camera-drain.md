@@ -65,3 +65,18 @@ WIP（ready-drain in OfflineReader.cpp）preserved.
 - B0：无生产代码改动，复用 P0R2 证据 9931f96e（provenance：r2_b0 全量 run）
 - 提交 70e6b51；push PASS
 - RESUME ROUND11W（39）：eee/nya camera-enabled C0 blast + Day10 clean B0/C0 + cadence
+
+## Round11W resume（P0R3 后）— Day10 架构门证据
+- 生产修复（D42fe06+FE6ebf2）：Observe 动态 sizing（OS1 相机 epoch 云 ~32k
+  点 OOB SEGV）+ PointCloud2 audit 字段 + vector<bool> 位打包竞态（B0 MD5
+  漂移 7e37d7f9/40b39d48 → 9931f96e 恢复，字节掩码）
+- eee camera-enabled C0（首跑，无 pre-corrective 相机时代对照 → 新基线）：
+  57da4bb1（2939 rows）；S0 audit OK（15.39M，lost=0 dup=0 overlap=0）
+- nya camera-enabled C0：6732b038（3425 rows）；S0 audit OK（16.26M）
+- Day10 干净 B0：9931f96e（RMSE 1.218）
+- Day10 干净 C0：d45e7383（RMSE 3.151）
+- 架构门：C0/B0 = 2.59 → RED（>1.50）
+- cadence 归因：C0 9705 epochs@33ms（slice P50=917 点）vs B0 3234 epochs@100ms
+  （全扫描 ~3328 点）——部分扫描稀疏约束 → 精度损失
+- 全部 TDD 回归 PASS（INFRA/SLICE/CAUSAL/CLASSIFIER/F6F7/S0C）
+- STOP FOR OWNER（§15 RED → cadence 归因完成）
