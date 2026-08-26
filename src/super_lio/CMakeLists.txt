@@ -204,6 +204,15 @@ target_link_libraries(v4c_test
   glog
 )
 
+# Round 11R multi-bag View merge test
+add_executable(multibag_test
+  src/offline/tests/test_multibag.cpp
+)
+target_include_directories(multibag_test PUBLIC include)
+target_link_libraries(multibag_test
+  ${catkin_LIBRARIES}
+)
+
 # S-1 sequential-prior ESKF tests (no ROS dependency)
 add_executable(s1_prior_test
   src/lio/tests/test_s1_prior.cpp

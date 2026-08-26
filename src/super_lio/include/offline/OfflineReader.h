@@ -15,6 +15,7 @@ namespace LI2Sup {
 
 struct OfflineOptions {
   std::string bag_path;
+  std::vector<std::string> bag_paths;  // multi-bag (MCD): merged chronologically
   std::string lidar_topic;
   std::string imu_topic;
   std::string camera_topic;   // empty = camera dispatch disabled (TB-1)

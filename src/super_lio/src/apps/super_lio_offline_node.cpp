@@ -45,10 +45,14 @@ int main(int argc, char** argv) {
   std::printf("[offline_node] camera_epoch=%d camera_enabled=%d\n",
               g_lio_camera_epoch ? 1 : 0, g_camera_enabled ? 1 : 0);
 
-  if (g_offline_bag.empty()) {
-    std::printf("[offline_node] ERROR: /lio/offline/bag is empty. "
-                "This executable only runs the offline bag backend.\n");
-    return 1;
+  {
+    std::string bags_csv0;
+    nh.getParam("/lio/offline/bags", bags_csv0);
+    if (g_offline_bag.empty() && bags_csv0.empty()) {
+      std::printf("[offline_node] ERROR: /lio/offline/bag is empty. "
+                  "This executable only runs the offline bag backend.\n");
+      return 1;
+    }
   }
 
   ROSWrapper::Ptr data_wrapper = std::make_shared<ROSWrapper>();
@@ -90,6 +94,20 @@ int main(int argc, char** argv) {
   OfflineReader reader;
   OfflineOptions opts;
   opts.bag_path = g_offline_bag;
+  {
+    std::string bags_csv;
+    if (nh.getParam("/lio/offline/bags", bags_csv) && !bags_csv.empty()) {
+      opts.bag_paths.clear();
+      std::stringstream ss(bags_csv);
+      std::string item;
+      while (std::getline(ss, item, ',')) {
+        if (!item.empty()) opts.bag_paths.push_back(item);
+      }
+    }
+  }
+  std::printf("[offline_node] bags: bag_path='%s' multi=%zu\n",
+              opts.bag_path.c_str(), opts.bag_paths.size());
+  for (const auto& bp : opts.bag_paths) std::printf("  bag[%s]\n", bp.c_str());
   opts.lidar_topic = g_lidar_topic;
   opts.imu_topic = g_imu_topic;
   opts.camera_topic = g_camera_enabled ? g_camera_topic : "";

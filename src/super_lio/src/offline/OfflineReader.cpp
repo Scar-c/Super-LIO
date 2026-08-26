@@ -39,17 +39,16 @@ bool OfflineReader::open(const OfflineOptions& opts) {
 }
 
 bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
-  if (opts_.bag_path.empty()) {
+  if (opts_.bag_path.empty() && opts_.bag_paths.empty()) {
     std::printf("[OfflineReader] ERROR: empty bag path\n");
     return false;
   }
 
-  rosbag::Bag bag;
-  try {
-    bag.open(opts_.bag_path, rosbag::bagmode::Read);
-  } catch (const std::exception& e) {
-    std::printf("[OfflineReader] ERROR: cannot open bag %s: %s\n",
-                opts_.bag_path.c_str(), e.what());
+  std::vector<std::string> bag_paths = opts_.bag_paths.empty()
+                                           ? std::vector<std::string>{opts_.bag_path}
+                                           : opts_.bag_paths;
+  if (bag_paths.size() == 1 && bag_paths[0].empty()) {
+    std::printf("[OfflineReader] ERROR: empty bag path\n");
     return false;
   }
 
@@ -63,21 +62,37 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   if (!opts_.camera_topic.empty()) topics.push_back(opts_.camera_topic);
   rosbag::TopicQuery query(topics);
 
-  std::unique_ptr<rosbag::View> view;
-  try {
-    view.reset(new rosbag::View(bag, query));
-    const double bag_start = view->getBeginTime().toSec();
-    const double bag_end = view->getEndTime().toSec();
-    double s = start >= 0.0 ? bag_start + start : bag_start;
-    double e = end > 0.0 ? bag_start + end : bag_end;
-    if (s > bag_start || e < bag_end) {
-      view.reset(new rosbag::View(bag, query, ros::Time(s), ros::Time(e)));
+  // ROS1 native multi-bag View: addQuery(Bag, query) merges all bags into
+  // one MessageInstance stream ordered by getTime(). Bag time is used only
+  // for read order/cropping; sensor physical time stays header-based.
+  std::vector<rosbag::Bag> bags;
+  rosbag::View view;
+  bags.reserve(bag_paths.size());
+  for (const auto& bp : bag_paths) {
+    rosbag::Bag b;
+    try {
+      b.open(bp, rosbag::bagmode::Read);
+    } catch (const std::exception& e) {
+      std::printf("[OfflineReader] ERROR: cannot open bag %s: %s\n",
+                  bp.c_str(), e.what());
+      return false;
     }
-  } catch (const std::exception& err) {
-    std::printf("[OfflineReader] ERROR: view query failed: %s\n", err.what());
-    bag.close();
-    return false;
+    bags.push_back(std::move(b));
+    try {
+      std::printf("[OfflineReader] query bag %s -> lidar='%s' imu='%s' cam='%s'\n",
+                  bp.c_str(), opts_.lidar_topic.c_str(), opts_.imu_topic.c_str(),
+                  opts_.camera_topic.c_str());
+      view.addQuery(bags.back(), rosbag::TopicQuery(topics));
+    } catch (const std::exception& err) {
+      std::printf("[OfflineReader] ERROR: view query failed for %s: %s\n",
+                  bp.c_str(), err.what());
+      return false;
+    }
   }
+  const double view_start = view.getBeginTime().toSec();
+  const double view_end = view.getEndTime().toSec();
+  double s = start >= 0.0 ? view_start + start : view_start;
+  double e = end > 0.0 ? view_start + end : view_end;
 
   auto jpegDecodeGray = [](const std::vector<uint8_t>& jpg, int& w, int& h,
                             std::vector<uint8_t>& gray) -> bool {
@@ -125,11 +140,17 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   const std::string dt_image = "sensor_msgs/Image";
 
   double t0 = nowMs();
+  double t_dispatch_ms = 0.0;
+  double t_compute_ms = 0.0;
   bool first = true;
   int last_diag_sync_ = 0;
   const int kDiagEpochInterval = 500;
-  for (const rosbag::MessageInstance& mi : *view) {
+  for (const rosbag::MessageInstance& mi : view) {
+    const double t_d0 = nowMs();
     const std::string& topic = mi.getTopic();
+    const double rec_s = mi.getTime().toSec();
+    if (rec_s < s || rec_s > e) continue;  // bag-time crop only
+    t_dispatch_ms += nowMs() - t_d0;
     const std::string& dt = mi.getDataType();
     const ros::Time rec_time = mi.getTime();
 
@@ -165,7 +186,11 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         accounting_.last_image_time = msg->header.stamp.toSec();
         wrapper.HandleImage(msg);
         accounting_.images_dispatched++;
+        const double t_c0 = nowMs();
+        const double t_c1 = nowMs();
         lio.process();
+        t_compute_ms += nowMs() - t_c1;
+        t_compute_ms += nowMs() - t_c1;
         accounting_.process_invocations++;
         continue;
       }
@@ -193,7 +218,9 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           wrapper.HandleImage(
               boost::make_shared<sensor_msgs::Image>(im));
           accounting_.images_dispatched++;
-          lio.process();
+        const double t_c2 = nowMs();
+        lio.process();
+        t_compute_ms += nowMs() - t_c2;
           accounting_.process_invocations++;
           continue;
         }
@@ -211,7 +238,9 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         accounting_.last_sensor_time = msg->header.stamp.toSec();
         wrapper.HandleImu(msg);
         accounting_.imu_dispatched++;
+        const double t_c3 = nowMs();
         lio.process();
+        t_compute_ms += nowMs() - t_c3;
         accounting_.process_invocations++;
         continue;
       }
@@ -228,7 +257,9 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           accounting_.last_sensor_time = msg->header.stamp.toSec();
           wrapper.HandleLidarCustomMsg(msg);
           accounting_.lidar_dispatched++;
-          lio.process();
+        const double t_c4 = nowMs();
+        lio.process();
+        t_compute_ms += nowMs() - t_c4;
           accounting_.process_invocations++;
           continue;
         }
@@ -242,7 +273,9 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           accounting_.last_sensor_time = msg->header.stamp.toSec();
           wrapper.HandleLidarPointCloud2(msg);
           accounting_.lidar_dispatched++;
-          lio.process();
+        const double t_c5 = nowMs();
+        lio.process();
+        t_compute_ms += nowMs() - t_c5;
           accounting_.process_invocations++;
           continue;
         }
@@ -251,6 +284,10 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   }
   double t1 = nowMs();
   accounting_.wall_processing_s = (t1 - t0) / 1000.0;
+  std::printf("[OfflineReader] wall breakdown s: total=%.3f read_decompress=%.3f dispatch=%.3f compute=%.3f\n",
+              (t1 - t0) / 1000.0,
+              ((t1 - t0) - t_dispatch_ms - t_compute_ms) / 1000.0,
+              t_dispatch_ms / 1000.0, t_compute_ms / 1000.0);
 
   accounting_.sync_count = wrapper.syncCount();
   if (accounting_.sync_count > 0) {
@@ -262,8 +299,7 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   accounting_.images_skipped =
       accounting_.images_read - accounting_.images_dispatched;
 
-  view.reset();
-  bag.close();
+  for (auto& b : bags) b.close();
   return true;
 }
 
