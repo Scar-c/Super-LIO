@@ -32,3 +32,10 @@ Owner prompt #47.
 - Oxford Quarter01: bag/GT/官方标定存在，但无提交的 Super-LIO 配置、
   Hesai Pandar 解析未验证、相机标定/GT 语义需推导 → §9.3 缺前置 STOP
 - 分类: D_FAMILY_DAY10_GREEN_PIPELINE_STOPPED_AT_OXFORD
+
+## Pipeline final
+- Oxford Quarter01: 外参转置约定根因（Eigen 列主序 M3(data) → 写 R^T）修复后
+  B0 0.0630m / D0 0.0629m（D/B0=0.998 GREEN）；工具+配置+证据提交
+- M3DGR Corridor01: bag/GT/配置主题匹配，但 GT 帧方向门未开 + 相机 offset
+  TEMPORAL UNCERTAIN + FINAL_RELATIVE_POSE 评估器未提交 → §9.4 STOP
+- 分类: D_FAMILY_DAY10_GREEN_PIPELINE_STOPPED_AT_M3
