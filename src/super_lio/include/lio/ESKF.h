@@ -115,12 +115,24 @@ public:
 
   void SetX(const SysState& x);
 
+  // Layer-I audit: record every propagated Predict step (sample_time, dt)
+  void setTracePredict(bool on) { trace_predict_ = on; }
+  const std::vector<std::pair<double, double>>& predictTrace() const {
+    return predict_trace_;
+  }
+  void clearPredictTrace() { predict_trace_.clear(); }
+
   void SetCov(const COV& cov){ P_ = cov; }
 
   BASIC::V3 GetGravity() const { return g_; }
 
   bool init_ = false;
   bool Predict(const IMUData& imu, DynamicState& state_imu, DynamicState& state_robot);
+  // Stage-B fix: extend the propagation from the last propagated sample to
+  // target_time using the last sample (constant extension), so a
+  // propagation-only epoch boundary leaves the state exactly at obs_time
+  // (no Layer-I gap; next Predict anchors dt correctly).
+  void PropagateTo(double target_time);
 
 private:
   void BuildNoise(const Options& options);
@@ -128,6 +140,8 @@ private:
   
   bool  need_converge_  = true;
   float imu_scale_ = 1.0;
+  bool trace_predict_ = false;
+  std::vector<std::pair<double, double>> predict_trace_;
   IMUData last_imu_;
   double current_time_ = 0.0;
   double last_imu_time_ = -1.0;

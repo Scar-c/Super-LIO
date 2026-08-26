@@ -40,6 +40,24 @@ public:
     SysState state;
     ESKF::COV covariance = ESKF::COV::Zero();
   };
+  // Stage-B Layer audit: per full-scan: pre-observe prior + cloud digest +
+  // post-update summary (audit only; no estimator influence).
+  struct LayerAuditRecord {
+    double scan_end_time = 0.0;
+    SysState prior;                       // pre-Observe state
+    double cov_frobenius = 0.0;
+    int64_t cloud_points = 0;
+    uint64_t cloud_digest = 0;
+    int64_t correspondences = 0;
+    int64_t iterations = 0;
+    double update_norm = 0.0;
+    double prior_time = 0.0;
+  };
+  void setLayerAudit(bool on) { layer_audit_ = on; }
+  bool layerAuditEnabled() const { return layer_audit_; }
+  const std::vector<LayerAuditRecord>& layerAudit() const {
+    return layer_audit_records_;
+  }
   SuperLIO(){};
   ~SuperLIO(){};
   ROSWrapper* dataWrapper() { return data_wrapper_.get(); }
@@ -527,6 +545,8 @@ protected:
   int64_t geometry_update_count_ = 0;
   std::vector<int64_t> geometry_input_points_per_update_;
   std::vector<RawScanEndSnapshot> raw_scan_end_snapshots_;
+  bool layer_audit_ = false;
+  std::vector<LayerAuditRecord> layer_audit_records_;
   std::vector<int64_t> downsampled_points_per_update_;
   std::vector<int64_t> effective_correspondences_per_update_;
   BASIC::CloudPtr scan_undistort_full_;

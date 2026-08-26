@@ -184,6 +184,13 @@ bool ESKF::Predict(const IMUData& imu, DynamicState& state_imu, DynamicState& st
 }
 
 
+void ESKF::PropagateTo(double target_time) {
+  if (target_time <= last_imu_time_) return;
+  IMUData ext = last_imu_;
+  ext.secs = target_time;
+  Predict(ext);
+}
+
 bool ESKF::Predict(const IMUData& imu) {
 
   if(last_imu_time_ < 0){
@@ -243,6 +250,7 @@ bool ESKF::Predict(const IMUData& imu) {
 
   last_imu_time_ = imu.secs;
   last_imu_ = imu;
+  if (trace_predict_) predict_trace_.emplace_back(imu.secs, dt);
   return true;
 }
 

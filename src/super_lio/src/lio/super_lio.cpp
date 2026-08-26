@@ -242,6 +242,11 @@ void SuperLIO::statePropagateOnly() {
     kf_->Predict(imu);
     fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
   }
+  // Stage-B fix: extend from the last propagated sample to the camera
+  // epoch time so the state leaves the boundary exactly at epoch_ts; the
+  // next Predict then anchors dt correctly (no Layer-I gap).
+  kf_->PropagateTo(measures_.epoch_ts);
+  fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->CommitPropagationOnlyEpoch(measures_.epoch_ts);
   imu_propagation_segment_count_++;
 }
@@ -329,14 +334,49 @@ bool SuperLIO::map_init(){
 void SuperLIO::stateProcess(){
   frame_num_++;
   double t_epoch_start = NowMs();
+  const bool layer_full =
+      layer_audit_ && measures_.kind == MeasureKind::FULL_LIDAR;
+  LayerAuditRecord rec;
+  if (layer_full) {
+    rec.scan_end_time = measures_.lidar.end_time;
+    kf_->setTracePredict(true);
+    kf_->clearPredictTrace();
+  }
   if(g_time_eva){
     time_record_.Evaluate([this](){Propagation_Undistort();}, "Undistort");
     time_record_.Evaluate([this]() { DownSample(); }, "DownSample");
     time_record_.Evaluate([this]() { Observe(); }, "Observe");
   }else{
     Propagation_Undistort();
+    if (layer_full) {
+      // pre-LiDAR prior: propagated state right before geometry Observe
+      rec.prior = kf_->GetSysState();
+      rec.prior_time = kf_->GetTime();
+    }
     DownSample();
+    if (layer_full) {
+      rec.cov_frobenius = kf_->GetCov().cwiseAbs().sum();
+      rec.cloud_points = static_cast<int64_t>(ds_undistort_->size());
+      uint64_t h = 1469598103934665603ULL;
+      for (const auto& p : ds_undistort_->points) {
+        const int16_t qx = static_cast<int16_t>(p.x * 100.0);
+        const int16_t qy = static_cast<int16_t>(p.y * 100.0);
+        const int16_t qz = static_cast<int16_t>(p.z * 100.0);
+        h = (h ^ static_cast<uint64_t>(qx)) * 1099511628211ULL;
+        h = (h ^ static_cast<uint64_t>(qy)) * 1099511628211ULL;
+        h = (h ^ static_cast<uint64_t>(qz)) * 1099511628211ULL;
+      }
+      rec.cloud_digest = h;
+    }
     Observe();
+  }
+  if (layer_full) {
+    rec.correspondences = effect_knn_num_;
+    rec.iterations = epoch_iterations_;
+    const auto post = kf_->GetSysState();
+    rec.update_norm = (post.p - rec.prior.p).norm() +
+        (rec.prior.R.inverse() * post.R).log_vee().norm();
+    layer_audit_records_.push_back(rec);
   }
   downsampled_points_per_update_.push_back(
       static_cast<int64_t>(ds_undistort_->size()));
