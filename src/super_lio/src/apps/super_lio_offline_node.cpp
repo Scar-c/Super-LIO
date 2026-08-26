@@ -123,6 +123,12 @@ int main(int argc, char** argv) {
   opts.duration = g_offline_duration;
   opts.publish = g_offline_publish;
 
+  {
+    int layer_audit_i = 0;
+    nh.getParam("/lio/offline/layer_audit", layer_audit_i);
+    lio->setLayerAudit(layer_audit_i != 0);
+    std::printf("[offline_node] layer_audit=%d\n", layer_audit_i != 0);
+  }
   data_wrapper->setCameraEnabled(g_camera_enabled);
   if (g_camera_enabled && !g_camera_calib_file.empty()) {
     data_wrapper->loadCameraCalibration(g_camera_calib_file);
@@ -168,6 +174,26 @@ int main(int argc, char** argv) {
           }
         }
         scan_state << "\n";
+      }
+    }
+  }
+
+  if (!out_dir.empty() && lio->layerAuditEnabled()) {
+    std::ofstream lay(out_dir + "/raw_scan_end_layer_audit.csv");
+    if (lay) {
+      lay << "scan_end,prior_time,px,py,pz,qx,qy,qz,qw,vx,vy,vz"
+             ",cov_frob,cloud_points,cloud_digest,corr,iters,update_norm\n"
+          << std::setprecision(17);
+      for (const auto& r : lio->layerAudit()) {
+        const auto q = r.prior.R.coeffs();
+        lay << r.scan_end_time << "," << r.prior_time << ","
+            << r.prior.p.x() << "," << r.prior.p.y() << "," << r.prior.p.z()
+            << "," << q.x() << "," << q.y() << "," << q.z() << "," << q.w()
+            << "," << r.prior.v.x() << "," << r.prior.v.y() << ","
+            << r.prior.v.z() << "," << r.cov_frobenius << ","
+            << r.cloud_points << "," << r.cloud_digest << ","
+            << r.correspondences << "," << r.iterations << ","
+            << r.update_norm << "\n";
       }
     }
   }

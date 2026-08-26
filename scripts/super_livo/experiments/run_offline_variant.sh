@@ -19,6 +19,7 @@ CAM_CALIB="${6:-}"
 DURATION="${7:--1}"
 S0_AUDIT="${8:-0}"
 LIDAR_UPDATE_POLICY="${9:-partial}"
+LAYER_AUDIT="${10:-0}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
@@ -84,6 +85,7 @@ rosparam set /lio/v2/skip_fd true
 rosparam set /lio/hb0/enabled false
 rosparam set /lio/vp/enabled true
 rosparam set /lio/s0/audit "$S0_AUDIT"
+rosparam set /lio/offline/layer_audit "$LAYER_AUDIT"
 rosparam set /lio/camera_epoch/lidar_update_policy "$LIDAR_UPDATE_POLICY"
 # Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
 # super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
