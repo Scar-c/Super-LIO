@@ -79,9 +79,9 @@ def iter_record_order(bag_paths, topics):
 def distribution(values, percentiles=(10, 50, 90, 99)):
     array = np.asarray(values, dtype=float)
     result = {"count": int(array.size)}
-    names = {10: "p10", 50: "p50", 90: "p90", 95: "p95", 99: "p99"}
+    names = {1: "p01", 10: "p10", 50: "p50", 90: "p90", 95: "p95", 99: "p99"}
     if not array.size:
-        for key in ("min", "p10", "p50", "p90", "p95", "p99",
+        for key in ("min", "p01", "p10", "p50", "p90", "p95", "p99",
                     "max", "mean", "std"):
             result[key] = None
         return result
@@ -93,7 +93,7 @@ def distribution(values, percentiles=(10, 50, 90, 99)):
     })
     for percentile in percentiles:
         result[names[percentile]] = float(np.percentile(array, percentile))
-    for percentile in (10, 50, 90, 95, 99):
+    for percentile in (1, 10, 50, 90, 95, 99):
         result.setdefault(names[percentile], None)
     return result
 

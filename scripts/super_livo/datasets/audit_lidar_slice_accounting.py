@@ -27,6 +27,7 @@ class SliceSimulator:
         self.emitted_attempts = 0
         self.duplicate_emissions = 0
         self.emitted_early = 0
+        self.boundary_equality_count = 0
         self.retained_future_events = 0
         self.slice_sizes = []
         self.pending_sizes = []
@@ -67,6 +68,8 @@ class SliceSimulator:
             self.status[identity] = 1
         if point["time"] > epoch + 1e-12:
             self.emitted_early += 1
+        if abs(point["time"] - epoch) <= 1e-12:
+            self.boundary_equality_count += 1
 
     def process_once(self):
         # Exact entry guard in ROSWrapper::sync_camera_epoch: pending alone is
@@ -142,6 +145,7 @@ class SliceSimulator:
         )
         return {
             "stable_identity": "(original_scan_index, point_index)",
+            "raw_scan_count": self.scan_index,
             "input_valid_selected_points": input_count,
             "emitted_points": self.emitted_attempts,
             "unique_emitted_points": int(sum(1 for value in self.status if value)),
@@ -152,6 +156,8 @@ class SliceSimulator:
             "retained_emitted_overlap_count": retained_emitted_overlap,
             "lost_point_count": lost,
             "emitted_before_physical_time": self.emitted_early,
+            "wrong_side_count": self.emitted_early,
+            "boundary_equality_count": self.boundary_equality_count,
             "camera_epoch_count": self.epochs,
             "camera_buffer_dropped": self.camera_dropped,
             "stale_camera_dropped": self.stale_camera_dropped,
@@ -243,15 +249,19 @@ def render(args, report, argv):
         f"script path: {script}",
         f"arguments: {shlex.join(argv)}",
         f"stable identity: {report['stable_identity']}",
+        f"raw scans: {report['raw_scan_count']}",
         f"input valid selected LiDAR points: {report['input_valid_selected_points']}",
         f"emitted points: {report['emitted_points']}",
         f"final retained: {report['final_retained_points']}",
         f"duplicate emission count: {report['duplicate_emission_count']}",
         f"lost point count: {report['lost_point_count']}",
         f"emitted before physical time: {report['emitted_before_physical_time']}",
+        f"wrong-side count: {report['wrong_side_count']}",
+        f"boundary-equality count: {report['boundary_equality_count']}",
         f"retained-at-final semantics: pending slice plus unconsumed scan buffer",
         f"camera epochs: {report['camera_epoch_count']}",
         f"empty slices: {report['empty_slice_count']}",
+        f"camera buffer drops: {report['camera_buffer_dropped']}",
         (
             "slice points P10/P50/P90/P95/P99: "
             f"{fmt(report['slice_points']['p10'])}/"

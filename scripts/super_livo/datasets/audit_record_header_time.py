@@ -21,6 +21,15 @@ PAIR_KEYS = {
     frozenset(("lidar", "imu")): "lidar_imu",
 }
 
+DIRECTION_KEYS = (
+    "IMU -> LiDAR",
+    "LiDAR -> IMU",
+    "Camera -> LiDAR",
+    "LiDAR -> Camera",
+    "Camera -> IMU",
+    "IMU -> Camera",
+)
+
 
 def parse_stream(value):
     if "=" not in value:
@@ -57,6 +66,7 @@ def audit(args):
         "camera_imu": [],
         "lidar_imu": [],
     }
+    directional_values = {key: [] for key in DIRECTION_KEYS}
     previous = None
     for topic, message, record_time in iter_record_order(
             args.bag, list(topic_to_role)):
@@ -73,6 +83,9 @@ def audit(args):
             )
             if pair_key:
                 inversion_values[pair_key].append(magnitude)
+            direction = f"{previous['role']} -> {role}"
+            if direction in directional_values:
+                directional_values[direction].append(magnitude)
         previous = {"header": header, "role": role}
 
     streams = {}
@@ -92,10 +105,15 @@ def audit(args):
         key: distribution(values, percentiles=(50, 90, 99))
         for key, values in inversion_values.items()
     }
+    directional = {
+        key: distribution(values, percentiles=(50, 90, 99))
+        for key, values in directional_values.items()
+    }
     return {
         "streams": streams,
         "cross_stream_differences": cross_stream,
         "header_inversions": inversions,
+        "directional_header_inversions": directional,
     }
 
 
@@ -126,6 +144,13 @@ def render(args, report, argv):
     )
     lines.append("header inversions:")
     for key, stats in report["header_inversions"].items():
+        lines.append(
+            f"  {key}: n={stats['count']} P50={fmt(stats['p50'])} "
+            f"P90={fmt(stats['p90'])} P99={fmt(stats['p99'])} "
+            f"max={fmt(stats['max'])}"
+        )
+    lines.append("directional header inversions:")
+    for key, stats in report["directional_header_inversions"].items():
         lines.append(
             f"  {key}: n={stats['count']} P50={fmt(stats['p50'])} "
             f"P90={fmt(stats['p90'])} P99={fmt(stats['p99'])} "

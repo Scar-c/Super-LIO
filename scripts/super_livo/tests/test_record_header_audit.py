@@ -72,6 +72,13 @@ def main():
         assert inversions["camera_imu"]["count"] == 1, report
         assert inversions["lidar_imu"]["count"] == 1, report
         assert abs(inversions["camera_lidar"]["max"] - 0.25) < 1e-9, report
+        directional = report["directional_header_inversions"]
+        assert directional["IMU -> LiDAR"]["count"] == 1, report
+        assert directional["LiDAR -> IMU"]["count"] == 0, report
+        assert directional["LiDAR -> Camera"]["count"] == 1, report
+        assert directional["Camera -> LiDAR"]["count"] == 0, report
+        assert directional["IMU -> Camera"]["count"] == 1, report
+        assert directional["Camera -> IMU"]["count"] == 0, report
         for token in (
             "git HEAD:",
             "script path:",
