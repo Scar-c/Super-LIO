@@ -53,3 +53,15 @@ WIP（ready-drain in OfflineReader.cpp）preserved.
   ——20 点全在相机 tc 边界 5-25ns 内（< float64 ULP ~370ns，double 塌缩）：
   生产 double 判定 current、exact ns 判定 pending → §5 硬门 nonzero →
   STOP FOR OWNER（提交 faf47ef/5c87ea3/ec055d6，push PASS）
+
+## 11W-P0R3 evidence（43_round11w_p0r3 — 通过，auto-resume）
+- Owner 数值决定 (a)：production 保留 binary64 秒；exact-ns oracle = 物理参考
+- ULP 证据修正：1.645e9 s 处 ULP = 238.418579 ns（非此前 ~370ns）；max(delta/ULP)=0.47
+- R3-T1..T10 TDD PASS；classifier R1-R7 严格定义
+- Day10：unique mismatch 20 = 20 REPRESENTATION_COLLISION；semantic=0；
+  ordered epoch seq=0；readiness=0；identity 全等（emitted-only 0/0、retained sym diff 0）
+- delta_ns 5..112ns（全 < ULP）；ULP_ns 恒定 238.419
+- P0R2 Q19 重分类：CLOSED BY OWNER NUMERIC-REPRESENTATION DECISION
+- B0：无生产代码改动，复用 P0R2 证据 9931f96e（provenance：r2_b0 全量 run）
+- 提交 70e6b51；push PASS
+- RESUME ROUND11W（39）：eee/nya camera-enabled C0 blast + Day10 clean B0/C0 + cadence
