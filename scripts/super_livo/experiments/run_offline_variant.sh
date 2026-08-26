@@ -6,6 +6,7 @@
 # Usage:
 #   run_offline_variant.sh <config_yaml> <bag|bags_csv> <out_prefix> <variant>
 #                          [camera_topic] [camera_calib] [duration] [s0_audit]
+#                          [lidar_update_policy]
 #   variant: b0|c0|a0|a1
 set -euo pipefail
 
@@ -17,6 +18,7 @@ CAM_TOPIC="${5:-}"
 CAM_CALIB="${6:-}"
 DURATION="${7:--1}"
 S0_AUDIT="${8:-0}"
+LIDAR_UPDATE_POLICY="${9:-partial}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
@@ -82,6 +84,7 @@ rosparam set /lio/v2/skip_fd true
 rosparam set /lio/hb0/enabled false
 rosparam set /lio/vp/enabled true
 rosparam set /lio/s0/audit "$S0_AUDIT"
+rosparam set /lio/camera_epoch/lidar_update_policy "$LIDAR_UPDATE_POLICY"
 # Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
 # super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
 # && g_lio_v0_enabled; historical C0/A0/A1 runs therefore had v0=true,
@@ -142,7 +145,13 @@ skip_fd=$(read_param /lio/v2/skip_fd)
 hb0=$(read_param /lio/hb0/enabled)
 vp=$(read_param /lio/vp/enabled)
 s0_aud=$(read_param /lio/s0/audit)
-echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud ==="
+lidar_policy=$(read_param /lio/camera_epoch/lidar_update_policy)
+echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud lidar_update_policy=$lidar_policy ==="
+case "$LIDAR_UPDATE_POLICY" in
+  partial|shadow_fullscan|imu_fullscan) ;;
+  *) echo "FAIL readback unknown lidar update policy $LIDAR_UPDATE_POLICY"; exit 4 ;;
+esac
+[ "$lidar_policy" = "$LIDAR_UPDATE_POLICY" ] || { echo "FAIL readback lidar_update_policy"; exit 4; }
 case "$VARIANT" in
   b0) is_false "$cam_en" || { echo "FAIL readback camera"; exit 4; }
       is_false "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;

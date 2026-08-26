@@ -97,6 +97,7 @@ namespace LI2Sup{
 
   /// S-0 camera-epoch synchronization (visual OFF)
   bool g_lio_camera_epoch = false;
+  LidarUpdatePolicy g_lidar_update_policy = LidarUpdatePolicy::PARTIAL;
 
   /// G-1V Scheme-B shadow
   bool g_lio_g1v_enabled = false;

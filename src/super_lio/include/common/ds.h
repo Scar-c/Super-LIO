@@ -125,13 +125,22 @@ struct LidarData
 {
   double start_time = 0.0;
   double end_time = 0.0;
+  int64_t raw_scan_id = -1;
   pcl::PointCloud<LI2Sup::PointXTZIT>::Ptr pc{nullptr};
+};
+
+
+enum class MeasureKind {
+  PARTIAL_LIDAR,
+  FULL_LIDAR,
+  IMU_ONLY,
 };
 
 
 struct MeasureGroup {
   LidarData lidar;
   std::deque<IMUData> imu;
+  MeasureKind kind = MeasureKind::FULL_LIDAR;
   // S-0 camera-epoch: processing epoch timestamp (camera ts when
   // camera-epoch mode enabled; -1 keeps legacy LiDAR-epoch behavior)
   double epoch_ts = -1.0;

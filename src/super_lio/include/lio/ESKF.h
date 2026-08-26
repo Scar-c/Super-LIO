@@ -106,6 +106,12 @@ public:
 
   void SetObsTime(const double obs_time) { current_obs_time_ = obs_time; }
   void SetLastObsTime(const double obs_time) { last_obs_time_ = obs_time; }
+  // Round 11X: establish the same temporal boundary as an observation epoch
+  // after IMU propagation, without applying any measurement information.
+  void CommitPropagationOnlyEpoch(const double obs_time) {
+    current_obs_time_ = obs_time;
+    last_obs_time_ = obs_time;
+  }
 
   void SetX(const SysState& x);
 

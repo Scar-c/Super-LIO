@@ -248,6 +248,16 @@ target_link_libraries(s0_slice_test
   ${PCL_LIBRARIES}
 )
 
+# Round 11X camera-epoch/full-scan cadence policy and ownership tests.
+add_executable(round11x_cadence_test
+  src/common/tests/test_round11x_cadence.cpp
+)
+target_include_directories(round11x_cadence_test PUBLIC include)
+target_link_libraries(round11x_cadence_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # G-1VR coordinate-origin sync tests (no ROS dependency)
 add_executable(g1vr_surfel_sync_test
   src/geometry/tests/test_surfel_sync.cpp

@@ -32,6 +32,7 @@
 #include "basic/Manifold.h"
 #include "livox_ros_driver/CustomMsg.h"
 #include "common/ds.h"
+#include "common/CadencePolicy.h"
 #include "camera/CameraCalibration.h"
 #include "camera/CameraFrame.h"
 #include "sensor_msgs/Image.h"
@@ -77,11 +78,21 @@ public:
   // S-0 camera-epoch (FAST-LIVO2 LIVO-inspired) helpers
   bool sync_camera_epoch(MeasureGroup& meas);
   bool sync_legacy_lidar_end(MeasureGroup& meas);
+  bool sync_fullscan_camera_epoch(MeasureGroup& meas);
   int64_t staleImageDropCount() const { return stale_image_drop_count_; }
   int64_t imagesConsumed() const { return images_consumed_; }
   int64_t emptySliceCount() const { return empty_slice_count_; }
   int64_t lidarPointsEmitted() const { return lidar_points_emitted_; }
   int64_t lidarPointsInput() const { return lidar_points_input_; }
+  int64_t rawLidarScansInput() const { return fullscan_ownership_.inputScans(); }
+  int64_t fullscanGeometryUpdates() const { return fullscan_ownership_.usedScans(); }
+  int64_t fullscanGeometryPoints() const { return fullscan_ownership_.usedPoints(); }
+  int64_t fullscanDuplicatePoints() const { return fullscan_ownership_.duplicatePoints(); }
+  int64_t fullscanNeverUsedPoints() const { return fullscan_ownership_.neverUsedPoints(); }
+  int64_t imuOnlySegments() const { return imu_only_segments_; }
+  const std::vector<int64_t>& geometryInputPointsPerUpdate() const {
+    return geometry_input_points_per_update_;
+  }
   const SliceAudit& s0Audit() const { return s0_audit_; }
   int64_t lidarPointsRetained() const { return lidar_points_retained_; }
   double lastEpochTime() const { return last_epoch_time_; }
@@ -175,6 +186,7 @@ public:
   }
 
 private:
+  void accountFullscanCamera(bool stale);
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
   void livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr&);
   void stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr&);
@@ -216,6 +228,10 @@ private:
   int64_t pop_noop_count_ = 0;
   int64_t lidar_points_emitted_ = 0;
   int64_t lidar_points_input_ = 0;
+  int64_t raw_scan_seq_ = 0;
+  int64_t imu_only_segments_ = 0;
+  FullScanOwnershipAudit fullscan_ownership_;
+  std::vector<int64_t> geometry_input_points_per_update_;
   SliceAudit s0_audit_;
   int64_t s0_scan_seq_ = 0;
   int64_t lidar_points_retained_ = 0;

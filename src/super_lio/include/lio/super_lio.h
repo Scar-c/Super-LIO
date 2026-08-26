@@ -35,6 +35,11 @@ namespace LI2Sup{
 
 class SuperLIO{
 public:
+  struct RawScanEndSnapshot {
+    double scan_end_time = 0.0;
+    SysState state;
+    ESKF::COV covariance = ESKF::COV::Zero();
+  };
   SuperLIO(){};
   ~SuperLIO(){};
   ROSWrapper* dataWrapper() { return data_wrapper_.get(); }
@@ -47,6 +52,23 @@ public:
   void saveMap();
   void printTimeRecord();
   size_t mapVoxelCount() const { return ivox_ ? ivox_->size() : 0; }
+  int64_t mapUpdateCount() const { return map_update_count_; }
+  int64_t geometryUpdateCount() const { return geometry_update_count_; }
+  const std::vector<RawScanEndSnapshot>& rawScanEndSnapshots() const {
+    return raw_scan_end_snapshots_;
+  }
+  int64_t imuPropagationSegmentCount() const {
+    return imu_propagation_segment_count_;
+  }
+  const std::vector<int64_t>& downsampledPointsPerUpdate() const {
+    return downsampled_points_per_update_;
+  }
+  const std::vector<int64_t>& geometryInputPointsPerUpdate() const {
+    return geometry_input_points_per_update_;
+  }
+  const std::vector<int64_t>& effectiveCorrespondencesPerUpdate() const {
+    return effective_correspondences_per_update_;
+  }
   const GeometryStatsSidecar& sidecar() const { return sidecar_; }
 
   struct G2Life {
@@ -447,6 +469,7 @@ protected:
   void stateWaitMapInit();
   void stateProcess();
   virtual bool kf_init();
+  void statePropagateOnly();
   virtual bool map_init();
   void Propagation_Undistort();
   void DownSample();
@@ -496,6 +519,16 @@ protected:
   bool flg_init_ = false;
   bool flg_first_scan_ = true;
   std::vector<DynamicState> propagate_states_;
+  // IMU-fullscan retains propagation poses across camera boundaries so the
+  // complete raw scan can still be undistorted once at its scan-end epoch.
+  std::vector<DynamicState> fullscan_propagate_states_;
+  int64_t imu_propagation_segment_count_ = 0;
+  int64_t map_update_count_ = 0;
+  int64_t geometry_update_count_ = 0;
+  std::vector<int64_t> geometry_input_points_per_update_;
+  std::vector<RawScanEndSnapshot> raw_scan_end_snapshots_;
+  std::vector<int64_t> downsampled_points_per_update_;
+  std::vector<int64_t> effective_correspondences_per_update_;
   BASIC::CloudPtr scan_undistort_full_;
   BASIC::CloudPtr ds_undistort_;
   BASIC::CloudPtr point_map_, world_pc_, ds_world_;
@@ -549,5 +582,3 @@ protected:
 } // namespace END.
 
 #endif
-
-

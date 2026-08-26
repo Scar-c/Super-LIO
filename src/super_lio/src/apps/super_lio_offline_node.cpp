@@ -144,6 +144,33 @@ int main(int argc, char** argv) {
   lio->saveMap();
   lio->printTimeRecord();
   data_wrapper->closeTrajectoryFile();
+  if (!out_dir.empty()) {
+    std::ofstream scan_state(out_dir + "/raw_scan_end_state.csv");
+    if (scan_state) {
+      scan_state << "scan_end,state_time,px,py,pz,qx,qy,qz,qw,vx,vy,vz";
+      for (int r = 0; r < 18; ++r) {
+        for (int c = 0; c < 18; ++c) {
+          scan_state << ",P" << r << "_" << c;
+        }
+      }
+      scan_state << "\n" << std::setprecision(17);
+      for (const auto& snap : lio->rawScanEndSnapshots()) {
+        const auto q = snap.state.R.coeffs();
+        scan_state << snap.scan_end_time << "," << snap.state.timestamp << ","
+                   << snap.state.p.x() << "," << snap.state.p.y() << ","
+                   << snap.state.p.z() << "," << q.x() << "," << q.y()
+                   << "," << q.z() << "," << q.w() << ","
+                   << snap.state.v.x() << "," << snap.state.v.y() << ","
+                   << snap.state.v.z();
+        for (int r = 0; r < 18; ++r) {
+          for (int c = 0; c < 18; ++c) {
+            scan_state << "," << snap.covariance(r, c);
+          }
+        }
+        scan_state << "\n";
+      }
+    }
+  }
 
   const OfflineAccounting& a = reader.accounting();
   std::printf("\n=== Offline accounting ===\n");
@@ -248,6 +275,54 @@ int main(int argc, char** argv) {
                   ? a.sensor_duration_s / ((t_proc_end - t_proc_start) / 1000.0)
                   : 0.0);
   std::printf("peak RSS during loop: %ld KB\n", rssKb());
+  auto cadence_pct = [](const std::vector<int64_t>& values, double p) {
+    if (values.empty()) return -1.0;
+    std::vector<int64_t> sorted = values;
+    std::sort(sorted.begin(), sorted.end());
+    const size_t idx = std::min(
+        sorted.size() - 1,
+        static_cast<size_t>(p * static_cast<double>(sorted.size() - 1)));
+    return static_cast<double>(sorted[idx]);
+  };
+  const double updates_per_scan = data_wrapper->rawLidarScansInput() > 0
+      ? static_cast<double>(lio->geometryUpdateCount()) /
+            data_wrapper->rawLidarScansInput()
+      : 0.0;
+  std::printf(
+      "Round11X cadence: policy=%s raw_scans=%lld geometry_updates=%lld "
+      "updates_per_raw_scan=%.6f map_updates=%lld imu_segments=%lld\n",
+      lidarUpdatePolicyName(g_lidar_update_policy),
+      (long long)data_wrapper->rawLidarScansInput(),
+      (long long)lio->geometryUpdateCount(), updates_per_scan,
+      (long long)lio->mapUpdateCount(),
+      (long long)lio->imuPropagationSegmentCount());
+  const auto& geom = lio->geometryInputPointsPerUpdate();
+  const auto& down = lio->downsampledPointsPerUpdate();
+  const auto& corr = lio->effectiveCorrespondencesPerUpdate();
+  std::printf(
+      "Round11X input points/update P10/P50/P90/P99: %.0f/%.0f/%.0f/%.0f\n",
+      cadence_pct(geom, .10), cadence_pct(geom, .50),
+      cadence_pct(geom, .90), cadence_pct(geom, .99));
+  std::printf(
+      "Round11X downsampled points/update P10/P50/P90/P99: %.0f/%.0f/%.0f/%.0f\n",
+      cadence_pct(down, .10), cadence_pct(down, .50),
+      cadence_pct(down, .90), cadence_pct(down, .99));
+  std::printf(
+      "Round11X effective correspondences/update P10/P50/P90/P99: %.0f/%.0f/%.0f/%.0f\n",
+      cadence_pct(corr, .10), cadence_pct(corr, .50),
+      cadence_pct(corr, .90), cadence_pct(corr, .99));
+  if (g_lio_camera_epoch &&
+      g_lidar_update_policy != LidarUpdatePolicy::PARTIAL) {
+    std::printf(
+        "Round11X fullscan ownership: input_points=%lld used_once=%lld "
+        "duplicate_use=%lld never_used=%lld imu_only_segments=%lld\n",
+        (long long)data_wrapper->fullscanGeometryPoints() +
+            data_wrapper->fullscanNeverUsedPoints(),
+        (long long)data_wrapper->fullscanGeometryPoints(),
+        (long long)data_wrapper->fullscanDuplicatePoints(),
+        (long long)data_wrapper->fullscanNeverUsedPoints(),
+        (long long)data_wrapper->imuOnlySegments());
+  }
   if (g_lio_g1_enabled) {
     // G-2 maturity summary
     const auto& cl = lio->g2Child();
@@ -433,7 +508,8 @@ int main(int argc, char** argv) {
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
                 (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount(),
                 (long long)data_wrapper->popNoopCount());
-    if (g_lio_s0_audit) {
+    if (g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
+        g_lio_s0_audit) {
       const auto& sa = lio->dataWrapper()->s0Audit();
       // final retained = pending slice at EOF (re-slice semantics); the
       // cumulative 'retained' set also holds ids later emitted.
@@ -501,19 +577,21 @@ int main(int argc, char** argv) {
         }
       }
     }
-    std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
-                (long long)lio->dataWrapper()->lidarPointsInput(),
-                (long long)lio->dataWrapper()->lidarPointsEmitted(),
-                (long long)lio->dataWrapper()->lidarPointsRetained(),
-                lio->dataWrapper()->lidarPointsInput() ==
-                        lio->dataWrapper()->lidarPointsEmitted() +
-                            lio->dataWrapper()->lidarPointsRetained()
-                    ? "OK"
-                    : "MISMATCH",
-                lio->dataWrapper()->lastSyncedLidarEndTime());
-    std::printf("S-0 camera-epoch: lidar_points_emitted=%lld future_points_retained=%lld last_epoch=%.3f\n",
-                (long long)data_wrapper->lidarPointsEmitted(), (long long)data_wrapper->lidarPointsRetained(),
-                data_wrapper->lastEpochTime());
+    if (g_lidar_update_policy == LidarUpdatePolicy::PARTIAL) {
+      std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
+                  (long long)lio->dataWrapper()->lidarPointsInput(),
+                  (long long)lio->dataWrapper()->lidarPointsEmitted(),
+                  (long long)lio->dataWrapper()->lidarPointsRetained(),
+                  lio->dataWrapper()->lidarPointsInput() ==
+                          lio->dataWrapper()->lidarPointsEmitted() +
+                              lio->dataWrapper()->lidarPointsRetained()
+                      ? "OK"
+                      : "MISMATCH",
+                  lio->dataWrapper()->lastSyncedLidarEndTime());
+      std::printf("S-0 camera-epoch: lidar_points_emitted=%lld future_points_retained=%lld last_epoch=%.3f\n",
+                  (long long)data_wrapper->lidarPointsEmitted(), (long long)data_wrapper->lidarPointsRetained(),
+                  data_wrapper->lastEpochTime());
+    }
     std::printf("S-0 camera-epoch dt (epoch_ts - lidar_end, ms): n=%lld median=%.1f P90=%.1f P95=%.1f P99=%.1f\n",
                 (long long)data_wrapper->cameraEpochCount(), pct(0.5), pct(0.9), pct(0.95), pct(0.99));
   }

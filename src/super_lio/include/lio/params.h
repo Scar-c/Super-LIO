@@ -20,6 +20,7 @@
 
 #include "basic/alias.h"
 #include "basic/Manifold.h"
+#include "common/CadencePolicy.h"
 
 
 namespace LI2Sup{
@@ -121,6 +122,7 @@ namespace LI2Sup{
 
   /// S-0 camera-epoch synchronization (visual OFF)
   extern bool g_lio_camera_epoch;
+  extern LidarUpdatePolicy g_lidar_update_policy;
 
   /// G-1V Scheme-B shadow
   extern bool g_lio_g1v_enabled;

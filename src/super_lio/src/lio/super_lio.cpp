@@ -12,7 +12,6 @@
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/concurrent_vector.h>
-#include <tbb/enumerable_thread_specific.h>
 
 
 using namespace BASIC;
@@ -192,12 +191,24 @@ void SuperLIO::process(){
   if(!data_wrapper_->sync_measure(measures_)){
     return;
   }
+  if (measures_.kind == MeasureKind::IMU_ONLY) {
+    statePropagateOnly();
+    return;
+  }
+  geometry_update_count_++;
+  geometry_input_points_per_update_.push_back(
+      measures_.lidar.pc ? static_cast<int64_t>(measures_.lidar.pc->size()) : 0);
   const auto pf_t0 = std::chrono::high_resolution_clock::now();
   const double sensor_t = measures_.lidar.start_time;
   if (vp_total_lidar_frames_ == 0) vp_start_sensor_s_ = sensor_t;
   vp_end_sensor_s_ = sensor_t;
   vp_total_lidar_frames_++;
   (this->*state_fn_)();
+  if (measures_.kind == MeasureKind::FULL_LIDAR) {
+    raw_scan_end_snapshots_.push_back(
+        RawScanEndSnapshot{measures_.lidar.end_time, kf_->GetSysState(),
+                           kf_->GetCov()});
+  }
   const auto pf_t1 = std::chrono::high_resolution_clock::now();
   lidar_cycle_lat_ms_.push_back(
       std::chrono::duration<double, std::milli>(pf_t1 - pf_t0).count());
@@ -212,6 +223,19 @@ void SuperLIO::process(){
   frame_sensor_time_.push_back(sensor_t);
   frame_map_voxels_.push_back(static_cast<int64_t>(mapVoxelCount()));
   frame_lm_count_.push_back(static_cast<int64_t>(visual_map_.parentCount()));
+}
+
+void SuperLIO::statePropagateOnly() {
+  if (fullscan_propagate_states_.empty()) {
+    fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
+  }
+  kf_->SetObsTime(measures_.epoch_ts);
+  for (const auto& imu : measures_.imu) {
+    kf_->Predict(imu);
+    fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
+  }
+  kf_->CommitPropagationOnlyEpoch(measures_.epoch_ts);
+  imu_propagation_segment_count_++;
 }
 
 
@@ -283,6 +307,7 @@ bool SuperLIO::map_init(){
   );
 
   ivox_->insert(points_world_v3_);
+  map_update_count_++;
   kf_->SetLastObsTime(measures_.lidar.end_time);
 
   if(frame_num_ > 3){
@@ -305,8 +330,14 @@ void SuperLIO::stateProcess(){
     DownSample();
     Observe();
   }
+  downsampled_points_per_update_.push_back(
+      static_cast<int64_t>(ds_undistort_->size()));
+  effective_correspondences_per_update_.push_back(
+      static_cast<int64_t>(effect_knn_num_));
   // V-4A/B: sequential visual update from final LiDAR posterior
-  if (g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled &&
+  if (g_lio_v4_apply && g_lio_camera_epoch &&
+      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
+      g_lio_v2_enabled &&
       g_lio_v0_enabled) {
     ESKF::SequentialPrior prior;
     prior.time = kf_->GetTime();
@@ -357,7 +388,9 @@ void SuperLIO::stateProcess(){
     UpdateMap();
   }
   // V-4C: post-solve lifecycle with final visual posterior state
-  if (g_lio_v4_apply && g_lio_camera_epoch && g_lio_v0_enabled) {
+  if (g_lio_v4_apply && g_lio_camera_epoch &&
+      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
+      g_lio_v0_enabled) {
     const auto xs = kf_->GetSysState();
     const SE3 v4_pose(xs.R, xs.p);
     runVisualLifecycle(v4_pose, false);
@@ -365,7 +398,8 @@ void SuperLIO::stateProcess(){
   epoch_timings_.total_ms = NowMs() - t_epoch_start;
   // V-0C: the camera frame of this epoch is consumed only after the whole
   // observation step (frontend used it); unconditional per epoch
-  if (g_lio_camera_epoch) {
+  if (g_lio_camera_epoch &&
+      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL) {
     data_wrapper_->popConsumedCameraFrame();
   }
   Output();
@@ -379,6 +413,9 @@ void SuperLIO::stateProcess(){
   }
   epoch_residual_stats_.reset();
   epoch_iterations_ = 0;
+  if (measures_.kind == MeasureKind::FULL_LIDAR) {
+    fullscan_propagate_states_.clear();
+  }
 }
 
 
@@ -523,8 +560,16 @@ void SuperLIO::saveMap(){
 
 
 void SuperLIO::Propagation_Undistort(){
-  propagate_states_.clear();
-  propagate_states_.emplace_back(kf_->GetDynamicState());
+  const bool segmented_fullscan =
+      g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN &&
+      measures_.kind == MeasureKind::FULL_LIDAR &&
+      !fullscan_propagate_states_.empty();
+  if (segmented_fullscan) {
+    propagate_states_ = fullscan_propagate_states_;
+  } else {
+    propagate_states_.clear();
+    propagate_states_.emplace_back(kf_->GetDynamicState());
+  }
   const double obs_time = (measures_.epoch_ts > 0.0) ? measures_.epoch_ts
                                                      : measures_.lidar.end_time;
   kf_->SetObsTime(obs_time);
@@ -533,6 +578,7 @@ void SuperLIO::Propagation_Undistort(){
     kf_->Predict(imu);
     propagate_states_.emplace_back(kf_->GetDynamicState());
   }
+  imu_propagation_segment_count_++;
   epoch_timings_.imu_propagation_ms = NowMs() - t_imu_start;
 
   static const M3 TLI_R = g_lidar_imu.R_;
@@ -604,11 +650,11 @@ void SuperLIO::DownSample(){
 }
 
 
-struct ThreadACC{
+struct PointACC{
   M6d HTVH = M6d::Zero();
   V6d HTVr = V6d::Zero();
-  RunningStats resid;
-  ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()) {}
+  scalar error = 0;
+  uint8_t valid = 0;
 };
 
 
@@ -649,13 +695,14 @@ void SuperLIO::Observe(){
     const bool need_converge = kf_state.need_converge;
     const M3d R_transpose = (pose.R_.transpose()).cast<double>();
 
-    tbb::enumerable_thread_specific<ThreadACC> tls_acc;
+    // One worker owns one r_s output. H/b and residual statistics are then
+    // committed serially in canonical r_s order, independent of TBB schedule.
+    std::vector<PointACC> point_acc(effect_knn_num_);
 
     tbb::parallel_for(
       tbb::blocked_range<size_t>(0, effect_knn_num_),
       [&](const tbb::blocked_range<size_t>& r) {
         KNNHeapType top_K;
-        auto& local_acc = tls_acc.local();
         for (size_t r_s = r.begin(); r_s < r.end(); ++r_s) {
           int idx = effect_knn_idxs_[r_s];
           V3& point_body = points_body_v3_[idx];
@@ -680,8 +727,6 @@ void SuperLIO::Observe(){
           effect_mask_[idx] = compute_error(abcd, point_world, _lengths[idx], error);
           if(!effect_mask_[idx]) continue;
           
-          local_acc.resid.add(error);
-
           {
             V3d normvec(abcd[0], abcd[1], abcd[2]);
             V3d nb = R_transpose * normvec;
@@ -690,8 +735,11 @@ void SuperLIO::Observe(){
             J.head<3>() = point_body_d.cross(nb);
             J.tail<3>() = normvec;
       
-            local_acc.HTVH += J * 1000 * J.transpose();
-            local_acc.HTVr -= J * 1000 * error;
+            PointACC& out = point_acc[r_s];
+            out.error = error;
+            out.HTVH = J * 1000 * J.transpose();
+            out.HTVr = -J * 1000 * error;
+            out.valid = 1;
           }
         }
     });
@@ -699,10 +747,12 @@ void SuperLIO::Observe(){
     M6d sum_HTVH = M6d::Zero();
     V6d sum_HTVr = V6d::Zero();
     RunningStats sum_resid;
-    for(const auto& local_acc : tls_acc){
-      sum_HTVH += local_acc.HTVH;
-      sum_HTVr += local_acc.HTVr;
-      sum_resid.merge(local_acc.resid);
+    for(size_t r_s = 0; r_s < effect_knn_num_; ++r_s){
+      const PointACC& out = point_acc[r_s];
+      if (!out.valid) continue;
+      sum_HTVH += out.HTVH;
+      sum_HTVr += out.HTVr;
+      sum_resid.add(out.error);
     }
     epoch_residual_stats_ = sum_resid;
     HTVH = sum_HTVH.cast<scalar>();
@@ -2931,6 +2981,7 @@ void SuperLIO::runG1VShadow(const SE3& pose){
   }
 }
 void SuperLIO::UpdateMap() {
+  map_update_count_++;
   const size_t ptsize = ds_undistort_->size();
   if (ptsize == 0) return;
   

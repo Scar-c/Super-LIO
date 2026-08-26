@@ -61,6 +61,17 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/g1/enabled", g_lio_g1_enabled);
   nh.getParam("/lio/g1v/enabled", g_lio_g1v_enabled);
   nh.getParam("/lio/camera_epoch/enabled", g_lio_camera_epoch);
+  std::string lidar_update_policy = "partial";
+  nh.param<std::string>("/lio/camera_epoch/lidar_update_policy",
+                        lidar_update_policy, "partial");
+  try {
+    g_lidar_update_policy = parseLidarUpdatePolicy(lidar_update_policy);
+  } catch (const std::invalid_argument& e) {
+    LOG(FATAL) << e.what();
+    throw;
+  }
+  LOG(INFO) << GREEN << " ---> [Param] camera_epoch/lidar_update_policy: "
+            << lidarUpdatePolicyName(g_lidar_update_policy) << RESET;
   nh.getParam("/lio/v0/enabled", g_lio_v0_enabled);
   nh.getParam("/lio/v2/enabled", g_lio_v2_enabled);
   nh.getParam("/lio/g1/out_dir", g_lio_g1_out_dir);
@@ -198,7 +209,9 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr& msg, CloudPtr& point
   int plsize = msg->point_num;
   cloud_full->resize(plsize);
   point_cloud->reserve(plsize);
-  std::vector<bool> is_valid_pt(plsize, false);
+  // Parallel workers own distinct indices. Use byte-per-entry storage: the
+  // bit-packed vector<bool> proxy can race even for different logical indices.
+  std::vector<uint8_t> is_valid_pt(plsize, 0);
   std::vector<std::size_t> index(plsize - 1);
   std::iota(std::begin(index), std::end(index), 1);
 
@@ -212,15 +225,17 @@ void livox2pcl(const livox_ros_driver::CustomMsg::ConstPtr& msg, CloudPtr& point
         cloud_full->at(i).z = msg->points[i].z;
         cloud_full->at(i).intensity = msg->points[i].reflectivity;
 
-        if ((abs(cloud_full->at(i).x - cloud_full->at(i - 1).x) > 1e-7) ||
-            (abs(cloud_full->at(i).y - cloud_full->at(i - 1).y) > 1e-7) ||
-            (abs(cloud_full->at(i).z - cloud_full->at(i - 1).z) > 1e-7))
+        // The source message is immutable. Reading cloud_full[i-1] here races
+        // its owning worker; compare the same raw coordinates directly.
+        if ((abs(msg->points[i].x - msg->points[i - 1].x) > 1e-7) ||
+            (abs(msg->points[i].y - msg->points[i - 1].y) > 1e-7) ||
+            (abs(msg->points[i].z - msg->points[i - 1].z) > 1e-7))
         {
           double normal_dis = cloud_full->at(i).x * cloud_full->at(i).x + 
                               cloud_full->at(i).y * cloud_full->at(i).y +
                               cloud_full->at(i).z * cloud_full->at(i).z;
           if(normal_dis > g_blind2 and normal_dis < g_maxrange2){
-            is_valid_pt[i] = true;
+            is_valid_pt[i] = 1;
           }
         }
       }
@@ -329,6 +344,9 @@ void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPt
   }
   lidar_data.start_time = msg->header.stamp.toSec();
   lidar_data.end_time   = lidar_data.start_time + offset_time;
+  lidar_data.raw_scan_id = raw_scan_seq_++;
+  fullscan_ownership_.recordInput(
+      lidar_data.raw_scan_id, static_cast<int64_t>(lidar_data.pc->size()));
   lidar_buffer_.push_back(lidar_data);
   if (g_lio_s0_audit) s0_scan_seq_++;  // F2: one id per accepted raw LiDAR msg
 
@@ -461,6 +479,9 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
     return;
   }
   
+  lidar_data.raw_scan_id = raw_scan_seq_++;
+  fullscan_ownership_.recordInput(
+      lidar_data.raw_scan_id, static_cast<int64_t>(lidar_data.pc->size()));
   lidar_buffer_.push_back(lidar_data);
   if (g_lio_s0_audit) s0_scan_seq_++;  // F2: one id per accepted raw LiDAR msg
 }
@@ -591,10 +612,82 @@ bool ROSWrapper::loadCameraCalibration(const std::string& path){
 
 
 bool ROSWrapper::sync_measure(MeasureGroup& meas){
-  if (g_lio_camera_epoch) {
+  if (!g_lio_camera_epoch) {
+    return sync_legacy_lidar_end(meas);
+  }
+  if (g_lidar_update_policy == LidarUpdatePolicy::PARTIAL) {
     return sync_camera_epoch(meas);
   }
-  return sync_legacy_lidar_end(meas);
+  return sync_fullscan_camera_epoch(meas);
+}
+
+void ROSWrapper::accountFullscanCamera(bool stale) {
+  if (camera_buffer_.empty()) return;
+  const double t_c = camera_buffer_.oldest().timestamp;
+  camera_buffer_.popOldest();
+  if (stale) {
+    stale_image_drop_count_++;
+    return;
+  }
+  const double dt_ms = (t_c - last_epoch_time_) * 1000.0;
+  if (dt_ms >= -200.0 && dt_ms < 200.0) {
+    camera_epoch_dt_hist_[static_cast<int>(dt_ms + 200.0)]++;
+  }
+  last_epoch_time_ = t_c;
+  camera_epoch_count_++;
+  images_consumed_++;
+}
+
+// Round 11X full-scan policies keep raw LiDAR buffers immutable at camera
+// epochs. Shadow only closes camera accounting. IMU-full emits an IMU-only
+// measurement after initialization, while raw geometry remains owned by the
+// one legacy scan-end update. The pure selector enforces time ordering.
+bool ROSWrapper::sync_fullscan_camera_epoch(MeasureGroup& meas) {
+  meas = MeasureGroup{};
+  for (;;) {
+    CadenceInputs in;
+    in.camera_epoch_enabled = g_lio_camera_epoch;
+    in.filter_initialized = eskf_ && eskf_->init_;
+    in.have_camera = !camera_buffer_.empty();
+    if (in.have_camera) {
+      in.camera_time = camera_buffer_.oldest().timestamp;
+      in.camera_has_lidar_coverage = hasAvailableLidarCoverage(in.camera_time);
+      in.camera_has_imu_coverage = last_timestamp_imu_ >= in.camera_time;
+    }
+    in.have_full_scan = !lidar_buffer_.empty();
+    if (in.have_full_scan) {
+      in.full_scan_end_time = lidar_buffer_.front().end_time;
+      in.full_scan_has_imu_coverage =
+          last_timestamp_imu_ >= in.full_scan_end_time;
+    }
+    in.last_geometry_time = last_synced_lidar_end_time_;
+
+    const CadenceAction action =
+        selectFullScanCadenceAction(g_lidar_update_policy, in);
+    if (action == CadenceAction::ACCOUNT_CAMERA_ONLY) {
+      accountFullscanCamera(in.camera_time <= in.last_geometry_time);
+      continue;
+    }
+    if (action == CadenceAction::IMU_ONLY) {
+      const double t_c = camera_buffer_.oldest().timestamp;
+      meas.kind = MeasureKind::IMU_ONLY;
+      meas.epoch_ts = t_c;
+      while (!imu_buffer_.empty() && imu_buffer_.front().secs <= t_c) {
+        if (imu_buffer_.front().secs > last_epoch_time_) {
+          meas.imu.push_back(imu_buffer_.front());
+        }
+        imu_buffer_.pop_front();
+      }
+      accountFullscanCamera(false);
+      imu_only_segments_++;
+      sync_count_++;
+      return true;
+    }
+    if (action == CadenceAction::FULL_SCAN) {
+      return sync_legacy_lidar_end(meas);
+    }
+    return false;
+  }
 }
 
 // S-0 camera-epoch sync, FAST-LIVO2 LIVO-inspired:
@@ -605,6 +698,7 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
 //   - IMU drained to (last_epoch, t_c]; older IMU already consumed
 //   - one image consumed per successful epoch (visual OFF: LIO only)
 bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
+  meas.kind = MeasureKind::PARTIAL_LIDAR;
   meas.epoch_ts = -1.0;
   if (camera_buffer_.empty() ||
       (!pending_lidar_.has && lidar_buffer_.empty()) || imu_buffer_.empty()) {
@@ -680,6 +774,8 @@ bool ROSWrapper::sync_camera_epoch(MeasureGroup& meas){
 }
 
 bool ROSWrapper::sync_legacy_lidar_end(MeasureGroup& meas){
+  meas.kind = MeasureKind::FULL_LIDAR;
+  meas.epoch_ts = -1.0;
   if (lidar_buffer_.empty() || imu_buffer_.empty()) {
     return false;
   }else{
@@ -712,6 +808,10 @@ bool ROSWrapper::sync_legacy_lidar_end(MeasureGroup& meas){
   }
 
   last_timestamp_lidar_ = meas.lidar.end_time;
+  fullscan_ownership_.recordGeometryUse(
+      meas.lidar.raw_scan_id, static_cast<int64_t>(meas.lidar.pc->size()));
+  geometry_input_points_per_update_.push_back(
+      static_cast<int64_t>(meas.lidar.pc->size()));
   lidar_buffer_.pop_front();
   lidar_pushed_ = false;
   sync_count_++;
