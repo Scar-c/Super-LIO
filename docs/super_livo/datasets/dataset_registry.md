@@ -5,7 +5,20 @@ Scope: Super-LIVO 正式数据集全集注册
 Source of Truth: architecture_owner_decisions.md §19（顺序/角色）；本文件为事实层
 Related commits: Round 7（hygiene commit）
 Datasets: eee_01 / nya_01 / Corridor01 / Corridor02 / Flat_Surfaces_Smooth
-Last updated: 2026-08-24
+Last updated: 2026-08-27
+
+## Round11AA Owner update（2026-08-27）
+
+- C 组（partial-LiDAR family: C-S1/C-S3）不再常规运行 → 仅历史/reference。
+- 当前 active backbone：D（corrected imu_fullscan：相机时间 IMU 传播 +
+  全扫描几何 + 每扫描一次 Observe + visual OFF）。
+- MCD 第二指定序列：ntu_night_08（MCD SeqID4）——本轮注册为正式指定序列
+  （bag: ntu_night_08_{mid70,vn100,d435i}.bag；GT: pose_inW.csv）。
+- 后续执行顺序（冻结）：
+  1. MCD ntu_night_08
+  2. NTU eee_01 / nya_01
+  3. Oxford
+  4. M3DGR
 
 ## 执行层级（冻结）
 
