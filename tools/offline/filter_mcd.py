@@ -22,10 +22,11 @@ import rospy
 
 def topic_counts(path):
     b = rosbag.Bag(path)
-    info = b.get_type_and_topic_info()
-    out = {t: i.message_count for t, i in info[1].items()}
-    b.close()
-    return out
+    try:
+        info = b.get_type_and_topic_info()
+        return {t: i.message_count for t, i in info[1].items()}
+    finally:
+        b.close()
 
 
 def main():
@@ -54,81 +55,84 @@ def main():
             raise SystemExit('FAIL: required topic %s absent from all source bags' % t)
 
     # open bags + iterators (one per bag, covering its selected topics)
+    # F7: every opened handle owned in one deterministic collection.
     bags = []
     iters = []
-    for path in args.bags:
-        avail = set(topic_counts(path).keys())
-        want = [t for t in selected if t in avail]
-        b = rosbag.Bag(path)
-        if want:
-            it = b.read_messages(topics=want)
-            iters.append({'it': it, 'seq': 0, 'active': None, 'done': False})
-        else:
-            bags.append(b)
-            iters.append({'it': None, 'seq': 0, 'active': None, 'done': True})
-
-    heap = []
-    MOD = 1 << 62
-
-    def advance(si):
-        st = iters[si]
+    def advance(st):
         if st.get('done'):
             st['active'] = None
             return
         try:
             topic, msg, ts = next(st['it'])
             rec_ns = ts.to_nsec()
-            rec_s = ts.to_sec()
             ht = msg.header.stamp.to_sec() if hasattr(msg, 'header') else 0.0
-            st['active'] = (rec_ns, si, st['seq'], topic, msg, rec_s, ht)
+            st['active'] = (rec_ns, st['si'], st['seq'], topic, msg, ts, ht)
             st['seq'] += 1
             heapq.heappush(heap, st['active'])
         except StopIteration:
             st['active'] = None
 
-    for si in range(len(iters)):
-        advance(si)
-
-    first_rec = None
-    prev_rec = -1.0
-    counts = {}
-    first_ht = {}
-    last_ht = {}
-    hash_state = {}
-
     final_path = args.out + ('_lio_filtered.bag' if args.mode == 'lio'
                             else '_livo_filtered.bag')
     partial_path = final_path + '.partial'
     try:
+        for path in args.bags:
+            avail = set(topic_counts(path).keys())
+            want = [t for t in selected if t in avail]
+            b = rosbag.Bag(path)
+            bags.append(b)
+            if want:
+                it = b.read_messages(topics=want)
+                iters.append({'it': it, 'seq': 0, 'active': None, 'done': False, 'si': len(iters)})
+            else:
+                iters.append({'it': None, 'seq': 0, 'active': None, 'done': True, 'si': len(iters)})
+
+        heap = []
+        MOD = 1 << 62
+
+        for si in range(len(iters)):
+            advance(iters[si])
+
+        first_rec_ns = None
+        prev_rec_ns = -1
+        counts = {}
+        first_ht = {}
+        last_ht = {}
+        hash_state = {}
+
         with rosbag.Bag(partial_path, 'w', compression='lz4') as out:
             while heap:
-                rec_ns, si, seq, topic, msg, rec_s, ht = heapq.heappop(heap)
-                if first_rec is None:
-                    first_rec = rec_s
-                if args.duration > 0.0 and rec_s - first_rec > args.duration:
+                rec_ns, si, seq, topic, msg, ts, ht = heapq.heappop(heap)
+                if first_rec_ns is None:
+                    first_rec_ns = rec_ns
+                if args.duration > 0.0 and rec_ns - first_rec_ns > int(args.duration * 1e9):
                     break
-                if rec_s < prev_rec:
-                    raise RuntimeError('non-monotonic record time %f < %f'
-                                       % (rec_s, prev_rec))
-                prev_rec = rec_s
-                # preserve original record Time object for output ordering
-                out.write(topic, msg, t=rospy.Time.from_sec(rec_s))
+                if rec_ns < prev_rec_ns:
+                    raise RuntimeError('non-monotonic record time %d < %d'
+                                       % (rec_ns, prev_rec_ns))
+                prev_rec_ns = rec_ns
+                # F6: preserve the ORIGINAL record Time object exactly
+                out.write(topic, msg, t=ts)
                 counts[topic] = counts.get(topic, 0) + 1
                 first_ht.setdefault(topic, ht)
                 last_ht[topic] = ht
                 h = hash_state.get(topic, 0)
                 h = (h * 131 + int(ht * 1e9)) % MOD
                 hash_state[topic] = h
-                advance(si)
+                advance(iters[si])
     except Exception as e:
         # partial output must not be confused with a complete canonical bag
         import os
         if os.path.exists(partial_path):
             os.remove(partial_path)
         raise
-    # close all bag handles deterministically
-    for b in bags:
-        b.close()
+    finally:
+        # F7: all opened handles close deterministically, on any path
+        for b in bags:
+            try:
+                b.close()
+            except Exception:
+                pass
     # atomic rename to final only after successful close
     import os
     os.rename(partial_path, final_path)

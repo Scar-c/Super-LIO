@@ -82,26 +82,37 @@ rosparam set /lio/v2/skip_fd true
 rosparam set /lio/hb0/enabled false
 rosparam set /lio/vp/enabled true
 rosparam set /lio/s0/audit "$S0_AUDIT"
+# Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
+# super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
+# && g_lio_v0_enabled; historical C0/A0/A1 runs therefore had v0=true,
+# v2=true (otherwise A1 would equal C0 exactly). B0 is unaffected because
+# camera_epoch=false.
+rosparam set /lio/v0/enabled true
+rosparam set /lio/v2/enabled true
 
 # ---- explicit variant matrix (fail-closed; no YAML-default reliance) ----
 case "$VARIANT" in
   b0)
     rosparam set /camera/enabled false
+    rosparam set /lio/camera_epoch/enabled false
     rosparam set /lio/v4/apply false
     rosparam set /lio/v4/outlier_gate false
     ;;
   c0)
     rosparam set /camera/enabled true
+    rosparam set /lio/camera_epoch/enabled true
     rosparam set /lio/v4/apply false
     rosparam set /lio/v4/outlier_gate false
     ;;
   a0)
     rosparam set /camera/enabled true
+    rosparam set /lio/camera_epoch/enabled true
     rosparam set /lio/v4/apply true
     rosparam set /lio/v4/outlier_gate false
     ;;
   a1)
     rosparam set /camera/enabled true
+    rosparam set /lio/camera_epoch/enabled true
     rosparam set /lio/v4/apply true
     rosparam set /lio/v4/outlier_gate true
     ;;
@@ -116,22 +127,41 @@ if [ -n "$CAM_CALIB" ]; then
 fi
 
 # ---- param readback (fail before node start if any key param missing) ----
-cam_en=$(rosparam get /camera/enabled)
-app=$(rosparam get /lio/v4/apply)
-gate=$(rosparam get /lio/v4/outlier_gate)
-echo "=== variant=$VARIANT readback: camera=$cam_en apply=$app gate=$gate ==="
+read_param() {
+  rosparam get "$1" 2>/dev/null || { echo "FAIL: param $1 unreadable"; exit 4; }
+}
+is_true() { [ "$1" = "True" ] || [ "$1" = "true" ]; }
+is_false() { [ "$1" = "False" ] || [ "$1" = "false" ]; }
+cam_en=$(read_param /camera/enabled)
+cam_ep=$(read_param /lio/camera_epoch/enabled)
+app=$(read_param /lio/v4/apply)
+gate=$(read_param /lio/v4/outlier_gate)
+v0=$(read_param /lio/v0/enabled)
+v2=$(read_param /lio/v2/enabled)
+skip_fd=$(read_param /lio/v2/skip_fd)
+hb0=$(read_param /lio/hb0/enabled)
+vp=$(read_param /lio/vp/enabled)
+s0_aud=$(read_param /lio/s0/audit)
+echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud ==="
 case "$VARIANT" in
-  b0) [ "$cam_en" = "False" ] || [ "$cam_en" = "false" ] || { echo "FAIL readback camera"; exit 4; } ;;
-  *) [ "$cam_en" = "True" ] || [ "$cam_en" = "true" ] || { echo "FAIL readback camera"; exit 4; } ;;
+  b0) is_false "$cam_en" || { echo "FAIL readback camera"; exit 4; }
+      is_false "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
+  *) is_true "$cam_en" || { echo "FAIL readback camera"; exit 4; }
+     is_true "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
 esac
 case "$VARIANT" in
-  b0|c0) [ "$app" = "False" ] || [ "$app" = "false" ] || { echo "FAIL readback apply"; exit 4; } ;;
-  a0|a1) [ "$app" = "True" ] || [ "$app" = "true" ] || { echo "FAIL readback apply"; exit 4; } ;;
+  b0|c0) is_false "$app" || { echo "FAIL readback apply"; exit 4; } ;;
+  a0|a1) is_true "$app" || { echo "FAIL readback apply"; exit 4; } ;;
 esac
 case "$VARIANT" in
-  a1) [ "$gate" = "True" ] || [ "$gate" = "true" ] || { echo "FAIL readback gate"; exit 4; } ;;
-  *) [ "$gate" = "False" ] || [ "$gate" = "false" ] || { echo "FAIL readback gate"; exit 4; } ;;
+  a1) is_true "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
+  *) is_false "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
 esac
+is_true "$v0" || { echo "FAIL readback v0"; exit 4; }
+is_true "$v2" || { echo "FAIL readback v2"; exit 4; }
+is_true "$skip_fd" || { echo "FAIL readback skip_fd"; exit 4; }
+is_false "$hb0" || { echo "FAIL readback hb0"; exit 4; }
+is_true "$vp" || { echo "FAIL readback vp"; exit 4; }
 
 echo "=== running variant=$VARIANT out=$OUT_DIR ==="
 set +e

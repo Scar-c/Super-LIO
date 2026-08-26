@@ -32,7 +32,7 @@ def main():
 
     # D: variant matrix — B0 must set /camera/enabled=false (regression E)
     runner = open(os.path.join(ROOT, 'scripts/super_livo/experiments/run_offline_variant.sh')).read()
-    expect('D B0 camera=false explicit', 'b0)' in runner and
+    expect('D B0 camera=false+camera_epoch=false explicit', 'b0)' in runner and
            runner.split('b0)')[1].split(';;')[0].count('/camera/enabled false') == 1)
     expect('E no /lio/camera/enabled', '/lio/camera/enabled' not in runner)
 
@@ -42,7 +42,7 @@ def main():
     # G: filter exact record-ns tie ordering
     filt = open(os.path.join(ROOT, 'tools/offline/filter_mcd.py')).read()
     expect('G filter to_nsec key', 'rec_ns = ts.to_nsec()' in filt and
-           '(rec_ns, si,' in filt)
+           "heapq.heappush(heap, st['active'])" in filt)
 
     # H: filter required-topic fail-closed
     expect('H required-topic fail-closed',

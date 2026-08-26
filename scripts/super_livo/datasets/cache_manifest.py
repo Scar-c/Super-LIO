@@ -39,6 +39,24 @@ def git_head():
     return b'unknown'
 
 
+def file_identity(path):
+    """Cheap durable source identity: abs path + size + mtime_ns."""
+    st = os.stat(path)
+    return {
+        'path': os.path.abspath(path),
+        'size': st.st_size,
+        'mtime_ns': st.st_mtime_ns,
+    }
+
+
+def script_identity(script_path):
+    """Hash of the actual generator script (not merely repo HEAD)."""
+    if script_path and os.path.exists(script_path):
+        with open(script_path, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('action', choices=['add', 'check'])
@@ -48,6 +66,7 @@ def main():
     ap.add_argument('--sources', nargs='+', default=[])
     ap.add_argument('--topics', nargs='+', default=[])
     ap.add_argument('--convention', default='')
+    ap.add_argument('--generator', default='')
     ap.add_argument('--parity', default='')
     args = ap.parse_args()
 
@@ -60,11 +79,12 @@ def main():
             'duration': info['duration'],
             'topics': info['topics'],
             'mode': args.mode,
-            'sources': args.sources,
+            'sources': [file_identity(s) for s in args.sources],
             'selected_topics': args.topics,
             'convention': args.convention,
             'parity': args.parity,
             'generator_git_head': git_head().decode(),
+            'generator_script_sha256': script_identity(args.generator),
         }
         m = {}
         if os.path.exists(args.manifest):
@@ -88,6 +108,23 @@ def main():
         ok = (cur_md5 == e['md5'] and cur_size == e['size'] and
               abs(cur_info['duration'] - e['duration']) < 0.01 and
               cur_info['topics'] == e['topics'])
+        # provenance: current source identities must match the manifest
+        if ok and e.get('sources'):
+            cur_src = [file_identity(s) for s in
+                       [s.get('path') for s in e['sources']]]
+            for want, got in zip(e['sources'], cur_src):
+                if want != got:
+                    ok = False
+                    print('provenance mismatch:', want.get('path'), got)
+        # generator identity: script hash must match (same repo HEAD allowed)
+        if ok and e.get('generator_script_sha256'):
+            want_gen = script_identity(args.generator)
+            if want_gen is not None and want_gen != e['generator_script_sha256']:
+                ok = False
+                print('generator mismatch:', args.generator)
+            if want_gen is None:
+                ok = False
+                print('generator missing:', args.generator)
         if ok and e.get('mode') == 'livo' and 'selected_topics' in e:
             for t in ('/livox/lidar', '/vn100/imu',
                       '/d435i/infra1/image_rect_raw'):
