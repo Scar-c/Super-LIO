@@ -64,8 +64,11 @@ public:
     if (!camera_buffer_.empty()) {
       camera_buffer_.popOldest();
       images_consumed_++;
+    } else {
+      pop_noop_count_++;
     }
   }
+  int64_t popNoopCount() const { return pop_noop_count_; }
   // S-0 camera-epoch (FAST-LIVO2 LIVO-inspired) helpers
   bool sync_camera_epoch(MeasureGroup& meas);
   bool sync_legacy_lidar_end(MeasureGroup& meas);
@@ -158,6 +161,7 @@ public:
   size_t lidarBufferSize() const { return lidar_buffer_.size(); }
   size_t imuBufferSize() const { return imu_buffer_.size(); }
   int syncCount() const { return sync_count_; }
+  const PendingLidarSlice& s0PendingSlice() const { return pending_lidar_; }
   double lastSyncedLidarEndTime() const { return last_synced_lidar_end_time_; }
   double firstSyncedLidarEndTime() const { return first_synced_lidar_end_time_; }
   double lastTimestampImu() const { return last_timestamp_imu_; }
@@ -204,6 +208,7 @@ private:
   int64_t stale_image_drop_count_ = 0;
   int64_t images_consumed_ = 0;
   int64_t empty_slice_count_ = 0;
+  int64_t pop_noop_count_ = 0;
   int64_t lidar_points_emitted_ = 0;
   int64_t lidar_points_input_ = 0;
   SliceAudit s0_audit_;

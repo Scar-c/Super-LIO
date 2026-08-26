@@ -186,12 +186,25 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         accounting_.last_image_time = msg->header.stamp.toSec();
         wrapper.HandleImage(msg);
         accounting_.images_dispatched++;
-        const double t_c0 = nowMs();
-        const double t_c1 = nowMs();
-        lio.process();
-        t_compute_ms += nowMs() - t_c1;
-        t_compute_ms += nowMs() - t_c1;
-        accounting_.process_invocations++;
+        // Ready-camera drain (S0, Round11W): process every queued camera
+        // frame that is causally eligible after this image arrival,
+        // re-slicing pending LiDAR at each own tc. Stop at first not-ready.
+        {
+          const int64_t sc_before = wrapper.syncCount();
+          int64_t sc = sc_before;
+          int64_t sc_last = sc_before;
+          do {
+            sc_last = sc;
+            const double t_c1 = nowMs();
+            lio.process();
+            t_compute_ms += nowMs() - t_c1;
+            accounting_.process_invocations++;
+            sc = wrapper.syncCount();
+            // Exit as soon as this iteration produced no new epoch; a fixed
+            // baseline (while sc > sc_before) spins forever once progress
+            // stops but the first epoch already exceeded the baseline.
+          } while (sc > sc_last);
+        }
         continue;
       }
     }

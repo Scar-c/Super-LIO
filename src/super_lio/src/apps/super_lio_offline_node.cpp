@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <unordered_set>
 #include <ros/ros.h>
 
 #include "lio/super_lio.h"
@@ -427,18 +428,37 @@ int main(int argc, char** argv) {
       for (int i = 0; i < 400; ++i) { acc += h[i]; if (acc >= tot * p) return (i - 200.0); }
       return 200.0;
     };
-    std::printf("S-0 camera-epoch: epochs=%lld images_consumed=%lld stale_image_drop=%lld empty_slice=%lld\n",
+    std::printf("S-0 camera-epoch: epochs=%lld images_consumed=%lld stale_image_drop=%lld empty_slice=%lld pop_noop=%lld\n",
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
-                (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount());
+                (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount(),
+                (long long)data_wrapper->popNoopCount());
     if (g_lio_s0_audit) {
       const auto& sa = lio->dataWrapper()->s0Audit();
-      const int64_t lost = static_cast<int64_t>(sa.input_all.size()) -
-                           static_cast<int64_t>(sa.emitted.size()) -
-                           static_cast<int64_t>(sa.retained.size());
-      std::printf("S-0 audit: input=%zu emitted=%zu retained=%zu lost=%lld dup=%lld wrong_side=%lld\n",
-                  sa.input_all.size(), sa.emitted.size(), sa.retained.size(),
+      // final retained = pending slice at EOF (re-slice semantics); the
+      // cumulative 'retained' set also holds ids later emitted.
+      std::unordered_set<int64_t> final_retained;
+      const auto& pend = data_wrapper->s0PendingSlice();
+      if (pend.has) {
+        for (const auto& p : pend.points) {
+          final_retained.insert((p.audit_scan_id << 32) |
+                                static_cast<uint32_t>(p.audit_idx));
+        }
+      }
+      int64_t overlap = 0;
+      for (const auto& id : final_retained) {
+        if (sa.emitted.count(id)) overlap++;
+      }
+      const int64_t lost =
+          static_cast<int64_t>(sa.input_all.size()) -
+          static_cast<int64_t>(sa.emitted.size()) -
+          static_cast<int64_t>(final_retained.size());
+      const bool ok = (lost == 0 && sa.duplicates == 0 && overlap == 0 &&
+                       sa.wrong_side == 0);
+      std::printf("S-0 audit: input=%zu emitted=%zu final_retained=%zu lost=%lld dup=%lld wrong_side=%lld overlap=%lld conservation=%s\n",
+                  sa.input_all.size(), sa.emitted.size(), final_retained.size(),
                   (long long)lost, (long long)sa.duplicates,
-                  (long long)sa.wrong_side);
+                  (long long)sa.wrong_side, (long long)overlap,
+                  ok ? "OK" : "MISMATCH");
     }
     std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
                 (long long)lio->dataWrapper()->lidarPointsInput(),
