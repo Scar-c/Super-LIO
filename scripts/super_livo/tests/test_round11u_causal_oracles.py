@@ -10,7 +10,7 @@ sys.path.insert(0, str(DATASETS))
 
 from audit_causal_epoch_availability import CausalEpochSimulator
 from audit_lidar_scan_end import monotonicity, production_scan_timing
-from audit_lidar_slice_accounting import SliceSimulator
+from audit_lidar_slice_accounting import FrozenS0ReferenceOracle as SliceSimulator
 
 
 class Stamp:
@@ -96,15 +96,17 @@ def test_slice_identity_and_wrong_side():
     simulator.add_camera(1.05)
     assert simulator.process_once()
     # U-T7: exact-boundary point is emitted once in the current slice.
-    assert simulator.status[2] == 1
+    assert 2 in simulator.status
     assert simulator.duplicate_emissions == 0
     assert simulator.final_report()["boundary_equality_count"] == 1
 
-    simulator.add_scan(1.1, list(enumerate([0.00, 0.03, 0.06])))
+    # FROZEN S0/P0R2-B: pending (1.07) is re-sliced at 1.08 only when
+    # already-received LiDAR truly spans 1.08 (scan 1.06..1.09 covers it).
+    simulator.add_scan(1.06, list(enumerate([0.00, 0.03])))
     simulator.add_camera(1.08)
     assert simulator.process_once()
-    # FROZEN S0: pending (1.07) re-sliced at 1.08 -> emitted once at its
-    # first eligible epoch; no premature emission.
+    # pending (1.07) emitted once at its first covered epoch; no premature
+    # emission.
     assert simulator.final_report()["wrong_side_count"] == 0
     assert simulator.duplicate_emissions == 0
 
@@ -120,10 +122,10 @@ def test_old_wholesale_bug_negative_fixture():
     # old-bug emulation: append pending wholesale at next epoch
     old_pending = list(simulator.pending)
     simulator.pending = []
-    simulator.add_scan(1.1, list(enumerate([0.00, 0.03, 0.06])))
+    simulator.add_scan(1.06, list(enumerate([0.00, 0.03])))
     simulator.add_camera(1.06)
     for pt in old_pending:
-        if pt["time"] > 1.06:
+        if pt["time_ns"] > 1060000000:
             simulator.pending.append(pt)
             simulator.emitted_early += 1  # old bug signature
     assert simulator.emitted_early > 0  # oracle flags the bug

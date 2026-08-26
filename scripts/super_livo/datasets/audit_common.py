@@ -27,6 +27,22 @@ def header_seconds(message):
     return float(message.header.stamp.to_sec())
 
 
+def header_nsec(message):
+    """Exact integer-ns ROS stamp (no float round-trip; P0R2-A).
+
+    genpy Time uses secs/nsecs; C++ ros::Time uses sec/nsec. Both are the
+    exact integer pair from the wire — no float path.
+    """
+    if not hasattr(message, "header") or not hasattr(message.header, "stamp"):
+        raise ValueError("selected message has no header.stamp")
+    stamp = message.header.stamp
+    if hasattr(stamp, "to_nsec") and callable(stamp.to_nsec):
+        return int(stamp.to_nsec())
+    if hasattr(stamp, "secs"):
+        return int(stamp.secs) * 1000000000 + int(stamp.nsecs)
+    return int(stamp.sec) * 1000000000 + int(stamp.nsec)
+
+
 def iter_record_order(bag_paths, topics):
     """K-way merge selected messages with one live item per bag."""
     bags, iterators, heap = [], [], []

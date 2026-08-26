@@ -169,7 +169,64 @@ def main():
         },
     )
 
-    print("LIDAR SLICE ACCOUNTING TDD (F1 oracles + F2/F3/F4): ALL PASS")
+    # --- DRAIN-T1/T2: one LiDAR arrival unlocks tc1/tc2/tc3; tc4 stays ---
+    run_events(
+        [
+            {"record": 0.001, "kind": "imu", "header": 2.0},
+            {"record": 0.002, "kind": "camera", "header": 1.02},
+            {"record": 0.003, "kind": "camera", "header": 1.03},
+            {"record": 0.004, "kind": "camera", "header": 1.04},
+            {"record": 0.005, "kind": "camera", "header": 1.06},
+            {"record": 0.006, "kind": "lidar", "header": 1.0,
+             "offsets": [0.01, 0.02, 0.03, 0.04, 0.05]},
+        ],
+        {
+            "camera_epoch_count": 3,
+            "emitted_points": 4,
+            "eof_unemitted_cameras": 1,
+            "camera_input": 4,
+            "camera_unclassified": 0,
+            "wrong_side_count": 0,
+            "conservation_pass": True,
+        },
+    )
+
+    # --- DRAIN-T3: IMU arrival provides the final missing coverage ---
+    run_events(
+        [
+            {"record": 0.001, "kind": "lidar", "header": 1.0,
+             "offsets": [0.004, 0.008]},
+            {"record": 0.002, "kind": "camera", "header": 1.005},
+            {"record": 0.003, "kind": "camera", "header": 1.008},
+            {"record": 0.004, "kind": "imu", "header": 1.009},
+        ],
+        {
+            "camera_epoch_count": 2,
+            "emitted_points": 2,
+            "wrong_side_count": 0,
+            "camera_unclassified": 0,
+            "conservation_pass": True,
+        },
+    )
+
+    # --- R2-T8: future data cannot make a camera ready (all points > tc) ---
+    run_events(
+        [
+            {"record": 0.001, "kind": "camera", "header": 1.05},
+            {"record": 0.002, "kind": "imu", "header": 2.0},
+            {"record": 0.003, "kind": "lidar", "header": 1.0,
+             "offsets": [0.06, 0.08]},
+        ],
+        {
+            "emitted_points": 0,
+            "wrong_side_count": 0,
+            "empty_slice_count": 1,
+            "camera_unclassified": 0,
+            "conservation_pass": True,
+        },
+    )
+
+    print("LIDAR SLICE ACCOUNTING TDD (F1-F5 + COV + DRAIN-T1..T3 + future): ALL PASS")
     return 0
 
 
