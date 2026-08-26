@@ -66,7 +66,11 @@ public:
   bool cameraEpochEnabled() const { return g_lio_camera_epoch; }
   // Round11Z: mixed-rate temporal sampler (increment-before-modulo)
   bool shouldAcceptCameraFrame() {
-    return temporalStrideAccept(raw_camera_counter_, camera_temporal_stride_);
+    const bool accept =
+        temporalStrideAccept(raw_camera_counter_, camera_temporal_stride_);
+    if (accept) accepted_to_s0_++;
+    else temporal_decimated_++;
+    return accept;
   }
   int cameraTemporalStride() const { return camera_temporal_stride_; }
   int64_t rawCameraInput() const { return raw_camera_input_; }
