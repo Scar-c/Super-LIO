@@ -9,3 +9,6 @@ install
 src/CMakeLists.txt
 # persistent benchmark cache (bags never enter Git)
 cache/
+
+__pycache__/
+*.pyc
