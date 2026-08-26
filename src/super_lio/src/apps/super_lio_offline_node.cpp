@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <csignal>
+#include <fstream>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -459,6 +460,46 @@ int main(int argc, char** argv) {
                   (long long)lost, (long long)sa.duplicates,
                   (long long)sa.wrong_side, (long long)overlap,
                   ok ? "OK" : "MISMATCH");
+      // P0R2-A: exact-ns dump for production-vs-oracle comparison
+      const std::string dump_path = out_dir + "/s0_audit_exact.json";
+      {
+        std::ofstream of(dump_path);
+        if (of) {
+          std::vector<std::pair<int64_t, int64_t>> emitted_sorted(
+              sa.emitted_epoch_ns.begin(), sa.emitted_epoch_ns.end());
+          std::sort(emitted_sorted.begin(), emitted_sorted.end());
+          std::vector<std::pair<int64_t, int64_t>> boundary_sorted(
+              sa.boundary_assign.begin(), sa.boundary_assign.end());
+          std::sort(boundary_sorted.begin(), boundary_sorted.end());
+          std::vector<int64_t> tcs = sa.epoch_tcs_ns;
+          std::sort(tcs.begin(), tcs.end());
+          std::vector<int64_t> retained_sorted(final_retained.begin(),
+                                               final_retained.end());
+          std::sort(retained_sorted.begin(), retained_sorted.end());
+          of << "{\n";
+          of << "  \"emitted\": [";
+          for (size_t i = 0; i < emitted_sorted.size(); ++i) {
+            if (i) of << ",";
+            of << "[" << emitted_sorted[i].first << "," << emitted_sorted[i].second << "]";
+          }
+          of << "],\n  \"boundary\": [";
+          for (size_t i = 0; i < boundary_sorted.size(); ++i) {
+            if (i) of << ",";
+            of << "[" << boundary_sorted[i].first << "," << boundary_sorted[i].second << "]";
+          }
+          of << "],\n  \"epoch_tcs\": [";
+          for (size_t i = 0; i < tcs.size(); ++i) {
+            if (i) of << ",";
+            of << tcs[i];
+          }
+          of << "],\n  \"final_retained\": [";
+          for (size_t i = 0; i < retained_sorted.size(); ++i) {
+            if (i) of << ",";
+            of << retained_sorted[i];
+          }
+          of << "]\n}\n";
+        }
+      }
     }
     std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
                 (long long)lio->dataWrapper()->lidarPointsInput(),

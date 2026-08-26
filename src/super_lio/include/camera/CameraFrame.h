@@ -12,6 +12,7 @@ namespace LI2Sup {
 
 struct CameraFrame {
   double timestamp = 0.0;
+  int64_t timestamp_ns = 0;  // exact ROS stamp ns (P0R2-A audit)
   int width = 0;
   int height = 0;
   std::string encoding;

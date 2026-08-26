@@ -61,6 +61,10 @@ class OfflineReader {
  public:
   bool open(const OfflineOptions& opts);
   bool run(ROSWrapper& wrapper, SuperLIO& lio);
+  // P0R2-C: centralized all-arrival ready-camera drain
+  void processAfterSensorArrival(ROSWrapper& wrapper, SuperLIO& lio,
+                                double& t_compute_ms,
+                                OfflineAccounting& accounting);
   void drain(ROSWrapper& wrapper, SuperLIO& lio);
   const OfflineAccounting& accounting() const { return accounting_; }
   double speedFactor() const {

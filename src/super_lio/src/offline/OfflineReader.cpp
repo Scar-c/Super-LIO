@@ -38,6 +38,31 @@ bool OfflineReader::open(const OfflineOptions& opts) {
   return true;
 }
 
+// P0R2-C: drain after ANY delivered relevant sensor arrival.
+//   camera-epoch ON : repeat lio.process() while the immediately previous
+//                     call increased syncCount(); stop on first no-progress.
+//   camera-epoch OFF: exactly one lio.process() per arrival (B0 legacy).
+void OfflineReader::processAfterSensorArrival(ROSWrapper& wrapper,
+                                              SuperLIO& lio,
+                                              double& t_compute_ms,
+                                              OfflineAccounting& accounting) {
+  if (wrapper.cameraEpochEnabled()) {
+    for (;;) {
+      const int64_t before = wrapper.syncCount();
+      const double t0 = nowMs();
+      lio.process();
+      t_compute_ms += nowMs() - t0;
+      accounting.process_invocations++;
+      if (wrapper.syncCount() == before) break;
+    }
+  } else {
+    const double t0 = nowMs();
+    lio.process();
+    t_compute_ms += nowMs() - t0;
+    accounting.process_invocations++;
+  }
+}
+
 bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
   if (opts_.bag_path.empty() && opts_.bag_paths.empty()) {
     std::printf("[OfflineReader] ERROR: empty bag path\n");
@@ -186,25 +211,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         accounting_.last_image_time = msg->header.stamp.toSec();
         wrapper.HandleImage(msg);
         accounting_.images_dispatched++;
-        // Ready-camera drain (S0, Round11W): process every queued camera
-        // frame that is causally eligible after this image arrival,
-        // re-slicing pending LiDAR at each own tc. Stop at first not-ready.
-        {
-          const int64_t sc_before = wrapper.syncCount();
-          int64_t sc = sc_before;
-          int64_t sc_last = sc_before;
-          do {
-            sc_last = sc;
-            const double t_c1 = nowMs();
-            lio.process();
-            t_compute_ms += nowMs() - t_c1;
-            accounting_.process_invocations++;
-            sc = wrapper.syncCount();
-            // Exit as soon as this iteration produced no new epoch; a fixed
-            // baseline (while sc > sc_before) spins forever once progress
-            // stops but the first epoch already exceeded the baseline.
-          } while (sc > sc_last);
-        }
+        processAfterSensorArrival(wrapper, lio, t_compute_ms,
+                              accounting_);
         continue;
       }
     }
@@ -231,10 +239,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           wrapper.HandleImage(
               boost::make_shared<sensor_msgs::Image>(im));
           accounting_.images_dispatched++;
-        const double t_c2 = nowMs();
-        lio.process();
-        t_compute_ms += nowMs() - t_c2;
-          accounting_.process_invocations++;
+          processAfterSensorArrival(wrapper, lio, t_compute_ms,
+                              accounting_);
           continue;
         }
         accounting_.images_malformed++;
@@ -251,10 +257,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
         accounting_.last_sensor_time = msg->header.stamp.toSec();
         wrapper.HandleImu(msg);
         accounting_.imu_dispatched++;
-        const double t_c3 = nowMs();
-        lio.process();
-        t_compute_ms += nowMs() - t_c3;
-        accounting_.process_invocations++;
+        processAfterSensorArrival(wrapper, lio, t_compute_ms,
+                              accounting_);
         continue;
       }
     }
@@ -270,10 +274,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           accounting_.last_sensor_time = msg->header.stamp.toSec();
           wrapper.HandleLidarCustomMsg(msg);
           accounting_.lidar_dispatched++;
-        const double t_c4 = nowMs();
-        lio.process();
-        t_compute_ms += nowMs() - t_c4;
-          accounting_.process_invocations++;
+          processAfterSensorArrival(wrapper, lio, t_compute_ms,
+                              accounting_);
           continue;
         }
       } else if (dt == dt_pc2) {
@@ -286,10 +288,8 @@ bool OfflineReader::run(ROSWrapper& wrapper, SuperLIO& lio) {
           accounting_.last_sensor_time = msg->header.stamp.toSec();
           wrapper.HandleLidarPointCloud2(msg);
           accounting_.lidar_dispatched++;
-        const double t_c5 = nowMs();
-        lio.process();
-        t_compute_ms += nowMs() - t_c5;
-          accounting_.process_invocations++;
+          processAfterSensorArrival(wrapper, lio, t_compute_ms,
+                              accounting_);
           continue;
         }
       }
