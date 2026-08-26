@@ -165,7 +165,21 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
   if (pending_in.has) {
     slice_origin = pending_in.origin;
     for (const auto& pt : pending_in.points) {
-      append(pending_in.origin + pt.offset_time, pt);
+      const double abs_t = pending_in.origin + pt.offset_time;
+      if (abs_t <= t_c) {
+        // frozen S0 rule: point_time <= tc -> current (re-sliced at new tc)
+        append(abs_t, pt);
+      } else {
+        // point_time > tc -> remains future/pending for the next camera
+        if (!pending_out.has) {
+          pending_out.has = true;
+          pending_out.origin = abs_t;
+        }
+        PointXTZIT q = pt;
+        q.offset_time = abs_t - pending_out.origin;
+        pending_out.points.push_back(q);
+        retained++;
+      }
     }
   }
   pending_out.has = false;
