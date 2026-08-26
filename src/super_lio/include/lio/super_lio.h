@@ -37,6 +37,7 @@ class SuperLIO{
 public:
   SuperLIO(){};
   ~SuperLIO(){};
+  ROSWrapper* dataWrapper() { return data_wrapper_.get(); }
 
   void setROSWrapper(const ROSWrapper::Ptr& wrapper){
     data_wrapper_ = wrapper;

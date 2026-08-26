@@ -424,6 +424,16 @@ int main(int argc, char** argv) {
     std::printf("S-0 camera-epoch: epochs=%lld images_consumed=%lld stale_image_drop=%lld empty_slice=%lld\n",
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
                 (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount());
+    std::printf("S-0 camera-epoch: lidar_input=%lld emitted=%lld retained=%lld conservation=%s last_epoch=%.3f\n",
+                (long long)lio->dataWrapper()->lidarPointsInput(),
+                (long long)lio->dataWrapper()->lidarPointsEmitted(),
+                (long long)lio->dataWrapper()->lidarPointsRetained(),
+                lio->dataWrapper()->lidarPointsInput() ==
+                        lio->dataWrapper()->lidarPointsEmitted() +
+                            lio->dataWrapper()->lidarPointsRetained()
+                    ? "OK"
+                    : "MISMATCH",
+                lio->dataWrapper()->lastSyncedLidarEndTime());
     std::printf("S-0 camera-epoch: lidar_points_emitted=%lld future_points_retained=%lld last_epoch=%.3f\n",
                 (long long)data_wrapper->lidarPointsEmitted(), (long long)data_wrapper->lidarPointsRetained(),
                 data_wrapper->lastEpochTime());

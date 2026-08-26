@@ -162,6 +162,8 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
     cur_out->push_back(q);
     emitted++;
   };
+  pending_out.has = false;
+  pending_out.points.clear();
   if (pending_in.has) {
     slice_origin = pending_in.origin;
     for (const auto& pt : pending_in.points) {
@@ -182,8 +184,6 @@ inline void sliceLidarAt(double t_c, std::deque<LidarData>& scans,
       }
     }
   }
-  pending_out.has = false;
-  pending_out.points.clear();
   while (!scans.empty() && scans.front().start_time <= t_c) {
     const LidarData& scan = scans.front();
     const double cut = t_c - scan.start_time;

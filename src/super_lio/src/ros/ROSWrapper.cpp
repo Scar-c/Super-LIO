@@ -298,6 +298,7 @@ void ROSWrapper::livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr& msg){
 
 void ROSWrapper::HandleLidarCustomMsg(const livox_ros_driver::CustomMsg::ConstPtr& msg){
   if(msg->point_num < 10) return;
+  lidar_points_input_ += msg->point_num;
   LidarData lidar_data;
   std::size_t ptsize = msg->point_num;
   lidar_data.pc.reset(new pcl::PointCloud<LI2Sup::PointXTZIT>());
@@ -347,6 +348,7 @@ void ROSWrapper::HandleLidarPointCloud2(const sensor_msgs::PointCloud2::ConstPtr
 
   case LID_TYPE::HESAI16:
   {
+    lidar_points_input_ += static_cast<int64_t>(msg->width) * msg->height;
     pcl::PointCloud<hesai_ros::Point> pl_orig;
     pcl::fromROSMsg(*msg, pl_orig);
     lidar_data.pc->reserve(pl_orig.size() / g_filter_rate + 1);

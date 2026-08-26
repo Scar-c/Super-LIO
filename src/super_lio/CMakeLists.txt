@@ -228,6 +228,16 @@ target_link_libraries(s1_prior_test
   glog
 )
 
+# Round 11V S0 repeated pending-tail corrective tests
+add_executable(s0_corrective_test
+  src/common/tests/test_s0_corrective.cpp
+)
+target_include_directories(s0_corrective_test PUBLIC include)
+target_link_libraries(s0_corrective_test
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # S-0 camera-epoch slice conservation tests (no ROS dependency)
 add_executable(s0_slice_test
   src/common/tests/test_s0_slice.cpp
