@@ -15,6 +15,11 @@ for v in b0 c0 a0 a1; do
   echo "========== $v =========="
   "$HERE/run_offline_variant.sh" "$CFG" "$BAG" "$OUT/$v" "$v" \
     "$CAM_TOPIC" "$CAM_CALIB" "$DUR"
-  echo "$v rc=$?"
+  rc=$?
+  echo "$v rc=$rc"
+  if [ "$rc" -ne 0 ]; then
+    echo "FAIL-FAST: variant $v failed with rc=$rc"
+    exit "$rc"
+  fi
 done
 echo "stack complete"
