@@ -102,11 +102,16 @@ Status: **STOPPED FOR OWNER**
 
 ## Round12 Prompt52 Codex takeover
 
-Status: **ACTIVE — PHASE A REPORT RECOVERY**
+Status: **CLOSED — ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED**
 
 - Executor switched from agent-ds to agent-codex at actual HEAD `4b678ff`.
-- Phase A recovery report must be committed before any new experiment.
+- Prompt52 closure: canonical inventory/ledger PASS; transaction TDD and two
+  sequential real smokes PASS; Outdoor01/Outdoor04 canonical sanity HEALTHY;
+  `M3DGR_PRIMARY_BENCHMARK=KEEP`. Corridor02 is optional/non-blocking and NTU
+  sbs parents are justified NOT_RUN until a compliant dual-parent transaction
+  adapter exists. Round12 is CLOSED; no Round13 experiment was started.
+- Phase A recovery report was committed before every new experiment.
 - Dynamic01 is not locally available and is no longer schedulable; Prompt52
   replaces it with the locally available Outdoor01/Outdoor04 controls.
-- Canonical local inventory and unified benchmark ledger precede remaining
+- Canonical local inventory and unified benchmark ledger preceded remaining
   parent reproduction.

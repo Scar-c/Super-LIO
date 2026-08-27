@@ -1,13 +1,13 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；v1 唯一 active tracker；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round12 closed；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
-Round 11 CLOSED. Round 12 ACTIVE under Prompt #52. Executor switched from
-agent-ds to agent-codex. Phase A interrupted-report recovery must commit before
-any new experiment; then canonical local inventory/ledger and remaining local
-parent reproductions proceed. Earlier Prompt #49 config provenance,
+Round 11 CLOSED. Round 12 CLOSED under Prompt #52. Executor switched from
+agent-ds to agent-codex. Phase A interrupted-report recovery committed before
+any new experiment; canonical inventory/ledger and the two Outdoor parent
+controls then closed. Earlier Prompt #49 config provenance,
 LIO semantic parity, reference-base lineage, and pristine Super-LIO evidence
 are durable. Current-upstream Super-LIO MCD night08 remained RED after N=3;
 the paper-era revision is GREEN, so remaining FAST-LIVO2 runs require the
