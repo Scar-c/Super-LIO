@@ -63,3 +63,26 @@ A generic custom adapter is NOT the default. Instead the priority is:
 ## 6. F3/F4 results under this decision
 
 (filled after runs)
+
+## 6b. F3/F4 runtime-path result (updated)
+
+Standard ROS Noetic `image_transport republish compressed in:=<base> raw out:=<raw>`
+does NOT deliver the Oxford bag's standalone sensor_msgs/CompressedImage topic
+(`/alphasense_driver_ros/cam0/debayered/image/compressed`) to the raw output
+(0 frames; the compressed-transport subscriber does not connect to a
+non-image_transport bag publisher in this environment). The earlier
+full-topic `in:=<base>/compressed` variant also failed with a warning.
+
+Therefore, per BRANCH_DECISION priority 3, a custom decoder is NOT authorized
+by default. The options for Origin:
+  (a) authorize an offline cv_bridge/OpenCV JPEG decode of the bag's
+      compressed camera into a raw sensor_msgs/Image bag (standard codec,
+      deterministic decoder, header.stamp preserved) — then play the raw bag
+      into FAST-LIVO2;
+  (b) authorize a small runtime CompressedImage->Image node using cv_bridge
+      (standard decoder);
+  (c) investigate the exact Oxford benchmark image-delivery chain (Priority 1)
+      further.
+
+F3 (Oxford) and F4 (M3DGR, same compressed-camera interface) are BLOCKED on
+this image-delivery mechanism pending Origin decision.
