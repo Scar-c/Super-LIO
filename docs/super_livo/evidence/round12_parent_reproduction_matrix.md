@@ -18,4 +18,4 @@ provenance gates close. `PENDING` is evidence status, not a zero score.
 | M3DGR | Corridor01 | FAST-LIVO2 | dataset-author adapted | `e0cf7d5` | 3.35 | NOT_RUN | 15.4077 | 7.1549 | ArUco relative translation m | STOP_GATE_RUN_PENDING |
 
 | Oxford | Quarter01 | FAST-LIVO2 | dataset-author adapted (ori-drs) | f2c9abb | 0.04 | 0.0397 GREEN (image_transport republish) | 0.0630 | 0.0629 | evo_ape --t_max_diff 0.01 | F3_GREEN |
-| M3DGR | Corridor01 | FAST-LIVO2 | dataset-author adapted (M3DGR Avia) | e0cf7d5 | 3.35 | 72.53 RED (diverged) | 15.4077 | 7.1549 | ArUco final relative translation m | F4_RED_PENDING_DIAGNOSIS |
+| M3DGR | Corridor01 | FAST-LIVO2 | dataset-author adapted (M3DGR Avia) | e0cf7d5 | 3.35 | 5.83 RED (clean rerun; prior 72.53 was a dirty-node state) | 15.4077 | 7.1549 | ArUco final relative translation m | F4_RED_PENDING_DIAGNOSIS |

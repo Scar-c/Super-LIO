@@ -18,3 +18,12 @@
 
 Trajectory (raw mat_out -> TUM attempt) + GT preserved in
 results/upstream_reproduction/fast_livo2/m3dgr/corridor01/.
+
+## Clean-restart rerun (user directive)
+
+The node state was NOT clean in the first run (the node had consumed data
+before the replay). Fully restarted (fresh master + fresh node) then played
+Corridor01 once. mat_out.txt 16094 rows, final state sane (no divergence).
+ArUco translation error = 5.83 m (reference ~3.35 m; |R-P| = 2.48 > AMBER
+1.17) -> RED. No parameter changes. RED remains pending deeper provenance
+diagnosis (extrinsic/calibration/init), per Round12 repeat+diagnosis gate.
