@@ -1,0 +1,305 @@
+schema_version: 1
+frozen_utc: 2026-08-27
+provenance_tiers:
+  - DATASET_AUTHOR_BENCHMARK
+  - METHOD_AUTHOR_PAPER
+  - METHOD_AUTHOR_CURRENT_OPEN_SOURCE
+  - DATASET_AUTHOR_ADAPTED_METHOD
+  - OUR_REPRODUCTION
+comparability_grades:
+  A: exact sequence, evaluator/metric, sensor convention, method and config revision
+  B: authoritative same-sequence score with incomplete or differing evaluator/config/revision
+  C: related dataset or sequence; context only
+  UNRESOLVED: mapping or metric semantics not proven
+  NOT_FOUND: authoritative sources searched and no result located
+
+evaluators:
+  ntu_dataset_author:
+    status: FOUND_AND_WRAPPED
+    tier: DATASET_AUTHOR_BENCHMARK
+    repository: https://github.com/ntu-aris/viral_eval
+    revision: 194dd4595b1fb5e8ae2a5a0c01255f816ab4082f
+    source_files_sha256:
+      evaluate_one.m: 20756b58d56dcaa66d9add0d41662034c01a329ca0fb4cda1215e5c853faec11
+      traj_align.m: f0ab16497ab35e709bf7c2c96a44aa50eec0f1bd78b595f7cd5ddd9fbb6bb319
+      combteeth.m: 817bb3070c5d778e84e54e31a5d61094ce5c444f13e70809291a89541cba9e87
+      vecitp.m: 730ccf7a973fba6dfaec2729d97c5861e6dc1a493df9a890c623ab21b37323d5
+      quatconv.m: 5a28231a53b18ded9d4361e0d00738e5dbcb1cb1d0bf7ce8fd0a049dbb1294a8
+      trans_B2prism.csv: e4f50bcbbc3e670d268aab26ad80de77013819413833bb9642bea46db90232b9
+    wrapper: scripts/super_livo/evaluation/eval_ntu_viral_official.py
+    estimate_frame: IMU/body W_T_B
+    gt_frame: Leica prism position in Leica world
+    lever_arm_B_to_prism_m: [-0.293656, -0.012288, -0.273095]
+    association: linear GT interpolation at estimate timestamps; bracket interval strictly < 0.1 s
+    alignment: rigid SE3 Umeyama; no scale
+    metric: translational ATE RMSE in metres
+  ntu_fast_livo2:
+    status: FOUND_NOT_CANONICAL
+    tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE
+    repository: https://github.com/hku-mars/FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    path: Log/result/ntu_viral/evaluate_viral.py
+    sha256: d1c8e1dc287a6595d1a62966f74fbe1bf708a63a15c9786301b5e449a05398f1
+    estimate_frame: IMU/body W_T_B
+    gt_frame: Leica prism
+    lever_arm: same dataset value; quaternion rotation applied
+    association: evo TUM nearest timestamp; default max difference
+    alignment: evo --align, rigid SE3; no scale
+    metric: evo translation APE RMSE in metres
+  ntu_recovered_old:
+    status: NOT_FOUND
+    search_scope: repository, git history, committed evidence/results, durable project directories, /tmp
+    note: historical Round11AA trajectory MD5/row counts survive but evaluator and trajectory files do not
+  mcd:
+    status: NO_DATASET_AUTHORED_ATE_EVALUATOR_FOUND
+    search_date: 2026-08-27
+    official_sources_checked:
+      - https://mcdviral.github.io/
+      - https://github.com/mcdviral/CEVA
+      - MCD paper and supplementary text
+      - dataset-author repositories and linked evaluation material
+    official_gt: pose_inW.csv, body/VN100 W_T_B, approximately 0.1 s samples
+    official_query_interface:
+      repository: https://github.com/mcdviral/CEVA
+      revision: 1e08fba0c1a7b7df85406483c6d202f96e11176a
+      role: continuous-time spline query; not an ATE evaluator
+    canonical_ours:
+      tier: OUR_REPRODUCTION
+      gt: official pose_inW.csv converted by scripts/super_livo/evaluation/prepare_mcd_gt.py
+      wrapper: scripts/super_livo/evaluation/eval_tum_translation.py
+      association: one-to-one nearest timestamp, max absolute difference 0.05 s
+      interpolation: none; discrete GT
+      alignment: rigid SE3 Umeyama; no scale
+      metric: translational APE RMSE in metres
+  oxford_spires:
+    status: FOUND
+    tier: DATASET_AUTHOR_BENCHMARK
+    repository: https://github.com/ori-drs/oxford_spires_dataset
+    revision: b456e1e2f263a79c19b6ed4052390eba609011d4
+    path: scripts/localisation_benchmark/main.py
+    sha256: 3a5fa4ad3bc140bff18a61bb862173a9bb983df00541c2d747a7a418326ea0dc
+    command: evo_ape tum GT EST --align --t_max_diff 0.01
+    association: evo nearest timestamp; max absolute difference 0.01 s
+    alignment: rigid SE3 Umeyama; no scale
+    metric: translation APE RMSE in metres
+  m3dgr_aruco:
+    status: FOUND_AND_WRAPPED
+    tier: DATASET_AUTHOR_BENCHMARK
+    repository: https://github.com/sjtuyinjie/M3DGR
+    revision: e0cf7d59c9a5a3df515624034698d976abc26549
+    path: ArUco_evaluate.py
+    git_blob: 4a1ec056bcbb1189cdce2a91425524e2b8a1605b
+    sha256: ab01db4b27a98027b804dc5f691dcbac22ab0cf8f46cb26502339c1a995b86ab
+    wrapper: scripts/super_livo/evaluation/eval_m3dgr_aruco.py
+    estimate_pose: T_W_B in strict eight-column TUM
+    reference_transform: T_B0_Bend, mapping end-body coordinates into initial-body coordinates
+    estimate_relative_transform: inverse(T_W_B0) @ T_W_Bend
+    duplicate_final_pose: earliest pose in the trailing np.allclose-equivalent run
+    primary_metric: first-to-last relative translation error in metres
+    rotation_diagnostic: matrix Frobenius norm; dimensionless
+    upstream_combined_rmse: NON_PRIMARY_MIXED_UNITS
+    tracking_rate: 100 * (timestamp_at_last_nonduplicate - first_timestamp) / reference_duration; upper capped at 100
+
+method_configs:
+  fast_livo2_ntu:
+    tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE
+    repository: https://github.com/hku-mars/FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    config_path: config/NTU_VIRAL.yaml
+    config_sha256: 1c8f94f130e599b928c3f02c3f3d3b2009ae01df76aec32f6ac96b6a987311ef3
+    camera_path: config/camera_NTU_VIRAL.yaml
+    camera_sha256: 40f2b08fddc9960130935b9afd73f840cea1c92acd4f417ee4a3d4a6b2c5dd86
+    lidar_imu:
+      topics: {lidar: /os1_cloud_node1/points, imu: /imu/imu}
+      lidar_type: Ouster
+      scan_line: 16
+      timestamp_unit: driver/native
+      blind_m: 1.0
+      point_filter_num: 3
+      filter_size_surf_m: 0.1
+      T_imu_lidar: {t_m: [-0.05, 0.0, 0.055], R_row_major: [1, 0, 0, 0, 1, 0, 0, 0, 1]}
+      lidar_time_offset_s: -0.1
+      imu_time_offset_s: 0.0
+      imu_noise: {acc_cov: 0.5, gyr_cov: 0.3, b_acc_cov: 0.0001, b_gyr_cov: 0.0001}
+      lio: {max_iterations: 5, depth_error: 0.02, beam_error: 0.01, min_eigen: 0.0025, voxel_m: 0.5, max_layer: 2, max_points: 50, layer_init: [5, 5, 5, 5, 5]}
+    visual:
+      topic: /left/image_raw
+      camera: {model: Pinhole, size: [752, 480], fx: 425.0258563372763, fy: 426.7976260903337, cx: 386.015186655088, cy: 241.913033674344}
+      T_camera_lidar: {t_m: [0.122993, 0.0398643, -0.0577101], R_row_major: [0.0218308, 0.99976, -0.00201407, -0.0131205, 0.00230088, 0.999911, 0.999676, -0.0218025, 0.0131676]}
+      image_time_offset_s: 0.0
+      max_iterations: 5
+      patch_size: 8
+      pyramid_levels: 3
+      image_point_cov: 100
+      outlier_threshold: 1000
+      exposure_estimation: true
+      inverse_exposure_cov: 0.1
+      normal_en: true
+      raycast_en: false
+      inverse_composition_en: false
+      reference_update: production source enabled
+      affine_warp: plane-normal homography when normal_en
+  fast_livo2_oxford:
+    tier: DATASET_AUTHOR_ADAPTED_METHOD
+    repository: https://github.com/ori-drs/FAST-LIVO2
+    branch: config-used-OSD
+    revision: f2c9abb72f82359bcb9190e31b8faa6b6b7b9a64
+    config_path: config/oxford_spires.yaml
+    config_sha256: 195a512df13734c69535c25ebd1bc3e033112c434796b8c2c4b5b4050c589db4
+    camera_path: config/camera_fisheye.yaml
+    camera_sha256: 45bac79e7ebe80af15276703d16522307022eb725da24dfdf508c7f043f33b7f
+    lidar_imu:
+      topics: {lidar: /hesai/pandar, imu: /alphasense_driver_ros/imu}
+      lidar_type: Hesai
+      scan_line: 64
+      timestamp_unit: nanosecond
+      blind_m: 1.0
+      point_filter_num: 1
+      T_imu_lidar: {t_m: [-0.00298737408, -0.0162174455, 0.0837937008], R_row_major: [-0.0179010935, -0.9998395, 0.000724771588, 0.999839311, -0.0179003915, 0.000963774848, -0.000950646466, 0.000741907749, 0.999999273]}
+      imu_time_offset_s: 0.0
+      imu_noise: {acc_cov: 0.1, gyr_cov: 0.1, b_acc_cov: 0.0001, b_gyr_cov: 0.0001}
+    visual:
+      topic: /alphasense_driver_ros/cam0/color/image
+      camera: {model: EquidistantCamera, size: [1440, 1080], fx: 699.3743, fy: 698.0469, cx: 712.873, cy: 559.5695, distortion: [-0.04128087844961968, 0.0006219036160906912, -0.0009998671538287006, -0.00008250639409500494]}
+      T_camera_lidar: {t_m: [0.00035060884033447846, -0.079574053851818, -0.053826061545697405], R_row_major: [0.009769443369467168, 0.9999460020163569, 0.0035427429705001123, 0.007671197638838445, 0.003467861351881818, -0.9999645627043141, -0.9999228523756403, 0.009796274248324188, -0.007636904334543504]}
+      image_time_offset_s: 0.0
+      max_iterations: 5
+      patch_size: 8
+      pyramid_levels: 4
+      image_point_cov: 100
+      outlier_threshold: 78
+      exposure_estimation: true
+      inverse_exposure_cov: 0.1
+      normal_en: true
+      raycast_en: false
+      inverse_composition_en: false
+  fast_livo2_m3dgr:
+    tier: DATASET_AUTHOR_ADAPTED_METHOD
+    repository: https://github.com/sjtuyinjie/M3DGR
+    revision: e0cf7d59c9a5a3df515624034698d976abc26549
+    config_path: baseline_systems/Fast_LIVO2_M3DGR/src/fast_livo2/config/m3dgr_avia.yaml
+    config_sha256: 403e4ea2dc393e9c81512840c0056075c4fef590cf6ac4e9df676074226eabe9
+    camera_path: baseline_systems/Fast_LIVO2_M3DGR/src/fast_livo2/config/camera_pinhole_m3dgr.yaml
+    camera_sha256: a6e08f2e0bedd55378d9b91ede3f80b395379b421f5db9cdbbf3b701a1d1451d
+    lidar_imu:
+      topics: {lidar: /livox/avia/lidar, imu: /livox/avia/imu}
+      lidar_type: Livox Avia
+      scan_line: 6
+      blind_m: 0.8
+      point_filter_num: 1
+      filter_size_surf_m: 0.1
+      T_imu_lidar: {t_m: [0.04165, 0.02326, -0.0284], R_row_major: [1, 0, 0, 0, 1, 0, 0, 0, 1]}
+      imu_time_offset_s: 0.0
+      imu_noise: {acc_cov: 0.5, gyr_cov: 0.3, b_acc_cov: 0.0001, b_gyr_cov: 0.0001}
+      lio: {max_iterations: 5, depth_error: 0.02, beam_error: 0.05, min_eigen: 0.0025, voxel_m: 0.5, max_layer: 2, max_points: 50, layer_init: [5, 5, 5, 5, 5]}
+      map: {sliding: false, half_size_m: 100, sliding_threshold: 8}
+    visual:
+      topic: /camera/color/image_raw
+      camera: {model: Pinhole, native_size: [640, 480], scale: 0.5, fx: 607.79772949218, fy: 607.83526613281, cx: 328.79772949218, cy: 245.53321838378, distortion: [0, 0, 0, 0]}
+      T_camera_lidar: {t_m: [0.0178448, 0.0894589, 0.161556], R_row_major: [0.0210767, -0.999397, -0.0275965, -0.0038717, 0.0275209, -0.999614, 0.99977, 0.0211754, -0.0032894]}
+      image_time_offset_s: 0.1
+      timestamp_semantics: image_header_stamp + image_time_offset
+      max_iterations: 5
+      patch_size: 8
+      pyramid_levels: 4
+      image_point_cov: 100
+      outlier_threshold: 1000
+      exposure_estimation: true
+      inverse_exposure_cov: 0.1
+      normal_en: true
+      raycast_en: false
+      inverse_composition_en: false
+  super_lio:
+    tier: METHOD_AUTHOR_PAPER
+    paper: arXiv:2509.05723
+    paper_pdf_sha256: 563aaf0e79fec6870845674b164083cfac458b14880d282dfc2a05430f0546b6
+    role: LiDAR-inertial reference only; visual config NOT_APPLICABLE
+    global_lidar_imu: {max_iterations: 4, random_downsampling_rate: 3, voxel_filter_m: 0.5, map_voxel_m: 0.5, hknn_rmax_m: 0.875, hknn_subvoxel_neighborhood: 7x7x7}
+    dataset_specific_extrinsics: stated by paper but exact dedicated public config not published
+    dedicated_dataset_config: NOT_FOUND
+
+records:
+  - dataset: NTU_VIRAL
+    sequence: eee_01
+    sensor_setup: Ouster OS1 #1 + VN100 IMU + left camera; GT Leica prism
+    gt_source: bag /leica/pose/relative; dataset calibration trans_B2prism.csv
+    gt_frame_convention: Leica prism position; estimates shifted by R_WB*t_B_prism
+    evaluator: ntu_dataset_author
+    our_B0: {value: NOT_REEVALUATED, reason: TRAJECTORY_ARTIFACT_MISSING, historical_md5: 9af9b9d9b7fdeda4ffcd031b9f0cb544, rows: 3981}
+    our_D_S3: NOT_APPLICABLE
+    our_D0: {value: NOT_REEVALUATED, reason: TRAJECTORY_ARTIFACT_MISSING, historical_md5: cc92834dcb89b69b48fd4e762e25e942, rows: 3981}
+    fast_livo2:
+      - {score_m: 0.068, tier: METHOD_AUTHOR_PAPER, source: FAST-LIVO2 Table II, config: paper revision incomplete, grade: B}
+      - {score_m: 0.0271, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
+    super_lio: {score_m: 0.119, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I eee1/Super-LIO column, config: super_lio, grade: B}
+    caveat: historical local trajectories are not intact; no odometry rerun authorized solely for evaluation
+  - dataset: NTU_VIRAL
+    sequence: nya_01
+    sensor_setup: Ouster OS1 #1 + VN100 IMU + left camera; GT Leica prism
+    gt_source: bag /leica/pose/relative; dataset calibration trans_B2prism.csv
+    gt_frame_convention: Leica prism position; estimates shifted by R_WB*t_B_prism
+    evaluator: ntu_dataset_author
+    our_B0: {value: NOT_REEVALUATED, reason: TRAJECTORY_ARTIFACT_MISSING, historical_md5: d547a22acc911a7c712cdd35c4a9598a, rows: 3943}
+    our_D0: {value: NOT_REEVALUATED, reason: TRAJECTORY_ARTIFACT_MISSING, historical_md5: 644e78f75faaadc1aa56529ecbc5ef65, rows: 3943}
+    fast_livo2:
+      - {score_m: 0.073, tier: METHOD_AUTHOR_PAPER, source: FAST-LIVO2 Table II, config: paper revision incomplete, grade: B}
+      - {score_m: 0.0356, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
+    super_lio: {score_m: 0.069, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I nya1/Super-LIO column, config: super_lio, grade: B}
+    caveat: historical local trajectories are not intact; no odometry rerun authorized solely for evaluation
+  - dataset: MCD
+    sequence: ntu_day_10
+    sensor_setup: Livox MID70 + VN100 + D435i
+    gt_source: official pose_inW.csv
+    gt_frame_convention: W_T_B, B=VN100
+    evaluator: mcd
+    our_B0_m: 1.2181
+    our_D_S3_m: 0.9044
+    our_D_over_B0: 0.742
+    fast_livo2: {status: NOT_FOUND, grade: NOT_FOUND}
+    super_lio: {status: UNRESOLVED, reason: MCD paper aliases mcd0/mcd2/mcd3/mcd4 are not authoritatively mapped, grade: UNRESOLVED}
+  - dataset: MCD
+    sequence: ntu_night_08
+    sensor_setup: Livox MID70 + VN100 + D435i infrared
+    gt_source: official pose_inW.csv
+    gt_frame_convention: W_T_B, B=VN100
+    evaluator: mcd
+    our_B0_m: 1.7416
+    our_D_S3_m: 1.9964
+    our_D_over_B0: 1.146
+    owner_status: OWNER_ACCEPTED_AMBER
+    rerun: false
+    scientific_caveat: retained as a future low-light visual stress sequence; state-off result is not a causal darkness claim
+    fast_livo2: {status: NOT_FOUND, grade: NOT_FOUND}
+    super_lio: {status: UNRESOLVED, reason: MCD alias mapping unresolved, grade: UNRESOLVED}
+  - dataset: Oxford_Spires
+    sequence: Radcliffe_Observatory_Quarter01
+    sensor_setup: Hesai Pandar + Alphasense IMU/camera
+    gt_source: dataset localisation benchmark ground truth
+    gt_frame_convention: body trajectory in dataset reference world
+    evaluator: oxford_spires
+    our_B0: {historical_m: 0.0630, official_reevaluation: NOT_PERFORMED_TRAJECTORY_ARTIFACT_MISSING}
+    our_D0: {historical_m: 0.0629, official_reevaluation: NOT_PERFORMED_TRAJECTORY_ARTIFACT_MISSING}
+    our_D_over_B0: 0.998
+    fast_livo2: {score_m: 0.04, tier: DATASET_AUTHOR_BENCHMARK, source: Oxford Spires Table 3, config: fast_livo2_oxford, grade: A}
+    super_lio: {status: NOT_FOUND, grade: NOT_FOUND}
+    caveat: local historical evaluation used max_diff 0.05 s rather than official 0.01 s; values are Grade B until exact re-evaluation
+  - dataset: M3DGR
+    sequence: Corridor01
+    sensor_setup: Livox Avia + built-in IMU + D435i RGB
+    gt_source: GTCorridor01.txt
+    gt_file_sha256: 9620d646a054a9bff2aafba3ff837cfd012edd6ed25cfc3aaf9e3a6a30601ae2
+    gt_frame_convention: T_B0_Bend, end body into initial body, metres and 3x3 rotation matrix
+    evaluator: m3dgr_aruco
+    our_B0: PENDING_AUTHORIZED_RUN
+    our_D_S3: PENDING_AUTHORIZED_RUN
+    fast_livo2: {score_m: 3.35, metric: first-to-last relative translation error despite over-general Table VII heading, tier: DATASET_AUTHOR_BENCHMARK, config: fast_livo2_m3dgr, grade: A}
+    super_lio: {status: NOT_FOUND, grade: NOT_FOUND}
+    caveat: paper Table VII says ATE RMSE, but ArUco sequence methodology and official default translation sort establish translation-error comparability
+
+authoritative_not_found:
+  FAST_LIVO2_MCD: NOT_FOUND
+  SUPER_LIO_OXFORD: NOT_FOUND
+  SUPER_LIO_M3DGR: NOT_FOUND
+  SUPER_LIO_DEDICATED_DATASET_CONFIGS: NOT_FOUND
+unresolved:
+  MCD_ALIAS_MAPPING: UNRESOLVED
