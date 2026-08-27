@@ -15,7 +15,9 @@ provenance gates close. `PENDING` is evidence status, not a zero score.
 | Oxford | Quarter01 | Super-LIO | NOT_PUBLISHED | `60b57aa` | NOT_FOUND | NOT_RUN | 0.0630 | 0.0629 | evo SE(3), 0.01 s official | NO_AUTHORITATIVE_CONFIG |
 | Oxford | Quarter01 | FAST-LIVO2 | dataset-author adapted | `f2c9abb` | 0.04 | NOT_RUN | 0.0630 | 0.0629 | evo SE(3), 0.01 s | STOP_GATE_RUN_PENDING |
 | M3DGR | Corridor01 | Super-LIO | NOT_PUBLISHED | `60b57aa` | NOT_FOUND | NOT_RUN | 15.4077 | 7.1549 | ArUco relative translation m | NO_AUTHORITATIVE_CONFIG |
-| M3DGR | Corridor01 | FAST-LIVO2 | dataset-author adapted | `e0cf7d5` | 3.35 | NOT_RUN | 15.4077 | 7.1549 | ArUco relative translation m | STOP_GATE_RUN_PENDING |
+| M3DGR | Corridor01 legacy F4 | FAST-LIVO2 | wrong legacy fork; snapshot missing | diagnostic only | 3.35 | 5.83 diagnostic | 15.4077 | 7.1549 | ArUco final translation m | LEGACY_F4_DIAGNOSTIC |
+| M3DGR | Corridor01 canonical | FAST-LIVO2 | dataset-author adapted Avia, runtime parity PASS | `e0cf7d5` | 3.35 | 3.03 GREEN | 15.4077 | 7.1549 | ArUco final translation m | REPRODUCED_GREEN |
+| M3DGR | Outdoor01 | FAST-LIVO2 | same Avia config, runtime parity PASS | `e0cf7d5` | NOT_FOUND | 0.240323 recovered diagnostic | N/A | N/A | evo SE(3) translation APE RMSE | PIPELINE_SANITY_HEALTHY_EVALUATOR_RECOVERED |
+| M3DGR | Dynamic01 | FAST-LIVO2 | same Avia config required | `e0cf7d5` | 0.44 | NOT_RUN: bag/GT unavailable locally | N/A | N/A | evo SE(3) translation APE RMSE | DATA_REQUIRED |
 
 | Oxford | Quarter01 | FAST-LIVO2 | dataset-author adapted (ori-drs) | f2c9abb | 0.04 | 0.0397 GREEN (image_transport republish) | 0.0630 | 0.0629 | evo_ape --t_max_diff 0.01 | F3_GREEN |
-| M3DGR | Corridor01 | FAST-LIVO2 | dataset-author adapted (M3DGR Avia) | e0cf7d5 | 3.35 | 5.83 RED (clean rerun; prior 72.53 was a dirty-node state) | 15.4077 | 7.1549 | ArUco final relative translation m | F4_RED_PENDING_DIAGNOSIS |
