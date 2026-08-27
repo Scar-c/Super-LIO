@@ -4,14 +4,16 @@
 
 ## Current frontier
 
-Round11AB / Prompt #48 is closed. The D-family remains the state-off benchmark
-backbone. Effective configuration evidence and the official evaluator/baseline
-registry are committed. M3DGR Corridor01 closes with dataset-author ArUco
-translation error B0 `15.407685800 m`, D-S3 `7.154889968 m` (ratio `0.464371`),
-tracking 100%, and visual apply OFF. The User-requested evaluator recheck is
-resolved: M2DGR and M3DGR RTK/Mocap trajectory GT use evo; Corridor01 is the
-documented ArUco/no-trajectory-GT branch and correctly uses the Python script.
-Future V0..V6 visual work remains planning-only and requires a new Owner round.
+Round 11 CLOSED. Round 12 ACTIVE (Prompt #49). Priority: dual-upstream config
+provenance + LIO semantic parity + upstream reproduction. The D-family remains
+the state-off benchmark backbone. Effective configuration evidence and the
+official evaluator/baseline registry are committed. M3DGR Corridor01 closes
+with dataset-author ArUco translation error B0 `15.407685800 m`, D-S3
+`7.154889968 m` (ratio `0.464371`), tracking 100%, and visual apply OFF. The
+User-requested evaluator recheck is resolved: M2DGR and M3DGR RTK/Mocap
+trajectory GT use evo; Corridor01 is the documented ArUco/no-trajectory-GT
+branch and correctly uses the Python script. Visual functional optimization is
+NOT yet authorized.
 
 ## Completed prerequisites
 

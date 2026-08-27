@@ -72,3 +72,18 @@ Status: **CLOSED — ROUND11AB_CLOSED_M3_COMPLETE**
   scan is explicitly unprocessable because final IMU precedes scan end by
   `0.0005903 s`; it was not patched around.
 - Visual parity audit completed; V0..V6 are planning only.
+
+## Round12 continuation
+
+Owner prompt #49:
+`prompts/04_v1_implementation/49_round12_dual_upstream_config_reproduction.md`
+
+Status: **ACTIVE**
+
+- Round 11 is closed; this is Round 12, not another Round11 suffix.
+- Recover authoritative dataset configuration from both Super-LIO and
+  FAST-LIVO2, including hard-coded accuracy-critical production constants.
+- Establish LIO semantic parity before selecting any future Super-LIVO value.
+- Reproduce pristine parent implementations only after their config and input
+  provenance closes; no paper-number chasing or parameter sweeps.
+- Visual functional optimization remains unauthorized.
