@@ -65,3 +65,14 @@ notes:
   - base_ws is outside the Super-LIVO git repo (not committed).
   - FAST-LIVO2 build compatibility fix (Sophus discovery via CMAKE_PREFIX_PATH)
     documented in docs/super_livo/evidence/round12_pristine_fast_livo2_build.md.
+
+livox_ros_driver:
+  path: /home/lc/super_livo/base_ws/src/livox_ros_driver
+  repository: Livox-SDK/livox_ros_driver
+  commit: 3d240d5666
+  role: catkin dependency (Oxford/M3DGR FAST-LIVO2 forks)
+
+workspaces:
+  ws_fast_livo2: FAST-LIVO2 0d2c034 + rpg_vikit (build PASS)
+  ws_oxford: ori-drs/FAST-LIVO2 f2c9abb + rpg_vikit + livox_ros_driver (build PASS)
+  ws_super_lio: Super-LIO 60b57aa (build PASS)

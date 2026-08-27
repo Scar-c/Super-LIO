@@ -40,3 +40,14 @@ were git-relocated (revision identity preserved and verified).
   (fastlivo_mapping). Sophus discovery via base_ws sophus_build (compatibility-
   only; pinned a621ff2; no estimator source patch).
 - Super-LIO 60b57aa from base_ws: catkin_make PASS (super_lio_node, lio).
+
+## Oxford / M3DGR FAST-LIVO2 forks (base_ws)
+
+- ws_oxford: ori-drs/FAST-LIVO2 f2c9abb + rpg_vikit + livox_ros_driver
+  (3d240d56) build PASS (fastlivo_mapping).
+- Oxford config oxford_spires.yaml: lid /hesai/pandar, imu
+  /alphasense_driver_ros/imu, img /alphasense_driver_ros/cam0/color/image
+  (raw) — the Oxford bag's camera is /alphasense_driver_ros/cam0/debayered/
+  image/compressed (CompressedImage); the fork img_cbk expects raw
+  sensor_msgs::Image -> F3 requires a compressed->raw camera adapter
+  (data-format adaptation, not semantic). PENDING.
