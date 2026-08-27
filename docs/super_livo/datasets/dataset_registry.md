@@ -97,19 +97,19 @@ role:              core LiDAR-degeneration / future visual-rescue target
 tier:              B (3)
 bag path:          <canonical> /bag/M3DGR/Corridor01.bag
 bag size:          6.9 GB
-bag hash:          e7c76fd9f2afdabb9a70304661e6d7a0
+bag SHA256:        c6200a1860ed7c8e66a6bbdb464771bd7de7b154f79812d79cc226801b8e1566
 
 LiDAR / IMU / Camera topics: /livox/avia/lidar（livox_ros_driver/CustomMsg，4038 msgs / 403s ≈ 10 Hz）+ /livox/avia/imu（sensor_msgs/Imu，82,126 msgs ≈ 200 Hz）+ /camera/color/image_raw/compressed（sensor_msgs/CompressedImage，12,108 msgs ≈ 30 Hz；D435i RGB）
                     其余 topics（audit 记录，非运行组合）：/camera/aligned_depth_to_color/image_raw/compressedDepth、/camera/imu（D435i IMU）、/cv_camera/image_raw/compressed、/livox/mid360/{lidar,imu}（livox_ros_driver2，另一台 LiDAR）、/odom（nav_msgs/Odometry）
 calibration source: OFFICIAL_CALIBRATION_AVAILABLE（github.com/sjtuyinjie/M3DGR calibration.md，2026-08-24 获取；详见 calibration_time_sync.md §3）
-temporal sync:     software synchronization（no external trigger，官方声明）；offset 数值待确认（audit 完成）
+temporal sync:     software synchronization；同仓库 Avia+D435i FAST-LIVO2 adapter 固定 image offset +0.1 s，且与本项目同为 header+offset 语义
 
 reference / GT:    GTCorridor01.txt（本地）
 ground_truth_type: FINAL_RELATIVE_POSE（3×3 旋转矩阵 + 3×1 平移 + bag_time: 383s）
-transform direction: 待 Frame Convention Gate（§23；不得靠"误差小"猜方向）
-reference file:    GTCorridor01.txt（hash 待填）
+transform direction: T_B0_Bend = inverse(T_W_B0) @ T_W_Bend（官方 evaluator + synthetic test 证明）
+reference file:    GTCorridor01.txt（SHA256 9620d646a054a9bff2aafba3ff837cfd012edd6ed25cfc3aaf9e3a6a30601ae2）
 
-supported backend: 待 offline adapter 扩展（livox CustomMsg + CompressedImage camera）
+supported backend: offline（livox CustomMsg + CompressedImage camera）
 online tested:     NO
 offline tested:    NO（G-1V 未跑：adapter 未配置——MISSING EVIDENCE，记录于 g1v evidence §9）
 current status:    AUDITED（Round 10 Phase D）/ 待 offline 配置

@@ -5,7 +5,7 @@ Scope: 各 dataset family 的标定与时间同步事实
 Source of Truth: dataset_registry.md；DOCUMENT_CONVENTIONS.md
 Related commits: Round 7（hygiene commit）
 Datasets: eee_01 / nya_01 / Corridor01 / Corridor02 / SFS
-Last updated: 2026-08-24
+Last updated: 2026-08-27 (Round11AB official-source pin)
 
 ## 1. Transform 约定（全局统一）
 
@@ -43,9 +43,9 @@ GT prism:           leica_prism.yaml → T_Body_Prism（t=[-0.293656, -0.012288,
 
 ## 3. M3DGR（Corridor01 / Corridor02）—— OFFICIAL_CALIBRATION_AVAILABLE
 
-官方 source：https://github.com/sjtuyinjie/M3DGR/blob/main/calibration.md
-retrieval date：2026-08-24（raw.githubusercontent 获取）
-source hash：随官方仓库变动，无法固定（记录 retrieval date + URL）
+官方 source：https://github.com/sjtuyinjie/M3DGR/blob/e0cf7d59c9a5a3df515624034698d976abc26549/calibration.md
+revision：`e0cf7d59c9a5a3df515624034698d976abc26549`
+SHA256：`39720b5c71a65b4c879769bd793d9c2f299deb61dbe4c0d182807773d601c7a0`
 
 ### 本项目固定 sensor combination（第一版）
 
@@ -114,8 +114,16 @@ no external trigger / software synchronization（官方 README 声明）
 ```
 
 - **D435i rolling-shutter note**：RGB 为滚动快门，正式视觉阶段需考虑（记录在案，v1 视觉 TB 处理）。
-- offset 语义：官方无显式 offset 数值 → 记录 raw timestamp association，标 TEMPORAL CALIBRATION UNCERTAIN（除非后续确认）。
-- GT（FINAL_RELATIVE_POSE）的 frame 与 transform direction 仍待 Frame Convention Gate（evaluation_protocol §6）。
+- offset 语义：同一 M3DGR 仓库固定 revision 内的 Avia+D435i
+  FAST-LIVO2 adapter（`baseline_systems/Fast_LIVO2_M3DGR/.../m3dgr_avia.yaml`，
+  SHA256 `403e4ea2dc393e9c81512840c0056075c4fef590cf6ac4e9df676074226eabe9`）
+  明确使用 `img_time_offset: +0.1`。adapter 的 `LIVMapper.cpp`（SHA256
+  `a180e5c39d73d7213847b50463d5d6342be090667d153d644160a57ef3ba4dac`）
+  与本项目 `ROSWrapper.cpp` 均执行 `image_header_stamp + offset`，故同传感器
+  setup、同消息 header 语义、同正号。Round11AB Corridor01 D-S3 固定应用
+  `+0.1 s`，不做 offset sweep。
+- GT：官方 `ArUco_evaluate.py` 已证明 `GTCorridor01.txt` 为
+  `T_B0_Bend = inverse(T_W_B0) @ T_W_Bend`；详见 `evaluation_protocol.md`。
 
 ## 4. SFS（ENWIDE Flat_Surfaces_Smooth）
 
@@ -143,7 +151,7 @@ offset 来源：官方声明 / 实测校准 / unknown
 |---|---|---|---|
 | eee_01 | 0（默认） | official timestamps | NO（TB-1） |
 | nya_01 | 0（默认） | official timestamps | NO（TB-1） |
-| M3DGR | unknown | — | — |
+| M3DGR Avia+D435i | +0.1 s | dataset-author adapted FAST-LIVO2 at `e0cf7d5` | YES（Round11AB D-S3）；B0 camera OFF |
 | SFS | unknown | 官方声明 time-synced（待核对） | — |
 
 ## 6. 维护

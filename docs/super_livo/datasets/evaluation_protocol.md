@@ -5,7 +5,7 @@ Scope: Super-LIVO 正式评测语义（含 M3DGR 特殊规则）
 Source of Truth: architecture_owner_decisions.md §19；dataset_registry.md
 Related commits: Round 7（hygiene commit）
 Datasets: eee_01 / nya_01 / Corridor01 / Corridor02 / SFS
-Last updated: 2026-08-24
+Last updated: 2026-08-27 (Round11AB official evaluator audit)
 
 ## 1. Ground-truth 类型（禁止默认 evo APE）
 
@@ -35,7 +35,7 @@ T_pred,rel = T_pred,0⁻¹ · T_pred,end
 
 `T_pred,0` / `T_pred,end` = first / last valid estimator pose（见 §6 时间规则）。
 
-### 5. 误差定义
+### 5. 官方误差定义
 
 terminal translation error：
 
@@ -43,14 +43,16 @@ terminal translation error：
 e_t = \|t_p - t_r\|_2 \quad [\text{m}]
 \]
 
-terminal rotation error：
+official rotation diagnostic（不是角度）：
 
 \[
-R_e = R_r^\top R_p,\qquad
-e_R = \arccos\!\left(\mathrm{clamp}\!\left(\tfrac{\mathrm{tr}(R_e)-1}{2}, -1, 1\right)\right)\quad [\text{degree}]
+e_R = \|R_r-R_p\|_F \quad [\text{dimensionless}]
 \]
 
-其中 `(R_p, t_p) = T_pred,rel`、`(R_r, t_r) = T_ref,rel`。
+其中 `(R_p, t_p) = T_pred,rel`、`(R_r, t_r) = T_ref,rel`。官方脚本另输出
+`sqrt((e_R^2+e_t^2)/2)` 并称为 RMSE，但其混合无量纲量与米，冻结为
+`NON_PRIMARY_MIXED_UNITS`，不可作为本项目主指标。主指标名称固定为
+`M3DGR ArUco first-to-last relative translation error (m)`。
 
 ### 6. Frame Convention Gate（硬 Gate）
 
@@ -60,7 +62,10 @@ e_R = \arccos\!\left(\mathrm{clamp}\!\left(\tfrac{\mathrm{tr}(R_e)-1}{2}, -1, 1\
 2. Body frame 是 LiDAR / IMU / vehicle 哪个；
 3. 记录原始矩阵与转换公式（到 estimator frame）。
 
-不得靠"结果看起来小"选方向。依据：本地 GTCorridor*.txt 本身 + 官方 M3DGR 说明（如 README/metadata）。若无法确定：
+Round11AB 已用官方 `ArUco_evaluate.py`（M3DGR revision `e0cf7d5`，SHA256
+`ab01db4b...86ab`）及非交换 synthetic transform test 证明 Corridor01 reference
+为 `T_B0_Bend`：把终点 body 坐标变换到起点 body。平移单位为米，旋转为
+3x3 矩阵。禁止靠"结果看起来小"选方向。
 
 ```text
 M3DGR QUANTITATIVE EVALUATION BLOCKED
@@ -70,10 +75,13 @@ M3DGR QUANTITATIVE EVALUATION BLOCKED
 
 ### 7. 起终点时间规则
 
-- 记录 first / last valid estimator pose timestamp。
+- 记录 first valid pose；last 按官方规则从尾部倒序跳过 `np.allclose` 相同
+  的重复终止位姿，并选重复尾段中最早一帧。
 - reference 对应 bag 全序列起点/终点 → 使用 first/last valid estimator output。
 - 禁止任意裁剪、使用不同 duration、挑 endpoint。
 - 人为裁剪 bag 时：`FINAL_RELATIVE_POSE reference is no longer directly applicable`（除非有对应区间 reference）。
+- tracking rate 固定为
+  `100*(t_last_nonduplicate-t_first)/reference_duration`，只做 100% 上界截断。
 
 ## 8. SFS 评测
 
