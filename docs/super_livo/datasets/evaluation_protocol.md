@@ -24,6 +24,17 @@ NONE / UNKNOWN       → 只允许 qualitative/sanity（finite、守恒、parity
 
 ## 3. M3DGR FINAL_RELATIVE_POSE 规则（冻结）
 
+官方 evaluator 必须按 GT 类型分流：
+
+```text
+M2DGR full trajectory GT        -> evo（LiDAR: evo_ape tum GT EST -vap）
+M3DGR RTK/Mocap trajectory GT  -> evo_ape tum GT EST -ap
+M3DGR ArUco final transform     -> ArUco_evaluate.py
+```
+
+Corridor01 官方标注为 ArUco，且 README 直接以 `GTCorridor01.txt` 为脚本
+示例，因此进入第三条；禁止因同属 M2/M3 family 而跨 GT 类型套 evaluator。
+
 - **禁止**：evo_ape、trajectory RMSE、Umeyama alignment ATE（无逐时刻 GT）。
 - 只能评价 terminal relative translation error 与 terminal relative rotation error。
 

@@ -45,7 +45,7 @@ Owner prompt #47.
 Owner prompt #48:
 `prompts/04_v1_implementation/48_round11ab_effective_config_official_eval_registry_m3_closure.md`
 
-Status: **ACTIVE — evidence/evaluator/config registry and conditional M3 closure**
+Status: **CLOSED — ROUND11AB_CLOSED_M3_COMPLETE**
 
 - D-family remains the active state-off backbone; visual state apply remains OFF.
 - Night08 Owner disposition is `OWNER_ACCEPTED_AMBER` and is not a pipeline blocker.
@@ -53,3 +53,22 @@ Status: **ACTIVE — evidence/evaluator/config registry and conditional M3 closu
 - Recover/pin official NTU, MCD, Oxford, and M3DGR evaluation semantics.
 - Run only M3DGR Corridor01 B0/D-S3 after every evaluator/config/frame gate passes.
 - Audit FAST-LIVO2 visual parity and freeze V0..V6 planning only; no visual optimization in Round11AB.
+
+## Round11AB closure
+
+- Effective config: pre-node + post-resolve + provenance fail-closed path and
+  T1..T7 tests committed.
+- Evaluators: NTU dataset-author prism wrapper and M3DGR ArUco wrapper pinned,
+  hashed and synthetic-tested; MCD records
+  `NO_DATASET_AUTHORED_ATE_EVALUATOR_FOUND`; Oxford exact evo protocol pinned.
+- User mid-run correction verified: M2DGR/full trajectory and M3DGR RTK/Mocap
+  use evo; only M3DGR ArUco references use `ArUco_evaluate.py`. Corridor01 is
+  officially ArUco and remains correctly on the Python branch.
+- Registry: machine-readable YAML and human-auditable Markdown capture
+  evaluator/config/baseline provenance and A/B/C/UNRESOLVED/NOT_FOUND grades.
+- M3 Corridor01 official ArUco translation error: B0 `15.407685800 m`, D-S3
+  `7.154889968 m`, D/B0 `0.464371`; both tracking 100%, visual apply zero.
+- D-S3 ownership: every processable scan once, duplicate zero. One terminal
+  scan is explicitly unprocessable because final IMU precedes scan end by
+  `0.0005903 s`; it was not patched around.
+- Visual parity audit completed; V0..V6 are planning only.

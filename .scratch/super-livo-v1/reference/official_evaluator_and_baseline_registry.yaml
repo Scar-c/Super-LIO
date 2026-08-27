@@ -14,6 +14,26 @@ comparability_grades:
   NOT_FOUND: authoritative sources searched and no result located
 
 evaluators:
+  m2dgr_dispatch:
+    status: FOUND
+    tier: DATASET_AUTHOR_BENCHMARK
+    repository: https://github.com/SJTU-ViSYS/M2DGR
+    revision: 22beea571485845918bdad9e3bb9dd0c6c4f3db6
+    readme_sha256: 8fcafe9e523d555d30a61623ee25d540f707e049974534caf5466be9b8011a7c
+    rule: all published M2DGR sequences have trajectory GT and use evo
+    lidar_command: evo_ape tum GT EST -vap
+    visual_command: evo_ape tum GT EST -vaps
+    gnss_command: evo_ape tum GT EST -vp
+  m3dgr_dispatch:
+    status: FOUND
+    tier: DATASET_AUTHOR_BENCHMARK
+    repository: https://github.com/sjtuyinjie/M3DGR
+    revision: e0cf7d59c9a5a3df515624034698d976abc26549
+    readme_sha256: 98fbc418df5ee1f1524f2a95fed11ef561eda81a23724c13ae231702f097349b
+    rtk_or_mocap_gt: evo_ape tum GT EST -ap
+    aruco_gt: ArUco_evaluate.py
+    corridor01_gt_type: ArUco final relative transform, not a full trajectory
+    corridor01_route: m3dgr_aruco
   ntu_dataset_author:
     status: FOUND_AND_WRAPPED
     tier: DATASET_AUTHOR_BENCHMARK
@@ -99,6 +119,7 @@ evaluators:
     rotation_diagnostic: matrix Frobenius norm; dimensionless
     upstream_combined_rmse: NON_PRIMARY_MIXED_UNITS
     tracking_rate: 100 * (timestamp_at_last_nonduplicate - first_timestamp) / reference_duration; upper capped at 100
+    applicability: only M3DGR sequences whose official GT type is ArUco; never substitute this for RTK/Mocap trajectory GT
 
 method_configs:
   fast_livo2_ntu:
@@ -290,11 +311,24 @@ records:
     gt_file_sha256: 9620d646a054a9bff2aafba3ff837cfd012edd6ed25cfc3aaf9e3a6a30601ae2
     gt_frame_convention: T_B0_Bend, end body into initial body, metres and 3x3 rotation matrix
     evaluator: m3dgr_aruco
-    our_B0: PENDING_AUTHORIZED_RUN
-    our_D_S3: PENDING_AUTHORIZED_RUN
+    our_B0:
+      score_m: 15.407685799892581
+      trajectory_sha256: ebd78da5721f84f4cef9ef0cbfcde642b43c8594e7d7f4300675fff335ac69be
+      effective_config_sha256: 4e34caec6ec405337f70c220b309bb0887d3e64e69a95bfc47fc6d1899c75bed
+      tracking_rate_percent: 100.0
+    our_D_S3:
+      score_m: 7.154889967741613
+      trajectory_sha256: cb12913e5e0ebb2f1746e9031baa1c173fee01fa5163e3f388b4e2aec3130069
+      effective_config_sha256: bd2d88ca8223079460b70b627a22164da05901dfcb352be65a8c57e2fce396a4
+      tracking_rate_percent: 100.0
+      camera_stride: 3
+      camera_time_offset_s: 0.1
+      lidar_update_policy: imu_fullscan
+      visual_apply: false
+    our_D_over_B0: 0.4643714871049288
     fast_livo2: {score_m: 3.35, metric: first-to-last relative translation error despite over-general Table VII heading, tier: DATASET_AUTHOR_BENCHMARK, config: fast_livo2_m3dgr, grade: A}
     super_lio: {status: NOT_FOUND, grade: NOT_FOUND}
-    caveat: paper Table VII says ATE RMSE, but ArUco sequence methodology and official default translation sort establish translation-error comparability
+    caveat: paper Table VII says ATE RMSE, but ArUco sequence methodology and official default translation sort establish translation-error comparability; final bag scan lacks IMU coverage by 0.0005903 s and is explicitly terminal-unprocessable in both input timing and D audit
 
 authoritative_not_found:
   FAST_LIVO2_MCD: NOT_FOUND

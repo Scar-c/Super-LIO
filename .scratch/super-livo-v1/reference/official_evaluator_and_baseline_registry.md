@@ -82,6 +82,17 @@ score is `0.04 m` (Table 3), Grade A within that pinned benchmark/config.
 
 ### M3DGR ArUco
 
+The dataset-author routing rule is GT-type-specific, not “one evaluator for all
+M3DGR”. The pinned M3DGR README SHA256 is `98fbc418...349b`. M3DGR sequences with RTK/Mocap trajectory GT use
+`evo_ape tum GT EST -ap`; sequences whose GT is obtained by ArUco use
+`ArUco_evaluate.py`. Corridor01 is explicitly ArUco and the official README
+uses `GTCorridor01.txt` as the script example. This agrees with M2DGR’s own
+README at `22beea571485845918bdad9e3bb9dd0c6c4f3db6` (SHA256
+`8fcafe9e...11a7c`): its published sequences have trajectory GT and LiDAR SLAM is evaluated
+with `evo_ape tum GT EST -vap` (visual `-vaps`, GNSS `-vp`). Therefore the
+ArUco wrapper must never be applied merely because a sequence belongs to the
+M2/M3 family.
+
 Pinned dataset-author script:
 [`sjtuyinjie/M3DGR`](https://github.com/sjtuyinjie/M3DGR) at
 `e0cf7d59c9a5a3df515624034698d976abc26549`, `ArUco_evaluate.py`, git blob
@@ -110,6 +121,16 @@ ranking is translation error and the repository calls this the more stringent
 paper value. Therefore its FAST-LIVO2 Corridor01 `3.35 m` is registered as the
 ArUco first-to-last relative translation error, not evo ATE and not the mixed
 combined value. This is the primary metric for our Corridor01 comparison.
+
+### User correction during execution
+
+The User explicitly warned that M3DGR/M2DGR repositories distinguish sequences
+with full trajectory truth (evo) from sequences without it (dataset Python
+script). We stopped closure, re-read both official GitHub evaluation sections,
+and applied that dispatch before finalizing. Result: the warning is correct;
+the existing Corridor01 evaluation remains correct specifically because its GT
+is ArUco-only. No evo re-evaluation was performed because Corridor01 has no
+full trajectory GT to associate.
 
 ## Exact method configs
 
@@ -143,7 +164,7 @@ repository/history; this is `DEDICATED_DATASET_CONFIG=NOT_FOUND`.
 | MCD ntu_day_10 | 1.2181 m | 0.9044 m | 0.742 | no official ATE; OUR_REPRODUCTION discrete GT APE RMSE | NOT_FOUND | UNRESOLVED alias | local pair only; cross-method unresolved |
 | MCD ntu_night_08 | 1.7416 m | 1.9964 m | 1.146 | same OUR_REPRODUCTION metric | NOT_FOUND | UNRESOLVED alias | OWNER_ACCEPTED_AMBER; no causal darkness claim |
 | Oxford ROQ01 | historical 0.0630 m | historical D0 0.0629 m | 0.998 | official evo APE, SE3, max-diff 0.01 | `0.04 m`, dataset benchmark | NOT_FOUND | FAST-LIVO2 A; local values B pending exact reevaluation |
-| M3DGR Corridor01 | PENDING | PENDING | PENDING | ArUco first-to-last relative translation error | `3.35 m`, dataset benchmark | NOT_FOUND | A after authorized pinned-config runs |
+| M3DGR Corridor01 | 15.4077 m | 7.1549 m | 0.4644 | ArUco first-to-last relative translation error | `3.35 m`, dataset benchmark | NOT_FOUND | A; exact metric/setup, pinned run and evaluator provenance |
 
 FAST-LIO2 and FAST-LIVO2 are distinct. Super-LIO Table I reports FAST-LIO2;
 those values are not registered as FAST-LIVO2 baselines. Verified Super-LIO
