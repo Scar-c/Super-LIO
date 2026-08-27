@@ -35,6 +35,9 @@ def main():
     expect('D B0 camera=false+camera_epoch=false explicit', 'b0)' in runner and
            runner.split('b0)')[1].split(';;')[0].count('/camera/enabled false') == 1)
     expect('E no /lio/camera/enabled', '/lio/camera/enabled' not in runner)
+    expect('D0 explicit identity and fullscan guard', 'd0)' in runner and
+           'd0 requires imu_fullscan' in runner and
+           'variant: b0|c0|d0|a0|a1' in runner)
 
     # F: isolated master — runner uses ROS_MASTER_URI + roscore -p
     expect('F isolated master', 'ROS_MASTER_URI' in runner and 'roscore -p' in runner)

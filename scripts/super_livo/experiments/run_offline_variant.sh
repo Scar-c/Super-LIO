@@ -8,13 +8,13 @@
 #                          [camera_topic] [camera_calib] [duration] [s0_audit]
 #                          [lidar_update_policy] [layer_audit] [camera_stride]
 #                          [camera_time_offset] [dataset] [sequence]
-#   variant: b0|c0|a0|a1
+#   variant: b0|c0|d0|a0|a1
 set -euo pipefail
 
 CFG="${1:?config yaml}"
 BAGSPEC="${2:?bag or comma-separated bags}"
 OUT_PREFIX="${3:?out prefix}"
-VARIANT="${4:?variant: b0|c0|a0|a1}"
+VARIANT="${4:?variant: b0|c0|d0|a0|a1}"
 CAM_TOPIC="${5:-}"
 CAM_CALIB="${6:-}"
 DURATION="${7:--1}"
@@ -44,6 +44,10 @@ done
 }
 if [ "$VARIANT" != "b0" ]; then
   [ -f "$CAM_CALIB" ] || { echo "FAIL: missing camera calib $CAM_CALIB"; exit 2; }
+fi
+if [ "$VARIANT" = "d0" ] && [ "$LIDAR_UPDATE_POLICY" != "imu_fullscan" ]; then
+  echo "FAIL: d0 requires imu_fullscan lidar update policy"
+  exit 2
 fi
 IFS=',' read -ra BAGS <<< "$BAGSPEC"
 for b in "${BAGS[@]}"; do
@@ -131,6 +135,12 @@ case "$VARIANT" in
     rosparam set /lio/v4/apply false
     rosparam set /lio/v4/outlier_gate false
     ;;
+  d0)
+    rosparam set /camera/enabled true
+    rosparam set /lio/camera_epoch/enabled true
+    rosparam set /lio/v4/apply false
+    rosparam set /lio/v4/outlier_gate false
+    ;;
   a0)
     rosparam set /camera/enabled true
     rosparam set /lio/camera_epoch/enabled true
@@ -188,7 +198,7 @@ case "$VARIANT" in
      is_true "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
 esac
 case "$VARIANT" in
-  b0|c0) is_false "$app" || { echo "FAIL readback apply"; exit 4; } ;;
+  b0|c0|d0) is_false "$app" || { echo "FAIL readback apply"; exit 4; } ;;
   a0|a1) is_true "$app" || { echo "FAIL readback apply"; exit 4; } ;;
 esac
 case "$VARIANT" in
