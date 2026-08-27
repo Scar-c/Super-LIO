@@ -277,7 +277,7 @@ records:
     our_D_S3_m: 0.9044
     our_D_over_B0: 0.742
     fast_livo2: {status: NOT_FOUND, grade: NOT_FOUND}
-    super_lio: {status: UNRESOLVED, reason: MCD paper aliases mcd0/mcd2/mcd3/mcd4 are not authoritatively mapped, grade: UNRESOLVED}
+    super_lio: {paper_score_m: 0.721, paper_alias: mcd2, alias_proof: MCD dataset-author SeqID2, current_reproduction_m: 0.7163, current_revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29, current_grade: GREEN, paper_era_reproduction_m: 0.9594, paper_era_revision: 2c092125069d5cfce38e3c9a3569aec031180090, paper_era_grade: AMBER, status: REPRODUCED_REVISION_SENSITIVE}
   - dataset: MCD
     sequence: ntu_night_08
     sensor_setup: Livox MID70 + VN100 + D435i infrared
@@ -291,7 +291,7 @@ records:
     rerun: false
     scientific_caveat: retained as a future low-light visual stress sequence; state-off result is not a causal darkness claim
     fast_livo2: {status: NOT_FOUND, grade: NOT_FOUND}
-    super_lio: {status: UNRESOLVED, reason: MCD alias mapping unresolved, grade: UNRESOLVED}
+    super_lio: {paper_score_m: 0.604, paper_alias: mcd4, alias_proof: MCD dataset-author SeqID4, current_reproduction_m: 1.0210, current_revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29, current_grade: RED, current_repeats: 3, current_range_m: 0.0, paper_era_reproduction_m: 0.6978, paper_era_revision: 2c092125069d5cfce38e3c9a3569aec031180090, paper_era_grade: GREEN, status: REPRODUCED_REVISION_SENSITIVE}
   - dataset: Oxford_Spires
     sequence: Radcliffe_Observatory_Quarter01
     sensor_setup: Hesai Pandar + Alphasense IMU/camera

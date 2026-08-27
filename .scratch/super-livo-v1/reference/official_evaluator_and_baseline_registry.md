@@ -161,17 +161,18 @@ repository/history; this is `DEDICATED_DATASET_CONFIG=NOT_FOUND`.
 |---|---:|---:|---:|---|---|---|---|
 | NTU eee_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.068 m`; current source `0.0271 m` | `0.119 m` | B; protocols/revisions differ and local trajectory missing |
 | NTU nya_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.073 m`; current source `0.0356 m` | `0.069 m` | B; protocols/revisions differ and local trajectory missing |
-| MCD ntu_day_10 | 1.2181 m | 0.9044 m | 0.742 | no official ATE; OUR_REPRODUCTION discrete GT APE RMSE | NOT_FOUND | UNRESOLVED alias | local pair only; cross-method unresolved |
-| MCD ntu_night_08 | 1.7416 m | 1.9964 m | 1.146 | same OUR_REPRODUCTION metric | NOT_FOUND | UNRESOLVED alias | OWNER_ACCEPTED_AMBER; no causal darkness claim |
+| MCD ntu_day_10 / mcd2 | 1.2181 m | 0.9044 m | 0.742 | no official ATE; OUR_REPRODUCTION discrete GT APE RMSE | NOT_FOUND | paper 0.721; current pristine 0.7163 GREEN; paper-era 0.9594 AMBER | dataset-author SeqID2 mapping; revision-sensitive |
+| MCD ntu_night_08 / mcd4 | 1.7416 m | 1.9964 m | 1.146 | same OUR_REPRODUCTION metric | NOT_FOUND | paper 0.604; current pristine 1.0210 RED N=3; paper-era 0.6978 GREEN | OWNER_ACCEPTED_AMBER; dataset-author SeqID4; no causal darkness claim |
 | Oxford ROQ01 | historical 0.0630 m | historical D0 0.0629 m | 0.998 | official evo APE, SE3, max-diff 0.01 | `0.04 m`, dataset benchmark | NOT_FOUND | FAST-LIVO2 A; local values B pending exact reevaluation |
 | M3DGR Corridor01 | 15.4077 m | 7.1549 m | 0.4644 | ArUco first-to-last relative translation error | `3.35 m`, dataset benchmark | NOT_FOUND | A; exact metric/setup, pinned run and evaluator provenance |
 
 FAST-LIO2 and FAST-LIVO2 are distinct. Super-LIO Table I reports FAST-LIO2;
 those values are not registered as FAST-LIVO2 baselines. Verified Super-LIO
 method-column values are NTU eee1 `0.119`, nya1 `0.069`, sbs1 `0.086`, and MCD
-aliases mcd0 `0.541`, mcd2 `0.721`, mcd3 `0.498`, mcd4 `0.604` metres. No
-authoritative mapping from those MCD aliases to `ntu_day_10` or `ntu_night_08`
-was found: `MCD_ALIAS_MAPPING=UNRESOLVED`.
+aliases mcd0 `0.541`, mcd2 `0.721`, mcd3 `0.498`, mcd4 `0.604` metres. Round12
+resolved the relevant aliases against the dataset-author download table:
+SeqID2 is `ntu_day_10` and SeqID4 is `ntu_night_08`. Pristine results show
+revision-sensitive behavior and are not used to tune configuration.
 
 Authoritative searches yielded `FAST_LIVO2_MCD=NOT_FOUND`,
 `SUPER_LIO_OXFORD=NOT_FOUND`, and `SUPER_LIO_M3DGR=NOT_FOUND`.
