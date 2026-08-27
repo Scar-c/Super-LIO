@@ -1,0 +1,4 @@
+reference_base: {dataset: MCD, sequence: ntu_night_08, visual_apply: false}
+lio: {authority: SUPER_LIO_DATASET_CONFIG, blind: 2.0, maxrange: 1000.0, filter_rate: 3, scan_voxel: 0.5, map_voxel: 0.5, max_iterations: 4, quit_eps: 0.001}
+visual: {authority: FAST_LIVO2_METHOD_DEFAULT, provenance: FAST_LIVO2_METHOD_DEFAULT_FALLBACK, patch_size: 8, pyramid_level: 4, max_iterations: 5, img_point_cov: 100, outlier_threshold: 1000, exposure: true, raycast: false, normal: true, inverse_composition: false}
+timing: {lidar_offset: 0.0, imu_offset: 0.0, camera_offset: 0.0}

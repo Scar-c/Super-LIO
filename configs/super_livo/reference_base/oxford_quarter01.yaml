@@ -1,0 +1,4 @@
+reference_base: {dataset: Oxford_Spires, sequence: Quarter01, visual_apply: false}
+lio: {authority: OWNER_DECISION, source: src/super_lio/config/oxford_quarter01.yaml, note: SUPER_LIO_DATASET_CONFIG_NOT_PUBLISHED}
+visual: {authority: FAST_LIVO2_DATASET_CONFIG, patch_size: 8, pyramid_level: 4, max_iterations: 5, img_point_cov: 100, outlier_threshold: 78, exposure: true, raycast: false, normal: true, inverse_composition: false}
+timing: {lidar_offset: 0.0, imu_offset: 0.0, camera_offset: 0.0}

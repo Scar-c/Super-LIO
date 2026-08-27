@@ -1,0 +1,55 @@
+# Adapted from: https://github.com/hku-mars/FAST-LIVO2/issues/43
+
+common:
+  lid_topic: "/hesai/pandar"
+  imu_topic: "/alphasense_driver_ros/imu"
+  ros_driver_bug_fix: false
+  image_en: 1
+  lidar_en: 1
+  img_topic: "/alphasense_driver_ros/cam0/color/image"
+
+time_offset:
+  imu_time_offset: 0.0
+  img_time_offset: 0.0
+  exposure_time_init: 0.0
+
+vio:
+  max_iterations: 5
+  outlier_threshold: 78 # 78 100 156 #100 200 500 700 infinite
+  img_point_cov: 100 # 100 1000 
+  patch_size: 8
+  patch_pyrimid_level: 4
+  normal_en: true
+  raycast_en: false
+  inverse_composition_en: false
+  exposure_estimate_en: true
+  inv_expo_cov: 0.1
+
+imu:
+  imu_en: true
+  imu_int_frame: 1
+  acc_cov: 0.1
+  gyr_cov: 0.1
+  b_acc_cov: 0.0001
+  b_gyr_cov: 0.0001
+
+preprocess:
+  lidar_type: 5       # 1 for Livox serials LiDAR, 2 for Velodyne LiDAR, 3 for ouster LiDAR,
+  scan_line: 64
+  timestamp_unit: 3      # 0-second, 1-milisecond, 2-microsecond, 3-nanosecond.
+  blind: 1
+  point_filter_num: 1
+
+extrin_calib:
+  extrinsic_T: [-2.98737408e-03, -1.62174455e-02, 8.37937008e-02]
+  extrinsic_R: [-1.79010935e-02, -9.99839500e-01,  7.24771588e-04,
+                9.99839311e-01, -1.79003915e-02,  9.63774848e-04,
+                -9.50646466e-04,  7.41907749e-04,  9.99999273e-01]
+  Rcl: [0.009769443369467168, 0.9999460020163569, 0.0035427429705001123,
+        0.007671197638838445, 0.003467861351881818, -0.9999645627043141,
+        -0.9999228523756403, 0.009796274248324188, -0.007636904334543504]
+  Pcl: [0.00035060884033447846, -0.079574053851818, -0.053826061545697405]
+
+evo:
+  seq_name: "Bod-02-color"
+  pose_output_en: true

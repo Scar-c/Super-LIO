@@ -1,0 +1,20 @@
+sensor_calibration_authority: DATASET_AUTHOR_SENSOR
+critical_parameters:
+  blind: OWNER_DECISION(existing_M3_config)
+  max_range: OWNER_DECISION(existing_M3_config)
+  point_filter: OWNER_DECISION(existing_M3_config)
+  scan_voxel: OWNER_DECISION(existing_M3_config)
+  map_voxel: SUPER_LIO_ARCHITECTURE(parent_and_subvoxel)
+  ieskf_iterations: OWNER_DECISION(existing_M3_config)
+  ieskf_convergence: OWNER_DECISION(existing_M3_config)
+  search_neighbor_count: HARD_CODED(5,OctVoxMap.hpp)
+  search_extent: HARD_CODED(HKNN_60_stencil,HKNN_list60_gem.h)
+  max_correspondence_distance: N/A(range_dependent_gate)
+  plane_point_count: HARD_CODED(4_to_5,super_lio.cpp)
+  plane_fit_threshold: HARD_CODED(0.1m,super_lio.cpp)
+  planarity_threshold: N/A(no_eigen_plane_test)
+  depth_beam_error: N/A(Super-LIO_geometry)
+  imu_noise: OWNER_DECISION(existing_M3_config)
+  extrinsic: DATASET_AUTHOR_SENSOR(M3DGR_Avia_D435i)
+  time_offsets: FAST_LIVO2_DATASET_CONFIG(camera=+0.1s)
+  visual: FAST_LIVO2_DATASET_CONFIG(patch8,pyramid4,iter5);APPLY_OFF

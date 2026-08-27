@@ -1,0 +1,8 @@
+algorithm: Super-LIO
+dataset: M3DGR
+repository: https://github.com/Liansheng-Wang/Super-LIO.git
+branch: ros1
+revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+classification: NOT_PUBLISHED
+status: NOT_PUBLISHED
+files: []

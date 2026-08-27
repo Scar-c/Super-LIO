@@ -1,0 +1,20 @@
+sensor_calibration_authority: DATASET_AUTHOR_SENSOR
+critical_parameters: &mcd
+  blind: SUPER_LIO_DATASET_CONFIG(2.0m)
+  max_range: SUPER_LIO_DATASET_CONFIG(1000m)
+  point_filter: SUPER_LIO_DATASET_CONFIG(filter_rate=3)
+  scan_voxel: SUPER_LIO_DATASET_CONFIG(0.5m)
+  map_voxel: SUPER_LIO_DATASET_CONFIG(0.5m_parent,0.25m_subvoxel)
+  ieskf_iterations: SUPER_LIO_DATASET_CONFIG(4)
+  ieskf_convergence: SUPER_LIO_DATASET_CONFIG(0.001_inf_norm)
+  search_neighbor_count: HARD_CODED(5,OctVoxMap.hpp)
+  search_extent: HARD_CODED(HKNN_60_stencil,HKNN_list60_gem.h)
+  max_correspondence_distance: N/A(range_dependent_gate)
+  plane_point_count: HARD_CODED(4_to_5,super_lio.cpp)
+  plane_fit_threshold: HARD_CODED(0.1m,super_lio.cpp)
+  planarity_threshold: N/A(no_eigen_plane_test)
+  depth_beam_error: N/A(Super-LIO_geometry)
+  imu_noise: SUPER_LIO_DATASET_CONFIG(0.1,0.1,0.0001,0.0001)
+  extrinsic: DATASET_AUTHOR_SENSOR(atv_calib_reconciled_with_MCD_ATH)
+  time_offsets: OWNER_DECISION(existing_canonical_MCD_zero_offsets)
+  visual: FAST_LIVO2_METHOD_DEFAULT_FALLBACK;APPLY_OFF

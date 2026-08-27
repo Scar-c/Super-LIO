@@ -1,0 +1,11 @@
+algorithm: Super-LIO
+dataset: MCD
+repository: https://github.com/Liansheng-Wang/Super-LIO.git
+branch: ros1
+revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+classification: PARTIAL_CONFIG
+status: CONFIG_LAUNCH_CALIBRATION_CAPTURED_REPRODUCTION_PENDING
+files:
+  - {path: original/MCD_ATH.yaml, sha256: ccafd53ef5ec1e3caa9e224e73a12ff20ab8f7638e60ac1bb62bf02b22174d23}
+  - {path: original/MCD_ATH.launch, sha256: b28213a5903745aea92e86b6f42a3dfc6a4e34e9c6bb1a4670658e978ffe2056}
+  - {path: original/atv_calib.yaml, sha256: 43642504cd6a9c73043793bae2a52fd2c006508053402c4407c9252c067aaabc}

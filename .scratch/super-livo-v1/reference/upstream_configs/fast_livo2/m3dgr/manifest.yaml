@@ -1,0 +1,11 @@
+algorithm: FAST-LIVO2
+dataset: M3DGR_Corridor01
+repository: https://github.com/sjtuyinjie/M3DGR.git
+branch: main
+revision: e0cf7d59c9a5a3df515624034698d976abc26549
+classification: PARTIAL_CONFIG
+status: DATASET_AUTHOR_ADAPTED_CONFIG_CAPTURED_REPRODUCTION_PENDING
+files:
+  - {path: original/m3dgr_avia.yaml, sha256: 403e4ea2dc393e9c81512840c0056075c4fef590cf6ac4e9df676074226eabe9}
+  - {path: original/camera_pinhole_m3dgr.yaml, sha256: a6e08f2e0bedd55378d9b91ede3f80b395379b421f5db9cdbbf3b701a1d1451d}
+  - {path: original/mapping_m3dgr_avia.launch, sha256: 1614c29dffd88cf92df7b06f38a7226f127096667ed941dc4c8d79497660f062}

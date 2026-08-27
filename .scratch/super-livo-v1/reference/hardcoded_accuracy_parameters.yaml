@@ -1,0 +1,112 @@
+schema_version: 1
+parameters:
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/include/OctVoxMap/OctVoxMap.hpp
+    symbol_or_literal: KNNHeap<5>
+    value: 5
+    unit: representative_points
+    physical_role: correspondence_neighbor_count
+    configurable: false
+    used_by: OctVoxMap::getTopK
+    evidence: top-K heap and plane fit input
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/include/OctVoxMap/OctVoxMap.hpp
+    symbol_or_literal: MAX_POINTS_PER_SUBVOXEL
+    value: 20
+    unit: raw_points
+    physical_role: subvoxel_running_centroid_capacity
+    configurable: false
+    used_by: OctVox::AddPoint
+    evidence: insertion freezes after count reaches 20
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/include/OctVoxMap/OctVoxMap.hpp
+    symbol_or_literal: DISTANCE_THRESHOLD_SQ
+    value: 0.01
+    unit: m^2
+    physical_role: subvoxel_centroid_insertion_gate
+    configurable: false
+    used_by: OctVox::AddPoint
+    evidence: squared distance to stored centroid must be <= 0.1^2
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/src/lio/super_lio.cpp
+    symbol_or_literal: calc_plane_coeff point count
+    value: 4_to_5
+    unit: representative_points
+    physical_role: plane_fit_sample_count
+    configurable: false
+    used_by: SuperLIO::Observe
+    evidence: reject fewer than 4; fit all top-K count, maximum 5
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/src/lio/super_lio.cpp
+    symbol_or_literal: abs(point_to_plane_distance) > 0.1
+    value: 0.1
+    unit: m
+    physical_role: plane_fit_residual_gate
+    configurable: false
+    used_by: calc_plane_coeff
+    evidence: every representative point must fit within 0.1 m
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/src/lio/super_lio.cpp
+    symbol_or_literal: length > 81 * error^2
+    value: 81
+    unit: dimensionless_literal
+    physical_role: point_to_plane_measurement_selection
+    configurable: false
+    used_by: compute_error
+    evidence: range-dependent residual gate, not a constant distance cutoff
+  - algorithm: Super-LIO
+    revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+    source_path: src/super_lio/include/OctVoxMap/HKNN_list60_gem.h
+    symbol_or_literal: HKNN_neighbor_voxel
+    value: 60
+    unit: parent_voxel_offsets
+    physical_role: ordered_HKNN_search_stencil
+    configurable: false
+    used_by: OctVoxMap::getTopK
+    evidence: six ordered groups and distance lower bounds drive early termination
+  - algorithm: FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    source_path: include/voxel_map.h
+    symbol_or_literal: update_size_threshold_
+    value: 5
+    unit: new_points
+    physical_role: plane_statistics_update_threshold
+    configurable: false
+    used_by: VoxelOctoTree::UpdateOctoTree
+    evidence: plane is refreshed only after more than five new points
+  - algorithm: FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    source_path: src/voxel_map.cpp
+    symbol_or_literal: radius_k
+    value: 3
+    unit: plane_radius_multiple
+    physical_role: lateral_plane_support_gate
+    configurable: false
+    used_by: VoxelMapManager::build_single_residual
+    evidence: projected radial distance must be <= 3 times plane radius
+  - algorithm: FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    source_path: src/voxel_map.cpp
+    symbol_or_literal: EKF convergence literals
+    value: rotation_lt_0.01_deg_and_translation_lt_0.015_cm
+    unit: mixed
+    physical_role: iterative_update_convergence
+    configurable: false
+    used_by: VoxelMapManager::StateEstimation
+    evidence: controls rematch and final covariance update timing
+  - algorithm: FAST-LIVO2
+    revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+    source_path: src/voxel_map.cpp
+    symbol_or_literal: one adjacent voxel fallback
+    value: 1
+    unit: additional_parent_voxel
+    physical_role: correspondence_search_extent
+    configurable: false
+    used_by: VoxelMapManager::BuildResidualListOMP
+    evidence: after current voxel failure, one axis-selected adjacent voxel is queried

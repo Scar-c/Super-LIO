@@ -1,0 +1,11 @@
+algorithm: FAST-LIVO2
+dataset: MCD
+repository: https://github.com/hku-mars/FAST-LIVO2.git
+branch: main
+revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+classification: NOT_PUBLISHED
+status: NOT_FOUND
+fallback: FAST_LIVO2_METHOD_DEFAULT_FALLBACK
+files:
+  - {path: original/method_default_avia.yaml, sha256: 39b7e4d6764b1e4370298ca1959085e570482c632dab24829a3460cbad71ea00}
+  - {path: original/method_default_camera_pinhole.yaml, sha256: 617bb0cc707d82bd435fef83f7f7e91d81b10da7712330ef9a364cfc17fa5998}

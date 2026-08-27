@@ -1,0 +1,11 @@
+algorithm: FAST-LIVO2
+dataset: Oxford_Spires
+repository: https://github.com/ori-drs/FAST-LIVO2.git
+branch: config-used-OSD
+revision: f2c9abb72f82359bcb9190e31b8faa6b6b7b9a64
+classification: PARTIAL_CONFIG
+status: DATASET_AUTHOR_ADAPTED_CONFIG_CAPTURED_REPRODUCTION_PENDING
+files:
+  - {path: original/oxford_spires.yaml, sha256: 195a512df13734c69535c25ebd1bc3e033112c434796b8c2c4b5b4050c589db4}
+  - {path: original/camera_pinhole.yaml, sha256: 617bb0cc707d82bd435fef83f7f7e91d81b10da7712330ef9a364cfc17fa5998}
+  - {path: original/mapping_oxford_spires.launch, sha256: 65cae250733038f0dd4a8852b79a2799a61f8ef5a8ec34c11bc35b3a9c0d6263}

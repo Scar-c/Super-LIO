@@ -1,0 +1,11 @@
+algorithm: FAST-LIVO2
+dataset: NTU_VIRAL
+repository: https://github.com/hku-mars/FAST-LIVO2.git
+branch: main
+revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
+classification: PARTIAL_CONFIG
+status: CONFIG_LAUNCH_CAMERA_CAPTURED_REPRODUCTION_PENDING
+files:
+  - {path: original/NTU_VIRAL.yaml, sha256: c8f94f130e599b928c3f02c3f3d3b2009ae01df76aec32f6ac96b6a987311ef3}
+  - {path: original/camera_NTU_VIRAL.yaml, sha256: 40f2b08fddc9960130935b9afd73f840cea1c92acd4f417ee4a3d4a6b2c5dd86}
+  - {path: original/mapping_ouster_ntu.launch, sha256: ba668a313f31f3d248e3fa5882e6e47728736f78ae85d2db02e6f6d2860fa2ae}

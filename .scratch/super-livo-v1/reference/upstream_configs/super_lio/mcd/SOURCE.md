@@ -1,0 +1,7 @@
+# Super-LIO × MCD
+
+Method-author `MCD_ATH.yaml` and launch are pinned at Super-LIO `ros1`
+`60b57aaac8dc397f80c56364e7ccb008c300cc29`. Dataset-author `atv_calib.yaml`
+is preserved separately and is not treated as an algorithm config. Paper-era
+`2c09212` differs only by the later timer stanza. Day10=mcd2 and Night08=mcd4
+remain to be proven in the reproduction evidence before running.
