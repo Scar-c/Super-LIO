@@ -61,6 +61,22 @@ APE RMSE is `0.240323 m`; trajectory SHA256 is
 The failed transaction terminal state is preserved; recovered evaluation is a
 separate artifact and is not used to rewrite history.
 
+### Codex canonical replacement
+
+- run: `outdoor01/20260828T014300Z_codex01`
+- pinned source: `e0cf7d59c9a5a3df515624034698d976abc26549`
+- launch/config/camera SHA256: `1614c29d...`, `403e4ea2...`, `a6e08f2e...`
+- preflight exclusivity: all four gates PASS; parity: 18/18 PASS
+- evaluator-ready TUM trajectory: 16,233 finite monotonic rows; SHA256
+  `4be2102694e01e6f94a6ac1e0f6ed6fb725a4c2e81a7f556ee2c0af6228e0bf2`
+- coverage: 411.104 / 411.567 s = 99.887%; evo SE(3) APE RMSE:
+  `0.239674 m`
+- terminal: `SUCCESS`, `experiment_valid=true`, `cleanup_verified=true`;
+  no owned process or lock metadata remained
+- classification: `CANONICAL_VALID`, `SANITY_HEALTHY`; no authoritative
+  Outdoor01 parent reference was found, so this remains pipeline sanity rather
+  than a paper-score GREEN/RED classification
+
 ## Dynamic01 gate
 
 `FAST_LIVO2_OUTDOOR01_REFERENCE = NOT_FOUND`, therefore Prompt51 requires
