@@ -99,3 +99,14 @@ Status: **STOPPED FOR OWNER**
   run was started after the stop gate.
 - Required Owner decisions are recorded in
   `docs/super_livo/evidence/round12_stop_for_owner.md`.
+
+## Round12 Prompt52 Codex takeover
+
+Status: **ACTIVE — PHASE A REPORT RECOVERY**
+
+- Executor switched from agent-ds to agent-codex at actual HEAD `4b678ff`.
+- Phase A recovery report must be committed before any new experiment.
+- Dynamic01 is not locally available and is no longer schedulable; Prompt52
+  replaces it with the locally available Outdoor01/Outdoor04 controls.
+- Canonical local inventory and unified benchmark ledger precede remaining
+  parent reproduction.

@@ -4,7 +4,10 @@
 
 ## Current frontier
 
-Round 11 CLOSED. Round 12 STOPPED FOR OWNER (Prompt #49). Config provenance,
+Round 11 CLOSED. Round 12 ACTIVE under Prompt #52. Executor switched from
+agent-ds to agent-codex. Phase A interrupted-report recovery must commit before
+any new experiment; then canonical local inventory/ledger and remaining local
+parent reproductions proceed. Earlier Prompt #49 config provenance,
 LIO semantic parity, reference-base lineage, and pristine Super-LIO evidence
 are durable. Current-upstream Super-LIO MCD night08 remained RED after N=3;
 the paper-era revision is GREEN, so remaining FAST-LIVO2 runs require the
