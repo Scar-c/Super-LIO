@@ -1,0 +1,67 @@
+workspace_root: /home/lc/super_livo/base_ws
+created_date: 2026-08-27
+
+super_lio_upstream:
+  path: /home/lc/super_livo/base_ws/src/super_lio_upstream
+  repository: hku-mars/Super-LIO
+  branch: detached
+  commit: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+  dirty: false
+  role: CURRENT_METHOD_AUTHOR_IMPLEMENTATION_BASELINE
+
+super_lio_paper_era:
+  path: /home/lc/super_livo/base_ws/src/super_lio_paper_era
+  repository: hku-mars/Super-LIO
+  branch: detached
+  commit: 2c092125069d5cfce38e3c9a3569aec031180090
+  dirty: false
+  role: PUBLICATION_REPRODUCTION_BASELINE
+
+fast_livo2:
+  path: /home/lc/super_livo/base_ws/src/fast_livo2_upstream
+  repository: hku-mars/FAST-LIVO2
+  branch: detached
+  commit: 0d2c0346107b75b59934975adec9a6eeeb913c64
+  dirty: false
+  role: METHOD_AUTHOR_CURRENT_OPEN_SOURCE
+
+fast_livo2_oxford:
+  path: /home/lc/super_livo/base_ws/src/fast_livo2_oxford
+  repository: ori-drs/FAST-LIVO2
+  commit: f2c9abb72f82359bcb9190e31b8faa6b6b7b9a64
+  dirty: false
+  role: DATASET_AUTHOR_ADAPTED_METHOD
+
+m3dgr:
+  path: /home/lc/super_livo/base_ws/src/m3dgr
+  repository: sjtuyinjie/M3DGR
+  commit: e0cf7d59c9a5a3df515624034698d976abc26549
+  dirty: false
+  role: DATASET_AUTHOR_ADAPTED_METHOD
+
+rpg_vikit:
+  path: /home/lc/super_livo/base_ws/src/rpg_vikit
+  repository: xuankuzcr/rpg_vikit
+  commit: 6c886c8e5d83997806e00294826d528cea3581dd
+  dirty: false
+
+sophus:
+  path: /home/lc/super_livo/base_ws/third_party/sophus
+  repository: strasdat/Sophus
+  commit: a621ff2e56c56c839a6c40418d42c3c254424b5c
+  build_path: /home/lc/super_livo/base_ws/third_party/sophus_build
+  libSophus_sha256: 60db4bc2589aff0c4cddaabedd266bb752cd6b7d186f432157ce4c696ebdb943
+  note: pinned build reused (Sophus a621ff2 cannot rebuild against host Eigen 3.3.4; compatibility-only discovery)
+
+ros: noetic
+compiler: gcc (default noetic)
+cmake: default
+eigen: /home/lc/3rdparty/eigen-git-mirror-3.3.4
+pcl: noetic
+opencv: noetic
+
+notes:
+  - No canonical parent source/build/result lives under /tmp.
+  - base_ws is outside the Super-LIVO git repo (not committed).
+  - FAST-LIVO2 build compatibility fix (Sophus discovery via CMAKE_PREFIX_PATH)
+    documented in docs/super_livo/evidence/round12_pristine_fast_livo2_build.md.
