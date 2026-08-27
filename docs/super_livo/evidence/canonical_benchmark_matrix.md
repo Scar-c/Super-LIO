@@ -15,7 +15,7 @@ Round11/Round12 tables remain evidence and are not deleted.
 | M3DGR Corridor01 | AVAILABLE; ArUco; dataset Python | NOT_PUBLISHED / NOT_RUN | 3.35; adapted `e0cf7d5` Avia → 3.03 GREEN | B0 15.4077; D 7.1549 | canonical snapshot/parity complete; legacy 5.83 diagnostic only; published sensor UNRESOLVED |
 | M3DGR Corridor02 | AVAILABLE; ArUco; dataset Python | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted config → NOT_RUN | NOT_RUN | locally runnable optional gap |
 | M3DGR Outdoor01 | AVAILABLE; RTK-position trajectory; evo | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted `e0cf7d5` Avia → 0.239674 canonical | historical result NOT_FOUND | SANITY_HEALTHY; 99.887% bag-duration coverage; run `20260828T014300Z_codex01`; prior 0.240323 remains diagnostic |
-| M3DGR Outdoor04 | AVAILABLE; RTK-position trajectory; evo | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted config → NOT_RUN | historical result NOT_FOUND | canonical sanity required |
+| M3DGR Outdoor04 | AVAILABLE; RTK-position trajectory; evo | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted `e0cf7d5` Avia → 0.623458 canonical | historical result NOT_FOUND | SANITY_HEALTHY; 99.956% bag-duration coverage; run `20260828T015300Z_codex01` |
 | M2DGR street_03/m2s3 | NOT_AVAILABLE; published trajectory route | paper ≈0.139; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | mapping pending exact source recheck; no bag |
 | M2DGR hall_01/m2h1 | NOT_AVAILABLE | paper ≈0.291; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | no bag |
 | M2DGR door_02/m2d2 | NOT_AVAILABLE; txt is not bag | paper ≈0.321; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | `SUPER_LIO_M2_EXTRINSIC_CONFLICT_WITH_DATASET_CALIBRATION` |
@@ -25,3 +25,7 @@ Provenance tiers are never collapsed: DATASET_AUTHOR_BENCHMARK,
 DATASET_AUTHOR_ADAPTED_METHOD, METHOD_AUTHOR_PAPER,
 METHOD_AUTHOR_CURRENT_OPEN_SOURCE, OUR_UPSTREAM_REPRODUCTION and
 OUR_SUPER_LIVO_RUN remain explicit in the machine ledger.
+
+Both locally available Outdoor controls are canonical and healthy, so the
+Owner policy result is `M3DGR_PRIMARY_BENCHMARK = KEEP`. M2DGR is not
+blacklisted by family policy, but remains locally unavailable.

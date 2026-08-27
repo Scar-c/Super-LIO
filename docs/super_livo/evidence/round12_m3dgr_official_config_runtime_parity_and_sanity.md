@@ -77,6 +77,24 @@ separate artifact and is not used to rewrite history.
   Outdoor01 parent reference was found, so this remains pipeline sanity rather
   than a paper-score GREEN/RED classification
 
+## Outdoor04 canonical control and policy
+
+- run: `outdoor04/20260828T015300Z_codex01`
+- same pinned Avia source/config/camera lineage as Outdoor01; parity JSON is
+  byte-identical (SHA256 `f02bb8467e1b8b2817a47bb222e88e9956a55c043df6327fc5a9f7bda65f3845`)
+- evaluator-ready TUM: 31,127 rows, SHA256
+  `0906b1961e050e6b247c17c1e251339859809a942eaeba8c582c020bb9fe4469`
+- coverage: 782.468 / 782.816 s = 99.956%; evo SE(3) APE RMSE:
+  `0.623458 m`
+- terminal: `SUCCESS`, `experiment_valid=true`, `cleanup_verified=true`;
+  no owned process or lock metadata remained
+- classification: `CANONICAL_VALID`, `SANITY_HEALTHY`
+
+Outdoor01 and Outdoor04 are both healthy. Therefore:
+`M3DGR_PRIMARY_BENCHMARK = KEEP`. M2DGR is not blacklisted by the family
+policy, while its local reproduction remains impossible because no M2 bag is
+present.
+
 ## Dynamic01 gate
 
 `FAST_LIVO2_OUTDOOR01_REFERENCE = NOT_FOUND`, therefore Prompt51 requires

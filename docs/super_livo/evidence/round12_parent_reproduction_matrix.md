@@ -18,6 +18,7 @@ provenance gates close. `PENDING` is evidence status, not a zero score.
 | M3DGR | Corridor01 legacy F4 | FAST-LIVO2 | wrong legacy fork; snapshot missing | diagnostic only | 3.35 | 5.83 diagnostic | 15.4077 | 7.1549 | ArUco final translation m | LEGACY_F4_DIAGNOSTIC |
 | M3DGR | Corridor01 canonical | FAST-LIVO2 | dataset-author adapted Avia, runtime parity PASS | `e0cf7d5` | 3.35 | 3.03 GREEN | 15.4077 | 7.1549 | ArUco final translation m | REPRODUCED_GREEN |
 | M3DGR | Outdoor01 | FAST-LIVO2 | same Avia config, runtime parity PASS | `e0cf7d5` | NOT_FOUND | 0.239674 canonical (99.887% coverage); prior 0.240323 diagnostic | N/A | N/A | evo SE(3) translation APE RMSE | CANONICAL_VALID_SANITY_HEALTHY |
+| M3DGR | Outdoor04 | FAST-LIVO2 | same Avia config, runtime parity PASS | `e0cf7d5` | NOT_FOUND | 0.623458 canonical (99.956% coverage) | N/A | N/A | evo SE(3) translation APE RMSE | CANONICAL_VALID_SANITY_HEALTHY |
 | M3DGR | Dynamic01 | FAST-LIVO2 | same Avia config required | `e0cf7d5` | 0.44 | NOT_RUN: bag/GT unavailable locally | N/A | N/A | evo SE(3) translation APE RMSE | DATA_REQUIRED |
 
 | Oxford | Quarter01 | FAST-LIVO2 | dataset-author adapted (ori-drs) | f2c9abb | 0.04 | 0.0397 GREEN (image_transport republish) | 0.0630 | 0.0629 | evo_ape --t_max_diff 0.01 | F3_GREEN |
