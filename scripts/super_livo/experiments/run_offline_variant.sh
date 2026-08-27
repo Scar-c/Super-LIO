@@ -6,7 +6,8 @@
 # Usage:
 #   run_offline_variant.sh <config_yaml> <bag|bags_csv> <out_prefix> <variant>
 #                          [camera_topic] [camera_calib] [duration] [s0_audit]
-#                          [lidar_update_policy]
+#                          [lidar_update_policy] [layer_audit] [camera_stride]
+#                          [camera_time_offset] [dataset] [sequence]
 #   variant: b0|c0|a0|a1
 set -euo pipefail
 
@@ -22,16 +23,25 @@ LIDAR_UPDATE_POLICY="${9:-partial}"
 LAYER_AUDIT="${10:-0}"
 CAMERA_TEMPORAL_STRIDE="${11:-1}"
 CAM_TIME_OFFSET="${12:-0.0}"
+DATASET="${13:-UNSPECIFIED}"
+SEQUENCE="${14:-UNSPECIFIED}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
 SETUP_ROS="$ROOT/devel/setup.bash"
 MCD_CALIB="$ROOT/results/super_livo/tb0/config/mcd_camera.yaml"
+EVIDENCE_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/run_evidence.py"
 
 # ---- required-file checks (fail before roscore) ----
-for f in "$SETUP_ROS" "$CFG" "$NODE"; do
+for f in "$SETUP_ROS" "$CFG" "$NODE" "$EVIDENCE_TOOL"; do
   [ -f "$f" ] || { echo "FAIL: missing required file $f"; exit 2; }
 done
+[ "$DATASET" != "UNSPECIFIED" ] || {
+  echo "CONFIG_EVIDENCE_INCOMPLETE: dataset identity is required"; exit 2;
+}
+[ "$SEQUENCE" != "UNSPECIFIED" ] || {
+  echo "CONFIG_EVIDENCE_INCOMPLETE: sequence identity is required"; exit 2;
+}
 if [ "$VARIANT" != "b0" ]; then
   [ -f "$CAM_CALIB" ] || { echo "FAIL: missing camera calib $CAM_CALIB"; exit 2; }
 fi
@@ -91,6 +101,14 @@ rosparam set /lio/offline/layer_audit "$LAYER_AUDIT"
 rosparam set /camera/temporal_stride "$CAMERA_TEMPORAL_STRIDE"
 rosparam set /camera/time_offset "$CAM_TIME_OFFSET"
 rosparam set /lio/camera_epoch/lidar_update_policy "$LIDAR_UPDATE_POLICY"
+SOURCE_CONFIG_SHA256=$(sha256sum "$CFG" | awk '{print $1}')
+COMMAND_LINE=$(printf '%q ' "$0" "$@")
+rosparam set /lio/evidence/dataset "$DATASET"
+rosparam set /lio/evidence/sequence "$SEQUENCE"
+rosparam set /lio/evidence/variant "$VARIANT"
+rosparam set /lio/evidence/source_config "$CFG"
+rosparam set /lio/evidence/source_config_sha256 "$SOURCE_CONFIG_SHA256"
+rosparam set /lio/evidence/command_line "$COMMAND_LINE"
 # Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
 # super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
 # && g_lio_v0_enabled; historical C0/A0/A1 runs therefore had v0=true,
@@ -183,12 +201,50 @@ is_true "$skip_fd" || { echo "FAIL readback skip_fd"; exit 4; }
 is_false "$hb0" || { echo "FAIL readback hb0"; exit 4; }
 is_true "$vp" || { echo "FAIL readback vp"; exit 4; }
 
+# Round11AB: capture the final experiment-relevant ROS parameter state only
+# after every runner override and readback, immediately before node launch.
+python3 "$EVIDENCE_TOOL" dump-pre \
+  --out "$OUT_DIR/effective_rosparams.pre_node.yaml"
+
+PROV_ARGS=(
+  begin
+  --run-dir "$OUT_DIR"
+  --repo-root "$ROOT/src/Super-LIO"
+  --dataset "$DATASET"
+  --sequence "$SEQUENCE"
+  --variant "$VARIANT"
+  --command-line "$COMMAND_LINE"
+  --source-config "$CFG"
+)
+for b in "${BAGS[@]}"; do
+  PROV_ARGS+=(--bag "$b")
+done
+if [ -n "$CAM_CALIB" ]; then
+  PROV_ARGS+=(--camera-calibration "$CAM_CALIB")
+fi
+python3 "$EVIDENCE_TOOL" "${PROV_ARGS[@]}"
+
 echo "=== running variant=$VARIANT out=$OUT_DIR ==="
 set +e
 "$NODE" > "$OUT_DIR/node_stdout.log" 2>&1
 NODE_RC=$?
 set -e
+if [ -f "$OUT_DIR/effective_config.post_resolve.yaml" ]; then
+  sha256sum "$OUT_DIR/effective_config.post_resolve.yaml" \
+    > "$OUT_DIR/effective_config.post_resolve.yaml.sha256"
+fi
+set +e
+python3 "$EVIDENCE_TOOL" finalize \
+  --run-dir "$OUT_DIR" \
+  --source-config "$CFG" \
+  --process-return-code "$NODE_RC"
+EVIDENCE_RC=$?
+set -e
 echo "NODE_RC=$NODE_RC"
+echo "EVIDENCE_RC=$EVIDENCE_RC"
 echo "WRAPPER_RC=0"
 echo "=== COMMAND_COMPLETE rc=$NODE_RC ==="
-exit "$NODE_RC"
+if [ "$NODE_RC" -ne 0 ]; then
+  exit "$NODE_RC"
+fi
+exit "$EVIDENCE_RC"

@@ -112,6 +112,16 @@ target_link_libraries(super_lio_offline_node
   ${catkin_LIBRARIES}
 )
 
+# Round 11AB effective post-resolve configuration evidence tests
+add_executable(effective_config_test
+  src/instrumentation/tests/test_effective_config.cpp
+)
+target_include_directories(effective_config_test PUBLIC include)
+target_link_libraries(effective_config_test
+  lio
+  ${catkin_LIBRARIES}
+)
+
 # Round 11P V-4R0 outlier gate tests
 add_executable(v4r0_test
   src/geometry/tests/test_v4r0.cpp

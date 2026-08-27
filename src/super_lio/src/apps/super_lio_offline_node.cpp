@@ -8,6 +8,8 @@
 #include <ros/ros.h>
 
 #include "lio/super_lio.h"
+#include "instrumentation/EffectiveConfigSnapshot.h"
+#include "instrumentation/RunManifest.h"
 #include "offline/OfflineReader.h"
 #include "ros/ROSWrapper.h"
 
@@ -35,6 +37,138 @@ double nowMs() {
   return std::chrono::duration<double, std::milli>(
              std::chrono::high_resolution_clock::now().time_since_epoch())
       .count();
+}
+
+std::string getStringParam(ros::NodeHandle& nh, const std::string& key,
+                           const std::string& fallback) {
+  std::string value;
+  return nh.getParam(key, value) ? value : fallback;
+}
+
+std::string pointTimestampUnit(int lidar_type) {
+  switch (lidar_type) {
+    case LID_TYPE::LIVOX:
+    case LID_TYPE::OUSTER:
+      return "nanoseconds";
+    case LID_TYPE::HESAI16:
+      return "absolute_seconds";
+    case LID_TYPE::VELO16:
+    case LID_TYPE::VELO32:
+      return "microseconds";
+    default:
+      return "sensor_message_specific";
+  }
+}
+
+EffectiveConfigFields resolveEffectiveConfig(
+    ros::NodeHandle& nh, const ROSWrapper& wrapper,
+    const std::vector<std::string>& bags, bool hb0_enabled, bool vp_enabled,
+    bool v2_skip_fd, double photo_variance, bool layer_audit) {
+  EffectiveConfigFields f;
+  f.dataset = getStringParam(nh, "/lio/evidence/dataset", "UNSPECIFIED");
+  f.sequence = getStringParam(nh, "/lio/evidence/sequence", "UNSPECIFIED");
+  f.variant = getStringParam(nh, "/lio/evidence/variant", "UNSPECIFIED");
+  f.git_head = RunManifest::gitSha("/home/lc/super_livo/src/Super-LIO");
+  f.git_dirty = RunManifest::gitDirtyCount(
+      "/home/lc/super_livo/src/Super-LIO");
+  f.build_type = RunManifest::buildType();
+  f.compiler = RunManifest::compiler();
+  f.source_config_path =
+      getStringParam(nh, "/lio/evidence/source_config", "UNSPECIFIED");
+  f.source_config_sha256 =
+      getStringParam(nh, "/lio/evidence/source_config_sha256", "UNSPECIFIED");
+  f.bags = bags;
+  f.lidar_topic = g_lidar_topic;
+  f.imu_topic = g_imu_topic;
+  f.camera_topic = g_camera_topic;
+  f.camera_enabled = g_camera_enabled;
+  f.camera_temporal_stride = wrapper.cameraTemporalStride();
+
+  // Production currently has no independent IMU/LiDAR clock offsets. Camera
+  // offset is resolved exactly once at ingestion.
+  f.imu_time_offset = 0.0;
+  f.lidar_time_offset = 0.0;
+  f.camera_time_offset = g_camera_time_offset;
+  f.sync_tolerance = 0.0;  // causal comparisons use the exact binary64 epoch
+  f.lidar_update_policy = lidarUpdatePolicyName(g_lidar_update_policy);
+  f.camera_epoch_enabled = g_lio_camera_epoch;
+
+  f.lidar_imu[0] = g_lidar_imu.t_.x();
+  f.lidar_imu[1] = g_lidar_imu.t_.y();
+  f.lidar_imu[2] = g_lidar_imu.t_.z();
+  for (int i = 0; i < 9; ++i) f.lidar_imu[3 + i] = g_lidar_imu.R_.data()[i];
+  const auto& calib = wrapper.cameraCalibration();
+  f.camera_calibration_valid = calib.valid;
+  f.camera_calibration_path = calib.calib_file;
+  f.camera_calibration_sha256 = calib.calib_hash;
+  f.camera_model = calib.model_type;
+  f.camera_distortion_model = calib.distortion_model;
+  f.camera_width = calib.image_width;
+  f.camera_height = calib.image_height;
+  f.fx = calib.fx;
+  f.fy = calib.fy;
+  f.cx = calib.cx;
+  f.cy = calib.cy;
+  f.k1 = calib.k1;
+  f.k2 = calib.k2;
+  f.p1 = calib.p1;
+  f.p2 = calib.p2;
+  for (int r = 0; r < 4; ++r) {
+    for (int c = 0; c < 4; ++c) {
+      f.t_body_cam[static_cast<std::size_t>(4 * r + c)] =
+          calib.T_body_cam(r, c);
+    }
+  }
+
+  f.imu_type = g_imu_type;
+  f.gravity_norm = g_gravity_norm;
+  f.imu_na = g_imu_na;
+  f.imu_ng = g_imu_ng;
+  f.imu_nba = g_imu_nba;
+  f.imu_nbg = g_imu_nbg;
+  f.kf_type = g_kf_type;
+  f.kf_max_iterations = g_kf_max_iterations;
+  f.kf_align_gravity = g_kf_align_gravity;
+  f.kf_quit_eps = g_kf_quit_eps;
+  f.d_family = g_lio_camera_epoch &&
+               g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN &&
+               !g_lio_v4_apply;
+  f.visual_apply = g_lio_v4_apply;
+  f.visual_outlier_gate = g_lio_v4_outlier_gate;
+  f.visual_outlier_mse_threshold = g_v4_outlier_mse_threshold;
+  f.g0_shadow = g_lio_g0_shadow;
+  f.g1_enabled = g_lio_g1_enabled;
+  f.g1v_enabled = g_lio_g1v_enabled;
+  f.v0_enabled = g_lio_v0_enabled;
+  f.v2_enabled = g_lio_v2_enabled;
+  f.v2_skip_fd = v2_skip_fd;
+  f.hb0_enabled = hb0_enabled;
+  f.visual_parallel_enabled = vp_enabled;
+  f.s0_audit = g_lio_s0_audit;
+  f.layer_audit = layer_audit;
+  f.camera_frame_buffer_capacity = g_camera_frame_buffer_capacity;
+  f.camera_frame_buffer_capacity_source =
+      nh.hasParam("/camera/frame_buffer_capacity") ? "rosparam" : "default";
+
+  f.lidar_type =
+      (g_lidar_type > 0 &&
+       g_lidar_type < static_cast<int>(LID_TYPE_NAMES.size()))
+          ? LID_TYPE_NAMES[static_cast<std::size_t>(g_lidar_type)]
+          : "UNKNOWN";
+  f.point_timestamp_unit = pointTimestampUnit(g_lidar_type);
+  f.scan_lines = 0;  // production preprocessing has no scan-line parameter
+  f.blind_range = std::sqrt(std::max(0.0f, g_blind2));
+  f.max_range = std::sqrt(std::max(0.0f, g_maxrange2));
+  f.point_filter_rate = g_filter_rate;
+  f.enable_downsample = g_enable_downsample;
+  f.voxel_filter_size = g_voxel_fliter_size;
+  f.hash_capacity = g_ivox_capacity;
+  f.map_voxel_resolution = g_ivox_resolution;
+  f.submap_resolution = g_submap_resolution;
+  f.submap_capacity = g_submap_capacity;
+  f.photo_variance = photo_variance;
+  f.photo_weight = 1.0 / photo_variance;
+  return f;
 }
 
 }  // namespace
@@ -123,16 +257,31 @@ int main(int argc, char** argv) {
   opts.duration = g_offline_duration;
   opts.publish = g_offline_publish;
 
-  {
-    int layer_audit_i = 0;
-    nh.getParam("/lio/offline/layer_audit", layer_audit_i);
-    lio->setLayerAudit(layer_audit_i != 0);
-    std::printf("[offline_node] layer_audit=%d\n", layer_audit_i != 0);
-  }
+  int layer_audit_i = 0;
+  nh.getParam("/lio/offline/layer_audit", layer_audit_i);
+  lio->setLayerAudit(layer_audit_i != 0);
+  std::printf("[offline_node] layer_audit=%d\n", layer_audit_i != 0);
   data_wrapper->setCameraEnabled(g_camera_enabled);
   if (g_camera_enabled && !g_camera_calib_file.empty()) {
     data_wrapper->loadCameraCalibration(g_camera_calib_file);
   }
+
+  std::vector<std::string> effective_bags = opts.bag_paths;
+  if (effective_bags.empty() && !opts.bag_path.empty()) {
+    effective_bags.push_back(opts.bag_path);
+  }
+  const EffectiveConfigFields effective = resolveEffectiveConfig(
+      nh, *data_wrapper, effective_bags, hb0_enabled, vp_enabled, v2_skip_fd,
+      v4_photo_var, layer_audit_i != 0);
+  const std::string effective_path =
+      out_dir + "/effective_config.post_resolve.yaml";
+  if (out_dir.empty() ||
+      !EffectiveConfigSnapshot::write(effective_path, effective)) {
+    std::printf("[offline_node] CONFIG_EVIDENCE_INCOMPLETE: cannot write %s\n",
+                effective_path.c_str());
+    return 2;
+  }
+  std::printf("[offline_node] effective config: %s\n", effective_path.c_str());
   if (!reader.open(opts)) {
     return 1;
   }
