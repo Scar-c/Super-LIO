@@ -2,6 +2,15 @@
 
 **Status:** parent（非 ticket；v1 唯一 active tracker；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
+## Current frontier
+
+Round11AB / Prompt #48 is active from `742b9c4`. The D-family remains the
+state-off benchmark backbone. Round11AA's Day10/MCD/NTU/Oxford results remain
+historical accepted evidence; the pipeline is now continuing with effective
+configuration evidence, official evaluator recovery/registry, and conditional
+M3DGR Corridor01 closure. Visual state apply and new visual optimization remain
+OFF in this round.
+
 ## Completed prerequisites
 
 ```text

@@ -39,3 +39,17 @@ Owner prompt #47.
 - M3DGR Corridor01: bag/GT/配置主题匹配，但 GT 帧方向门未开 + 相机 offset
   TEMPORAL UNCERTAIN + FINAL_RELATIVE_POSE 评估器未提交 → §9.4 STOP
 - 分类: D_FAMILY_DAY10_GREEN_PIPELINE_STOPPED_AT_M3
+
+## Round11AB continuation
+
+Owner prompt #48:
+`prompts/04_v1_implementation/48_round11ab_effective_config_official_eval_registry_m3_closure.md`
+
+Status: **ACTIVE — evidence/evaluator/config registry and conditional M3 closure**
+
+- D-family remains the active state-off backbone; visual state apply remains OFF.
+- Night08 Owner disposition is `OWNER_ACCEPTED_AMBER` and is not a pipeline blocker.
+- Add pre-node ROS parameter and post-resolve node configuration evidence before any new canonical run.
+- Recover/pin official NTU, MCD, Oxford, and M3DGR evaluation semantics.
+- Run only M3DGR Corridor01 B0/D-S3 after every evaluator/config/frame gate passes.
+- Audit FAST-LIVO2 visual parity and freeze V0..V6 planning only; no visual optimization in Round11AB.
