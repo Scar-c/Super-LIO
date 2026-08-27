@@ -32,23 +32,45 @@ def token_pids(token):
 
 with tempfile.TemporaryDirectory(prefix="m3-transaction-e2e-") as td:
     root=pathlib.Path(td); fake=root/'bin'; fake.mkdir(); out=root/'runs'; out.mkdir()
-    bag=root/'Outdoor01.bag'; cfg=root/'m3dgr_avia.yaml'; cam=root/'camera.yaml'; traj=root/'mat_out.txt'; parity=root/'parity.py'
-    for p in (bag,cfg,cam):p.write_text('fixture\n')
+    bag=root/'Outdoor01.bag'; cfg=root/'m3dgr_avia.yaml'; cam=root/'camera.yaml'; launch=root/'mapping.launch'; traj=root/'mat_out.txt'; parity=root/'parity.py'
+    for p in (bag,cfg,cam,launch):p.write_text('fixture\n')
     make_exe(fake/'roscore', 'exec sleep 60\n')
     make_exe(fake/'rosparam', 'if [ "$1" = dump ]; then echo "runtime: true" > "$2"; fi\nexit 0\n')
-    make_exe(fake/'rosnode', '[ "${M3_FAKE_ALGO_FAIL:-0}" = 1 ] && exit 1\nprintf "/laserMapping\\n/image_transport_republish\\n"\n')
+    make_exe(fake/'rosnode', '[ "${M3_FAKE_ALGO_FAIL:-0}" = 1 ] && exit 1\n[ "${M3_FAKE_DATA_PATH_FAIL:-0}" = 1 ] && { printf "/laserMapping\\n"; exit 0; }\nprintf "/laserMapping\\n/image_transport_republish\\n"\n')
     make_exe(fake/'roslaunch', '[ "${M3_FAKE_ALGO_FAIL:-0}" = 1 ] && exit 7\nexec sleep 60\n')
-    make_exe(fake/'rosbag', 'sleep "${M3_FAKE_PLAY_SEC:-0.3}"\n[ "${M3_FAKE_BAG_FAIL:-0}" = 1 ] && exit 8\nprintf "1 0 0 0 0 0 0 1\\n2 0 0 0 0 0 0 1\\n" > "$M3_TRAJ_PATH"\n')
-    parity.write_text('import json,sys\np=sys.argv[sys.argv.index("--out")+1]\njson.dump({"parity":"PASS"},open(p,"w"))\n')
-    base=os.environ.copy();base.update(PATH=f"{fake}:{base['PATH']}",M3_TEST_MODE='1',M3_BAG=str(bag),M3_LAUNCH='mapping.launch',M3_CFG=str(cfg),M3_CAMCFG=str(cam),M3_TRAJ_PATH=str(traj),M3_MIN_ROWS='2',M3_PARITY_TOOL=str(parity),M3_LOCK_FILE=str(root/'adapter.lock'),M3_LOCK_META=str(root/'owner.json'))
+    make_exe(fake/'rosbag', 'sleep "${M3_FAKE_PLAY_SEC:-0.3}"\n[ "${M3_FAKE_BAG_FAIL:-0}" = 1 ] && exit 8\nif [ "${M3_FAKE_EMPTY_TRAJ:-0}" = 1 ]; then : > "$M3_TRAJ_PATH"; else printf "1 0 0 0 0 0 0 1\\n2 0 0 0 0 0 0 1\\n" > "$M3_TRAJ_PATH"; fi\n')
+    parity.write_text('import json,os,sys\np=sys.argv[sys.argv.index("--out")+1]\njson.dump({"parity":"PASS"},open(p,"w"))\nraise SystemExit(1 if os.environ.get("M3_FAKE_PARITY_FAIL")=="1" else 0)\n')
+    base=os.environ.copy();base.update(PATH=f"{fake}:{base['PATH']}",M3_TEST_MODE='1',M3_BAG=str(bag),M3_LAUNCH='mapping.launch',M3_LAUNCH_PATH=str(launch),M3_CFG=str(cfg),M3_CAMCFG=str(cam),M3_TRAJ_PATH=str(traj),M3_MIN_ROWS='2',M3_PARITY_TOOL=str(parity),M3_LOCK_FILE=str(root/'adapter.lock'),M3_LOCK_META=str(root/'owner.json'))
 
     def start(name, extra=None):
         env=base.copy();env.update(extra or {});d=out/name;d.mkdir(parents=True,exist_ok=False)
         return subprocess.Popen([str(RUNNER),name,str(out)],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True),d
 
+    # TX-T1 missing config fails before ROS/bag.
+    missing=root/'missing.yaml';p,d=start('missing_config',{'M3_CFG':str(missing)})
+    assert p.wait(timeout=3)!=0; s=state(d)
+    assert s['failure_class']=='STATIC_PREFLIGHT_FAIL' and not (d/'play.log').exists()
+
+    # TX-T2 parity mismatch blocks playback.
+    p,d=start('parity_fail',{'M3_FAKE_PARITY_FAIL':'1'});assert p.wait(timeout=8)!=0;s=state(d)
+    assert s['failure_class']=='CONFIG_PARITY_FAIL' and not (d/'play.log').exists(), s
+
+    # TX-T6 missing republisher/data path blocks playback.
+    p,d=start('data_path_fail',{'M3_FAKE_DATA_PATH_FAIL':'1'});assert p.wait(timeout=8)!=0;s=state(d)
+    assert s['failure_class']=='DATA_DELIVERY_FAIL' and not (d/'play.log').exists()
+
+    # TX-T7 empty output is OUTPUT_FAIL, never canonical.
+    p,d=start('empty_output',{'M3_FAKE_EMPTY_TRAJ':'1'});assert p.wait(timeout=8)!=0;s=state(d)
+    assert s['failure_class']=='OUTPUT_FAIL' and s['experiment_valid'] is False
+
     # normal SUCCESS -> cleanup; terminal state survives cleanup
     p,d=start('success'); assert p.wait(timeout=8)==0; s=state(d)
     assert s['state']=='SUCCESS' and s['cleanup_verified'] is True and s['experiment_valid'] is True
+    assert token_pids(s['transaction_token'])==[]
+
+    # TX-T9 a second sequential transaction also succeeds without leftovers.
+    p,d=start('success_sequential'); assert p.wait(timeout=8)==0; s=state(d)
+    assert s['state']=='SUCCESS' and s['cleanup_verified'] is True
     assert token_pids(s['transaction_token'])==[]
 
     # algorithm FAIL -> cleanup
