@@ -78,7 +78,7 @@ Status: **CLOSED — ROUND11AB_CLOSED_M3_COMPLETE**
 Owner prompt #49:
 `prompts/04_v1_implementation/49_round12_dual_upstream_config_reproduction.md`
 
-Status: **ACTIVE**
+Status: **STOPPED FOR OWNER**
 
 - Round 11 is closed; this is Round 12, not another Round11 suffix.
 - Recover authoritative dataset configuration from both Super-LIO and
@@ -87,3 +87,15 @@ Status: **ACTIVE**
 - Reproduce pristine parent implementations only after their config and input
   provenance closes; no paper-number chasing or parameter sweeps.
 - Visual functional optimization remains unauthorized.
+
+## Round12 stop gate
+
+- Pristine Super-LIO NTU eee/nya reproduced GREEN.
+- MCD day10 current upstream reproduced GREEN; MCD night08 current upstream
+  remained RED across three bitwise-identical runs, while the paper-era
+  revision reproduced GREEN.
+- This revision-sensitive RED result triggers Prompt49 sections 39/50.
+- Pristine FAST-LIVO2 was cleanly built at its pinned revision but no dataset
+  run was started after the stop gate.
+- Required Owner decisions are recorded in
+  `docs/super_livo/evidence/round12_stop_for_owner.md`.

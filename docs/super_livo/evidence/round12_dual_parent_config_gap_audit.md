@@ -5,14 +5,14 @@ Audit date: 2026-08-27. `original/` files and machine manifests live under
 
 | Parent × dataset | Specific config | Authority | YAML/launch/camera | Revision/branch/hash | Effective params | Hard-coded audit | Local runnable | Classification |
 |---|---|---|---|---|---|---|---|---|
-| Super-LIO × NTU | yes | METHOD_AUTHOR | yes/yes/N/A | complete | pending run | complete | build/run pending | PARTIAL_CONFIG |
-| Super-LIO × MCD | yes | METHOD_AUTHOR | yes/yes/N/A; dataset calibration separate | complete | pending run | complete | build/run pending | PARTIAL_CONFIG |
+| Super-LIO × NTU | yes | METHOD_AUTHOR | yes/yes/N/A | complete | captured for eee/nya | complete | pristine build and runs complete | COMPLETE_REPRODUCIBLE |
+| Super-LIO × MCD | yes | METHOD_AUTHOR | yes/yes/N/A; dataset calibration separate | complete | captured for day10/night08 at current and paper-era revisions | complete | pristine build and runs complete | COMPLETE_REPRODUCIBLE_REVISION_SENSITIVE |
 | Super-LIO × Oxford | no | NOT_PUBLISHED | none | search pinned at `60b57aa` | N/A | method-global complete | no authoritative config | NOT_PUBLISHED |
 | Super-LIO × M3DGR | no | NOT_PUBLISHED | none; M2DGR is not substituted | search pinned at `60b57aa` | N/A | method-global complete | no authoritative config | NOT_PUBLISHED |
-| FAST-LIVO2 × NTU | yes | METHOD_AUTHOR | yes/yes/yes | complete | pending run | complete | dependency/run pending | PARTIAL_CONFIG |
+| FAST-LIVO2 × NTU | yes | METHOD_AUTHOR | yes/yes/yes | complete | pending run | complete | pristine build verified; run stopped by Owner gate | PARTIAL_CONFIG |
 | FAST-LIVO2 × MCD | no | NOT_FOUND | method defaults preserved only | search pinned at `0d2c034` | N/A | method-global complete | fallback needs explicit adaptation | NOT_PUBLISHED |
-| FAST-LIVO2 × Oxford | yes | DATASET_AUTHOR_ADAPTED | yes/yes/yes | `config-used-OSD@f2c9abb`, complete | pending run | inherited method audit | dependency/run pending | PARTIAL_CONFIG |
-| FAST-LIVO2 × M3DGR | yes | DATASET_AUTHOR_ADAPTED | yes/yes/yes | `M3DGR@e0cf7d5`, complete | pending run | adapted-source comparison pending | dependency/run pending | PARTIAL_CONFIG |
+| FAST-LIVO2 × Oxford | yes | DATASET_AUTHOR_ADAPTED | yes/yes/yes | `config-used-OSD@f2c9abb`, complete | pending run | inherited method audit | run stopped by Owner gate | PARTIAL_CONFIG |
+| FAST-LIVO2 × M3DGR | yes | DATASET_AUTHOR_ADAPTED | yes/yes/yes | `M3DGR@e0cf7d5`, complete | pending run | adapted-source comparison pending | run stopped by Owner gate | PARTIAL_CONFIG |
 
 ## Round11AB claim correction
 

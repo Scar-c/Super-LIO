@@ -4,8 +4,12 @@
 
 ## Current frontier
 
-Round 11 CLOSED. Round 12 ACTIVE (Prompt #49). Priority: dual-upstream config
-provenance + LIO semantic parity + upstream reproduction. The D-family remains
+Round 11 CLOSED. Round 12 STOPPED FOR OWNER (Prompt #49). Config provenance,
+LIO semantic parity, reference-base lineage, and pristine Super-LIO evidence
+are durable. Current-upstream Super-LIO MCD night08 remained RED after N=3;
+the paper-era revision is GREEN, so remaining FAST-LIVO2 runs require the
+explicit revision-baseline/continuation decisions recorded in
+`docs/super_livo/evidence/round12_stop_for_owner.md`. The D-family remains
 the state-off benchmark backbone. Effective configuration evidence and the
 official evaluator/baseline registry are committed. M3DGR Corridor01 closes
 with dataset-author ArUco translation error B0 `15.407685800 m`, D-S3
