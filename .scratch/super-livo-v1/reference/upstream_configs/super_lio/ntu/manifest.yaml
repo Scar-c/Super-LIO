@@ -3,8 +3,8 @@ dataset: NTU_VIRAL
 repository: https://github.com/Liansheng-Wang/Super-LIO.git
 branch: ros1
 revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
-classification: PARTIAL_CONFIG
-status: CONFIG_AND_LAUNCH_CAPTURED_REPRODUCTION_PENDING
+classification: COMPLETE_REPRODUCIBLE
+status: EEE_AND_NYA_PRISTINE_GREEN
 files:
   - {path: original/NTU.yaml, sha256: e28ba0f4849689be60a7e3d979df87cd3dfa2e139fc90333068283d266566d3d}
   - {path: original/NTU.launch, sha256: 9b6bb60d3711614f63ed7d3066bd9460794118b39a1f6e0ca2d1a2f0a6542340}

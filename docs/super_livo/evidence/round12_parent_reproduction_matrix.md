@@ -5,8 +5,8 @@ provenance gates close. `PENDING` is evidence status, not a zero score.
 
 | Dataset | Sequence | Parent | Config provenance | Config revision | Published score | Local pristine reproduction | Our B0 | Our D | Metric | Status |
 |---|---|---|---|---|---:|---:|---:|---:|---|---|
-| NTU | eee_01 | Super-LIO | method-author dataset config | `60b57aa` | registry value | PENDING | 0.0271 | existing D, protocol registry | dataset prism ATE RMSE | CONFIG_CLOSED_RUN_PENDING |
-| NTU | nya_01 | Super-LIO | method-author dataset config | `60b57aa` | registry value | PENDING | 0.0356 | existing D, protocol registry | dataset prism ATE RMSE | CONFIG_CLOSED_RUN_PENDING |
+| NTU | eee_01 | Super-LIO | method-author dataset config | `60b57aa` | 0.119 | 0.118875639 GREEN | 0.0271 | existing D, protocol registry | dataset prism ATE RMSE | REPRODUCED_GREEN |
+| NTU | nya_01 | Super-LIO | method-author dataset config | `60b57aa` | 0.069 | 0.062926634 GREEN | 0.0356 | existing D, protocol registry | dataset prism ATE RMSE | REPRODUCED_GREEN |
 | NTU | eee_01 | FAST-LIVO2 | method-author dataset config | `0d2c034` | 0.068 | PENDING | 0.0271 | existing D | dataset prism/evaluator must remain distinct | CONFIG_CLOSED_RUN_PENDING |
 | NTU | nya_01 | FAST-LIVO2 | method-author dataset config | `0d2c034` | 0.073 | PENDING | 0.0356 | existing D | dataset prism/evaluator must remain distinct | CONFIG_CLOSED_RUN_PENDING |
 | MCD | day10=mcd2 | Super-LIO | method-author `MCD_ATH.yaml` | current `60b57aa`; paper `2c09212` | 0.721 | current 0.7163 GREEN; paper-era 0.9594 AMBER | 1.2181 | 0.9044 | frozen MCD APE RMSE | REPRODUCED_REVISION_SENSITIVE |

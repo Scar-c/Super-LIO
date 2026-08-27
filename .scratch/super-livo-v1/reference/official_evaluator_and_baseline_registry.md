@@ -159,8 +159,8 @@ repository/history; this is `DEDICATED_DATASET_CONFIG=NOT_FOUND`.
 
 | Dataset / sequence | Our B0 | Our D-S3/D0 | D/B0 | Official status / canonical metric | FAST-LIVO2 | Super-LIO | Grade / caveat |
 |---|---:|---:|---:|---|---|---|---|
-| NTU eee_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.068 m`; current source `0.0271 m` | `0.119 m` | B; protocols/revisions differ and local trajectory missing |
-| NTU nya_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.073 m`; current source `0.0356 m` | `0.069 m` | B; protocols/revisions differ and local trajectory missing |
+| NTU eee_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.068 m`; current source `0.0271 m` | paper `0.119 m`; pristine `0.118875639 m` GREEN | Super-LIO A; existing Super-LIVO trajectory missing |
+| NTU nya_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.073 m`; current source `0.0356 m` | paper `0.069 m`; pristine `0.062926634 m` GREEN | Super-LIO A; existing Super-LIVO trajectory missing |
 | MCD ntu_day_10 / mcd2 | 1.2181 m | 0.9044 m | 0.742 | no official ATE; OUR_REPRODUCTION discrete GT APE RMSE | NOT_FOUND | paper 0.721; current pristine 0.7163 GREEN; paper-era 0.9594 AMBER | dataset-author SeqID2 mapping; revision-sensitive |
 | MCD ntu_night_08 / mcd4 | 1.7416 m | 1.9964 m | 1.146 | same OUR_REPRODUCTION metric | NOT_FOUND | paper 0.604; current pristine 1.0210 RED N=3; paper-era 0.6978 GREEN | OWNER_ACCEPTED_AMBER; dataset-author SeqID4; no causal darkness claim |
 | Oxford ROQ01 | historical 0.0630 m | historical D0 0.0629 m | 0.998 | official evo APE, SE3, max-diff 0.01 | `0.04 m`, dataset benchmark | NOT_FOUND | FAST-LIVO2 A; local values B pending exact reevaluation |

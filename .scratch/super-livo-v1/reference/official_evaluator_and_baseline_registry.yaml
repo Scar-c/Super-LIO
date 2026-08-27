@@ -252,7 +252,7 @@ records:
     fast_livo2:
       - {score_m: 0.068, tier: METHOD_AUTHOR_PAPER, source: FAST-LIVO2 Table II, config: paper revision incomplete, grade: B}
       - {score_m: 0.0271, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
-    super_lio: {score_m: 0.119, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I eee1/Super-LIO column, config: super_lio, grade: B}
+    super_lio: {score_m: 0.119, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I eee1/Super-LIO column, config: super_lio_ntu, pristine_reproduction_m: 0.118875639, revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29, reproduction_grade: GREEN, grade: A}
     caveat: historical local trajectories are not intact; no odometry rerun authorized solely for evaluation
   - dataset: NTU_VIRAL
     sequence: nya_01
@@ -265,7 +265,7 @@ records:
     fast_livo2:
       - {score_m: 0.073, tier: METHOD_AUTHOR_PAPER, source: FAST-LIVO2 Table II, config: paper revision incomplete, grade: B}
       - {score_m: 0.0356, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
-    super_lio: {score_m: 0.069, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I nya1/Super-LIO column, config: super_lio, grade: B}
+    super_lio: {score_m: 0.069, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I nya1/Super-LIO column, config: super_lio_ntu, pristine_reproduction_m: 0.062926634, revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29, reproduction_grade: GREEN, grade: A}
     caveat: historical local trajectories are not intact; no odometry rerun authorized solely for evaluation
   - dataset: MCD
     sequence: ntu_day_10
