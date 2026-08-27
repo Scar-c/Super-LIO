@@ -84,5 +84,24 @@ by default. The options for Origin:
   (c) investigate the exact Oxford benchmark image-delivery chain (Priority 1)
       further.
 
-F3 (Oxford) and F4 (M3DGR, same compressed-camera interface) are BLOCKED on
-this image-delivery mechanism pending Origin decision.
+F3 (Oxford) and F4 (M3DGR, same compressed-camera interface) are being
+retried with the user-corrected bag path and the verified standard
+image_transport invocation (see section 6c).
+
+## 6c. User-verified image_transport usage (Origin confirmation)
+
+User independently verified that standard ROS image_transport republish DOES
+work in this environment with the correct base-topic form:
+
+```
+rosrun image_transport republish compressed in:=/alphasense_driver_ros/cam0/debayered/image out:=/my_camera/raw_image
+rostopic hz /my_camera/raw_image  ->  average rate: 20.547
+```
+
+The earlier failure (0 frames) was attributable to the Oxford bag path
+containing a SPACE ("Quarter 01.bag"), which broke the nested rosbag play
+invocation, and/or connection timing — NOT to image_transport itself.
+User also corrected the Oxford bag path.
+
+Therefore the Priority-2 standard image_transport path is re-confirmed
+applicable; no custom decoder is needed.
