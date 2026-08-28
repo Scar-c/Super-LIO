@@ -44,9 +44,16 @@ class TestNormalizedSemanticProfiles(unittest.TestCase):
 
     def test_n_t3_apply_inherits_shadow_and_changes_only_apply(self):
         shadow, apply = self.resolve(), self.resolve("D_VISUAL_APPLY")
+        # Prompt64: the APPLY profile additionally declares its REQUESTED
+        # camera-epoch event placement (differs from the legacy Shadow
+        # placement); state apply is the only enabled/flag change.
         self.assertEqual(self.sp.semantic_diff(shadow, apply),
-                         {"semantic_profile", "visual_state_apply"})
+                         {"semantic_profile", "visual_state_apply",
+                          "visual_measurement_event",
+                          "visual_measurement_timestamp_semantics",
+                          "camera_payload_ownership_mode", "validator"})
         self.assertIs(apply["visual_state_apply"], True)
+        self.assertEqual(apply["visual_measurement_event"], "CAMERA_EPOCH")
 
     def test_n_t4_dataset_adapter_cannot_override_protected_fields(self):
         with self.assertRaises(self.sp.SemanticProfileError):

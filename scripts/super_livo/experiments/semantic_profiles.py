@@ -8,11 +8,24 @@ import sys
 
 import yaml
 
+SCHEMA_VERSION = "2"
+# Prompt64 event-placement schema: WHAT/WHERE/WHEN/OWNERSHIP/EXACT-ONCE.
+# visual_measurement_event:      estimator event where Visual producer/query/
+#                                residual/H-b construction executes
+# visual_measurement_timestamp_semantics: the estimator state/covariance epoch
+#                                around which that measurement is linearized
+# visual_measurement_exact_once: one eligible logical camera measurement is
+#                                executed once, never duplicated at another
+#                                estimator callback
+# camera_payload_ownership_mode: lifecycle contract governing the camera
+#                                payload through the declared measurement event
 PROTECTED_FIELDS = (
     "scheduler_family", "camera_input_enabled", "camera_epoch_enabled",
     "visual_frontend_enabled", "visual_map_producer_enabled",
     "visual_measurement_enabled", "visual_state_apply", "raw_lidar_policy",
     "full_lidar_observe_per_raw_scan", "camera_stride",
+    "visual_measurement_event", "visual_measurement_timestamp_semantics",
+    "visual_measurement_exact_once", "camera_payload_ownership_mode",
 )
 REVISION_FIELDS = (
     "production_revision", "semantic_profile_revision", "dataset_adapter_revision",
@@ -30,7 +43,22 @@ _SHADOW = {
     "visual_state_apply": False,
     "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
     "full_lidar_observe_per_raw_scan": 1,
+    "visual_measurement_event": "FULL_LIDAR_OBSERVE_CALLBACK",
+    "visual_measurement_timestamp_semantics": "LIDAR_OBSERVE_CONVERGENCE_STATE",
+    "visual_measurement_exact_once": True,
+    "camera_payload_ownership_mode": "POP_AT_CAMERA_EPOCH",
 }
+# Truthful representation of current Prompt60 production capability (source:
+# round13_current_d_event_source_audit.md): the accepted Visual H/b executes
+# in the full-LiDAR Observe convergence callback, NOT at the camera epoch.
+EFFECTIVE_PRODUCTION_CAPABILITY = {
+    "visual_measurement_event": "FULL_LIDAR_OBSERVE_CALLBACK",
+    "visual_measurement_timestamp_semantics": "LIDAR_OBSERVE_CONVERGENCE_STATE",
+    "camera_payload_ownership_mode": "POP_AT_CAMERA_EPOCH",
+}
+# Requested future intent: camera-event architecture (payload retained through
+# the camera epoch measurement). Resolves as a definition; FAILS executability
+# until production capability matches (RP-T7, no silent degradation).
 PROFILES = {
     "D_SCHEDULER_BASE": {
         "scheduler_family": "D_CORRECTED",
@@ -42,13 +70,29 @@ PROFILES = {
         "visual_state_apply": None,
         "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
         "full_lidar_observe_per_raw_scan": 1,
+        "visual_measurement_event": "NONE",
+        "visual_measurement_timestamp_semantics": "NONE",
+        "visual_measurement_exact_once": None,
+        "camera_payload_ownership_mode": "NONE",
     },
     "D_VISUAL_SHADOW": _SHADOW,
-    "D_VISUAL_APPLY": {**_SHADOW, "visual_state_apply": True},
+    "D_VISUAL_APPLY": {
+        **_SHADOW, "visual_state_apply": True,
+        "visual_measurement_event": "CAMERA_EPOCH",
+        "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+        "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+    },
 }
 
 class SemanticProfileError(ValueError):
     pass
+
+# Profile-associated post-run validator contract (Prompt64 §25): selection
+# derives from the resolved semantic profile, never from a hardcoded
+# transaction-supervisor branch. Validators accept --log/--manifest/--out.
+VALIDATOR_CONTRACT = {
+    "D_VISUAL_SHADOW": "scripts/super_livo/experiments/validate_d_visual_shadow_result.py",
+}
 
 def protected_projection(manifest):
     return {key: manifest.get(key) for key in PROTECTED_FIELDS}
@@ -72,6 +116,8 @@ def resolve_profile(profile, *, legacy_alias="", dataset="", sequence="", camera
     if stride < 1:
         raise SemanticProfileError("camera_stride must be >= 1")
     manifest = {"semantic_profile": profile, "legacy_alias": legacy_alias,
+                "semantic_schema_version": SCHEMA_VERSION,
+                "validator": VALIDATOR_CONTRACT.get(profile, ""),
                 **copy.deepcopy(PROFILES[profile]), "camera_stride": stride,
                 "dataset": dataset, "sequence": sequence,
                 "config_provenance": dict(provenance or {})}
@@ -80,12 +126,37 @@ def resolve_profile(profile, *, legacy_alias="", dataset="", sequence="", camera
     validate_manifest(manifest)
     return manifest
 
+def validate_executability(manifest):
+    """Requested profile semantics must match the effective production
+    capability. No silent degradation (Prompt64 §15/§16)."""
+    if manifest.get("semantic_profile") == "D_SCHEDULER_BASE":
+        return True  # descriptive only; rosparams_for already rejects it
+    if not manifest.get("visual_measurement_enabled"):
+        return True
+    for key, effective in EFFECTIVE_PRODUCTION_CAPABILITY.items():
+        requested = manifest.get(key)
+        if requested in (None, "NONE"):
+            raise SemanticProfileError(f"{key} unresolved for measurement-enabled profile")
+        if requested != effective:
+            raise SemanticProfileError(
+                f"requested {key}={requested} but effective production "
+                f"capability is {effective}; SEMANTIC_PROFILE_FAIL, NO PLAYBACK")
+    return True
+
 def validate_manifest(manifest):
     profile = manifest.get("semantic_profile")
     if profile not in PROFILES:
         raise SemanticProfileError("semantic_profile missing or unknown")
     missing = [key for key in PROTECTED_FIELDS if key not in manifest]
     if missing:
+        legacy_missing = [k for k in missing if k in (
+            "visual_measurement_event", "visual_measurement_timestamp_semantics",
+            "visual_measurement_exact_once", "camera_payload_ownership_mode")]
+        if legacy_missing and manifest.get("semantic_schema_version") == "1":
+            # Prompt59/60 manifests: SCHEMA_LEGACY, provenance only. Absent
+            # event fields are NOT resolved to any assumed value; executability
+            # gate below rejects playback.
+            return True
         raise SemanticProfileError("missing protected fields: " + ", ".join(missing))
     if profile != "D_SCHEDULER_BASE":
         expected = {**PROFILES[profile], "camera_stride": manifest["camera_stride"]}
@@ -148,6 +219,8 @@ def main(argv=None):
                  "dataset-calibration-provenance"):
         resolve.add_argument("--" + name, required=True)
     validate = sub.add_parser("validate"); validate.add_argument("--manifest", required=True)
+    executable = sub.add_parser("check-executable"); executable.add_argument("--manifest", required=True)
+    validator = sub.add_parser("validator"); validator.add_argument("--manifest", required=True)
     params = sub.add_parser("rosparams"); params.add_argument("--manifest", required=True); params.add_argument("--out-dir", required=True)
     args = parser.parse_args(argv)
     try:
@@ -161,6 +234,15 @@ def main(argv=None):
             write_manifest(manifest, args.out)
         elif args.command == "validate":
             validate_manifest(load_manifest(args.manifest))
+        elif args.command == "check-executable":
+            validate_executability(load_manifest(args.manifest))
+        elif args.command == "validator":
+            manifest = load_manifest(args.manifest)
+            contract = manifest.get("validator", "")
+            if not contract:
+                raise SemanticProfileError("no validator contract for profile "
+                                           + manifest.get("semantic_profile", "?"))
+            print(contract)
         else:
             for key, value in rosparams_for(load_manifest(args.manifest), args.out_dir):
                 print(f"{key}\t{value}")
