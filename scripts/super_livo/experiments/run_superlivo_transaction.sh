@@ -2,7 +2,13 @@
 # GTP transaction supervisor for the canonical offline Super-LIVO runner.
 set -u
 RUN_ID="${1:?run id}"; OUT_ROOT="${2:?output root}"; RUN_DIR="$OUT_ROOT/$RUN_ID"
-RUNNER="${SLV_RUNNER:-/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/run_offline_variant.sh}"
+# Prompt68: canonical runner identity is derived deterministically from this
+# supervisor's own repository location (portable, CWD-independent). The
+# SLV_RUNNER override is executable replacement: it requires explicit
+# SLV_TEST_MODE=1 and is fail-closed otherwise (no production bypass).
+SUPERVISOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CANONICAL_RUNNER="$SUPERVISOR_DIR/run_offline_variant.sh"
+RUNNER="${SLV_RUNNER:-$CANONICAL_RUNNER}"
 LOCK="${SLV_LOCK_FILE:-/home/lc/super_livo/base_ws/tools/benchmark_adapters/superlivo_adapter.lock}"
 STATE="$RUN_DIR/state.json"; LOG="$RUN_DIR/supervisor.log"; CANCEL="$RUN_DIR/cancel"
 mkdir -p "$RUN_DIR" "$(dirname "$LOCK")"
@@ -11,6 +17,11 @@ SUP_TOKEN="$(awk '{print $22}' /proc/$$/stat)"
 CHILD_PID=""; CHILD_PGID=""; CHILD_TOKEN=""; CLEANED=false; CLEANUP_OK=false
 FINAL_STATE=FAILED; FINAL_CLASS=SUPERVISOR_FAILURE; FINAL_REASON="unexpected exit"; VALID=false
 
+# Prompt68: canonical runner identity is derived deterministically from this
+# supervisor's own repository location (portable, CWD-independent). SLV_RUNNER
+# is executable replacement: requires explicit SLV_TEST_MODE=1, fail-closed
+# otherwise. Same for SLV_LOCK_FILE (shared-resource identity must not be
+# caller-chosen in production).
 state() {
   python3 - "$STATE" "$RUN_ID" "$1" "${2:-}" "${3:-}" "$CLEANUP_OK" "$VALID" "$$" "$SUP_TOKEN" "$CHILD_PID" "$CHILD_PGID" "$CHILD_TOKEN" <<'PY'
 import json,os,sys,tempfile
@@ -36,6 +47,21 @@ owned_group(){
     [ "$e" = "$TOKEN" ] || return 1
   done
 }
+# Prompt68 gates (state() defined above): SLV_RUNNER / SLV_LOCK_FILE are
+# executable/reource-identity overrides; require explicit SLV_TEST_MODE=1.
+if [ -n "${SLV_RUNNER:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
+  CLEANUP_OK=true
+  echo "STATIC_PREFLIGHT_FAIL: SLV_RUNNER set without SLV_TEST_MODE=1" >&2
+  state FAILED STATIC_PREFLIGHT_FAIL "SLV_RUNNER set without SLV_TEST_MODE=1"
+  trap - EXIT; exit 2
+fi
+if [ -n "${SLV_LOCK_FILE:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
+  CLEANUP_OK=true
+  echo "STATIC_PREFLIGHT_FAIL: SLV_LOCK_FILE set without SLV_TEST_MODE=1" >&2
+  state FAILED STATIC_PREFLIGHT_FAIL "SLV_LOCK_FILE set without SLV_TEST_MODE=1"
+  trap - EXIT; exit 2
+fi
+
 stop_child(){
   [ -n "$CHILD_PGID" ] || return 0
   if [ -r "/proc/$CHILD_PID/stat" ]; then
