@@ -118,3 +118,12 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - D_VISUAL_APPLY production connectivity: NOT ESTABLISHED
 - camera-event corrective: NOT AUTHORIZED
 - canonical remote sync: performed (origin/super-livo = local HEAD)
+
+## Prompt64 — runner/profile semantic corrective + event-order audit
+
+- functional estimator work: PAUSED
+- bag execution: BLOCKED
+- next production corrective: BLOCKED_ON_ORIGIN_REMOTE_REVIEW
+- event schema extended (visual_measurement_event / timestamp / exact_once / payload ownership)
+- legacy VARIANT authority corrected (normalized mode = sole authority)
+- transaction supervisor genericized (no Shadow-only coupling)
