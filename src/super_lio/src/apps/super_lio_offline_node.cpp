@@ -690,6 +690,10 @@ int main(int argc, char** argv) {
                 (long long)data_wrapper->cameraEpochCount(), (long long)data_wrapper->imagesConsumed(),
                 (long long)data_wrapper->staleImageDropCount(), (long long)data_wrapper->emptySliceCount(),
                 (long long)data_wrapper->popNoopCount());
+    std::printf("R13 camera visual: processed=%lld rejected=%lld payload_released=%lld\n",
+                (long long)data_wrapper->cameraVisualProcessedCount(),
+                (long long)data_wrapper->cameraVisualRejectedCount(),
+                (long long)data_wrapper->cameraPayloadReleasedCount());
     std::printf("S-0 camera temporal: stride=%d raw_input=%lld decimated=%lld accepted_to_s0=%lld (raw = decimated + accepted: %s)\n",
                 data_wrapper->cameraTemporalStride(),
                 (long long)data_wrapper->rawCameraInput(),

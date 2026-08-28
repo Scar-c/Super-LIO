@@ -176,6 +176,19 @@ public:
     return camera_buffer_.empty() ? nullptr : &camera_buffer_.newest();
   }
   // the frame of the current camera epoch (oldest un-consumed)
+  // Round13 corrective: camera-epoch Visual ownership (exact-once)
+  void cameraVisualProcessed() { camera_visual_processed_++; }
+  void cameraVisualRejected() { camera_visual_rejected_++; }
+  void releaseCameraPayload() {
+    if (!camera_buffer_.empty()) {
+      camera_buffer_.popOldest();
+      camera_payload_released_++;
+    }
+  }
+  int64_t cameraVisualProcessedCount() const { return camera_visual_processed_; }
+  int64_t cameraVisualRejectedCount() const { return camera_visual_rejected_; }
+  int64_t cameraPayloadReleasedCount() const { return camera_payload_released_; }
+
   const CameraFrame* cameraEpochFrame() const {
     return camera_buffer_.empty() ? nullptr : &camera_buffer_.oldest();
   }
@@ -206,6 +219,7 @@ public:
 
 private:
   void accountFullscanCamera(bool stale);
+  void accountFullscanCameraNoPop();
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
   void livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr&);
   void stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr&);
@@ -245,12 +259,15 @@ private:
   int64_t images_consumed_ = 0;
   int64_t empty_slice_count_ = 0;
   int64_t pop_noop_count_ = 0;
-  // Round11Z camera temporal sampler state (per-instance; no statics)
+
   int camera_temporal_stride_ = 1;
   int64_t raw_camera_counter_ = 0;
   int64_t raw_camera_input_ = 0;
   int64_t temporal_decimated_ = 0;
   int64_t accepted_to_s0_ = 0;
+  int64_t camera_visual_processed_ = 0;
+  int64_t camera_visual_rejected_ = 0;
+  int64_t camera_payload_released_ = 0;
   int64_t lidar_points_emitted_ = 0;
   int64_t lidar_points_input_ = 0;
   int64_t raw_scan_seq_ = 0;
