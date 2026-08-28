@@ -14,6 +14,10 @@ SUPERVISOR_REAL="$(readlink -f "$SUPERVISOR_SELF")" || {
   echo "SUPERVISOR_RESOLUTION_FAIL: cannot canonicalize $SUPERVISOR_SELF" >&2; exit 2; }
 SUPERVISOR_DIR="$(dirname "$SUPERVISOR_REAL")"
 CANONICAL_RUNNER="$SUPERVISOR_DIR/run_offline_variant.sh"
+# readlink -f resolves a nonexistent final component with rc=0, so the
+# missing/broken runner is detected by [ -f ] first (Prompt70 CI-T8A/B).
+[ -f "$CANONICAL_RUNNER" ] || {
+  echo "CANONICAL_RUNNER_MISSING: $CANONICAL_RUNNER" >&2; exit 2; }
 CANONICAL_RUNNER_REAL="$(readlink -f "$CANONICAL_RUNNER")" || {
   echo "CANONICAL_RUNNER_MISSING: $CANONICAL_RUNNER" >&2; exit 2; }
 case "$CANONICAL_RUNNER_REAL" in
