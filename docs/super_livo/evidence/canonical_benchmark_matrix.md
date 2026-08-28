@@ -1,31 +1,31 @@
 # Canonical benchmark matrix
 
-This is the project-level human-facing ledger. Detailed evaluator/config
-provenance remains in `official_evaluator_and_baseline_registry`; historical
-Round11/Round12 tables remain evidence and are not deleted.
+This is the human-facing projection of the provenance-normalized v2 machine
+ledger. A number is not an “official value” by itself: method-author paper,
+method-author current source, dataset-author benchmark, config, evaluator, and
+our reproduction remain separate records in the YAML catalog.
 
-| Dataset / sequence | Local / GT / evaluator | Super-LIO reference → pristine | FAST-LIVO2 reference/config → pristine | Super-LIVO historical | Metric / validity / notes |
-|---|---|---|---|---|---|
-| NTU eee_01 | AVAILABLE; Leica; dataset-author prism | paper 0.119 (`2c09212`) → 0.118876 current GREEN | paper 0.068/current 0.0271; method config → 0.0303 | B0/C0/A0 historical 0.1057/0.1024/0.0900; later B0 0.0271; D not reevaluated | translation ATE RMSE; parent results durable |
-| NTU nya_01 | AVAILABLE; Leica; same | 0.069 → 0.062927 GREEN | 0.073/current 0.0356 → 0.0398 | 0.0642/0.0626/0.1468; later B0 0.0356 | same |
-| NTU sbs_01 | AVAILABLE; Leica; same | paper 0.086 → JUSTIFIED_NOT_RUN | authoritative NTU config present → JUSTIFIED_NOT_RUN | B0/C0/A0/A1 0.1040/0.1034/0.1101/0.1083 | canonical dual-parent transaction adapter missing; no legacy-run substitution |
-| MCD day10/mcd2 | AVAILABLE_MULTI_BAG; discrete GT; OUR_REPRODUCTION | 0.721; current 0.7163 GREEN; paper-era 0.9594 AMBER | NO_AUTHORITATIVE_CONFIG / NOT_RUN | B0 1.2181; D 0.9044 | SE3 translation APE; revision-sensitive |
-| MCD night08/mcd4 | AVAILABLE_MULTI_BAG; same | 0.604; current 1.0210 RED N=3; paper-era 0.6978 GREEN | NO_AUTHORITATIVE_CONFIG / NOT_RUN | B0 1.7416; D 1.9964 OWNER_ACCEPTED_AMBER | no retuning |
-| Oxford Quarter01 | AVAILABLE; trajectory; evo max-diff .01 | NOT_PUBLISHED / NOT_RUN | dataset benchmark 0.04; adapted `f2c9abb` → 0.0397 GREEN | historical B0/D 0.0630/0.0629 (different .05 association) | snapshot/config/evaluator valid parent result |
-| M3DGR Corridor01 | AVAILABLE; ArUco; dataset Python | NOT_PUBLISHED / NOT_RUN | 3.35; adapted `e0cf7d5` Avia → 3.03 GREEN | B0 15.4077; D 7.1549 | canonical snapshot/parity complete; legacy 5.83 diagnostic only; published sensor UNRESOLVED |
-| M3DGR Corridor02 | AVAILABLE; ArUco; dataset Python | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted config → JUSTIFIED_NOT_RUN_NON_BLOCKING | NOT_RUN | optional after two healthy Outdoor controls; no authoritative target |
-| M3DGR Outdoor01 | AVAILABLE; RTK-position trajectory; evo | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted `e0cf7d5` Avia → 0.239674 canonical | historical result NOT_FOUND | SANITY_HEALTHY; 99.887% bag-duration coverage; run `20260828T014300Z_codex01`; prior 0.240323 remains diagnostic |
-| M3DGR Outdoor04 | AVAILABLE; RTK-position trajectory; evo | NOT_PUBLISHED / NOT_RUN | NO_AUTHORITATIVE_REFERENCE; adapted `e0cf7d5` Avia → 0.623458 canonical | historical result NOT_FOUND | SANITY_HEALTHY; 99.956% bag-duration coverage; run `20260828T015300Z_codex01` |
-| M2DGR street_03/m2s3 | NOT_AVAILABLE; published trajectory route | paper ≈0.139; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | mapping pending exact source recheck; no bag |
-| M2DGR hall_01/m2h1 | NOT_AVAILABLE | paper ≈0.291; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | no bag |
-| M2DGR door_02/m2d2 | NOT_AVAILABLE; txt is not bag | paper ≈0.321; local NOT_RUN | references retained; local NOT_RUN | NOT_RUN | `SUPER_LIO_M2_EXTRINSIC_CONFLICT_WITH_DATASET_CALIBRATION` |
-| FAST_LIVO2 Bright_Screen_Wall | AVAILABLE; no accuracy GT | N/A | method special qualitative asset; NOT_RUN | N/A | LOCAL_SPECIAL_TEST_ASSET; non-blocking |
+| Dataset | Sequence | Local bag | GT/Eval | Super-LIO method-author ref | Super-LIO dataset-author ref | pristine Super-LIO | FAST-LIVO2 method-author ref | FAST-LIVO2 dataset-author ref | pristine FAST-LIVO2 | Super-LIVO B0 | C0 | A0 | A1 | D | Visual |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| NTU | eee_01 | AVAILABLE | Leica prism; dataset-author interpolation; SE3; translation ATE RMSE | paper Table I 0.119 m (A) | NOT_FOUND | 0.118876 m, canonical | paper 0.068 m + current-source 0.0271 m (both B) | NOT_FOUND | 0.0303 m, canonical | 0.1057 legacy | 0.1024 legacy | 0.0900 legacy | NOT_RUN | NOT_REEVALUATED | NOT_RUN |
+| NTU | nya_01 | AVAILABLE | same | paper 0.069 m (A) | NOT_FOUND | 0.062927 m, canonical | paper 0.073 m + current-source 0.0356 m (both B) | NOT_FOUND | 0.0398 m, canonical | 0.0642 legacy | 0.0626 legacy | 0.1468 legacy | NOT_RUN | NOT_REEVALUATED | NOT_RUN |
+| NTU | sbs_01 | AVAILABLE | same | paper 0.086 m (A) | NOT_FOUND | PENDING_THIS_CLOSURE | paper Table II 0.062 m + current-source 0.0234 m (both B) | NOT_FOUND | PENDING_THIS_CLOSURE | 0.1040 legacy | 0.1034 legacy | 0.1101 legacy | 0.1083 legacy | NOT_RUN | NOT_RUN |
+| MCD | ntu_day_10 / mcd2 | AVAILABLE_MULTI_BAG | discrete body GT; project evaluator; SE3 APE | paper 0.721 m (B) | NOT_FOUND | current 0.7163 m canonical; paper-era 0.9594 m | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | 1.2181 legacy | NOT_RUN | NOT_RUN | NOT_RUN | 0.9044 legacy | NOT_RUN |
+| MCD | ntu_night_08 / mcd4 | AVAILABLE_MULTI_BAG | same | paper 0.604 m (B) | NOT_FOUND | current 1.0210 m canonical; paper-era 0.6978 m | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | 1.7416 legacy | NOT_RUN | NOT_RUN | NOT_RUN | 1.9964 legacy | NOT_RUN |
+| Oxford | Quarter01 | AVAILABLE | dataset-author evo SE3, max diff 0.01 s | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | NOT_FOUND | dataset benchmark 0.04 m (A) | 0.0397 m canonical | 0.0630 legacy, noncanonical 0.05 s association | NOT_RUN | NOT_RUN | NOT_RUN | 0.0629 legacy, noncanonical association | NOT_RUN |
+| M3DGR | Corridor01 | AVAILABLE | ArUco first-to-last relative translation | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | NOT_FOUND | 3.35 m (A; sensor attribution unresolved) | 3.03 m canonical | 15.4077 m | NOT_RUN | NOT_RUN | NOT_RUN | 7.1549 m | NOT_RUN |
+| M3DGR | Corridor02 | AVAILABLE | same | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | NOT_FOUND | NO_AUTHORITATIVE_REFERENCE | PENDING_THIS_CLOSURE | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
+| M3DGR | Outdoor01 | AVAILABLE | RTK trajectory; dataset evo SE3 | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | NOT_FOUND | NO_AUTHORITATIVE_REFERENCE | 0.239674 m canonical | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_RUN |
+| M3DGR | Outdoor04 | AVAILABLE | RTK trajectory; dataset evo SE3 | NOT_FOUND | NOT_FOUND | NOT_RUN_NO_AUTHORITATIVE_CONFIG | NOT_FOUND | NO_AUTHORITATIVE_REFERENCE | 0.623458 m canonical | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_FOUND | NOT_RUN |
+| M2DGR | m2s3 (dataset alias unresolved) | NOT_AVAILABLE | trajectory/evo if obtained | paper Table I 0.139 m (UNRESOLVED) | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_FOUND | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
+| M2DGR | m2h1 (dataset alias unresolved) | NOT_AVAILABLE | same | paper Table I 0.291 m (UNRESOLVED) | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_FOUND | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
+| M2DGR | m2d2 (dataset alias unresolved) | NOT_AVAILABLE | same | paper Table I 0.321 m (UNRESOLVED) | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_FOUND | NOT_FOUND | NOT_RUN_LOCAL_DATA_MISSING | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
+| FAST-LIVO2 | Bright_Screen_Wall | AVAILABLE | no accuracy GT | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE | qualitative method asset | NOT_AVAILABLE | NOT_RUN | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_AVAILABLE | NOT_RUN |
 
-Provenance tiers are never collapsed: DATASET_AUTHOR_BENCHMARK,
-DATASET_AUTHOR_ADAPTED_METHOD, METHOD_AUTHOR_PAPER,
-METHOD_AUTHOR_CURRENT_OPEN_SOURCE, OUR_UPSTREAM_REPRODUCTION and
-OUR_SUPER_LIVO_RUN remain explicit in the machine ledger.
+“legacy” means `LEGACY_NO_POST_RESOLVE_SNAPSHOT`; it is not silently upgraded
+to current canonical evidence. M2 paper aliases are retained exactly as printed,
+but no street/hall/door mapping is asserted. The unresolved M2 extrinsic conflict
+also remains recorded in the machine ledger.
 
-Both locally available Outdoor controls are canonical and healthy, so the
-Owner policy result is `M3DGR_PRIMARY_BENCHMARK = KEEP`. M2DGR is not
-blacklisted by family policy, but remains locally unavailable.
+Current policies: `M3DGR_PRIMARY_BENCHMARK = KEEP`; M2DGR is not blacklisted,
+but has no local bag and therefore is not scheduled.
