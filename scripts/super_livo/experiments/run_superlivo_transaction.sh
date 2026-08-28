@@ -80,6 +80,7 @@ conflicting_estimator="$(pgrep -af '[s]uper_lio_offline_node' || true)"
 [ -z "$conflicting_bag" ] || { FINAL_CLASS=REFUSED_SHARED_RESOURCE;FINAL_REASON="conflicting rosbag play";exit 90; }
 [ -z "$conflicting_estimator" ] || { FINAL_CLASS=REFUSED_SHARED_RESOURCE;FINAL_REASON="conflicting estimator";exit 90; }
 for f in "$RUNNER" "${SLV_CFG:?config}" "${SLV_BAG:?bag}"; do [ -f "$f" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="missing $f";exit 2; }; done
+PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start request}"
 {
   echo "active Super-LIVO transaction: NONE"
   echo "conflicting rosbag play: NONE"
@@ -94,9 +95,9 @@ OUT_DIR="$RUN_DIR/out"
 SLV_TRANSACTION_TOKEN="$TOKEN" setsid "$RUNNER" \
   "$SLV_CFG" "$SLV_BAG" "$OUT_DIR" "${SLV_VARIANT:-d0}" \
   "${SLV_CAM_TOPIC:-}" "${SLV_CAM_CALIB:-}" "${SLV_DURATION:--1}" \
-  "${SLV_S0_AUDIT:-1}" "${SLV_POLICY:-imu_fullscan}" "${SLV_LAYER_AUDIT:-1}" \
+  "${SLV_S0_AUDIT:-1}" "profile_resolved" "${SLV_LAYER_AUDIT:-1}" \
   "${SLV_STRIDE:-1}" "${SLV_CAM_OFFSET:-0.0}" "${SLV_DATASET:-NTU}" \
-  "${SLV_SEQUENCE:-eee_01}" "${SLV_SEMANTIC_PROFILE:-D_VISUAL_SHADOW}" \
+  "${SLV_SEQUENCE:-eee_01}" "$PROFILE" \
   "${SLV_LEGACY_ALIAS:-NONE}" > "$RUN_DIR/runner.log" 2>&1 < /dev/null &
 CHILD_PID=$!; sleep .05; CHILD_PGID="$(pgid "$CHILD_PID")"; CHILD_TOKEN="$(start_token "$CHILD_PID")"
 state PLAYBACK_STARTED "" "canonical offline runner started"

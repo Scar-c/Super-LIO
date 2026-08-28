@@ -50,7 +50,7 @@ done
 if [ "$VARIANT" != "b0" ]; then
   [ -f "$CAM_CALIB" ] || { echo "FAIL: missing camera calib $CAM_CALIB"; exit 2; }
 fi
-if [ "$VARIANT" = "d0" ] && [ "$LIDAR_UPDATE_POLICY" != "imu_fullscan" ]; then
+if [ -z "$SEMANTIC_PROFILE" ] && [ "$VARIANT" = "d0" ] && [ "$LIDAR_UPDATE_POLICY" != "imu_fullscan" ]; then
   echo "FAIL: d0 requires imu_fullscan lidar update policy"
   exit 2
 fi
@@ -72,9 +72,6 @@ mkdir -p "$OUT_DIR"
 # any other protected algorithm field.
 SEMANTIC_MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"
 if [ -n "$SEMANTIC_PROFILE" ]; then
-  [ "$LIDAR_UPDATE_POLICY" = "imu_fullscan" ] || {
-    echo "SEMANTIC_PROFILE_FAIL: D profile requires imu_fullscan"; exit 2;
-  }
   PRODUCTION_REVISION=$(git -C "$ROOT/src/Super-LIO" rev-parse HEAD)
   PROFILE_REVISION=$(sha256sum "$SEMANTIC_TOOL" | awk '{print $1}')
   CONFIG_REVISION=$(sha256sum "$CFG" | awk '{print $1}')
@@ -90,6 +87,8 @@ if [ -n "$SEMANTIC_PROFILE" ]; then
     --visual-provenance "FAST-LIVO2 semantic authority; existing production Visual path" \
     --dataset-calibration-provenance "$CFG"
   python3 "$SEMANTIC_TOOL" validate --manifest "$SEMANTIC_MANIFEST"
+  # Layer-B profile owns this value; any legacy CLI policy is ignored.
+  LIDAR_UPDATE_POLICY=imu_fullscan
 fi
 
 source "$SETUP_ROS"
