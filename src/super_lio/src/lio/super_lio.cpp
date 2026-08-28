@@ -1253,6 +1253,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   if (frame == nullptr || frame->data == nullptr || frame->data->empty()) return 0;
   const CameraCalibration& calib = data_wrapper_->cameraCalibration();
   if (!calib.valid) return 0;
+  visual_measurement_evidence_.recordMeasurementFrame();
   const int W = frame->width, H = frame->height;
   const std::vector<uint8_t>& img = *frame->data;
   const Eigen::Matrix4d T_cb = calib.T_cam_body();  // T_CB: Body->Camera
@@ -1414,6 +1415,28 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   const auto t1_photo = std::chrono::high_resolution_clock::now();
   vp_patch_eval_us_ += std::chrono::duration<double, std::micro>(t1_photo - t0_photo).count();
 
+  // Prompt60 evidence-only query accounting. This observes the same stable
+  // active list and lookup predicates as the production loop below, but does
+  // not alter selection, residual math, or control flow.
+  if (visual_measurement_evidence_.enabled()) {
+    for (size_t pidx = 0; pidx < active_visual_landmarks_.size(); ++pidx) {
+      const auto& a = active_visual_landmarks_[pidx];
+      auto aitr = visual_map_.container().find(a.first);
+      if (aitr == visual_map_.container().end() || a.second >= aitr->second.size()) {
+        visual_measurement_evidence_.recordQueryMiss();
+        continue;
+      }
+      const auto& lm = aitr->second[a.second];
+      if (!lm.geometry_valid || lm.active_ref_slot >= kMaxObsPerLandmark ||
+          !lm.observations[lm.active_ref_slot].valid) {
+        visual_measurement_evidence_.recordQueryRejectedExplicit();
+        continue;
+      }
+      visual_measurement_evidence_.recordQueryHit();
+      visual_measurement_evidence_.recordObservation(photo[pidx].valid);
+    }
+  }
+
   // P0-8: process only the active visual list built by the frontend this
   // epoch (candidate/local retrieval), never a global VisualMap scan
   for (size_t pidx = 0; pidx < active_visual_landmarks_.size(); ++pidx) {
@@ -1554,6 +1577,7 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
       (void)sse_before;
       (void)sse_after;
       visual_residual_samples_ += static_cast<int64_t>(M);
+      samples_total += static_cast<int64_t>(M);
       visual_residual_sse_ += sse_before;
 
       // 6DOF FD (Round 11D): clean double mathematical oracle.
@@ -2254,6 +2278,11 @@ int SuperLIO::runVisualResidual(const SE3& pose, BASIC::M6& HTVH,
   visual_epoch_lat_ms_.push_back(vp_call_us / 1000.0);
   last_visual_cost_ = sum_before;
   visual_epoch_sensor_time_.push_back(measures_.lidar.end_time);
+  visual_measurement_evidence_.recordResidualSamples(
+      static_cast<std::uint64_t>(samples_total));
+  visual_measurement_evidence_.recordNormalEquations(
+      static_cast<double>(HTVH.norm()), HTVH.allFinite(),
+      static_cast<double>(HTVr.norm()), HTVr.allFinite());
   return accepted;
 }
 

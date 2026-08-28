@@ -199,6 +199,13 @@ target_link_libraries(v2_jacobian_test
   glog
 )
 
+# Round13 measurement-evidence aggregate instrumentation (pure logic).
+add_executable(visual_measurement_evidence_test
+  src/instrumentation/tests/test_visual_measurement_evidence.cpp
+)
+target_include_directories(visual_measurement_evidence_test PUBLIC include)
+target_link_libraries(visual_measurement_evidence_test Eigen3::Eigen)
+
 # V-4C synthetic sequential-update tests (no ROS dependency)
 add_executable(v4c_test
   src/lio/tests/test_v4c.cpp

@@ -25,6 +25,7 @@
 #include "ros/ROSWrapper.h"
 #include "instrumentation/ExperimentLogger.h"
 #include "instrumentation/RunStats.h"
+#include "instrumentation/VisualMeasurementEvidence.h"
 #include "geometry/Hb0Audit.h"
 #include "geometry/MicroSurfelStats.h"
 #include "geometry/VisualSupportStats.h"
@@ -469,6 +470,12 @@ public:
   int64_t coverageCellsFilledNew() const { return coverage_cells_filled_new_; }
   int64_t visualResidualSamples() const { return visual_residual_samples_; }
   double visualResidualSse() const { return visual_residual_sse_; }
+  void setVisualMeasurementEvidenceEnabled(bool enabled) {
+    visual_measurement_evidence_.setEnabled(enabled);
+  }
+  const VisualMeasurementEvidence& visualMeasurementEvidence() const {
+    return visual_measurement_evidence_;
+  }
   bool fdGateFail() const { return fd_gate_fail_; }
   double fdGateMaxRel() const { return fd_gate_max_rel_; }
   int64_t g1v_created_ = 0;
@@ -596,6 +603,7 @@ protected:
   std::unique_ptr<ExperimentLogger> logger_;
   EpochTimings epoch_timings_;
   RunningStats epoch_residual_stats_;
+  VisualMeasurementEvidence visual_measurement_evidence_;
   std::size_t epoch_iterations_ = 0;
 };
 

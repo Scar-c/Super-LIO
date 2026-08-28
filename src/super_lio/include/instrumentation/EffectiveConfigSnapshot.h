@@ -68,6 +68,7 @@ struct EffectiveConfigFields {
   bool visual_parallel_enabled = false;
   bool s0_audit = false;
   bool layer_audit = false;
+  bool measurement_evidence_instrumentation = false;
   int camera_frame_buffer_capacity = 10;
   std::string camera_frame_buffer_capacity_source = "default";
 

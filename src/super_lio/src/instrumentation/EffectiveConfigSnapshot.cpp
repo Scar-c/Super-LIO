@@ -142,6 +142,9 @@ std::string EffectiveConfigSnapshot::buildYaml(
            "rosparam_or_default");
   resolved(out, "s0_audit", boolean(f.s0_audit), "rosparam_or_default");
   resolved(out, "layer_audit", boolean(f.layer_audit), "rosparam_or_default");
+  resolved(out, "measurement_evidence_instrumentation",
+           boolean(f.measurement_evidence_instrumentation),
+           "rosparam_or_default");
 
   out << "lidar:\n";
   resolvedString(out, "type", f.lidar_type, "normalized");

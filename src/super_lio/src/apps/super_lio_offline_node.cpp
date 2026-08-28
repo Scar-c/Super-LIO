@@ -63,7 +63,8 @@ std::string pointTimestampUnit(int lidar_type) {
 EffectiveConfigFields resolveEffectiveConfig(
     ros::NodeHandle& nh, const ROSWrapper& wrapper,
     const std::vector<std::string>& bags, bool hb0_enabled, bool vp_enabled,
-    bool v2_skip_fd, double photo_variance, bool layer_audit) {
+    bool v2_skip_fd, double photo_variance, bool layer_audit,
+    bool measurement_evidence) {
   EffectiveConfigFields f;
   f.dataset = getStringParam(nh, "/lio/evidence/dataset", "UNSPECIFIED");
   f.sequence = getStringParam(nh, "/lio/evidence/sequence", "UNSPECIFIED");
@@ -146,6 +147,7 @@ EffectiveConfigFields resolveEffectiveConfig(
   f.visual_parallel_enabled = vp_enabled;
   f.s0_audit = g_lio_s0_audit;
   f.layer_audit = layer_audit;
+  f.measurement_evidence_instrumentation = measurement_evidence;
   f.camera_frame_buffer_capacity = g_camera_frame_buffer_capacity;
   f.camera_frame_buffer_capacity_source =
       nh.hasParam("/camera/frame_buffer_capacity") ? "rosparam" : "default";
@@ -205,6 +207,11 @@ int main(int argc, char** argv) {
   bool v2_skip_fd = false;
   nh.getParam("/lio/v2/skip_fd", v2_skip_fd);
   lio->setV2SkipFd(v2_skip_fd);
+  bool measurement_evidence = false;
+  nh.getParam("/lio/evidence/visual_measurement", measurement_evidence);
+  lio->setVisualMeasurementEvidenceEnabled(measurement_evidence);
+  std::printf("[offline_node] measurement_evidence_instrumentation=%d\n",
+              measurement_evidence ? 1 : 0);
   double v4_photo_var = 100.0;
   nh.getParam("/lio/v4/photo_variance", v4_photo_var);
   lio->setPhotoResidualVariance(v4_photo_var);
@@ -272,7 +279,7 @@ int main(int argc, char** argv) {
   }
   const EffectiveConfigFields effective = resolveEffectiveConfig(
       nh, *data_wrapper, effective_bags, hb0_enabled, vp_enabled, v2_skip_fd,
-      v4_photo_var, layer_audit_i != 0);
+      v4_photo_var, layer_audit_i != 0, measurement_evidence);
   const std::string effective_path =
       out_dir + "/effective_config.post_resolve.yaml";
   if (out_dir.empty() ||
@@ -815,6 +822,34 @@ int main(int argc, char** argv) {
                 pctv(lio->coverageAccepted(), 0.9));
   }
   if (g_lio_v2_enabled) {
+    const auto& measurement = lio->visualMeasurementEvidence();
+    if (measurement.enabled()) {
+      const auto& hn = measurement.hNorms();
+      const auto& bn = measurement.bNorms();
+      std::printf("VISUAL_MEASUREMENT query: attempts=%llu hits=%llu misses=%llu rejected_explicit=%llu conservation=%s\n",
+                  (unsigned long long)measurement.queryAttempts(),
+                  (unsigned long long)measurement.queryHits(),
+                  (unsigned long long)measurement.queryMisses(),
+                  (unsigned long long)measurement.queryRejectedExplicit(),
+                  measurement.queryAttempts() == measurement.queryHits() + measurement.queryMisses() + measurement.queryRejectedExplicit() ? "OK" : "MISMATCH");
+      std::printf("VISUAL_MEASUREMENT observation: frames=%llu candidates=%llu valid=%llu rejected=%llu residual_samples=%llu conservation=%s\n",
+                  (unsigned long long)measurement.measurementFrames(),
+                  (unsigned long long)measurement.candidateObservations(),
+                  (unsigned long long)measurement.validObservations(),
+                  (unsigned long long)measurement.rejectedObservations(),
+                  (unsigned long long)measurement.residualSamples(),
+                  measurement.candidateObservations() == measurement.validObservations() + measurement.rejectedObservations() ? "OK" : "MISMATCH");
+      std::printf("VISUAL_MEASUREMENT H: accumulations=%llu nonzero=%llu zero=%llu nonfinite=%llu norm_count=%llu P50=%.9g P95=%.9g P99=%.9g max=%.9g\n",
+                  (unsigned long long)measurement.hAccumulations(), (unsigned long long)measurement.hNonzero(),
+                  (unsigned long long)measurement.hZero(), (unsigned long long)measurement.hNonfinite(),
+                  (unsigned long long)hn.count, hn.percentile(0.50), hn.percentile(0.95), hn.percentile(0.99), hn.max);
+      std::printf("VISUAL_MEASUREMENT b: accumulations=%llu nonzero=%llu zero=%llu nonfinite=%llu norm_count=%llu P50=%.9g P95=%.9g P99=%.9g max=%.9g\n",
+                  (unsigned long long)measurement.bAccumulations(), (unsigned long long)measurement.bNonzero(),
+                  (unsigned long long)measurement.bZero(), (unsigned long long)measurement.bNonfinite(),
+                  (unsigned long long)bn.count, bn.percentile(0.50), bn.percentile(0.95), bn.percentile(0.99), bn.max);
+      std::printf("VISUAL_MEASUREMENT proposed_correction=NOT_COMPUTED_BY_SHADOW_PROFILE state_apply_count=%lld\n",
+                  (long long)lio->v4ApplyCount());
+    }
     std::printf("V-2 photometric: frames=%lld accepted_landmarks=%lld total_samples=%lld meanSSE_per_sample=%.2f\n",
                 (long long)lio->visual_residual_accepted_frames(),
                 (long long)lio->visual_residual_landmarks_,

@@ -81,6 +81,10 @@ conflicting_estimator="$(pgrep -af '[s]uper_lio_offline_node' || true)"
 [ -z "$conflicting_estimator" ] || { FINAL_CLASS=REFUSED_SHARED_RESOURCE;FINAL_REASON="conflicting estimator";exit 90; }
 for f in "$RUNNER" "${SLV_CFG:?config}" "${SLV_BAG:?bag}"; do [ -f "$f" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="missing $f";exit 2; }; done
 PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start request}"
+[ "$PROFILE" = D_VISUAL_SHADOW ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="expected D_VISUAL_SHADOW profile";exit 2; }
+[ "${SLV_MEASUREMENT_EVIDENCE:-0}" = 1 ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="measurement instrumentation not enabled";exit 2; }
+VALIDATOR=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/validate_d_visual_shadow_result.py
+[ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing";exit 2; }
 {
   echo "active Super-LIVO transaction: NONE"
   echo "conflicting rosbag play: NONE"
@@ -88,6 +92,8 @@ PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start 
   echo "shared-resource lock: ACQUIRED"
   echo "semantic profile: PENDING_CHILD_FAIL_CLOSED_VALIDATION"
   echo "producer gates: PENDING_CHILD_FAIL_CLOSED_READBACK"
+  echo "measurement instrumentation: ENABLED"
+  echo "post-run validator: READY"
 } > "$RUN_DIR/preflight_evidence.txt"
 state TRANSACTION_PREFLIGHT_PASS "" "active/conflicts none; lock acquired"
 
@@ -98,7 +104,7 @@ SLV_TRANSACTION_TOKEN="$TOKEN" SLV_TRANSACTION_GATE_DIR="$RUN_DIR" setsid "$RUNN
   "${SLV_S0_AUDIT:-1}" "profile_resolved" "${SLV_LAYER_AUDIT:-1}" \
   "${SLV_STRIDE:-1}" "${SLV_CAM_OFFSET:-0.0}" "${SLV_DATASET:-NTU}" \
   "${SLV_SEQUENCE:-eee_01}" "$PROFILE" \
-  "${SLV_LEGACY_ALIAS:-NONE}" > "$RUN_DIR/runner.log" 2>&1 < /dev/null &
+  "${SLV_LEGACY_ALIAS:-NONE}" "${SLV_MEASUREMENT_EVIDENCE:-0}" > "$RUN_DIR/runner.log" 2>&1 < /dev/null &
 CHILD_PID=$!; sleep .05; CHILD_PGID="$(pgid "$CHILD_PID")"; CHILD_TOKEN="$(start_token "$CHILD_PID")"
 state RUNNER_STARTED "" "waiting for semantic pre-playback gate"
 ready=0
@@ -121,8 +127,8 @@ wait "$CHILD_PID"; rc=$?
 python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 [ -f "$TRAJ" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory missing";exit 1; }
 rows="$(wc -l < "$TRAJ")"; [ "$rows" -ge "${SLV_MIN_ROWS:-3000}" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory rows=$rows";exit 1; }
-python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/validate_d_visual_shadow_result.py \
-  --log "$OUT_DIR/node_stdout.log" --out "$RUN_DIR/d_visual_shadow_gate.yaml" || {
+python3 "$VALIDATOR" --log "$OUT_DIR/node_stdout.log" --manifest "$MANIFEST" \
+  --out "$RUN_DIR/d_visual_shadow_gate.yaml" || {
     FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="mandatory Visual-shadow counters missing or failed";exit 1;
   }
 cp "$TRAJ" "$RUN_DIR/trajectory.tum"

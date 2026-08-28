@@ -10,6 +10,7 @@
 #                          [camera_time_offset] [dataset] [sequence]
 #                          [semantic_profile]
 #                          [legacy_alias]
+#                          [measurement_evidence]
 #   variant: b0|c0|d0|a0|a1
 set -euo pipefail
 
@@ -29,6 +30,7 @@ DATASET="${13:-UNSPECIFIED}"
 SEQUENCE="${14:-UNSPECIFIED}"
 SEMANTIC_PROFILE="${15:-}"
 LEGACY_ALIAS="${16:-$VARIANT}"
+MEASUREMENT_EVIDENCE="${17:-0}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
@@ -143,6 +145,11 @@ rosparam set /lio/evidence/variant "$VARIANT"
 rosparam set /lio/evidence/source_config "$CFG"
 rosparam set /lio/evidence/source_config_sha256 "$SOURCE_CONFIG_SHA256"
 rosparam set /lio/evidence/command_line "$COMMAND_LINE"
+case "$MEASUREMENT_EVIDENCE" in
+  0) rosparam set /lio/evidence/visual_measurement false ;;
+  1) rosparam set /lio/evidence/visual_measurement true ;;
+  *) echo "FAIL: measurement_evidence must be 0 or 1"; exit 2 ;;
+esac
 # Reconstructed last-known-good (code-gate basis): the V-4A/V-4C blocks in
 # super_lio.cpp require g_lio_v4_apply && g_lio_camera_epoch && g_lio_v2_enabled
 # && g_lio_v0_enabled; historical C0/A0/A1 runs therefore had v0=true,
@@ -220,7 +227,8 @@ hb0=$(read_param /lio/hb0/enabled)
 vp=$(read_param /lio/vp/enabled)
 s0_aud=$(read_param /lio/s0/audit)
 lidar_policy=$(read_param /lio/camera_epoch/lidar_update_policy)
-echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud lidar_update_policy=$lidar_policy cam_stride=$cam_stride ==="
+measurement_evidence=$(read_param /lio/evidence/visual_measurement)
+echo "=== variant=$VARIANT readback: camera=$cam_en camera_epoch=$cam_ep apply=$app gate=$gate v0=$v0 v2=$v2 skip_fd=$skip_fd hb0=$hb0 vp=$vp s0_audit=$s0_aud lidar_update_policy=$lidar_policy cam_stride=$cam_stride measurement_evidence=$measurement_evidence ==="
 [ "$cam_stride" -ge 1 ] 2>/dev/null || { echo "FAIL readback temporal_stride"; exit 4; }
 [ "$cam_stride" = "$CAMERA_TEMPORAL_STRIDE" ] || { echo "FAIL readback temporal_stride value"; exit 4; }
 [ "$cam_toff" = "$CAM_TIME_OFFSET" ] || { echo "FAIL readback time_offset"; exit 4; }
@@ -248,6 +256,11 @@ is_true "$v2" || { echo "FAIL readback v2"; exit 4; }
 is_true "$skip_fd" || { echo "FAIL readback skip_fd"; exit 4; }
 is_false "$hb0" || { echo "FAIL readback hb0"; exit 4; }
 is_true "$vp" || { echo "FAIL readback vp"; exit 4; }
+if [ "$MEASUREMENT_EVIDENCE" = 1 ]; then
+  is_true "$measurement_evidence" || { echo "FAIL readback measurement evidence"; exit 4; }
+else
+  is_false "$measurement_evidence" || { echo "FAIL readback measurement evidence default"; exit 4; }
+fi
 if [ -n "$SEMANTIC_PROFILE" ]; then
   g0=$(read_param /lio/g0/shadow)
   g1=$(read_param /lio/g1/enabled)
