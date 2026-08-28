@@ -1,0 +1,8 @@
+<launch>
+  <arg name="output" />
+  <include file="$(find super_lio)/launch/NTU.launch">
+    <arg name="rviz" value="false" />
+  </include>
+  <node pkg="rosbag" type="record" name="ntu_super_lio_odometry_recorder"
+        args="-O $(arg output) /lio/odom" output="screen" />
+</launch>
