@@ -288,31 +288,37 @@ class TestAdapterSymlinkSeam(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_ad_sy_t1_adapter_from_tmp_canonical_identities(self):
+        # Prompt70: clean production adapter from /tmp reaches the canonical
+        # supervisor preflight (identities), then cancelled before the
+        # estimator child. No fake-node seam through the production adapter.
         out_root = pathlib.Path("/home/lc/super_livo/results/round13_visual_shadow/ntu_eee_01")
         run_id = "ad_sy_t1"
         env = dict(os.environ)
         for k in ("SLV_TEST_MODE", "SLV_TEST_NODE_CMD", "SLV_TEST_VALIDATOR",
                   "SLV_RUNNER", "SLV_LOCK_FILE"):
             env.pop(k, None)
-        env.update({"SLV_TEST_MODE": "1",
-                    "SLV_TEST_NODE_CMD": str(self.h.node),
-                    "SLV_LOCK_FILE": str(self.h.lock_dir / "adsy.lock"),
-                    "SLV_SEMANTIC_PROFILE": "D_VISUAL_SHADOW",
+        env.update({"SLV_SEMANTIC_PROFILE": "D_VISUAL_SHADOW",
                     "SLV_LEGACY_ALIAS": "d0"})
+        run = out_root / run_id
         try:
-            p = subprocess.run(["bash", str(ADAPTER), run_id], env=env,
-                               capture_output=True, text=True, cwd="/tmp", timeout=150)
-            run = out_root / run_id
-            ev = p.stdout
-            for name in ("preflight_evidence.txt", "supervisor.log", "runner.log"):
-                f = run / name
+            p = subprocess.Popen(["bash", str(ADAPTER), run_id], env=env,
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                 cwd="/tmp")
+            evidence = ""
+            for _ in range(100):
+                f = run / "preflight_evidence.txt"
                 if f.exists():
-                    ev += "\n" + f.read_text()
-            self.assertEqual(p.returncode, 0, ev[-600:])
-            self.assertIn("SUPERVISOR_IDENTITY: " + CANONICAL_SUPERVISOR_REAL, ev)
-            self.assertIn("RUNNER_IDENTITY: " + CANONICAL_RUNNER_REAL, ev)
+                    evidence = f.read_text()
+                    if "RUNNER_IDENTITY:" in evidence:
+                        break
+                time.sleep(0.1)
+            self.assertIn("SUPERVISOR_IDENTITY: " + CANONICAL_SUPERVISOR_REAL, evidence)
+            self.assertIn("RUNNER_IDENTITY: " + CANONICAL_RUNNER_REAL, evidence)
+            (run / "cancel").touch()
+            out, _ = p.communicate(timeout=90)
+            self.assertNotIn("PRODUCTION_ADAPTER_PREFLIGHT_FAIL", out.decode())
         finally:
-            shutil.rmtree(out_root / run_id, ignore_errors=True)
+            shutil.rmtree(run, ignore_errors=True)
 
 
 if __name__ == "__main__":

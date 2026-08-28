@@ -107,7 +107,7 @@ class AuthorityHarness:
                            env=env, capture_output=True, text=True,
                            cwd=cwd or "/tmp", timeout=timeout)
         run = self.run_dir / run_id
-        return p.returncode, p.stdout + self._evidence(run), run
+        return p.returncode, p.stdout + "\n" + p.stderr + self._evidence(run), run
 
     def state(self, run):
         p = run / "state.json"
@@ -227,38 +227,68 @@ class TestAdapterTrustChain(unittest.TestCase):
         return env
 
     def test_ad_t1_ntu_adapter_seam(self):
-        env = self._adapter_env(SLV_TEST_MODE="1",
-                                SLV_TEST_NODE_CMD=str(self.h.node),
-                                SLV_LOCK_FILE=str(self.h.lock_root / "ad1.lock"))
-        self.created.append("ad_t1"); rc, out, run = self.h.run_adapter("ad_t1", env)
-        self.assertEqual(rc, 0, out)
-        real_run = ADAPTER_OUT_ROOT / "ad_t1"
-        st = json.loads((real_run / "state.json").read_text())
-        self.assertEqual(st["state"], "SUCCESS")
-        self.assertTrue(st["cleanup_verified"])
+        # Prompt70: the production adapter is not a test seam. Clean adapter
+        # reaches the canonical supervisor + runner preflight (identities
+        # captured), then cancelled before any estimator child.
+        self.created.append("ad_t1")
+        env = self._adapter_env()
+        run = ADAPTER_OUT_ROOT / "ad_t1"
+        p = subprocess.Popen(["bash", str(ADAPTER), "ad_t1"], env=env,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             cwd=str(ROOT))
+        evidence = ""
+        for _ in range(100):
+            f = run / "preflight_evidence.txt"
+            if f.exists():
+                evidence = f.read_text()
+                if "RUNNER_IDENTITY:" in evidence:
+                    break
+            time.sleep(0.1)
+        self.assertIn("RUNNER_IDENTITY: ", evidence)
+        (run / "cancel").touch()
+        out, _ = p.communicate(timeout=90)
+        self.assertNotIn("PRODUCTION_ADAPTER_PREFLIGHT_FAIL", out.decode())
+        st = json.loads((run / "state.json").read_text())
+        self.assertEqual(st["state"], "CANCELLED")
 
     def test_ad_t2_arbitrary_cwd_same_runner(self):
-        env = self._adapter_env(SLV_TEST_MODE="1",
-                                SLV_TEST_NODE_CMD=str(self.h.node),
-                                SLV_LOCK_FILE=str(self.h.lock_root / "ad2.lock"))
-        self.created.append("ad_t2"); rc, out, run = self.h.run_adapter("ad_t2", env, cwd="/tmp")
-        self.assertEqual(rc, 0, out)
+        self.created.append("ad_t2")
+        env = self._adapter_env()
+        run = ADAPTER_OUT_ROOT / "ad_t2"
+        p = subprocess.Popen(["bash", str(ADAPTER), "ad_t2"], env=env,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             cwd="/tmp")
+        evidence = ""
+        for _ in range(100):
+            f = run / "preflight_evidence.txt"
+            if f.exists():
+                evidence = f.read_text()
+                if "RUNNER_IDENTITY:" in evidence:
+                    break
+            time.sleep(0.1)
+        self.assertIn("RUNNER_IDENTITY: ", evidence)
+        (run / "cancel").touch()
+        p.communicate(timeout=90)
 
     def test_ad_t3_slv_runner_production_rejected_via_adapter(self):
+        # Prompt70: the production adapter's own ambient guard rejects the
+        # override before the supervisor starts (stronger than the
+        # supervisor-only gate).
+        self.created.append("ad_t3")
         env = self._adapter_env(SLV_RUNNER=str(self.h.fake_runner))
-        self.created.append("ad_t3"); rc, out, run = self.h.run_adapter("ad_t3", env)
+        rc, out, run = self.h.run_adapter("ad_t3", env)
         self.assertNotEqual(rc, 0)
-        evidence = out
-        for name in ("supervisor.log", "state.json"):
-            f = ADAPTER_OUT_ROOT / "ad_t3" / name
-            if f.exists():
-                evidence += "\n" + f.read_text()
-        self.assertIn("SLV_RUNNER set without SLV_TEST_MODE=1", evidence)
+        self.assertIn("PRODUCTION_ADAPTER_PREFLIGHT_FAIL", out)
+        self.assertNotIn("AMBIENT_FAKE_RUNNER_EXECUTED", out)
 
     def test_ad_t5_production_adapter_clean(self):
+        # the adapter READS the test-hook names only to reject them; it must
+        # never SET/export any test variable
         text = open(ADAPTER).read()
-        for name in ("SLV_TEST_MODE", "SLV_TEST_NODE_CMD", "SLV_TEST_VALIDATOR",
-                     "SLV_RUNNER"):
+        self.assertIn("PRODUCTION_ADAPTER_PREFLIGHT_FAIL", text)
+        for name in ("export SLV_TEST", "export SLV_RUNNER", "export SLV_LOCK_FILE",
+                     "SLV_TEST_MODE=", "SLV_TEST_NODE_CMD=", "SLV_TEST_VALIDATOR=",
+                     "SLV_RUNNER=", "SLV_LOCK_FILE="):
             self.assertNotIn(name, text)
 
 

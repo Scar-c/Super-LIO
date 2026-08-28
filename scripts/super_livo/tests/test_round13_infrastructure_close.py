@@ -148,9 +148,13 @@ class TestTestHookIsolation(unittest.TestCase):
             if not path.exists():
                 continue
             text = path.read_text()
-            self.assertNotIn("SLV_TEST_MODE", text)
-            self.assertNotIn("SLV_TEST_NODE_CMD", text)
-            self.assertNotIn("SLV_TEST_VALIDATOR", text)
+            # adapters may READ the test-hook names only to reject them
+            # (Prompt70 ambient guard); they must never SET/export them
+            for forbidden in ("export SLV_TEST", "export SLV_RUNNER",
+                              "export SLV_LOCK_FILE", "SLV_TEST_MODE=",
+                              "SLV_TEST_NODE_CMD=", "SLV_TEST_VALIDATOR=",
+                              "SLV_RUNNER=", "SLV_LOCK_FILE="):
+                self.assertNotIn(forbidden, text)
 
     def test_th_t9_unknown_test_hook_inert(self):
         # only the documented hooks are read; unknown SLV_TEST_* vars are
