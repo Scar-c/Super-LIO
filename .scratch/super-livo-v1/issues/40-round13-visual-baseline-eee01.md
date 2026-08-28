@@ -148,3 +148,10 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - real bag execution: BLOCKED
 - camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
 - infrastructure status: FINAL_CLOSE_IN_PROGRESS
+
+## Prompt68 — final supervisor runtime-authority close
+
+- estimator production: PAUSED
+- real bag execution: BLOCKED
+- camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
+- infrastructure: FINAL_RUNTIME_AUTHORITY_CLOSE_IN_PROGRESS
