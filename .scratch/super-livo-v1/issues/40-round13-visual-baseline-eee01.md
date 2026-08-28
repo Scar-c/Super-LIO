@@ -127,3 +127,10 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - event schema extended (visual_measurement_event / timestamp / exact_once / payload ownership)
 - legacy VARIANT authority corrected (normalized mode = sole authority)
 - transaction supervisor genericized (no Shadow-only coupling)
+
+## Prompt65 — transaction/runner integration corrective + no-bag seam
+
+- estimator production: PAUSED
+- dataset execution: BLOCKED
+- camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
+- Bug A (profile_resolved policy interface) + Bug B (evidence coupling) + Bug C (exact-once gate) audited
