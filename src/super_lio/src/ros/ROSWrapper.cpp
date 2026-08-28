@@ -630,17 +630,6 @@ bool ROSWrapper::sync_measure(MeasureGroup& meas){
   return sync_fullscan_camera_epoch(meas);
 }
 
-void ROSWrapper::accountFullscanCameraNoPop() {
-  // Round13 corrective: frame survives bookkeeping; released terminally by
-  // the camera-epoch Visual lifecycle (releaseCameraPayload).
-  if (camera_buffer_.empty()) return;
-  const double t_c = camera_buffer_.oldest().timestamp;
-  const double dt_ms = (t_c - last_epoch_time_) * 1000.0;
-  if (dt_ms >= -200.0 && dt_ms < 200.0) {
-    camera_epoch_dt_hist_[static_cast<int>(dt_ms + 200.0)]++;
-  }
-}
-
 void ROSWrapper::accountFullscanCamera(bool stale) {
   if (camera_buffer_.empty()) return;
   const double t_c = camera_buffer_.oldest().timestamp;
@@ -698,9 +687,7 @@ bool ROSWrapper::sync_fullscan_camera_epoch(MeasureGroup& meas) {
         }
         imu_buffer_.pop_front();
       }
-      // Round13 corrective: camera payload stays owned for the camera-epoch
-      // Visual lifecycle; terminal release happens after the estimator step.
-      accountFullscanCameraNoPop();
+      accountFullscanCamera(false);
       imu_only_segments_++;
       sync_count_++;
       return true;

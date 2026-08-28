@@ -249,59 +249,6 @@ void SuperLIO::statePropagateOnly() {
   fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->CommitPropagationOnlyEpoch(measures_.epoch_ts);
   imu_propagation_segment_count_++;
-
-  // Round13 corrective: camera-epoch Visual placement. The camera payload is
-  // owned through bookkeeping; the Visual lifecycle + sequential update run
-  // HERE at tc, with the prior = latest committed posterior (LiDAR or a
-  // previous Visual posterior) propagated to tc. Payload terminally released
-  // exactly once after the Visual step.
-  const bool cam_visual =
-      g_lio_v4_apply && g_lio_camera_epoch &&
-      g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN &&
-      g_lio_v2_enabled && g_lio_v0_enabled;
-  const bool have_frame = data_wrapper_->cameraEpochFrame() != nullptr;
-  if (cam_visual && have_frame) {
-    const SE3 pose = kf_->GetSE3();
-    runVisualLifecycle(pose, false);
-    ESKF::SequentialPrior prior;
-    prior.time = kf_->GetTime();
-    prior.x = kf_->GetSysState();
-    prior.P = kf_->GetCov();
-    const SE3 v4_pose_L(prior.x.R, prior.x.p);
-    BASIC::M6 h0 = BASIC::M6::Zero();
-    BASIC::V6 b0 = BASIC::V6::Zero();
-    runVisualResidual(v4_pose_L, h0, b0, false);
-    const double cost_init = last_visual_cost_;
-    const auto v4_snap = kf_->UpdateObserveFromPrior(
-        prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
-          const SE3 sp = s.pose;
-          runVisualResidual(sp, H, b, false);
-        });
-    const SE3 v4_pose_V(v4_snap.x.R, v4_snap.x.p);
-    BASIC::M6 hf0 = BASIC::M6::Zero();
-    BASIC::V6 bf0 = BASIC::V6::Zero();
-    runVisualResidual(v4_pose_V, hf0, bf0, false);
-    const double cost_final = last_visual_cost_;
-    v4c_epochs_visual_++;
-    if (cost_final < cost_init) v4c_cost_improved_++;
-    v4c_photo_ratio_.push_back(cost_final / std::max(cost_init, 1e-30));
-    const double drot =
-        (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
-    const double dp = (v4_snap.x.p - prior.x.p).norm();
-    v4c_rot_norm_.push_back(drot);
-    v4c_trans_norm_.push_back(dp);
-    v4_apply_count_++;
-    const auto& Pv = v4_snap.P;
-    if (!Pv.allFinite()) v4_cov_fail_count_++;
-    const double Pscale = std::max(1.0, static_cast<double>(Pv.cwiseAbs().maxCoeff()));
-    const double sym_err = static_cast<double>((Pv - Pv.transpose()).cwiseAbs().maxCoeff());
-    const double sym_ratio = sym_err / Pscale;
-    if (sym_ratio > 1e-5) v4_cov_fail_count_++;
-    data_wrapper_->cameraVisualProcessed();
-  } else if (have_frame) {
-    data_wrapper_->cameraVisualRejected();
-  }
-  data_wrapper_->releaseCameraPayload();
 }
 
 
@@ -437,7 +384,7 @@ void SuperLIO::stateProcess(){
       static_cast<int64_t>(effect_knn_num_));
   // V-4A/B: sequential visual update from final LiDAR posterior
   if (g_lio_v4_apply && g_lio_camera_epoch &&
-      g_lidar_update_policy != LidarUpdatePolicy::SHADOW_FULLSCAN &&
+      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
       g_lio_v2_enabled &&
       g_lio_v0_enabled) {
     ESKF::SequentialPrior prior;
@@ -490,7 +437,7 @@ void SuperLIO::stateProcess(){
   }
   // V-4C: post-solve lifecycle with final visual posterior state
   if (g_lio_v4_apply && g_lio_camera_epoch &&
-      g_lidar_update_policy != LidarUpdatePolicy::SHADOW_FULLSCAN &&
+      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
       g_lio_v0_enabled) {
     const auto xs = kf_->GetSysState();
     const SE3 v4_pose(xs.R, xs.p);
