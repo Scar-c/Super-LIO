@@ -121,9 +121,13 @@ done
 MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
 python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 python3 "$SEMANTIC_TOOL" check-executable --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="profile not executable against production capability";exit 1; }
+if [ -n "${SLV_TEST_VALIDATOR:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
+  FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1";exit 2;
+fi
 VALIDATOR="${SLV_TEST_VALIDATOR:-$(python3 "$SEMANTIC_TOOL" validator --manifest "$MANIFEST" 2>/dev/null)}"
-# SLV_TEST_VALIDATOR: test-only hook (default OFF, fail-closed). Overrides the
-# profile-declared validator for the no-bag integration seam test.
+# SLV_TEST_VALIDATOR: test-only hook. Requires explicit SLV_TEST_MODE=1
+# (default OFF, fail-closed): production can never silently replace the
+# canonical manifest validator.
 [ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="no validator contract for profile $PROFILE";exit 2; }
 [ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing: $VALIDATOR";exit 2; }
 sed -i "s|post-run validator: RESOLVED_AFTER_MANIFEST|post-run validator: $VALIDATOR|" "$RUN_DIR/preflight_evidence.txt"
