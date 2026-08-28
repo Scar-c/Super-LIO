@@ -1,6 +1,6 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round13 Prompt61 STOPPED_FOR_OWNER at Apply connectivity gate；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt62 minimal D Apply bridge ACTIVE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
@@ -21,6 +21,11 @@ Prompt61 stopped before a full run. The normalized D Apply profile requires
 `PARTIAL`; enabling the profile therefore cannot reach the solver or x/P
 commit. Resolving placement/connectivity requires a new Owner architecture
 decision and cannot silently restore the previously reverted Round13 changes.
+
+Prompt62 authorizes a narrowly bounded corrective: connect the already accepted
+D Visual measurement event to the existing x/P posterior primitive at the same
+epoch. Producer, camera payload, measurement math, LiDAR ownership, and every
+other dataset remain frozen; B-T1..B-T14 precede any full playback.
 
 Round13 Prompt59 normalized experiment identities and restored the historical
 Visual producer gates through a fail-closed semantic-profile layer. The sole

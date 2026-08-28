@@ -88,3 +88,12 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   Apply instrumentation, and ATE evaluation were not executed.
 - Restoring the reverted policy/placement changes would exceed Prompt61
   authority. Classification: `ROUND13_STOPPED_FOR_OWNER`.
+
+## Prompt 62 minimal connectivity authorization
+
+- Owner accepts the connectivity STOP and authorizes only a same-event bridge
+  from the existing accepted D Visual H/b to `UpdateObserveFromPrior`.
+- Producer, measurement math, camera payload lifetime, raw-scan ownership, and
+  one full LiDAR Observe/raw scan remain frozen.
+- Full eee Apply is conditional on B-T1 RED and B-T2..B-T14 GREEN; all other
+  datasets remain blocked.
