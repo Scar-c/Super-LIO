@@ -1,0 +1,152 @@
+schema_version: 1
+mapping_policy:
+  legacy_labels_immutable: true
+  alias_selects_protected_semantics: false
+  unknown_visual_semantics_map_to: D_SCHEDULER_BASE
+records:
+  - legacy_label: D0
+    round: Round11AA-Round13
+    revision: post-4543347
+    runner: scripts/super_livo/experiments/run_offline_variant.sh
+    dataset: NTU
+    sequence: eee_01,nya_01
+    effective_semantics: &d_base_s1
+      scheduler_family: D_CORRECTED
+      camera_input_enabled: true
+      camera_epoch_enabled: true
+      visual_frontend_enabled: true
+      visual_map_producer_enabled: false
+      visual_measurement_enabled: false
+      visual_state_apply: false
+      raw_lidar_policy: FULL_RAW_SCAN_AT_SCAN_END
+      full_lidar_observe_per_raw_scan: 1
+      camera_stride: 1
+    normalized_profile: D_SCHEDULER_BASE
+    evidence:
+      runner: scripts/super_livo/experiments/run_offline_variant.sh
+      config: historical d0 variant
+      effective_snapshot: post-4543347 snapshots omit g0/g1
+      logs: docs/super_livo/evidence/round13_historical_d_runner_recovery.md
+      counters: VisualMap/residual/H-b all zero
+    confidence: PROVEN
+  - legacy_label: D-S1
+    round: Round11AA
+    revision: 843ecb8d3c6877d896857329eabb95ef
+    runner: scripts/super_livo/experiments/run_offline_variant.sh
+    dataset: MCD
+    sequence: day10
+    effective_semantics: *d_base_s1
+    normalized_profile: D_SCHEDULER_BASE
+    evidence:
+      runner: run_offline_variant.sh d0
+      config: imu_fullscan,stride=1
+      effective_snapshot: historical runner/readback
+      logs: docs/super_livo/evidence/round11aa_d_family_day10.md
+      counters: one full Observe per raw scan
+    confidence: PROVEN
+  - legacy_label: D-S3
+    round: Round11AA-Round11AB
+    revision: e51614751969e23cb0c6a4afc6db662
+    runner: scripts/super_livo/experiments/run_offline_variant.sh
+    dataset: MCD,M3DGR
+    sequence: day10,night08,Corridor01
+    effective_semantics:
+      <<: *d_base_s1
+      camera_stride: 3
+    normalized_profile: D_SCHEDULER_BASE
+    evidence:
+      runner: run_offline_variant.sh d0
+      config: imu_fullscan,stride=3
+      effective_snapshot: results/super_livo/round11ab/m3dgr/corridor01/d_s3/effective_config.post_resolve.yaml
+      logs: docs/super_livo/evidence/round11ab_m3dgr_corridor01_closure.md
+      counters: duplicate_use=0; never_used=0
+    confidence: PROVEN
+  - legacy_label: DV0
+    round: Round13
+    revision: 711a6674-artifact-frontier
+    runner: base_ws/tools/benchmark_adapters/launch_r13_dv0.sh
+    dataset: NTU
+    sequence: eee_01
+    effective_semantics:
+      scheduler_family: D_CORRECTED
+      camera_input_enabled: false
+      camera_epoch_enabled: false
+      visual_frontend_enabled: true
+      visual_map_producer_enabled: false
+      visual_measurement_enabled: false
+      visual_state_apply: false
+      raw_lidar_policy: FULL_RAW_SCAN_AT_SCAN_END
+      full_lidar_observe_per_raw_scan: 1
+      camera_stride: 1
+    normalized_profile: OTHER
+    evidence:
+      runner: base_ws/tools/benchmark_adapters/run_superlivo_transaction.sh
+      config: v4.apply=true requested
+      effective_snapshot: results/round13_visual_baseline/ntu_eee_01/dv0/20260828T043621Z_ea80ba48/effective_rosparams.pre_node.yaml
+      logs: results/round13_visual_baseline/ntu_eee_01/dv0/20260828T043621Z_ea80ba48/node.log
+      counters: landmarks=0;samples=0;H-b=0;apply_count=0
+    confidence: PROVEN
+  - legacy_label: C0
+    round: Round11
+    revision: d01344b3-v0-era
+    runner: pre-4543347 run_offline_variant.sh c0
+    dataset: NTU
+    sequence: eee_01
+    effective_semantics: &c_stateoff
+      scheduler_family: C_PARTIAL
+      camera_input_enabled: true
+      camera_epoch_enabled: true
+      visual_frontend_enabled: true
+      visual_map_producer_enabled: true
+      visual_measurement_enabled: true
+      visual_state_apply: false
+      raw_lidar_policy: PARTIAL_CAMERA_EPOCH
+      full_lidar_observe_per_raw_scan: null
+      camera_stride: 1
+    normalized_profile: OTHER
+    evidence:
+      runner: pre-4543347 c0 matrix
+      config: legacy snapshot unavailable
+      effective_snapshot: LEGACY_NO_POST_RESOLVE_SNAPSHOT
+      logs: results/super_livo/v0/eee/run_v0/node_stdout.log
+      counters: parents=263;landmarks=102;frames=3263
+    confidence: PARTIAL
+  - legacy_label: A0
+    round: Round11N-O
+    revision: historical
+    runner: run_offline_variant.sh a0
+    dataset: NTU
+    sequence: eee_01
+    effective_semantics:
+      <<: *c_stateoff
+      visual_state_apply: true
+    normalized_profile: OTHER
+    evidence:
+      runner: historical a0 variant
+      config: apply=true;outlier_gate=false
+      effective_snapshot: LEGACY_NO_POST_RESOLVE_SNAPSHOT
+      logs: docs/super_livo/evidence/v4_corrective_closure_attribution_round11o.md
+      counters: proposed/applied update and ATE recorded
+    confidence: PARTIAL
+  - legacy_label: A1
+    round: Round11P
+    revision: historical
+    runner: run_offline_variant.sh a1
+    dataset: NTU
+    sequence: eee_01
+    effective_semantics:
+      <<: *c_stateoff
+      visual_state_apply: true
+    normalized_profile: OTHER
+    evidence:
+      runner: historical a1 variant
+      config: apply=true;outlier_gate=true
+      effective_snapshot: LEGACY_NO_POST_RESOLVE_SNAPSHOT
+      logs: docs/super_livo/evidence/v4r0_reference_patch_outlier_gate_round11p.md
+      counters: accepted/rejected Visual gate counts
+    confidence: PARTIAL
+not_found:
+  - legacy_label: D
+    dataset: Oxford
+    sequence: Quarter01
+    confidence: UNRESOLVED
