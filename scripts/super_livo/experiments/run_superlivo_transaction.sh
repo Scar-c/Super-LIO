@@ -81,10 +81,12 @@ conflicting_estimator="$(pgrep -af '[s]uper_lio_offline_node' || true)"
 [ -z "$conflicting_estimator" ] || { FINAL_CLASS=REFUSED_SHARED_RESOURCE;FINAL_REASON="conflicting estimator";exit 90; }
 for f in "$RUNNER" "${SLV_CFG:?config}" "${SLV_BAG:?bag}"; do [ -f "$f" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="missing $f";exit 2; }; done
 PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start request}"
-[ "$PROFILE" = D_VISUAL_SHADOW ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="expected D_VISUAL_SHADOW profile";exit 2; }
+# Prompt64 genericization: the supervisor owns execution only. Profile identity
+# is validated generically (any known profile ID); the post-run validator
+# contract derives from the resolved manifest (Layer B), never hardcoded.
+SEMANTIC_TOOL=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py
+VALIDATOR=""
 [ "${SLV_MEASUREMENT_EVIDENCE:-0}" = 1 ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="measurement instrumentation not enabled";exit 2; }
-VALIDATOR=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/validate_d_visual_shadow_result.py
-[ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing";exit 2; }
 {
   echo "active Super-LIVO transaction: NONE"
   echo "conflicting rosbag play: NONE"
@@ -93,7 +95,7 @@ VALIDATOR=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/valid
   echo "semantic profile: PENDING_CHILD_FAIL_CLOSED_VALIDATION"
   echo "producer gates: PENDING_CHILD_FAIL_CLOSED_READBACK"
   echo "measurement instrumentation: ENABLED"
-  echo "post-run validator: READY"
+  echo "post-run validator: RESOLVED_AFTER_MANIFEST"
 } > "$RUN_DIR/preflight_evidence.txt"
 state TRANSACTION_PREFLIGHT_PASS "" "active/conflicts none; lock acquired"
 
@@ -116,7 +118,12 @@ for _ in $(seq 1 300); do
 done
 [ "$ready" = 1 ] || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic pre-playback handshake missing";exit 1; }
 MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
-python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
+python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
+python3 "$SEMANTIC_TOOL" check-executable --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="profile not executable against production capability";exit 1; }
+VALIDATOR="$(python3 "$SEMANTIC_TOOL" validator --manifest "$MANIFEST" 2>/dev/null)"
+[ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="no validator contract for profile $PROFILE";exit 2; }
+[ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing: $VALIDATOR";exit 2; }
+sed -i "s/post-run validator: RESOLVED_AFTER_MANIFEST/post-run validator: $VALIDATOR/" "$RUN_DIR/preflight_evidence.txt"
 sed -i 's/PENDING_CHILD_FAIL_CLOSED_VALIDATION/PASS/;s/PENDING_CHILD_FAIL_CLOSED_READBACK/PASS/' "$RUN_DIR/preflight_evidence.txt"
 cat "$RUN_DIR/preflight_evidence.txt"
 touch "$RUN_DIR/transaction_playback_authorized"
@@ -124,12 +131,13 @@ state PLAYBACK_STARTED "" "semantic profile and producer gates PASS"
 while kill -0 "$CHILD_PID" 2>/dev/null; do [ -f "$CANCEL" ] && { FINAL_STATE=CANCELLED;FINAL_CLASS=USER_CANCELLED;FINAL_REASON="cancel requested";exit 130; }; sleep .2; done
 wait "$CHILD_PID"; rc=$?
 [ "$rc" = 0 ] || { FINAL_CLASS=PROCESS_LIFECYCLE_FAIL;FINAL_REASON="runner rc=$rc";exit 1; }
-python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
+python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 [ -f "$TRAJ" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory missing";exit 1; }
 rows="$(wc -l < "$TRAJ")"; [ "$rows" -ge "${SLV_MIN_ROWS:-3000}" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory rows=$rows";exit 1; }
+[ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="validator contract unresolved";exit 2; }
 python3 "$VALIDATOR" --log "$OUT_DIR/node_stdout.log" --manifest "$MANIFEST" \
-  --out "$RUN_DIR/d_visual_shadow_gate.yaml" || {
-    FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="mandatory Visual-shadow counters missing or failed";exit 1;
+  --out "$RUN_DIR/${PROFILE}_gate.yaml" || {
+    FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="post-run validator gate failed";exit 1;
   }
 cp "$TRAJ" "$RUN_DIR/trajectory.tum"
 VALID=true; FINAL_STATE=SUCCESS; FINAL_CLASS=""; FINAL_REASON="canonical semantic run; rows=$rows"
