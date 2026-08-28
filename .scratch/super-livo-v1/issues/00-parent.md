@@ -109,3 +109,21 @@ offline-first；DG-0 为 mandatory owner gate（NO AUTO-CLOSE / NO AUTO-PROMOTE�
 
 - 实现代码（本轮 TICKETING ONLY）；`/implement` 等待 owner 批准后逐 ticket。
 - 修改 GitHub repo settings；重试 GitHub Issues。
+
+## Prompt64 ledger semantic reclassification
+
+Prompt60 evidence (D_VISUAL_SHADOW eee_01 N1) reclassified by source audit
+(round13_current_d_event_source_audit.md + fast_livo2 audit):
+
+```text
+visual_measurement_active = YES
+visual_measurement_event = FULL_LIDAR_OBSERVE_CALLBACK
+visual_state_apply = OFF
+camera_epoch_measurement_placement = NOT_ESTABLISHED
+D_VISUAL_SHADOW_MEASUREMENT_ACTIVE_LEGACY_PLACEMENT
+```
+
+Semantic schema v2: visual_measurement_event / timestamp_semantics /
+exact_once / camera_payload_ownership_mode protected fields;
+D_VISUAL_APPLY requested event=CAMERA_EPOCH fails executability
+(fail-closed) until production capability matches.
