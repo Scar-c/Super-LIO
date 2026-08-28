@@ -161,3 +161,10 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - estimator production: PAUSED
 - bag execution: BLOCKED
 - camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
+
+## Prompt70 — final proof-debt + adapter ambient-env isolation close
+
+- estimator production: PAUSED
+- real bag execution: BLOCKED
+- camera-event corrective: BLOCKED_ON_ORIGIN_FINAL_CLOSE_REVIEW
+- infrastructure: FINAL_PROOF_DEBT_CLOSE
