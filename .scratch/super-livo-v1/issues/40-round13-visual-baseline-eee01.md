@@ -19,3 +19,15 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   (fixed mid-round), never restored the producer gate.
 - Placement root cause NOT PROVEN (evidence contaminated). 33c1b3d/7d9be50/ce3d1a9 QUARANTINED.
 - R-TDD 8/8 PASS; 3 evidence docs committed. STOP_FOR_OWNER (Case D).
+
+## Prompt 58 disposition / Prompt 59 GTP takeover
+
+- Prompt 58: SUPERSEDED BEFORE EXECUTION. No commit and no experiment exists after
+  `711a6674`; its historical-label premise (`D0` as measurement-active state-off)
+  is not accepted as normalized semantics.
+- Prompt 58 production edits remain quarantined WIP until the Prompt 59 provenance
+  and contract audit classifies each hunk; nothing is discarded or silently adopted.
+- Prompt 59: ACTIVE. Normalize `D_SCHEDULER_BASE`, `D_VISUAL_SHADOW`, and
+  `D_VISUAL_APPLY` independently of immutable historical labels.
+- Sole authorized experiment after semantic/TDD gates: NTU `eee_01`,
+  `D_VISUAL_SHADOW`, N=1. All apply, tuning, and other-dataset work remains blocked.
