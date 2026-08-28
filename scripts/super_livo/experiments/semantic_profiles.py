@@ -94,16 +94,28 @@ class SemanticProfileError(ValueError):
 # resolution is CWD-independent and survives repository relocation.
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
+VALIDATOR_NAMESPACE = REPO_ROOT / "scripts" / "super_livo" / "experiments"
+
 def resolve_validator_path(relative):
     """Anchor a repository-relative validator contract to REPO_ROOT.
     The manifest stores the portable relative path; runtime resolution is
-    absolute and deterministic regardless of caller CWD."""
+    absolute and deterministic regardless of caller CWD. Prompt67: the
+    resolved path must stay inside the approved repository validator
+    namespace; absolute paths, traversal and symlink escapes are rejected."""
     if not relative:
         return ""
     p = pathlib.Path(relative)
     if p.is_absolute():
-        return str(p.resolve())
-    return str((REPO_ROOT / p).resolve())
+        raise SemanticProfileError(
+            f"validator path must be repository-relative, got absolute: {relative}")
+    candidate = (REPO_ROOT / p).resolve()
+    try:
+        candidate.relative_to(VALIDATOR_NAMESPACE.resolve())
+    except ValueError:
+        raise SemanticProfileError(
+            f"validator path escapes approved namespace: {relative} "
+            f"(resolved {candidate})") from None
+    return str(candidate)
 
 # Profile-associated post-run validator contract (Prompt64 §25): selection
 # derives from the resolved semantic profile, never from a hardcoded
@@ -173,6 +185,17 @@ def validate_manifest(manifest):
     profile = manifest.get("semantic_profile")
     if profile not in PROFILES:
         raise SemanticProfileError("semantic_profile missing or unknown")
+    if profile in VALIDATOR_CONTRACT:
+        expected_validator, expected_evidence = VALIDATOR_CONTRACT[profile]
+        if manifest.get("validator") != expected_validator:
+            raise SemanticProfileError(
+                f"validator contract integrity: manifest validator={manifest.get('validator')!r} "
+                f"!= canonical {expected_validator!r} for {profile}")
+        if manifest.get("requires_measurement_evidence") != expected_evidence:
+            raise SemanticProfileError(
+                f"evidence contract integrity: manifest requires_measurement_evidence="
+                f"{manifest.get('requires_measurement_evidence')!r} != canonical "
+                f"{expected_evidence!r} for {profile}")
     missing = [key for key in PROTECTED_FIELDS if key not in manifest]
     if missing:
         legacy_missing = [k for k in missing if k in (
