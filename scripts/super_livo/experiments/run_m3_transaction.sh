@@ -130,7 +130,7 @@ import numpy as np,sys
 d=np.atleast_2d(np.loadtxt(sys.argv[1]));raise SystemExit(0 if d.shape[1]==8 and np.all(np.isfinite(d)) and np.all(np.diff(d[:,0])>=0) else 1)
 PY
 sha256sum "$TRAJ" "$EVAL_TRAJ">"$RUN_DIR/trajectory_hashes.txt"
-write_state OUTPUT_VALIDATED "" "raw and evaluator trajectories valid";export EVAL_TRAJ
+write_state OUTPUT_VALIDATED "" "raw and evaluator trajectories valid";export EVAL_TRAJ RUN_DIR
 [ "$EVAL_CMD" = : ]||bash -c "$EVAL_CMD">"$RUN_DIR/evaluation.txt" 2>&1||{ FINAL_CLASS=EVALUATOR_FAIL;FINAL_REASON="evaluator failed";exit 1;};write_state EVALUATED "" "evaluated"
 if [ "$RUN_MODE" = smoke ];then write_state SMOKE_VALID "" "infrastructure smoke result";FINAL_STATE=SUCCESS;FINAL_CLASS="";FINAL_REASON="smoke only; not an accuracy experiment"
 else EXPERIMENT_VALID=true;write_state CANONICAL_VALID "" "canonical result";FINAL_STATE=SUCCESS;FINAL_CLASS="";FINAL_REASON="canonical result";fi
