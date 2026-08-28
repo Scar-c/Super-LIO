@@ -4,6 +4,11 @@
 
 ## Current frontier
 
+Prompt53 execution is complete but Round12 remains **PARTIAL**: canonical
+matrix provenance and both NTU sbs parent baselines passed; pristine
+FAST-LIVO2 Corridor02 diverged under the pinned dataset-author config, so the
+mandatory `M3_CORRIDOR02_FAST_LIVO2 = CANONICAL_VALID` gate did not close.
+
 Round 11 CLOSED. Round 12 NARROWLY REOPENED under Prompt #53. Executor remains
 agent-codex. Origin rejected Prompt52's justified-NOT-RUN accounting for NTU
 sbs dual parents and M3 Corridor02, and requires canonical runs plus full

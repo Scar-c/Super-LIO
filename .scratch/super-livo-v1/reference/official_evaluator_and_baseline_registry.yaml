@@ -127,7 +127,7 @@ method_configs:
     repository: https://github.com/hku-mars/FAST-LIVO2
     revision: 0d2c0346107b75b59934975adec9a6eeeb913c64
     config_path: config/NTU_VIRAL.yaml
-    config_sha256: 1c8f94f130e599b928c3f02c3f3d3b2009ae01df76aec32f6ac96b6a987311ef3
+    config_sha256: c8f94f130e599b928c3f02c3f3d3b2009ae01df76aec32f6ac96b6a987311ef3
     camera_path: config/camera_NTU_VIRAL.yaml
     camera_sha256: 40f2b08fddc9960130935b9afd73f840cea1c92acd4f417ee4a3d4a6b2c5dd86
     lidar_imu:
@@ -267,6 +267,22 @@ records:
       - {score_m: 0.0356, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
     super_lio: {score_m: 0.069, tier: METHOD_AUTHOR_PAPER, source: Super-LIO Table I nya1/Super-LIO column, config: super_lio_ntu, pristine_reproduction_m: 0.062926634, revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29, reproduction_grade: GREEN, grade: A}
     caveat: historical local trajectories are not intact; no odometry rerun authorized solely for evaluation
+  - dataset: NTU_VIRAL
+    sequence: sbs_01
+    sensor_setup: Ouster OS1 #1 + VN100 IMU + left camera; GT Leica prism
+    gt_source: bag /leica/pose/relative; dataset calibration trans_B2prism.csv
+    evaluator: ntu_dataset_author
+    fast_livo2:
+      - {score_m: 0.062, tier: METHOD_AUTHOR_PAPER, source: FAST-LIVO2 Table II, grade: B}
+      - {score_m: 0.0234, tier: METHOD_AUTHOR_CURRENT_OPEN_SOURCE, source: FAST-LIVO2 NTU README, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, config: fast_livo2_ntu, grade: B}
+      - {pristine_reproduction_m: 0.028766780254875793, revision: 0d2c0346107b75b59934975adec9a6eeeb913c64, evaluator: ntu_dataset_author, status: CANONICAL_VALID_GREEN}
+    super_lio:
+      score_m: 0.086
+      tier: METHOD_AUTHOR_PAPER
+      source: Super-LIO Table I sbs1/Super-LIO column
+      pristine_reproduction_m: 0.0844228724531187
+      revision: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+      status: CANONICAL_VALID_GREEN
   - dataset: MCD
     sequence: ntu_day_10
     sensor_setup: Livox MID70 + VN100 + D435i
@@ -329,6 +345,18 @@ records:
     fast_livo2: {score_m: 3.35, metric: first-to-last relative translation error despite over-general Table VII heading, tier: DATASET_AUTHOR_BENCHMARK, config: fast_livo2_m3dgr, grade: A}
     super_lio: {status: NOT_FOUND, grade: NOT_FOUND}
     caveat: paper Table VII says ATE RMSE, but ArUco sequence methodology and official default translation sort establish translation-error comparability; final bag scan lacks IMU coverage by 0.0005903 s and is explicitly terminal-unprocessable in both input timing and D audit
+  - dataset: M3DGR
+    sequence: Corridor02
+    evaluator: m3dgr_aruco
+    fast_livo2:
+      authoritative_reference: NOT_FOUND
+      config: fast_livo2_m3dgr
+      revision: e0cf7d59c9a5a3df515624034698d976abc26549
+      reproduction_status: INVALID_ESTIMATOR_DIVERGENCE
+      diagnostic_translation_error_m: 22904.44722103362
+      diagnostic_tracking_rate_percent: 99.94006832305075
+      run_id: 20260828T1110_corridor02
+    super_lio: {status: NO_AUTHORITATIVE_CONFIG}
 
 authoritative_not_found:
   FAST_LIVO2_MCD: NOT_FOUND

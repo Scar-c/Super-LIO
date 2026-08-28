@@ -161,10 +161,12 @@ repository/history; this is `DEDICATED_DATASET_CONFIG=NOT_FOUND`.
 |---|---:|---:|---:|---|---|---|---|
 | NTU eee_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.068 m`; current source `0.0271 m` | paper `0.119 m`; pristine `0.118875639 m` GREEN | Super-LIO A; existing Super-LIVO trajectory missing |
 | NTU nya_01 | NOT_REEVALUATED | D0 NOT_REEVALUATED | NOT_AVAILABLE | dataset-author prism translation ATE RMSE | paper `0.073 m`; current source `0.0356 m` | paper `0.069 m`; pristine `0.062926634 m` GREEN | Super-LIO A; existing Super-LIVO trajectory missing |
+| NTU sbs_01 | 0.1040 m legacy | NOT_RUN | 0.1034/0.1101/0.1083 legacy C0/A0/A1 | dataset-author prism translation ATE RMSE | paper `0.062 m`; current source `0.0234 m`; pristine `0.028766780 m` GREEN | paper `0.086 m`; pristine `0.084422872 m` GREEN | parent runs canonical; FAST refs remain separate B-class records |
 | MCD ntu_day_10 / mcd2 | 1.2181 m | 0.9044 m | 0.742 | no official ATE; OUR_REPRODUCTION discrete GT APE RMSE | NOT_FOUND | paper 0.721; current pristine 0.7163 GREEN; paper-era 0.9594 AMBER | dataset-author SeqID2 mapping; revision-sensitive |
 | MCD ntu_night_08 / mcd4 | 1.7416 m | 1.9964 m | 1.146 | same OUR_REPRODUCTION metric | NOT_FOUND | paper 0.604; current pristine 1.0210 RED N=3; paper-era 0.6978 GREEN | OWNER_ACCEPTED_AMBER; dataset-author SeqID4; no causal darkness claim |
 | Oxford ROQ01 | historical 0.0630 m | historical D0 0.0629 m | 0.998 | official evo APE, SE3, max-diff 0.01 | `0.04 m`, dataset benchmark | NOT_FOUND | FAST-LIVO2 A; local values B pending exact reevaluation |
 | M3DGR Corridor01 | 15.4077 m | 7.1549 m | 0.4644 | ArUco first-to-last relative translation error | `3.35 m`, dataset benchmark | NOT_FOUND | A; exact metric/setup, pinned run and evaluator provenance |
+| M3DGR Corridor02 | NOT_RUN | NOT_RUN | NOT_AVAILABLE | ArUco first-to-last relative translation error | authoritative reference NOT_FOUND; pristine attempt INVALID_ESTIMATOR_DIVERGENCE (`22904.447 m` diagnostic only) | NO_AUTHORITATIVE_CONFIG | canonical parent baseline not established; M3 KEEP policy unchanged |
 
 FAST-LIO2 and FAST-LIVO2 are distinct. Super-LIO Table I reports FAST-LIO2;
 those values are not registered as FAST-LIVO2 baselines. Verified Super-LIO

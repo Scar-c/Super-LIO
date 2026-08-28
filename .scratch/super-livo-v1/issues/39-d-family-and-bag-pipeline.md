@@ -127,3 +127,10 @@ Status: **ACTIVE — ORIGIN-REQUIRED FINAL ACCOUNTING**
   and one canonical dataset-author-adapted FAST-LIVO2 Corridor02 run.
 - Existing eee/nya, MCD, Oxford, Corridor01 and Outdoor01/04 results remain
   closed and must not be rerun. Round13/Visual work remains unauthorized.
+
+Prompt53 outcome: matrix provenance PASS; NTU sbs Super-LIO and FAST-LIVO2
+CANONICAL_VALID; Corridor02 attempt `20260828T1045_corridor02` invalid due to
+evaluator-context infrastructure, corrected by `a2a3a16`; corrected attempt
+`20260828T1110_corridor02` invalid due to estimator divergence (22.9 km
+endpoint displacement, repeated zero effective features/NaN residuals). No
+parameter tuning or cherry-picked rerun was performed. Round12 remains PARTIAL.

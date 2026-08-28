@@ -1,4 +1,9 @@
-# Round12 final gap audit and closure
+# Round12 superseded gap audit and Prompt53 partial outcome
+
+The Prompt52 closure below was superseded by Prompt53. Prompt53 completed the
+NTU sbs dual-parent runs, but the mandatory Corridor02 canonical-valid parent
+gate failed because pristine FAST-LIVO2 diverged. The authoritative current
+classification is `ROUND12_PARENT_REPRO_PARTIAL`, not the older closure line.
 
 Audited 2026-08-28 after the two canonical M3DGR Outdoor controls.
 
@@ -27,4 +32,4 @@ previous pristine Super-LIO source checkout was temporary, but its durable
 artifacts record the pinned revision and hashes, so the result does not depend
 on the continued existence of that checkout.
 
-Round12 classification: `ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED`.
+Superseded Prompt52 classification: `ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED`.
