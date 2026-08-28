@@ -47,3 +47,13 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   `EVIDENCE_INCOMPLETE_NOT_CANONICAL`; ATE not consumed.
 - Round13 state: `STOPPED_FOR_OWNER`. No Apply, tuning, second full bag, or
   other dataset was executed.
+
+## Prompt 60 measurement-evidence closure
+
+- Owner authorization: `ROUND13_D_VISUAL_SHADOW_MEASUREMENT_EVIDENCE_CLOSURE_AUTHORIZED`.
+- Scope: instrumentation only; persist query conservation, finite/nonzero H/b
+  normal-equation evidence, and determine whether the real Shadow path already
+  computes a proposed correction.
+- One new NTU eee_01 `D_VISUAL_SHADOW` full run is authorized after M-T1..M-T10,
+  semantic/config-delta, transaction, and post-run validator gates pass.
+- `D_VISUAL_APPLY` and every other dataset remain blocked.
