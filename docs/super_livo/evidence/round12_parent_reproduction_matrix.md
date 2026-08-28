@@ -10,6 +10,7 @@ provenance gates close. `PENDING` is evidence status, not a zero score.
 | NTU | sbs_01 | Super-LIO | method-author dataset config | `60b57aa` | 0.086 | 0.084422872 GREEN | 0.1040 | NOT_RUN | dataset prism ATE RMSE | REPRODUCED_GREEN |
 | NTU | eee_01 | FAST-LIVO2 | method-author dataset config | `0d2c034` | paper 0.068; current 0.0271 | 0.0303 canonical | 0.0271 | existing D | dataset prism ATE RMSE | CANONICAL_VALID |
 | NTU | nya_01 | FAST-LIVO2 | method-author dataset config | `0d2c034` | paper 0.073; current 0.0356 | 0.0398 canonical | 0.0356 | existing D | dataset prism ATE RMSE | CANONICAL_VALID |
+| NTU | sbs_01 | FAST-LIVO2 | method-author dataset config | `0d2c034` | paper 0.062; current 0.0234 | 0.028766780 GREEN | 0.1040 | NOT_RUN | dataset prism ATE RMSE; refs B-class | REPRODUCED_GREEN |
 | MCD | day10=mcd2 | Super-LIO | method-author `MCD_ATH.yaml` | current `60b57aa`; paper `2c09212` | 0.721 | current 0.7163 GREEN; paper-era 0.9594 AMBER | 1.2181 | 0.9044 | frozen MCD APE RMSE | REPRODUCED_REVISION_SENSITIVE |
 | MCD | night08=mcd4 | Super-LIO | method-author `MCD_ATH.yaml` | current `60b57aa`; paper `2c09212` | 0.604 | current 1.0210 RED (N=3 bitwise); paper-era 0.6978 GREEN | 1.7416 | 1.9964 | frozen MCD APE RMSE | REPRODUCED_REVISION_SENSITIVE |
 | MCD | day10/night08 | FAST-LIVO2 | method default fallback only | `0d2c034` | NOT_PUBLISHED | NOT_RUN | existing | existing | engineering reference only | NOT_PUBLISHED |
