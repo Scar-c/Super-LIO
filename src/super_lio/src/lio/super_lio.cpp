@@ -384,7 +384,7 @@ void SuperLIO::stateProcess(){
       static_cast<int64_t>(effect_knn_num_));
   // V-4A/B: sequential visual update from final LiDAR posterior
   if (g_lio_v4_apply && g_lio_camera_epoch &&
-      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
+      g_lidar_update_policy != LidarUpdatePolicy::SHADOW_FULLSCAN &&
       g_lio_v2_enabled &&
       g_lio_v0_enabled) {
     ESKF::SequentialPrior prior;
@@ -437,7 +437,7 @@ void SuperLIO::stateProcess(){
   }
   // V-4C: post-solve lifecycle with final visual posterior state
   if (g_lio_v4_apply && g_lio_camera_epoch &&
-      g_lidar_update_policy == LidarUpdatePolicy::PARTIAL &&
+      g_lidar_update_policy != LidarUpdatePolicy::SHADOW_FULLSCAN &&
       g_lio_v0_enabled) {
     const auto xs = kf_->GetSysState();
     const SE3 v4_pose(xs.R, xs.p);
