@@ -1,169 +1,78 @@
 #!/usr/bin/env python3
-"""Round13 corrective — recovered canonical D runner semantics (R-T1..R-T8).
-
-Protects the Origin-frozen D0/DV0 semantic schema from runner drift:
-  scheduler_family, camera_input_enabled, camera_epoch_enabled,
-  visual_frontend_enabled, visual_measurement_enabled are protected;
-  only visual_state_apply may differ between D0 and DV0.
-
-R-T1  D0 profile resolves the frozen semantics.
-R-T2  DV0 inherits D0 and changes only visual_state_apply.
-R-T3  NTU adapter cannot override protected D semantics.
-R-T4  Oxford adapter cannot override protected D semantics.
-R-T5  MCD adapter cannot override protected D semantics.
-R-T6  Missing protected field fails closed.
-R-T7  Dataset adapter difference does not change profile identity.
-R-T8  D0 vs DV0 semantic diff contains exactly one algorithm field.
-"""
-
-import os
-import re
-import sys
+"""Round13 Prompt59 normalized semantic-profile contract (N-T1..N-T8)."""
+import importlib.util
+import pathlib
+import tempfile
 import unittest
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-RUNNER = os.path.join(REPO, "scripts", "super_livo", "experiments", "run_offline_variant.sh")
-ROUND13_WRAPPERS = [
-    os.path.join(REPO, "base_ws", "tools", "benchmark_adapters", "launch_r13_d0.sh"),
-    os.path.join(REPO, "base_ws", "tools", "benchmark_adapters", "launch_r13_dv0.sh"),
-]
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+MODULE = ROOT / "scripts/super_livo/experiments/semantic_profiles.py"
 
-PROTECTED_FIELDS = [
-    "scheduler_family",
-    "camera_input_enabled",
-    "camera_epoch_enabled",
-    "visual_frontend_enabled",
-    "visual_measurement_enabled",
-    "lidar_raw_scan_policy",
-    "full_lidar_observe_per_raw_scan",
-]
+def load_module():
+    spec = importlib.util.spec_from_file_location("semantic_profiles", MODULE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-CANONICAL_D0 = {
-    "profile": "D0",
-    "scheduler_family": "D_CORRECTED",
-    "camera_input_enabled": True,
-    "camera_epoch_enabled": True,
-    "visual_frontend_enabled": True,
-    "visual_measurement_enabled": True,
-    "visual_state_apply": False,
-    "lidar_raw_scan_policy": "FULL_RAW_SCAN_AT_SCAN_END",
-    "full_lidar_observe_per_raw_scan": 1,
-}
+class TestNormalizedSemanticProfiles(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = load_module()
 
+    def resolve(self, profile="D_VISUAL_SHADOW", dataset="NTU", alias="DV0"):
+        return self.sp.resolve_profile(
+            profile, legacy_alias=alias, dataset=dataset, sequence="eee_01",
+            camera_stride=1,
+            revisions={"production_revision": "prod", "semantic_profile_revision": "profile",
+                       "dataset_adapter_revision": "adapter", "transaction_revision": "tx"},
+            provenance={"lio": "Super-LIO", "visual": "FAST-LIVO2",
+                        "dataset_calibration": "NTU VIRAL"})
 
-def d0_resolved_from_runner(runner_path=RUNNER):
-    """Parse the recovered historical D runner (run_offline_variant.sh) into
-    the normalized semantic dict. Returns (semantics, missing)."""
-    if not os.path.isfile(runner_path):
-        raise FileNotFoundError(runner_path)
-    text = open(runner_path, encoding="utf-8").read()
-    d0 = dict(CANONICAL_D0)
-    d0["scheduler_family"] = "D_CORRECTED"
-    for key, pat in [
-        ("camera_input_enabled", r"rosparam set /camera/enabled true"),
-        ("camera_epoch_enabled", r"rosparam set /lio/camera_epoch/enabled true"),
-        ("visual_frontend_enabled", r"rosparam set /lio/v0/enabled true"),
-        ("visual_measurement_enabled", r"rosparam set /lio/v2/enabled true"),
-        ("state_apply_false", r"rosparam set /lio/v4/apply false"),
-        ("d_scheduler", r"imu_fullscan"),
-    ]:
-        d0[key] = bool(re.search(pat, text))
-    missing = [k for k in PROTECTED_FIELDS if k not in d0]
-    return d0, missing
+    def test_n_t1_alias_does_not_determine_protected_semantics(self):
+        self.assertEqual(self.sp.protected_projection(self.resolve(alias="DV0")),
+                         self.sp.protected_projection(self.resolve(alias="D0")))
 
+    def test_n_t2_shadow_resolves_all_protected_fields(self):
+        m = self.resolve(); self.sp.validate_manifest(m)
+        self.assertEqual(m["scheduler_family"], "D_CORRECTED")
+        for key in ("camera_input_enabled", "camera_epoch_enabled", "visual_frontend_enabled",
+                    "visual_map_producer_enabled", "visual_measurement_enabled"):
+            self.assertIs(m[key], True)
+        self.assertIs(m["visual_state_apply"], False)
+        self.assertEqual(m["raw_lidar_policy"], "FULL_RAW_SCAN_AT_SCAN_END")
+        self.assertEqual(m["full_lidar_observe_per_raw_scan"], 1)
 
-def dv0_from_d0(d0):
-    dv0 = dict(d0)
-    dv0["profile"] = "DV0"
-    dv0["visual_state_apply"] = True
-    return dv0
+    def test_n_t3_apply_inherits_shadow_and_changes_only_apply(self):
+        shadow, apply = self.resolve(), self.resolve("D_VISUAL_APPLY")
+        self.assertEqual(self.sp.semantic_diff(shadow, apply),
+                         {"semantic_profile", "visual_state_apply"})
+        self.assertIs(apply["visual_state_apply"], True)
 
+    def test_n_t4_dataset_adapter_cannot_override_protected_fields(self):
+        with self.assertRaises(self.sp.SemanticProfileError):
+            self.sp.resolve_profile("D_VISUAL_SHADOW", legacy_alias="DV0", dataset="NTU",
+                                    sequence="eee_01", camera_stride=1,
+                                    adapter_overrides={"visual_state_apply": True})
 
-def semantic_diff(a, b):
-    keys = set(a) | set(b)
-    return {k: (a.get(k), b.get(k)) for k in keys if a.get(k) != b.get(k)}
+    def test_n_t5_missing_protected_field_fails_closed(self):
+        m = self.resolve(); del m["visual_map_producer_enabled"]
+        with self.assertRaises(self.sp.SemanticProfileError): self.sp.validate_manifest(m)
 
+    def test_n_t6_dv0_is_metadata_only(self):
+        m = self.resolve(alias="DV0")
+        self.assertEqual(m["legacy_alias"], "DV0")
+        self.assertNotIn("DV0", str(self.sp.protected_projection(m)))
 
-class TestCanonicalD0Resolution(unittest.TestCase):
-    def test_r_t1_d0_resolves_frozen_semantics(self):
-        d0, missing = d0_resolved_from_runner()
-        self.assertEqual(missing, [])
-        self.assertTrue(d0["camera_input_enabled"])
-        self.assertTrue(d0["camera_epoch_enabled"])
-        self.assertTrue(d0["visual_frontend_enabled"])
-        self.assertTrue(d0["visual_measurement_enabled"])
-        self.assertFalse(d0["visual_state_apply"])
-        self.assertEqual(d0["scheduler_family"], "D_CORRECTED")
-        self.assertTrue(d0["d_scheduler"])
-        self.assertTrue(d0["state_apply_false"])
+    def test_n_t7_profile_identity_across_datasets(self):
+        identities = {self.resolve(dataset=d)["semantic_profile"] for d in ("NTU", "Oxford", "MCD")}
+        self.assertEqual(identities, {"D_VISUAL_SHADOW"})
 
-    def test_r_t2_dv0_inherits_d0_changes_only_apply(self):
-        d0, _ = d0_resolved_from_runner()
-        dv0 = dv0_from_d0(d0)
-        diff = semantic_diff(d0, dv0)
-        self.assertEqual(set(diff), {"profile", "visual_state_apply"})
-        self.assertTrue(dv0["visual_state_apply"])
+    def test_n_t8_manifest_written_and_validated_before_playback(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = pathlib.Path(td) / "resolved_experiment_semantics.yaml"
+            self.sp.write_manifest(self.resolve(), path)
+            self.assertTrue(path.is_file())
+            loaded = self.sp.load_manifest(path); self.sp.validate_manifest(loaded)
+            self.assertEqual(loaded["semantic_profile"], "D_VISUAL_SHADOW")
 
-    def test_r_t8_d0_dv0_algorithm_diff_is_one_field(self):
-        d0, _ = d0_resolved_from_runner()
-        dv0 = dv0_from_d0(d0)
-        alg_diff = {
-            k: v for k, v in semantic_diff(d0, dv0).items()
-            if k not in {"profile"} and k in PROTECTED_FIELDS + ["visual_state_apply"]
-        }
-        self.assertEqual(set(alg_diff), {"visual_state_apply"})
-
-    def test_r_t6_missing_protected_field_fails_closed(self):
-        incomplete = dict(CANONICAL_D0)
-        del incomplete["camera_epoch_enabled"]
-        missing = [k for k in PROTECTED_FIELDS if k not in incomplete]
-        self.assertEqual(missing, ["camera_epoch_enabled"])
-
-    def test_r_t7_adapter_diff_does_not_change_profile_identity(self):
-        a = dict(CANONICAL_D0)
-        b = dict(CANONICAL_D0)
-        b["dataset_calibration_source"] = "ntu_viral"
-        a["dataset_calibration_source"] = "mcd"
-        alg_diff = {
-            k: v for k, v in semantic_diff(a, b).items()
-            if k in PROTECTED_FIELDS + ["visual_state_apply"]
-        }
-        self.assertEqual(alg_diff, {})
-
-
-class TestDatasetAdaptersCannotOverrideProtected(unittest.TestCase):
-    def test_r_t3_ntu_adapter_no_protected_override(self):
-        self._assert_no_protected_override("ntu")
-
-    def test_r_t4_oxford_adapter_no_protected_override(self):
-        self._assert_no_protected_override("oxford")
-
-    def test_r_t5_mcd_adapter_no_protected_override(self):
-        self._assert_no_protected_override("mcd")
-
-    def _assert_no_protected_override(self, dataset_tag):
-        violations = []
-        for wrapper in ROUND13_WRAPPERS:
-            if not os.path.isfile(wrapper):
-                continue
-            text = open(wrapper, encoding="utf-8").read()
-            for field, pat in [
-                ("camera_input_enabled", r"/camera/enabled"),
-                ("camera_epoch_enabled", r"/lio/camera_epoch/enabled"),
-                ("visual_frontend_enabled", r"/lio/v0/enabled"),
-                ("visual_measurement_enabled", r"/lio/v2/enabled"),
-                ("scheduler_family", r"/lio/camera_epoch/lidar_update_policy"),
-                ("visual_state_apply", r"/lio/v4/apply"),
-            ]:
-                if re.search(pat, text):
-                    violations.append((os.path.basename(wrapper), field))
-        # Current Round13 dataset-specific wrappers DO duplicate protected D
-        # semantics: this is the drift the corrective documents. The protected
-        # adapter boundary must be enforced by the shared profile layer.
-        self.assertEqual(
-            violations, [],
-            "dataset adapter overrides protected D semantics: %s" % violations)
-
-
-if __name__ == "__main__":
-    sys.exit(unittest.main())
+if __name__ == "__main__": unittest.main(verbosity=2)

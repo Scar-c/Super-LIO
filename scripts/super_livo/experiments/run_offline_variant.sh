@@ -8,6 +8,7 @@
 #                          [camera_topic] [camera_calib] [duration] [s0_audit]
 #                          [lidar_update_policy] [layer_audit] [camera_stride]
 #                          [camera_time_offset] [dataset] [sequence]
+#                          [semantic_profile]
 #   variant: b0|c0|d0|a0|a1
 set -euo pipefail
 
@@ -25,15 +26,17 @@ CAMERA_TEMPORAL_STRIDE="${11:-1}"
 CAM_TIME_OFFSET="${12:-0.0}"
 DATASET="${13:-UNSPECIFIED}"
 SEQUENCE="${14:-UNSPECIFIED}"
+SEMANTIC_PROFILE="${15:-}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
 SETUP_ROS="$ROOT/devel/setup.bash"
 MCD_CALIB="$ROOT/results/super_livo/tb0/config/mcd_camera.yaml"
 EVIDENCE_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/run_evidence.py"
+SEMANTIC_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py"
 
 # ---- required-file checks (fail before roscore) ----
-for f in "$SETUP_ROS" "$CFG" "$NODE" "$EVIDENCE_TOOL"; do
+for f in "$SETUP_ROS" "$CFG" "$NODE" "$EVIDENCE_TOOL" "$SEMANTIC_TOOL"; do
   [ -f "$f" ] || { echo "FAIL: missing required file $f"; exit 2; }
 done
 [ "$DATASET" != "UNSPECIFIED" ] || {
@@ -60,6 +63,32 @@ export ROS_MASTER_URI="http://127.0.0.1:$PORT"
 
 OUT_DIR="$OUT_PREFIX"
 mkdir -p "$OUT_DIR"
+
+# The legacy variant is provenance only when a normalized profile is supplied.
+# Resolve and validate protected semantics before starting a ROS master or
+# opening the offline bag. Dataset inputs may supply stride but cannot override
+# any other protected algorithm field.
+SEMANTIC_MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"
+if [ -n "$SEMANTIC_PROFILE" ]; then
+  [ "$LIDAR_UPDATE_POLICY" = "imu_fullscan" ] || {
+    echo "SEMANTIC_PROFILE_FAIL: D profile requires imu_fullscan"; exit 2;
+  }
+  PRODUCTION_REVISION=$(git -C "$ROOT/src/Super-LIO" rev-parse HEAD)
+  PROFILE_REVISION=$(sha256sum "$SEMANTIC_TOOL" | awk '{print $1}')
+  CONFIG_REVISION=$(sha256sum "$CFG" | awk '{print $1}')
+  python3 "$SEMANTIC_TOOL" resolve \
+    --profile "$SEMANTIC_PROFILE" --legacy-alias "$VARIANT" \
+    --dataset "$DATASET" --sequence "$SEQUENCE" \
+    --camera-stride "$CAMERA_TEMPORAL_STRIDE" --out "$SEMANTIC_MANIFEST" \
+    --production-revision "$PRODUCTION_REVISION" \
+    --semantic-profile-revision "$PROFILE_REVISION" \
+    --dataset-adapter-revision "$CONFIG_REVISION" \
+    --transaction-revision "$PRODUCTION_REVISION" \
+    --lio-provenance "Super-LIO authority at $PRODUCTION_REVISION" \
+    --visual-provenance "FAST-LIVO2 semantic authority; existing production Visual path" \
+    --dataset-calibration-provenance "$CFG"
+  python3 "$SEMANTIC_TOOL" validate --manifest "$SEMANTIC_MANIFEST"
+fi
 
 source "$SETUP_ROS"
 RCORE=""
@@ -156,6 +185,14 @@ case "$VARIANT" in
   *) echo "unknown variant $VARIANT" >&2; exit 2 ;;
 esac
 
+if [ -n "$SEMANTIC_PROFILE" ]; then
+  while IFS=$'\t' read -r semantic_key semantic_value; do
+    [ -n "$semantic_key" ] || continue
+    rosparam set "$semantic_key" "$semantic_value"
+  done < <(python3 "$SEMANTIC_TOOL" rosparams \
+    --manifest "$SEMANTIC_MANIFEST" --out-dir "$OUT_DIR")
+fi
+
 if [ -n "$CAM_TOPIC" ]; then
   rosparam set /camera/topic "$CAM_TOPIC"
 fi
@@ -210,6 +247,13 @@ is_true "$v2" || { echo "FAIL readback v2"; exit 4; }
 is_true "$skip_fd" || { echo "FAIL readback skip_fd"; exit 4; }
 is_false "$hb0" || { echo "FAIL readback hb0"; exit 4; }
 is_true "$vp" || { echo "FAIL readback vp"; exit 4; }
+if [ -n "$SEMANTIC_PROFILE" ]; then
+  g0=$(read_param /lio/g0/shadow)
+  g1=$(read_param /lio/g1/enabled)
+  is_true "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 disabled"; exit 4; }
+  is_true "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 disabled"; exit 4; }
+  python3 "$SEMANTIC_TOOL" validate --manifest "$SEMANTIC_MANIFEST"
+fi
 
 # Round11AB: capture the final experiment-relevant ROS parameter state only
 # after every runner override and readback, immediately before node launch.
