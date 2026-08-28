@@ -134,3 +134,10 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - dataset execution: BLOCKED
 - camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
 - Bug A (profile_resolved policy interface) + Bug B (evidence coupling) + Bug C (exact-once gate) audited
+
+## Prompt66 — canonical validator path + test-override isolation + real seam closure
+
+- estimator production: PAUSED
+- bag execution: BLOCKED
+- camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
+- Bug D (validator CWD dependency) + Bug E (canonical validator seam untested) + Bug F (test override isolation) audited
