@@ -97,3 +97,14 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   one full LiDAR Observe/raw scan remain frozen.
 - Full eee Apply is conditional on B-T1 RED and B-T2..B-T14 GREEN; all other
   datasets remain blocked.
+
+## Prompt 62 stop
+
+- B-T1 RED reproduced the deeper event mismatch: `IMU_ONLY` pops the camera
+  before `statePropagateOnly`; that handler has no Visual measurement path.
+- Prompt60 H/b is generated later inside the full LiDAR Observe convergence
+  callback, not at the corresponding camera event.
+- A same-camera-epoch bridge therefore requires camera payload/lifecycle and
+  producer/measurement placement work expressly forbidden by Prompt62.
+- No production changes or experiment. Classification:
+  `ROUND13_MINIMAL_BRIDGE_NOT_POSSIBLE`.

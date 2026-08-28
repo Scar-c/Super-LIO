@@ -1,6 +1,6 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round13 Prompt62 minimal D Apply bridge ACTIVE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt62 MINIMAL_BRIDGE_NOT_POSSIBLE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
@@ -26,6 +26,13 @@ Prompt62 authorizes a narrowly bounded corrective: connect the already accepted
 D Visual measurement event to the existing x/P posterior primitive at the same
 epoch. Producer, camera payload, measurement math, LiDAR ownership, and every
 other dataset remain frozen; B-T1..B-T14 precede any full playback.
+
+Prompt62 stopped at B-T1. The current `IMU_ONLY` camera action removes its
+payload before `statePropagateOnly`, while the accepted Shadow H/b is produced
+later inside a full LiDAR Observe callback. Satisfying the same-camera-epoch
+contract therefore requires the payload/lifecycle/placement expansion that
+Prompt62 forbids. No production bridge or experiment was executed; Owner must
+authorize a new bounded camera-event handoff design before Apply can continue.
 
 Round13 Prompt59 normalized experiment identities and restored the historical
 Visual producer gates through a fail-closed semantic-profile layer. The sole
