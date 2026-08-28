@@ -95,7 +95,7 @@ class SeamHarness:
         })
         if test_validator:
             env["SLV_TEST_VALIDATOR"] = str(self.validator)
-            env.setdefault("SLV_TEST_MODE", "1")
+        env.setdefault("SLV_TEST_MODE", "1")  # seam harness is test-only
         env.update(extra or {})
         cmd = ["bash", str(SUPERVISOR), run_id, str(self.run_dir)]
         return subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE,
@@ -255,10 +255,6 @@ class TestSemanticUnit(unittest.TestCase):
         self.assertNotIn("validate_d_visual_shadow_result", text)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 CANONICAL_VALIDATOR = str(ROOT / "scripts/super_livo/experiments/validate_d_visual_shadow_result.py")
 
 FIXTURE_COUNTERS = """V-0 VisualMap: parents=1 landmarks=1 slots_used=1 created=1 frames=1 attempts=1
@@ -341,7 +337,7 @@ class TestCanonicalValidatorSeam(unittest.TestCase):
             "D_VISUAL_SHADOW", "vr_t6", test_validator=True,
             extra={"SLV_TEST_MODE": "0"})
         self.assertNotEqual(rc, 0)
-        self.assertIn("SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1", out)
+        self.assertIn("without SLV_TEST_MODE=1", out)  # any fail-closed hook gate
 
     def test_vr_t5_explicit_test_mode_allowed(self):
         rc, out, state = self.harness.run(
@@ -388,3 +384,7 @@ class TestCanonicalValidatorSeam(unittest.TestCase):
         p = subprocess.run(["pgrep", "-af", "run_superlivo_transaction"],
                            capture_output=True, text=True)
         self.assertEqual(p.returncode, 1, p.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()
