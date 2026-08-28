@@ -9,6 +9,7 @@
 #                          [lidar_update_policy] [layer_audit] [camera_stride]
 #                          [camera_time_offset] [dataset] [sequence]
 #                          [semantic_profile]
+#                          [legacy_alias]
 #   variant: b0|c0|d0|a0|a1
 set -euo pipefail
 
@@ -27,6 +28,7 @@ CAM_TIME_OFFSET="${12:-0.0}"
 DATASET="${13:-UNSPECIFIED}"
 SEQUENCE="${14:-UNSPECIFIED}"
 SEMANTIC_PROFILE="${15:-}"
+LEGACY_ALIAS="${16:-$VARIANT}"
 
 ROOT=/home/lc/super_livo
 NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
@@ -77,7 +79,7 @@ if [ -n "$SEMANTIC_PROFILE" ]; then
   PROFILE_REVISION=$(sha256sum "$SEMANTIC_TOOL" | awk '{print $1}')
   CONFIG_REVISION=$(sha256sum "$CFG" | awk '{print $1}')
   python3 "$SEMANTIC_TOOL" resolve \
-    --profile "$SEMANTIC_PROFILE" --legacy-alias "$VARIANT" \
+    --profile "$SEMANTIC_PROFILE" --legacy-alias "$LEGACY_ALIAS" \
     --dataset "$DATASET" --sequence "$SEQUENCE" \
     --camera-stride "$CAMERA_TEMPORAL_STRIDE" --out "$SEMANTIC_MANIFEST" \
     --production-revision "$PRODUCTION_REVISION" \
