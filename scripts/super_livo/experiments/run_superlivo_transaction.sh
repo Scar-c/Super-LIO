@@ -6,9 +6,24 @@ RUN_ID="${1:?run id}"; OUT_ROOT="${2:?output root}"; RUN_DIR="$OUT_ROOT/$RUN_ID"
 # supervisor's own repository location (portable, CWD-independent). The
 # SLV_RUNNER override is executable replacement: it requires explicit
 # SLV_TEST_MODE=1 and is fail-closed otherwise (no production bypass).
-SUPERVISOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Prompt69: canonical identity derives from the canonicalized supervisor
+# FILE (readlink -f), not invocation spelling. A symlinked invocation cannot
+# redirect the canonical runner (rogue sibling beside a symlink is rejected).
+SUPERVISOR_SELF="${BASH_SOURCE[0]}"
+SUPERVISOR_REAL="$(readlink -f "$SUPERVISOR_SELF")" || {
+  echo "SUPERVISOR_RESOLUTION_FAIL: cannot canonicalize $SUPERVISOR_SELF" >&2; exit 2; }
+SUPERVISOR_DIR="$(dirname "$SUPERVISOR_REAL")"
 CANONICAL_RUNNER="$SUPERVISOR_DIR/run_offline_variant.sh"
-RUNNER="${SLV_RUNNER:-$CANONICAL_RUNNER}"
+CANONICAL_RUNNER_REAL="$(readlink -f "$CANONICAL_RUNNER")" || {
+  echo "CANONICAL_RUNNER_MISSING: $CANONICAL_RUNNER" >&2; exit 2; }
+case "$CANONICAL_RUNNER_REAL" in
+  "$SUPERVISOR_DIR"/*) ;;
+  *)
+    echo "CANONICAL_RUNNER_ESCAPES_SUPERVISOR_DIR: $CANONICAL_RUNNER_REAL" >&2; exit 2;;
+esac
+SUPERVISOR_IDENTITY="$SUPERVISOR_REAL"
+RUNNER_IDENTITY="$CANONICAL_RUNNER_REAL"
+RUNNER="${SLV_RUNNER:-$CANONICAL_RUNNER_REAL}"
 LOCK="${SLV_LOCK_FILE:-/home/lc/super_livo/base_ws/tools/benchmark_adapters/superlivo_adapter.lock}"
 STATE="$RUN_DIR/state.json"; LOG="$RUN_DIR/supervisor.log"; CANCEL="$RUN_DIR/cancel"
 mkdir -p "$RUN_DIR" "$(dirname "$LOCK")"
@@ -123,6 +138,8 @@ VALIDATOR=""
   echo "producer gates: PENDING_CHILD_FAIL_CLOSED_READBACK"
   echo "measurement instrumentation: PROFILE_CONTRACT (validator-owned)"
   echo "post-run validator: RESOLVED_AFTER_MANIFEST"
+  echo "SUPERVISOR_IDENTITY: $SUPERVISOR_IDENTITY"
+  echo "RUNNER_IDENTITY: $RUNNER_IDENTITY"
 } > "$RUN_DIR/preflight_evidence.txt"
 state TRANSACTION_PREFLIGHT_PASS "" "active/conflicts none; lock acquired"
 
