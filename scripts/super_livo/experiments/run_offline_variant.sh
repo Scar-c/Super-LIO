@@ -36,6 +36,12 @@ ROOT=/home/lc/super_livo
 NODE="${SLV_TEST_NODE_CMD:-$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node}"
 # SLV_TEST_NODE_CMD: test-only hook (default OFF, fail-closed). Replaces the
 # estimator child with a bounded fake for the no-bag integration seam test.
+# Prompt67: requires explicit SLV_TEST_MODE=1; production can never silently
+# substitute the real estimator.
+if [ -n "${SLV_TEST_NODE_CMD:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
+  echo "STATIC_PREFLIGHT_FAIL: SLV_TEST_NODE_CMD set without SLV_TEST_MODE=1"
+  exit 2
+fi
 SETUP_ROS="$ROOT/devel/setup.bash"
 MCD_CALIB="$ROOT/results/super_livo/tb0/config/mcd_camera.yaml"
 EVIDENCE_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/run_evidence.py"
@@ -342,6 +348,7 @@ if [ -n "$CAM_CALIB" ]; then
 fi
 python3 "$EVIDENCE_TOOL" "${PROV_ARGS[@]}"
 
+echo "NODE_IDENTITY=$NODE"
 echo "=== running variant=$VARIANT out=$OUT_DIR ==="
 set +e
 "$NODE" > "$OUT_DIR/node_stdout.log" 2>&1
