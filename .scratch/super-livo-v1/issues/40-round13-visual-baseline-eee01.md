@@ -69,3 +69,12 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   `NOT_COMPUTED_BY_SHADOW_PROFILE`. Visual apply count remains zero.
 - Classification: `ROUND13_D_VISUAL_SHADOW_ESTABLISHED`.
 - `D_VISUAL_APPLY` and every other dataset remain blocked pending Owner action.
+
+## Prompt 61 DS takeover
+
+- Executor handoff: GTP → agent-ds at `19eeefebb07463004e1d9bd6cfd9cdc83dfd8ad0`.
+- Canonical Shadow remains CLOSED and is inherited without rerun.
+- `D_VISUAL_APPLY` on NTU eee_01 is ACTIVE, with exactly one full run authorized
+  only after Apply-path, latest-posterior, covariance, semantic-delta, TDD, and
+  transaction gates pass.
+- nya/sbs/Oxford/MCD/M3 remain `BLOCKED_ON_EEE_APPLY`.

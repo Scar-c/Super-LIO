@@ -1,6 +1,6 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round13 Prompt60 D_VISUAL_SHADOW ESTABLISHED；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt61 D_VISUAL_APPLY eee_01 ACTIVE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
@@ -9,6 +9,12 @@ instrumentation and exactly one NTU eee_01 `D_VISUAL_SHADOW` run. Lifecycle and
 measurement are ACTIVE, state apply is OFF, the transaction/cleanup gates pass,
 and the state-off trajectory is byte-identical to Prompt59. D_VISUAL_APPLY and
 all other datasets remain frozen pending Owner action.
+
+Prompt61 hands execution from GTP to agent-ds and authorizes only the next
+normalized semantic step, `D_VISUAL_APPLY`, on NTU eee_01. The canonical
+Shadow is the immutable parent. Full playback remains gated on proof that the
+existing Apply path commits both latest-posterior state and covariance; all
+other datasets remain blocked.
 
 Round13 Prompt59 normalized experiment identities and restored the historical
 Visual producer gates through a fail-closed semantic-profile layer. The sole
