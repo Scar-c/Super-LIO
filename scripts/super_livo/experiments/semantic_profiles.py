@@ -90,6 +90,21 @@ PROFILES = {
 class SemanticProfileError(ValueError):
     pass
 
+# Repository root anchored to this module's own location: validator path
+# resolution is CWD-independent and survives repository relocation.
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+
+def resolve_validator_path(relative):
+    """Anchor a repository-relative validator contract to REPO_ROOT.
+    The manifest stores the portable relative path; runtime resolution is
+    absolute and deterministic regardless of caller CWD."""
+    if not relative:
+        return ""
+    p = pathlib.Path(relative)
+    if p.is_absolute():
+        return str(p.resolve())
+    return str((REPO_ROOT / p).resolve())
+
 # Profile-associated post-run validator contract (Prompt64 §25): selection
 # derives from the resolved semantic profile, never from a hardcoded
 # transaction-supervisor branch. Validators accept --log/--manifest/--out.
@@ -260,7 +275,7 @@ def main(argv=None):
             if not contract:
                 raise SemanticProfileError("no validator contract for profile "
                                            + manifest.get("semantic_profile", "?"))
-            print(contract)
+            print(resolve_validator_path(contract))
         else:
             for key, value in rosparams_for(load_manifest(args.manifest), args.out_dir):
                 print(f"{key}\t{value}")
