@@ -56,6 +56,11 @@ if [ -z "$SEMANTIC_PROFILE" ] && [ "$VARIANT" = "d0" ] && [ "$LIDAR_UPDATE_POLIC
   echo "FAIL: d0 requires imu_fullscan lidar update policy"
   exit 2
 fi
+if [ -n "$SEMANTIC_PROFILE" ] && [ "$LIDAR_UPDATE_POLICY" != "imu_fullscan" ]; then
+  echo "SEMANTIC_AUTHORITY_CONFLICT: legacy CLI lidar_update_policy=$LIDAR_UPDATE_POLICY "
+       "conflicts with normalized profile scheduler (D_CORRECTED = imu_fullscan); no playback"
+  exit 2
+fi
 IFS=',' read -ra BAGS <<< "$BAGSPEC"
 for b in "${BAGS[@]}"; do
   [ -f "$b" ] || { echo "FAIL: missing bag $b"; exit 2; }
@@ -155,6 +160,10 @@ esac
 # && g_lio_v0_enabled; historical C0/A0/A1 runs therefore had v0=true,
 # v2=true (otherwise A1 would equal C0 exactly). B0 is unaffected because
 # camera_epoch=false.
+# Prompt64 authority corrective: in normalized mode the legacy VARIANT matrix
+# and the reconstructed v0/v2 defaults are provenance ONLY; every protected
+# rosparam derives from the resolved semantic profile manifest (Layer B).
+if [ -z "$SEMANTIC_PROFILE" ]; then
 rosparam set /lio/v0/enabled true
 rosparam set /lio/v2/enabled true
 
@@ -192,6 +201,7 @@ case "$VARIANT" in
     ;;
   *) echo "unknown variant $VARIANT" >&2; exit 2 ;;
 esac
+fi
 
 if [ -n "$SEMANTIC_PROFILE" ]; then
   while IFS=$'\t' read -r semantic_key semantic_value; do
@@ -237,22 +247,39 @@ case "$LIDAR_UPDATE_POLICY" in
   *) echo "FAIL readback unknown lidar update policy $LIDAR_UPDATE_POLICY"; exit 4 ;;
 esac
 [ "$lidar_policy" = "$LIDAR_UPDATE_POLICY" ] || { echo "FAIL readback lidar_update_policy"; exit 4; }
-case "$VARIANT" in
-  b0) is_false "$cam_en" || { echo "FAIL readback camera"; exit 4; }
-      is_false "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
-  *) is_true "$cam_en" || { echo "FAIL readback camera"; exit 4; }
-     is_true "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
-esac
-case "$VARIANT" in
-  b0|c0|d0) is_false "$app" || { echo "FAIL readback apply"; exit 4; } ;;
-  a0|a1) is_true "$app" || { echo "FAIL readback apply"; exit 4; } ;;
-esac
-case "$VARIANT" in
-  a1) is_true "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
-  *) is_false "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
-esac
-is_true "$v0" || { echo "FAIL readback v0"; exit 4; }
-is_true "$v2" || { echo "FAIL readback v2"; exit 4; }
+if [ -n "$SEMANTIC_PROFILE" ]; then
+  # Prompt64: normalized mode -> resolved semantic profile is the SOLE
+  # protected-semantic authority. The legacy VARIANT expectations do not run.
+  python3 "$SEMANTIC_TOOL" validate --manifest "$SEMANTIC_MANIFEST"
+  python3 "$SEMANTIC_TOOL" check-executable --manifest "$SEMANTIC_MANIFEST"
+  g0=$(read_param /lio/g0/shadow)
+  g1=$(read_param /lio/g1/enabled)
+  is_true "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 disabled"; exit 4; }
+  is_true "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 disabled"; exit 4; }
+  while IFS=$'\t' read -r semantic_key semantic_value; do
+    [ -n "$semantic_key" ] || continue
+    actual=$(read_param "$semantic_key")
+    [ "$actual" = "$semantic_value" ] || {
+      echo "SEMANTIC_PROFILE_FAIL: readback $semantic_key=$actual expected $semantic_value"; exit 4; }
+  done < <(python3 "$SEMANTIC_TOOL" rosparams --manifest "$SEMANTIC_MANIFEST" --out-dir "$OUT_DIR")
+else
+  case "$VARIANT" in
+    b0) is_false "$cam_en" || { echo "FAIL readback camera"; exit 4; }
+        is_false "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
+    *) is_true "$cam_en" || { echo "FAIL readback camera"; exit 4; }
+       is_true "$cam_ep" || { echo "FAIL readback camera_epoch"; exit 4; } ;;
+  esac
+  case "$VARIANT" in
+    b0|c0|d0) is_false "$app" || { echo "FAIL readback apply"; exit 4; } ;;
+    a0|a1) is_true "$app" || { echo "FAIL readback apply"; exit 4; } ;;
+  esac
+  case "$VARIANT" in
+    a1) is_true "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
+    *) is_false "$gate" || { echo "FAIL readback gate"; exit 4; } ;;
+  esac
+  is_true "$v0" || { echo "FAIL readback v0"; exit 4; }
+  is_true "$v2" || { echo "FAIL readback v2"; exit 4; }
+fi
 is_true "$skip_fd" || { echo "FAIL readback skip_fd"; exit 4; }
 is_false "$hb0" || { echo "FAIL readback hb0"; exit 4; }
 is_true "$vp" || { echo "FAIL readback vp"; exit 4; }
@@ -260,13 +287,6 @@ if [ "$MEASUREMENT_EVIDENCE" = 1 ]; then
   is_true "$measurement_evidence" || { echo "FAIL readback measurement evidence"; exit 4; }
 else
   is_false "$measurement_evidence" || { echo "FAIL readback measurement evidence default"; exit 4; }
-fi
-if [ -n "$SEMANTIC_PROFILE" ]; then
-  g0=$(read_param /lio/g0/shadow)
-  g1=$(read_param /lio/g1/enabled)
-  is_true "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 disabled"; exit 4; }
-  is_true "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 disabled"; exit 4; }
-  python3 "$SEMANTIC_TOOL" validate --manifest "$SEMANTIC_MANIFEST"
 fi
 
 # Round11AB: capture the final experiment-relevant ROS parameter state only
