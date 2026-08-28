@@ -178,7 +178,7 @@ class TestRuntimeAuthority(unittest.TestCase):
     def test_ra_t10_clean_production_runner_identity(self):
         text = open(SUPERVISOR).read()
         self.assertIn('CANONICAL_RUNNER="$SUPERVISOR_DIR/run_offline_variant.sh"', text)
-        self.assertIn('RUNNER="${SLV_RUNNER:-$CANONICAL_RUNNER}"', text)
+        self.assertIn('RUNNER="${SLV_RUNNER:-$CANONICAL_RUNNER_REAL}"', text)
 
     def test_ra_t11_fake_runner_cannot_execute_production(self):
         env = self.h.env(SLV_RUNNER=str(self.h.fake_runner))
@@ -325,9 +325,6 @@ class TestProductionTrustChain(unittest.TestCase):
         self.assertIn("SEMANTIC_PROFILE_FAIL", out)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestEnvAuthorityAudit(unittest.TestCase):
     """RA-T7/RA-T8: mechanically verify the complete supervisor/runner env
@@ -376,3 +373,7 @@ class TestEnvAuthorityAudit(unittest.TestCase):
         ):
             self.assertIn(channel, sup + runner)
             self.assertIn(gate, sup + runner)
+
+
+if __name__ == "__main__":
+    unittest.main()
