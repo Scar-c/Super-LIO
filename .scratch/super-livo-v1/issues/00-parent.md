@@ -1,6 +1,6 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round13 Prompt61 D_VISUAL_APPLY eee_01 ACTIVE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt61 STOPPED_FOR_OWNER at Apply connectivity gate；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
@@ -15,6 +15,12 @@ normalized semantic step, `D_VISUAL_APPLY`, on NTU eee_01. The canonical
 Shadow is the immutable parent. Full playback remains gated on proof that the
 existing Apply path commits both latest-posterior state and covariance; all
 other datasets remain blocked.
+
+Prompt61 stopped before a full run. The normalized D Apply profile requires
+`imu_fullscan`, but the only production Visual posterior update is gated to
+`PARTIAL`; enabling the profile therefore cannot reach the solver or x/P
+commit. Resolving placement/connectivity requires a new Owner architecture
+decision and cannot silently restore the previously reverted Round13 changes.
 
 Round13 Prompt59 normalized experiment identities and restored the historical
 Visual producer gates through a fail-closed semantic-profile layer. The sole

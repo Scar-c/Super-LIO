@@ -78,3 +78,13 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   only after Apply-path, latest-posterior, covariance, semantic-delta, TDD, and
   transaction gates pass.
 - nya/sbs/Oxford/MCD/M3 remain `BLOCKED_ON_EEE_APPLY`.
+
+## Prompt 61 stop
+
+- Apply-path audit found the existing x/P update primitive valid but production
+  connectivity incompatible with normalized D: D resolves to `imu_fullscan`,
+  while the only `UpdateObserveFromPrior` Apply block requires `PARTIAL`.
+- A-T1 and A-T2 PASS; A-T3 production reachability FAIL. Full eee playback,
+  Apply instrumentation, and ATE evaluation were not executed.
+- Restoring the reverted policy/placement changes would exceed Prompt61
+  authority. Classification: `ROUND13_STOPPED_FOR_OWNER`.
