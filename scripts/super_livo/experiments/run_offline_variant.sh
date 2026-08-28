@@ -261,6 +261,20 @@ fi
 python3 "$EVIDENCE_TOOL" dump-pre \
   --out "$OUT_DIR/effective_rosparams.pre_node.yaml"
 
+# Transaction handshake: the supervisor independently validates the resolved
+# manifest and persisted readback before authorizing the offline node to open
+# the bag. Standalone legacy invocations do not use this gate.
+if [ -n "${SLV_TRANSACTION_GATE_DIR:-}" ]; then
+  touch "$SLV_TRANSACTION_GATE_DIR/semantic_preplay_ready"
+  authorized=0
+  for _ in $(seq 1 300); do
+    [ -f "$SLV_TRANSACTION_GATE_DIR/transaction_playback_authorized" ] && { authorized=1; break; }
+    [ -f "$SLV_TRANSACTION_GATE_DIR/cancel" ] && break
+    sleep 0.1
+  done
+  [ "$authorized" = 1 ] || { echo "SEMANTIC_PROFILE_FAIL: transaction authorization absent"; exit 5; }
+fi
+
 PROV_ARGS=(
   begin
   --run-dir "$OUT_DIR"

@@ -92,7 +92,7 @@ PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start 
 state TRANSACTION_PREFLIGHT_PASS "" "active/conflicts none; lock acquired"
 
 OUT_DIR="$RUN_DIR/out"
-SLV_TRANSACTION_TOKEN="$TOKEN" setsid "$RUNNER" \
+SLV_TRANSACTION_TOKEN="$TOKEN" SLV_TRANSACTION_GATE_DIR="$RUN_DIR" setsid "$RUNNER" \
   "$SLV_CFG" "$SLV_BAG" "$OUT_DIR" "${SLV_VARIANT:-d0}" \
   "${SLV_CAM_TOPIC:-}" "${SLV_CAM_CALIB:-}" "${SLV_DURATION:--1}" \
   "${SLV_S0_AUDIT:-1}" "profile_resolved" "${SLV_LAYER_AUDIT:-1}" \
@@ -100,15 +100,27 @@ SLV_TRANSACTION_TOKEN="$TOKEN" setsid "$RUNNER" \
   "${SLV_SEQUENCE:-eee_01}" "$PROFILE" \
   "${SLV_LEGACY_ALIAS:-NONE}" > "$RUN_DIR/runner.log" 2>&1 < /dev/null &
 CHILD_PID=$!; sleep .05; CHILD_PGID="$(pgid "$CHILD_PID")"; CHILD_TOKEN="$(start_token "$CHILD_PID")"
-state PLAYBACK_STARTED "" "canonical offline runner started"
+state RUNNER_STARTED "" "waiting for semantic pre-playback gate"
+ready=0
+for _ in $(seq 1 300); do
+  [ -f "$RUN_DIR/semantic_preplay_ready" ] && { ready=1; break; }
+  kill -0 "$CHILD_PID" 2>/dev/null || break
+  [ -f "$CANCEL" ] && { FINAL_STATE=CANCELLED;FINAL_CLASS=USER_CANCELLED;FINAL_REASON="cancel requested";exit 130; }
+  sleep .1
+done
+[ "$ready" = 1 ] || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic pre-playback handshake missing";exit 1; }
+MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
+python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
+sed -i 's/PENDING_CHILD_FAIL_CLOSED_VALIDATION/PASS/;s/PENDING_CHILD_FAIL_CLOSED_READBACK/PASS/' "$RUN_DIR/preflight_evidence.txt"
+cat "$RUN_DIR/preflight_evidence.txt"
+touch "$RUN_DIR/transaction_playback_authorized"
+state PLAYBACK_STARTED "" "semantic profile and producer gates PASS"
 while kill -0 "$CHILD_PID" 2>/dev/null; do [ -f "$CANCEL" ] && { FINAL_STATE=CANCELLED;FINAL_CLASS=USER_CANCELLED;FINAL_REASON="cancel requested";exit 130; }; sleep .2; done
 wait "$CHILD_PID"; rc=$?
 [ "$rc" = 0 ] || { FINAL_CLASS=PROCESS_LIFECYCLE_FAIL;FINAL_REASON="runner rc=$rc";exit 1; }
-MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
 python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 [ -f "$TRAJ" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory missing";exit 1; }
 rows="$(wc -l < "$TRAJ")"; [ "$rows" -ge "${SLV_MIN_ROWS:-3000}" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory rows=$rows";exit 1; }
 cp "$TRAJ" "$RUN_DIR/trajectory.tum"
-sed -i 's/PENDING_CHILD_FAIL_CLOSED_VALIDATION/PASS/;s/PENDING_CHILD_FAIL_CLOSED_READBACK/PASS/' "$RUN_DIR/preflight_evidence.txt"
 VALID=true; FINAL_STATE=SUCCESS; FINAL_CLASS=""; FINAL_REASON="canonical semantic run; rows=$rows"
 exit 0
