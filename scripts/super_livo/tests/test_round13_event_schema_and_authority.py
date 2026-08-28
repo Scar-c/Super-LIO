@@ -117,7 +117,8 @@ class TestGenericSupervisor(unittest.TestCase):
     def test_tx_t3_validator_selection_outside_process_logic(self):
         text = open(SUPERVISOR, encoding="utf-8").read()
         self.assertIn("validator --manifest \"$MANIFEST\"", text)
-        self.assertIn("VALIDATOR=\"$(python3 \"$SEMANTIC_TOOL\" validator", text)
+        self.assertIn('"$SEMANTIC_TOOL" validator --manifest "$MANIFEST"', text)
+        self.assertIn("SLV_TEST_VALIDATOR", text)
 
     def test_tx_t1_t2_profile_identity_generic(self):
         text = open(SUPERVISOR, encoding="utf-8").read()

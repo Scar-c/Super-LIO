@@ -51,7 +51,8 @@ class TestNormalizedSemanticProfiles(unittest.TestCase):
                          {"semantic_profile", "visual_state_apply",
                           "visual_measurement_event",
                           "visual_measurement_timestamp_semantics",
-                          "camera_payload_ownership_mode", "validator"})
+                          "camera_payload_ownership_mode", "validator",
+                          "requires_measurement_evidence"})
         self.assertIs(apply["visual_state_apply"], True)
         self.assertEqual(apply["visual_measurement_event"], "CAMERA_EPOCH")
 
