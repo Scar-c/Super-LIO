@@ -55,6 +55,9 @@ EFFECTIVE_PRODUCTION_CAPABILITY = {
     "visual_measurement_event": "FULL_LIDAR_OBSERVE_CALLBACK",
     "visual_measurement_timestamp_semantics": "LIDAR_OBSERVE_CONVERGENCE_STATE",
     "camera_payload_ownership_mode": "POP_AT_CAMERA_EPOCH",
+    # Prompt60: one measurement event per eligible frame in the callback
+    # (measurement frames 823 counted once; no duplicate estimator callback).
+    "visual_measurement_exact_once": True,
 }
 # Requested future intent: camera-event architecture (payload retained through
 # the camera epoch measurement). Resolves as a definition; FAILS executability
@@ -91,8 +94,15 @@ class SemanticProfileError(ValueError):
 # derives from the resolved semantic profile, never from a hardcoded
 # transaction-supervisor branch. Validators accept --log/--manifest/--out.
 VALIDATOR_CONTRACT = {
-    "D_VISUAL_SHADOW": "scripts/super_livo/experiments/validate_d_visual_shadow_result.py",
+    # (validator path, requires_measurement_evidence)
+    "D_VISUAL_SHADOW": ("scripts/super_livo/experiments/validate_d_visual_shadow_result.py", True),
 }
+
+def validator_contract_for(profile):
+    entry = VALIDATOR_CONTRACT.get(profile)
+    if not entry:
+        return "", False
+    return entry[0], entry[1]
 
 def protected_projection(manifest):
     return {key: manifest.get(key) for key in PROTECTED_FIELDS}
@@ -117,7 +127,8 @@ def resolve_profile(profile, *, legacy_alias="", dataset="", sequence="", camera
         raise SemanticProfileError("camera_stride must be >= 1")
     manifest = {"semantic_profile": profile, "legacy_alias": legacy_alias,
                 "semantic_schema_version": SCHEMA_VERSION,
-                "validator": VALIDATOR_CONTRACT.get(profile, ""),
+                "validator": validator_contract_for(profile)[0],
+                "requires_measurement_evidence": validator_contract_for(profile)[1],
                 **copy.deepcopy(PROFILES[profile]), "camera_stride": stride,
                 "dataset": dataset, "sequence": sequence,
                 "config_provenance": dict(provenance or {})}
@@ -205,6 +216,9 @@ def rosparams_for(manifest, out_dir):
         ("/lio/g1/out_dir", str(out_dir)),
         ("/lio/v2/enabled", boolean(manifest["visual_measurement_enabled"])),
         ("/lio/v4/apply", boolean(manifest["visual_state_apply"])),
+        # profile-layer default: V-4R0 outlier gate OFF for all normalized
+        # profiles (not part of the protected event schema; legacy a1 only).
+        ("/lio/v4/outlier_gate", "false"),
         ("/lio/camera_epoch/lidar_update_policy", "imu_fullscan"),
         ("/camera/temporal_stride", str(manifest["camera_stride"])),
     ]
@@ -221,6 +235,7 @@ def main(argv=None):
     validate = sub.add_parser("validate"); validate.add_argument("--manifest", required=True)
     executable = sub.add_parser("check-executable"); executable.add_argument("--manifest", required=True)
     validator = sub.add_parser("validator"); validator.add_argument("--manifest", required=True)
+    evreq = sub.add_parser("evidence-required"); evreq.add_argument("--manifest", required=True)
     params = sub.add_parser("rosparams"); params.add_argument("--manifest", required=True); params.add_argument("--out-dir", required=True)
     args = parser.parse_args(argv)
     try:
@@ -236,6 +251,9 @@ def main(argv=None):
             validate_manifest(load_manifest(args.manifest))
         elif args.command == "check-executable":
             validate_executability(load_manifest(args.manifest))
+        elif args.command == "evidence-required":
+            manifest = load_manifest(args.manifest)
+            print("1" if manifest.get("requires_measurement_evidence") else "0")
         elif args.command == "validator":
             manifest = load_manifest(args.manifest)
             contract = manifest.get("validator", "")
