@@ -141,3 +141,10 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - bag execution: BLOCKED
 - camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
 - Bug D (validator CWD dependency) + Bug E (canonical validator seam untested) + Bug F (test override isolation) audited
+
+## Prompt67 — final infrastructure hardening close
+
+- estimator production: PAUSED
+- real bag execution: BLOCKED
+- camera-event corrective: BLOCKED_ON_ORIGIN_REVIEW
+- infrastructure status: FINAL_CLOSE_IN_PROGRESS
