@@ -115,3 +115,15 @@ Status: **CLOSED — ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED**
   replaces it with the locally available Outdoor01/Outdoor04 controls.
 - Canonical local inventory and unified benchmark ledger preceded remaining
   parent reproduction.
+
+## Round12 Prompt53 narrow accounting reopen
+
+Status: **ACTIVE — ORIGIN-REQUIRED FINAL ACCOUNTING**
+
+- Origin rejected the prior `JUSTIFIED_NOT_RUN` closure for NTU sbs dual
+  parents and M3 Corridor02.
+- Required work is limited to canonical-matrix provenance/schema compliance,
+  a hardened dual-parent NTU transaction adapter and both sbs parent runs,
+  and one canonical dataset-author-adapted FAST-LIVO2 Corridor02 run.
+- Existing eee/nya, MCD, Oxford, Corridor01 and Outdoor01/04 results remain
+  closed and must not be rerun. Round13/Visual work remains unauthorized.

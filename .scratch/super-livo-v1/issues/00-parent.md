@@ -1,10 +1,14 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round12 closed；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round12 narrowly reopened by Origin under Prompt53；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
-Round 11 CLOSED. Round 12 CLOSED under Prompt #52. Executor switched from
+Round 11 CLOSED. Round 12 NARROWLY REOPENED under Prompt #53. Executor remains
+agent-codex. Origin rejected Prompt52's justified-NOT-RUN accounting for NTU
+sbs dual parents and M3 Corridor02, and requires canonical runs plus full
+matrix provenance/schema compliance before final closure. Prompt52 switched
+from
 agent-ds to agent-codex. Phase A interrupted-report recovery committed before
 any new experiment; canonical inventory/ledger and the two Outdoor parent
 controls then closed. Earlier Prompt #49 config provenance,
