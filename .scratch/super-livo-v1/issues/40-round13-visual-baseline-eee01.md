@@ -57,3 +57,15 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - One new NTU eee_01 `D_VISUAL_SHADOW` full run is authorized after M-T1..M-T10,
   semantic/config-delta, transaction, and post-run validator gates pass.
 - `D_VISUAL_APPLY` and every other dataset remain blocked.
+
+## Prompt 60 closure
+
+- M-T1..M-T10 and fail-closed validator: PASS.
+- Sole eee_01 run: transaction SUCCESS, cleanup verified, all eight preflight
+  lines PASS, and trajectory is byte-identical to Prompt59 Shadow.
+- Queries 197889/197889 hits; observations 197368 valid; residual samples
+  12587828; H and b nonzero in all 823 measurement frames; nonfinite zero.
+- Real Shadow computes H/b but no candidate correction solve; recorded as
+  `NOT_COMPUTED_BY_SHADOW_PROFILE`. Visual apply count remains zero.
+- Classification: `ROUND13_D_VISUAL_SHADOW_ESTABLISHED`.
+- `D_VISUAL_APPLY` and every other dataset remain blocked pending Owner action.

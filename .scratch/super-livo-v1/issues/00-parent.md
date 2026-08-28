@@ -1,13 +1,14 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round13 Prompt60 instrumentation-only closure ACTIVE；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt60 D_VISUAL_SHADOW ESTABLISHED；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
 
-Owner authorized Prompt60 to close the missing query/H/b evidence with
-switchable aggregate instrumentation and exactly one additional NTU eee_01
-`D_VISUAL_SHADOW` run. Algorithm math, scheduling, state apply, parameters,
-and all other datasets remain frozen.
+Prompt60 closed the missing query/H/b evidence using switchable aggregate
+instrumentation and exactly one NTU eee_01 `D_VISUAL_SHADOW` run. Lifecycle and
+measurement are ACTIVE, state apply is OFF, the transaction/cleanup gates pass,
+and the state-off trajectory is byte-identical to Prompt59. D_VISUAL_APPLY and
+all other datasets remain frozen pending Owner action.
 
 Round13 Prompt59 normalized experiment identities and restored the historical
 Visual producer gates through a fail-closed semantic-profile layer. The sole

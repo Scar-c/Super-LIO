@@ -64,8 +64,21 @@ historical_result_catalog:
   corridor01_b0: {value: 15.4077, metric: FINAL_RELATIVE_TRANSLATION_ERROR_M, alignment: FIRST_TO_LAST_RELATIVE_TRANSFORM, revision: HISTORICAL, config_provenance: B0, snapshot: 4e34caec6ec405337f70c220b309bb0887d3e64e69a95bfc47fc6d1899c75bed, evaluator_provenance: DATASET_AUTHOR_BENCHMARK, validity: CANONICAL_VALID}
   corridor01_d: {value: 7.1549, metric: FINAL_RELATIVE_TRANSLATION_ERROR_M, alignment: FIRST_TO_LAST_RELATIVE_TRANSFORM, revision: HISTORICAL, config_provenance: D_S3, snapshot: bd2d88ca8223079460b70b627a22164da05901dfcb352be65a8c57e2fce396a4, evaluator_provenance: DATASET_AUTHOR_BENCHMARK, validity: CANONICAL_VALID}
 
+visual_shadow_evidence_catalog:
+  ntu_eee_d_visual_shadow:
+    normalized_semantic_profile: D_VISUAL_SHADOW
+    legacy_label: NONE
+    visual_lifecycle: ACTIVE
+    visual_measurement: ACTIVE
+    visual_state_apply: OFF
+    ate_evaluated: false
+    trajectory_classification: STATE_OFF_TRAJECTORY_SANITY
+    run: /home/lc/super_livo/results/round13_visual_shadow/ntu_eee_01/d_visual_shadow/round13_prompt60_measurement_n1
+    gate: /home/lc/super_livo/results/round13_visual_shadow/ntu_eee_01/d_visual_shadow/round13_prompt60_measurement_n1/d_visual_shadow_gate.yaml
+    validity: CANONICAL_SHADOW_EVIDENCE
+
 rows:
-  - {dataset: NTU, sequence: eee_01, local_bag: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag, gt_eval: {metric: TRANSLATION_ATE_RMSE_M, evaluator_provenance: DATASET_AUTHOR_BENCHMARK}, parents: {super_lio: {method_author_references: [sl_ntu_eee], dataset_author_references: [], config_sources: [sl_ntu], reproductions: [sl_ntu_eee]}, fast_livo2: {method_author_references: [f2_ntu_eee_paper, f2_ntu_eee_current], dataset_author_references: [], config_sources: [f2_ntu], reproductions: [f2_ntu_eee]}}, super_livo_results: {B0: ntu_eee_b0, C0: ntu_eee_c0, A0: ntu_eee_a0, A1: NOT_RUN, D: NOT_REEVALUATED, Visual: NOT_RUN}}
+  - {dataset: NTU, sequence: eee_01, local_bag: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag, gt_eval: {metric: TRANSLATION_ATE_RMSE_M, evaluator_provenance: DATASET_AUTHOR_BENCHMARK}, parents: {super_lio: {method_author_references: [sl_ntu_eee], dataset_author_references: [], config_sources: [sl_ntu], reproductions: [sl_ntu_eee]}, fast_livo2: {method_author_references: [f2_ntu_eee_paper, f2_ntu_eee_current], dataset_author_references: [], config_sources: [f2_ntu], reproductions: [f2_ntu_eee]}}, super_livo_results: {B0: ntu_eee_b0, C0: ntu_eee_c0, A0: ntu_eee_a0, A1: NOT_RUN, D: NOT_REEVALUATED, Visual: ntu_eee_d_visual_shadow}}
   - {dataset: NTU, sequence: nya_01, local_bag: /home/lc/super_livo/bag/NTU/nya_01/nya_01.bag, gt_eval: {metric: TRANSLATION_ATE_RMSE_M, evaluator_provenance: DATASET_AUTHOR_BENCHMARK}, parents: {super_lio: {method_author_references: [sl_ntu_nya], dataset_author_references: [], config_sources: [sl_ntu], reproductions: [sl_ntu_nya]}, fast_livo2: {method_author_references: [f2_ntu_nya_paper, f2_ntu_nya_current], dataset_author_references: [], config_sources: [f2_ntu], reproductions: [f2_ntu_nya]}}, super_livo_results: {B0: ntu_nya_b0, C0: ntu_nya_c0, A0: ntu_nya_a0, A1: NOT_RUN, D: NOT_REEVALUATED, Visual: NOT_RUN}}
   - {dataset: NTU, sequence: sbs_01, local_bag: /home/lc/super_livo/bag/NTU/sbs_01/sbs_01.bag, gt_eval: {metric: TRANSLATION_ATE_RMSE_M, evaluator_provenance: DATASET_AUTHOR_BENCHMARK}, parents: {super_lio: {method_author_references: [sl_ntu_sbs], dataset_author_references: [], config_sources: [sl_ntu], reproductions: [sl_ntu_sbs]}, fast_livo2: {method_author_references: [f2_ntu_sbs_paper, f2_ntu_sbs_current], dataset_author_references: [], config_sources: [f2_ntu], reproductions: [f2_ntu_sbs]}}, super_livo_results: {B0: ntu_sbs_b0, C0: ntu_sbs_c0, A0: ntu_sbs_a0, A1: ntu_sbs_a1, D: NOT_RUN, Visual: NOT_RUN}}
   - {dataset: MCD, sequence: ntu_day_10_mcd2, local_bag: AVAILABLE_MULTI_BAG, gt_eval: {metric: TRANSLATION_APE_RMSE_M, evaluator_provenance: OUR_REPRODUCTION}, parents: {super_lio: {method_author_references: [sl_mcd2], dataset_author_references: [], config_sources: [sl_mcd], reproductions: [sl_mcd2]}, fast_livo2: {method_author_references: [], dataset_author_references: [], config_sources: [], reproductions: []}}, super_livo_results: {B0: mcd2_b0, C0: NOT_RUN, A0: NOT_RUN, A1: NOT_RUN, D: mcd2_d, Visual: NOT_RUN}}
