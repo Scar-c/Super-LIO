@@ -33,16 +33,21 @@ LEGACY_ALIAS="${16:-$VARIANT}"
 MEASUREMENT_EVIDENCE="${17:-0}"
 
 ROOT=/home/lc/super_livo
-NODE="$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node"
+NODE="${SLV_TEST_NODE_CMD:-$ROOT/devel/.private/super_lio/lib/super_lio/super_lio_offline_node}"
+# SLV_TEST_NODE_CMD: test-only hook (default OFF, fail-closed). Replaces the
+# estimator child with a bounded fake for the no-bag integration seam test.
 SETUP_ROS="$ROOT/devel/setup.bash"
 MCD_CALIB="$ROOT/results/super_livo/tb0/config/mcd_camera.yaml"
 EVIDENCE_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/run_evidence.py"
 SEMANTIC_TOOL="$ROOT/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py"
 
 # ---- required-file checks (fail before roscore) ----
-for f in "$SETUP_ROS" "$CFG" "$NODE" "$EVIDENCE_TOOL" "$SEMANTIC_TOOL"; do
+for f in "$SETUP_ROS" "$CFG" "$EVIDENCE_TOOL" "$SEMANTIC_TOOL"; do
   [ -f "$f" ] || { echo "FAIL: missing required file $f"; exit 2; }
 done
+if [ -z "${SLV_TEST_NODE_CMD:-}" ]; then
+  [ -f "$NODE" ] || { echo "FAIL: missing required file $NODE"; exit 2; }
+fi
 [ "$DATASET" != "UNSPECIFIED" ] || {
   echo "CONFIG_EVIDENCE_INCOMPLETE: dataset identity is required"; exit 2;
 }
@@ -56,11 +61,19 @@ if [ -z "$SEMANTIC_PROFILE" ] && [ "$VARIANT" = "d0" ] && [ "$LIDAR_UPDATE_POLIC
   echo "FAIL: d0 requires imu_fullscan lidar update policy"
   exit 2
 fi
-if [ -n "$SEMANTIC_PROFILE" ] && [ "$LIDAR_UPDATE_POLICY" != "imu_fullscan" ]; then
-  echo "SEMANTIC_AUTHORITY_CONFLICT: legacy CLI lidar_update_policy=$LIDAR_UPDATE_POLICY "
-       "conflicts with normalized profile scheduler (D_CORRECTED = imu_fullscan); no playback"
-  exit 2
-fi
+case "$LIDAR_UPDATE_POLICY" in
+  partial|shadow_fullscan)
+    if [ -n "$SEMANTIC_PROFILE" ]; then
+      echo "SEMANTIC_AUTHORITY_CONFLICT: legacy CLI lidar_update_policy=$LIDAR_UPDATE_POLICY conflicts with normalized profile scheduler (D_CORRECTED = imu_fullscan); no playback"
+      exit 2
+    fi
+    ;;
+  imu_fullscan|""|profile_resolved)
+    # normalized mode: positional policy is NOT interpreted (manifest only);
+    # profile_resolved kept for interface compatibility, never a decision.
+    ;;
+  *) echo "FAIL: unknown lidar update policy $LIDAR_UPDATE_POLICY"; exit 2 ;;
+esac
 IFS=',' read -ra BAGS <<< "$BAGSPEC"
 for b in "${BAGS[@]}"; do
   [ -f "$b" ] || { echo "FAIL: missing bag $b"; exit 2; }
@@ -150,6 +163,9 @@ rosparam set /lio/evidence/variant "$VARIANT"
 rosparam set /lio/evidence/source_config "$CFG"
 rosparam set /lio/evidence/source_config_sha256 "$SOURCE_CONFIG_SHA256"
 rosparam set /lio/evidence/command_line "$COMMAND_LINE"
+if [ -n "$SEMANTIC_PROFILE" ]; then
+  MEASUREMENT_EVIDENCE="$(python3 "$SEMANTIC_TOOL" evidence-required --manifest "$SEMANTIC_MANIFEST" 2>/dev/null)"
+fi
 case "$MEASUREMENT_EVIDENCE" in
   0) rosparam set /lio/evidence/visual_measurement false ;;
   1) rosparam set /lio/evidence/visual_measurement true ;;
