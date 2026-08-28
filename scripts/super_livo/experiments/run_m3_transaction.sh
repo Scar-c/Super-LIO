@@ -7,6 +7,7 @@ LAUNCH_PATH="${M3_LAUNCH_PATH:-$(dirname "$CFG")/../launch/$LAUNCH}"
 TRAJ="${M3_TRAJ_PATH:?trajectory path}"; MIN_ROWS="${M3_MIN_ROWS:-1}"; EVAL_CMD="${M3_EVAL:-:}"
 TRAJ_FORMAT="${M3_TRAJ_FORMAT:-tum}"; TRAJ_EPOCH="${M3_TRAJ_EPOCH:-}"
 RUN_MODE="${M3_RUN_MODE:-canonical}"
+MAX_POSITION_NORM_M="${M3_MAX_POSITION_NORM_M:-10000}"
 TRAJ_CONVERTER="${M3_TRAJ_CONVERTER:-/home/lc/super_livo/src/Super-LIO/scripts/super_livo/evaluation/fast_livo2_debug_to_tum.py}"
 PARITY_TOOL="${M3_PARITY_TOOL:-/home/lc/super_livo/src/Super-LIO/scripts/super_livo/evaluation/m3_official_runtime_parity.py}"
 LOCK_FILE="${M3_LOCK_FILE:-/home/lc/super_livo/base_ws/tools/benchmark_adapters/m3_adapter.lock}"; LOCK_META="${M3_LOCK_META:-${LOCK_FILE}.owner.json}"
@@ -125,9 +126,9 @@ EVAL_TRAJ="$RUN_DIR/trajectory.tum"
 if [ "$TRAJ_FORMAT" = fast_livo2_debug ];then
  python3 "$TRAJ_CONVERTER" --input "$TRAJ" --output "$EVAL_TRAJ" --epoch "$TRAJ_EPOCH">"$RUN_DIR/trajectory_conversion.txt" 2>&1||{ FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory conversion failed";exit 1;}
 else cp "$TRAJ" "$EVAL_TRAJ";fi
-python3 - "$EVAL_TRAJ" <<'PY'||{ FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="evaluator trajectory invalid";exit 1;}
+python3 - "$EVAL_TRAJ" "$MAX_POSITION_NORM_M" <<'PY'||{ FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="evaluator trajectory position norm exceeds ${MAX_POSITION_NORM_M} m";exit 1;}
 import numpy as np,sys
-d=np.atleast_2d(np.loadtxt(sys.argv[1]));raise SystemExit(0 if d.shape[1]==8 and np.all(np.isfinite(d)) and np.all(np.diff(d[:,0])>=0) else 1)
+d=np.atleast_2d(np.loadtxt(sys.argv[1]));limit=float(sys.argv[2]);ok=d.shape[1]==8 and np.all(np.isfinite(d)) and np.all(np.diff(d[:,0])>=0) and np.max(np.linalg.norm(d[:,1:4],axis=1)) <= limit;raise SystemExit(0 if ok else 1)
 PY
 sha256sum "$TRAJ" "$EVAL_TRAJ">"$RUN_DIR/trajectory_hashes.txt"
 write_state OUTPUT_VALIDATED "" "raw and evaluator trajectories valid";export EVAL_TRAJ RUN_DIR

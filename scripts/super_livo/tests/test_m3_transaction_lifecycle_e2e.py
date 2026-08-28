@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix="m3-transaction-e2e-") as td:
     make_exe(fake/'rosparam', 'if [ "$1" = dump ]; then echo "runtime: true" > "$2"; fi\nexit 0\n')
     make_exe(fake/'rosnode', '[ "${M3_FAKE_ALGO_FAIL:-0}" = 1 ] && exit 1\n[ "${M3_FAKE_DATA_PATH_FAIL:-0}" = 1 ] && { printf "/laserMapping\\n"; exit 0; }\nprintf "/laserMapping\\n/image_transport_republish\\n"\n')
     make_exe(fake/'roslaunch', '[ "${M3_FAKE_ALGO_FAIL:-0}" = 1 ] && exit 7\nexec sleep 60\n')
-    make_exe(fake/'rosbag', 'sleep "${M3_FAKE_PLAY_SEC:-0.3}"\n[ "${M3_FAKE_BAG_FAIL:-0}" = 1 ] && exit 8\nif [ "${M3_FAKE_EMPTY_TRAJ:-0}" = 1 ]; then : > "$M3_TRAJ_PATH"; else printf "1 0 0 0 0 0 0 1\\n2 0 0 0 0 0 0 1\\n" > "$M3_TRAJ_PATH"; fi\n')
+    make_exe(fake/'rosbag', 'sleep "${M3_FAKE_PLAY_SEC:-0.3}"\n[ "${M3_FAKE_BAG_FAIL:-0}" = 1 ] && exit 8\nif [ "${M3_FAKE_EMPTY_TRAJ:-0}" = 1 ]; then : > "$M3_TRAJ_PATH"; elif [ "${M3_FAKE_DIVERGED:-0}" = 1 ]; then printf "1 0 0 0 0 0 0 1\\n2 20001 0 0 0 0 0 1\\n" > "$M3_TRAJ_PATH"; else printf "1 0 0 0 0 0 0 1\\n2 0 0 0 0 0 0 1\\n" > "$M3_TRAJ_PATH"; fi\n')
     parity.write_text('import json,os,sys\np=sys.argv[sys.argv.index("--out")+1]\njson.dump({"parity":"PASS"},open(p,"w"))\nraise SystemExit(1 if os.environ.get("M3_FAKE_PARITY_FAIL")=="1" else 0)\n')
     base=os.environ.copy();base.update(PATH=f"{fake}:{base['PATH']}",M3_TEST_MODE='1',M3_BAG=str(bag),M3_LAUNCH='mapping.launch',M3_LAUNCH_PATH=str(launch),M3_CFG=str(cfg),M3_CAMCFG=str(cam),M3_TRAJ_PATH=str(traj),M3_MIN_ROWS='2',M3_PARITY_TOOL=str(parity),M3_LOCK_FILE=str(root/'adapter.lock'),M3_LOCK_META=str(root/'owner.json'),M3_EVAL='test -n "$RUN_DIR" && echo PASS > "$RUN_DIR/evaluator_context.txt"')
 
@@ -62,6 +62,10 @@ with tempfile.TemporaryDirectory(prefix="m3-transaction-e2e-") as td:
     # TX-T7 empty output is OUTPUT_FAIL, never canonical.
     p,d=start('empty_output',{'M3_FAKE_EMPTY_TRAJ':'1'});assert p.wait(timeout=8)!=0;s=state(d)
     assert s['failure_class']=='OUTPUT_FAIL' and s['experiment_valid'] is False
+
+    # Finite but spatially nonsensical output is divergence, not canonical.
+    p,d=start('diverged_output',{'M3_FAKE_DIVERGED':'1'});assert p.wait(timeout=8)!=0;s=state(d)
+    assert s['failure_class']=='OUTPUT_FAIL' and 'position norm' in s['reason'] and s['experiment_valid'] is False
 
     # normal SUCCESS -> cleanup; terminal state survives cleanup
     p,d=start('success'); assert p.wait(timeout=8)==0; s=state(d)
