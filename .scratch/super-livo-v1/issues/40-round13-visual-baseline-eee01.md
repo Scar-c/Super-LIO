@@ -31,3 +31,19 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
   `D_VISUAL_APPLY` independently of immutable historical labels.
 - Sole authorized experiment after semantic/TDD gates: NTU `eee_01`,
   `D_VISUAL_SHADOW`, N=1. All apply, tuning, and other-dataset work remains blocked.
+
+## Prompt 59 closure
+
+- Prompt58 production WIP classified and forward-reverted; the estimator source
+  matches accepted Round12 semantic frontier `8321586` before profile work.
+- Normalized profile resolver, shared producer restoration, transaction
+  handshake, N-TDD 8/8, and S-TDD 6/6: PASS.
+- Historical `DV0` found but resolves to OTHER (producer/measurement inactive;
+  apply requested but apply_count zero). Historical post-4543347 D runs map to
+  `D_SCHEDULER_BASE`, not `D_VISUAL_SHADOW`.
+- Sole full eee run: transaction SUCCESS and cleanup verified; producer and
+  residual funnels nonzero, apply_count zero. Mandatory query-hit and H/b
+  nonzero counters were not separately persisted, so the result is
+  `EVIDENCE_INCOMPLETE_NOT_CANONICAL`; ATE not consumed.
+- Round13 state: `STOPPED_FOR_OWNER`. No Apply, tuning, second full bag, or
+  other dataset was executed.

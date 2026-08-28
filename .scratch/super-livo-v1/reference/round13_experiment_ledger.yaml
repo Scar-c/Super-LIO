@@ -1,0 +1,21 @@
+schema_version: 1
+identity_fields:
+  - legacy_label
+  - normalized_semantic_profile
+records:
+  - run_id: d_visual_shadow/round13_prompt59_n1
+    legacy_label: NONE
+    normalized_semantic_profile: D_VISUAL_SHADOW
+    transaction_state: FAILED
+    scientific_validity: INVALID_NO_PLAYBACK
+    reason: sandbox denied local socket before semantic handshake
+    result_consumable: false
+  - run_id: d_visual_shadow/round13_prompt59_n1_retry
+    legacy_label: NONE
+    normalized_semantic_profile: D_VISUAL_SHADOW
+    transaction_state: SUCCESS
+    cleanup_verified: true
+    scientific_validity: EVIDENCE_INCOMPLETE_NOT_CANONICAL
+    reason: mandatory landmark_query_hits and H/b nonzero counters were not persisted
+    result_consumable: false
+    artifact: /home/lc/super_livo/results/round13_visual_shadow/ntu_eee_01/d_visual_shadow/round13_prompt59_n1_retry

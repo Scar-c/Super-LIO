@@ -1,8 +1,16 @@
 # 00: Super-LIVO v1 — Offline-First Micro-Surfel LIVO with Common-FEJ
 
-**Status:** parent（非 ticket；Round12 narrowly reopened by Origin under Prompt53；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
+**Status:** parent（非 ticket；Round13 Prompt59 STOPPED_FOR_OWNER；旧 `.scratch/super-livo-v0/issues/` 保留为历史）
 
 ## Current frontier
+
+Round13 Prompt59 normalized experiment identities and restored the historical
+Visual producer gates through a fail-closed semantic-profile layer. The sole
+NTU eee_01 D_VISUAL_SHADOW full run produced nonzero landmarks, candidates,
+accepted observations, and residual samples with apply_count zero, but did not
+persist the mandatory query-hit and H/b-nonzero counters. It is transaction
+valid but scientifically `EVIDENCE_INCOMPLETE_NOT_CANONICAL`; ATE is not
+consumed. Round13 is STOPPED_FOR_OWNER and D_VISUAL_APPLY remains prohibited.
 
 Prompt53 execution is complete but Round12 remains **PARTIAL**: canonical
 matrix provenance and both NTU sbs parent baselines passed; pristine

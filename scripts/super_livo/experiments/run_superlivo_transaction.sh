@@ -121,6 +121,10 @@ wait "$CHILD_PID"; rc=$?
 python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 [ -f "$TRAJ" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory missing";exit 1; }
 rows="$(wc -l < "$TRAJ")"; [ "$rows" -ge "${SLV_MIN_ROWS:-3000}" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory rows=$rows";exit 1; }
+python3 /home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/validate_d_visual_shadow_result.py \
+  --log "$OUT_DIR/node_stdout.log" --out "$RUN_DIR/d_visual_shadow_gate.yaml" || {
+    FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="mandatory Visual-shadow counters missing or failed";exit 1;
+  }
 cp "$TRAJ" "$RUN_DIR/trajectory.tum"
 VALID=true; FINAL_STATE=SUCCESS; FINAL_CLASS=""; FINAL_REASON="canonical semantic run; rows=$rows"
 exit 0
