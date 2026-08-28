@@ -80,7 +80,7 @@ class SeamHarness:
         self.testcase = testcase
 
     def start(self, profile, run_id, *, measurement_evidence="1", legacy_alias="d0",
-              test_validator=True, extra=None):
+              test_validator=True, extra=None, cwd=None):
         env = dict(os.environ)
         env.update({
             "SLV_RUN_ID": run_id,
@@ -95,10 +95,11 @@ class SeamHarness:
         })
         if test_validator:
             env["SLV_TEST_VALIDATOR"] = str(self.validator)
+            env.setdefault("SLV_TEST_MODE", "1")
         env.update(extra or {})
         cmd = ["bash", str(SUPERVISOR), run_id, str(self.run_dir)]
         return subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+                                stderr=subprocess.STDOUT, cwd=cwd or str(ROOT))
 
     def run(self, profile, run_id, **kw):
         p = self.start(profile, run_id, **kw)
@@ -256,3 +257,134 @@ class TestSemanticUnit(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+CANONICAL_VALIDATOR = str(ROOT / "scripts/super_livo/experiments/validate_d_visual_shadow_result.py")
+
+FIXTURE_COUNTERS = """V-0 VisualMap: parents=1 landmarks=1 slots_used=1 created=1 frames=1 attempts=1
+VISUAL_MEASUREMENT query: attempts=3 hits=3 misses=0 rejected_explicit=0 conservation=OK
+VISUAL_MEASUREMENT observation: frames=1 candidates=2 valid=2 rejected=0 residual_samples=4 conservation=OK
+VISUAL_MEASUREMENT H: accumulations=1 nonzero=1 zero=0 nonfinite=0 norm_count=1 P50=1.0 P95=1.0 P99=1.0 max=1.0
+VISUAL_MEASUREMENT b: accumulations=1 nonzero=1 zero=0 nonfinite=0 norm_count=1 P50=1.0 P95=1.0 P99=1.0 max=1.0
+VISUAL_MEASUREMENT proposed_correction=NOT_COMPUTED_BY_SHADOW_PROFILE state_apply_count=0
+fullscan ownership: raw_input_points=100 pre_observe_excluded_scans=0 pre_observe_excluded_points=0 eligible_geometry_points=100 used_once=100 duplicate_use=0 never_used=0 imu_only_segments=1
+TEST_FIXTURE=true NO_REAL_ESTIMATOR_OUTPUT=true NO_SCIENTIFIC_RESULT=true
+"""
+
+
+class CanonicalValidatorSeamHarness(SeamHarness):
+    def __init__(self, testcase):
+        super().__init__(testcase)
+        self.fixture = pathlib.Path(self.tmp) / "fixture_node_stdout.log"
+        self.fixture.write_text(FIXTURE_COUNTERS)
+
+    def start(self, profile, run_id, *, test_validator=False, **kw):
+        return super().start(profile, run_id, test_validator=test_validator, **kw)
+
+    def run_canonical(self, profile, run_id, node_stdout=None, cwd=None, **kw):
+        env_extra = kw.pop("extra", {})
+        env_extra["SLV_TEST_MODE"] = "1"  # allow test hooks; canonical validator used
+        return self.run(profile, run_id, test_validator=False,
+                        extra=env_extra, cwd=cwd, **kw)
+
+
+class TestCanonicalValidatorSeam(unittest.TestCase):
+    harness = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.harness = CanonicalValidatorSeamHarness(cls)
+        # fake node writes the synthetic fixture counters
+        node = cls.harness.node
+        text = node.read_text()
+        text = text.replace('echo "fake node done" > "$OUT_DIR/node_stdout.log"',
+                            'cp "%s" "$OUT_DIR/node_stdout.log"' % cls.harness.fixture)
+        node.write_text(text)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.harness.cleanup()
+
+    def _gate(self, run_id):
+        p = self.harness.run_dir / run_id / ("D_VISUAL_SHADOW_gate.yaml")
+        if p.exists():
+            import yaml
+            return yaml.safe_load(p.read_text())
+        return None
+
+    def test_vr_t2_canonical_validator_invocation(self):
+        # SLV_TEST_VALIDATOR unset -> manifest-selected canonical validator
+        # must genuinely execute (dispatch proof; incomplete fixture -> the
+        # validator itself reports EVIDENCE_INCOMPLETE_NOT_CANONICAL).
+        rc, out, state = self.harness.run_canonical("D_VISUAL_SHADOW", "vr_t2")
+        self.assertNotIn("SLV_TEST_VALIDATOR", out)
+        gate = self._gate("vr_t2")
+        self.assertIsNotNone(gate, "canonical validator did not write gate: " + out)
+        self.assertEqual(gate.get("semantic_profile"), "D_VISUAL_SHADOW")
+
+    def test_vr_t3_canonical_validator_success_seam(self):
+        # Synthetic bounded result fixture -> canonical validator PASS ->
+        # transaction SUCCESS + cleanup_verified.
+        rc, out, state = self.harness.run_canonical("D_VISUAL_SHADOW", "vr_t3")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("SUCCESS", out)
+        self.assertIsNotNone(state)
+        self.assertEqual(state["state"], "SUCCESS")
+        self.assertTrue(state["cleanup_verified"])
+        gate = self._gate("vr_t3")
+        self.assertIsNotNone(gate)
+        self.assertEqual(gate.get("hard_gate_pass"), True)
+
+    def test_vr_t6_production_override_rejected(self):
+        # test mode OFF + override set -> fail closed (no canonical bypass).
+        rc, out, state = self.harness.run(
+            "D_VISUAL_SHADOW", "vr_t6", test_validator=True,
+            extra={"SLV_TEST_MODE": "0"})
+        self.assertNotEqual(rc, 0)
+        self.assertIn("SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1", out)
+
+    def test_vr_t5_explicit_test_mode_allowed(self):
+        rc, out, state = self.harness.run(
+            "D_VISUAL_SHADOW", "vr_t5", test_validator=True,
+            extra={"SLV_TEST_MODE": "1"})
+        self.assertEqual(rc, 0, out)
+
+    def test_vr_t7_cwd_invariance(self):
+        for cwd in (str(ROOT), "/tmp", str(self.harness.tmp)):
+            rc, out, state = self.harness.run_canonical(
+                "D_VISUAL_SHADOW", "vr_t7_" + cwd.replace("/", "_"),
+                cwd=cwd)
+            self.assertEqual(rc, 0, "cwd=%s: %s" % (cwd, out))
+            self.assertIn("SUCCESS", out)
+
+    def test_vr_t9_missing_canonical_validator(self):
+        # unknown validator path must fail explicitly (no fallback): the
+        # resolver anchors repo-relative paths, so a missing file resolves to
+        # an absolute non-existent path and the supervisor rejects it.
+        rc, out, state = self.harness.run(
+            "D_VISUAL_SHADOW", "vr_t9", test_validator=True,
+            extra={"SLV_TEST_MODE": "1",
+                   "SLV_TEST_VALIDATOR": str(self.harness.tmp) + "/no_such_validator.py"})
+        self.assertNotEqual(rc, 0)
+        self.assertIn("validator", out)
+
+    def test_vr_t10_invalid_validator_target(self):
+        # a directory is not a valid validator target -> explicit preflight fail
+        rc, out, state = self.harness.run(
+            "D_VISUAL_SHADOW", "vr_t10", test_validator=True,
+            extra={"SLV_TEST_MODE": "1", "SLV_TEST_VALIDATOR": self.harness.tmp})
+        self.assertNotEqual(rc, 0)
+        self.assertIn("validator", out)
+
+    def test_vr_t13_generic_supervisor_algorithm_free(self):
+        text = open(SUPERVISOR).read()
+        for forbidden in ("/lio/v4/apply", "imu_fullscan", "D_VISUAL_SHADOW ]",
+                          "validate_d_visual_shadow_result"):
+            self.assertNotIn(forbidden, text)
+
+    def test_vr_t16_no_residual_process(self):
+        rc, out, state = self.harness.run_canonical("D_VISUAL_SHADOW", "vr_t16")
+        time.sleep(0.5)
+        p = subprocess.run(["pgrep", "-af", "run_superlivo_transaction"],
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 1, p.stdout)
