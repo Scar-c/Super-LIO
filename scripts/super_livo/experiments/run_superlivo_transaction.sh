@@ -86,7 +86,8 @@ PROFILE="${SLV_SEMANTIC_PROFILE:?semantic profile selection required from start 
 # contract derives from the resolved manifest (Layer B), never hardcoded.
 SEMANTIC_TOOL=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/experiments/semantic_profiles.py
 VALIDATOR=""
-[ "${SLV_MEASUREMENT_EVIDENCE:-0}" = 1 ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="measurement instrumentation not enabled";exit 2; }
+# Prompt65: measurement-evidence requirement is profile/validator business
+# (declared in the resolved manifest), NOT generic supervisor policy.
 {
   echo "active Super-LIVO transaction: NONE"
   echo "conflicting rosbag play: NONE"
@@ -94,7 +95,7 @@ VALIDATOR=""
   echo "shared-resource lock: ACQUIRED"
   echo "semantic profile: PENDING_CHILD_FAIL_CLOSED_VALIDATION"
   echo "producer gates: PENDING_CHILD_FAIL_CLOSED_READBACK"
-  echo "measurement instrumentation: ENABLED"
+  echo "measurement instrumentation: PROFILE_CONTRACT (validator-owned)"
   echo "post-run validator: RESOLVED_AFTER_MANIFEST"
 } > "$RUN_DIR/preflight_evidence.txt"
 state TRANSACTION_PREFLIGHT_PASS "" "active/conflicts none; lock acquired"
@@ -120,10 +121,12 @@ done
 MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
 python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 python3 "$SEMANTIC_TOOL" check-executable --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="profile not executable against production capability";exit 1; }
-VALIDATOR="$(python3 "$SEMANTIC_TOOL" validator --manifest "$MANIFEST" 2>/dev/null)"
+VALIDATOR="${SLV_TEST_VALIDATOR:-$(python3 "$SEMANTIC_TOOL" validator --manifest "$MANIFEST" 2>/dev/null)}"
+# SLV_TEST_VALIDATOR: test-only hook (default OFF, fail-closed). Overrides the
+# profile-declared validator for the no-bag integration seam test.
 [ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="no validator contract for profile $PROFILE";exit 2; }
 [ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing: $VALIDATOR";exit 2; }
-sed -i "s/post-run validator: RESOLVED_AFTER_MANIFEST/post-run validator: $VALIDATOR/" "$RUN_DIR/preflight_evidence.txt"
+sed -i "s|post-run validator: RESOLVED_AFTER_MANIFEST|post-run validator: $VALIDATOR|" "$RUN_DIR/preflight_evidence.txt"
 sed -i 's/PENDING_CHILD_FAIL_CLOSED_VALIDATION/PASS/;s/PENDING_CHILD_FAIL_CLOSED_READBACK/PASS/' "$RUN_DIR/preflight_evidence.txt"
 cat "$RUN_DIR/preflight_evidence.txt"
 touch "$RUN_DIR/transaction_playback_authorized"
