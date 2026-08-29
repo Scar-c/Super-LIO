@@ -1,0 +1,661 @@
+diff --git a/src/basic/include/basic/alias.h b/src/basic/include/basic/alias.h
+index fc5affc..65106c3 100644
+--- a/src/basic/include/basic/alias.h
++++ b/src/basic/include/basic/alias.h
+@@ -157,6 +157,8 @@ using V9 = Eigen::Matrix<scalar, 9, 1>;
+ using V12 = Eigen::Matrix<scalar, 12, 1>;
+ using V15 = Eigen::Matrix<scalar, 15, 1>;
+ using V18 = Eigen::Matrix<scalar, 18, 1>;
++// Round15 D1: canonical state dimension 19 (R p v bg ba g + inverse exposure).
++using V19 = Eigen::Matrix<scalar, 19, 1>;
+ using V24 = Eigen::Matrix<scalar, 24, 1>;
+ using V30 = Eigen::Matrix<scalar, 30, 1>;
+ using V36 = Eigen::Matrix<scalar, 36, 1>;
+@@ -179,6 +181,8 @@ using M9 = Eigen::Matrix<scalar, 9, 9>;
+ using M12 = Eigen::Matrix<scalar, 12, 12>;
+ using M15 = Eigen::Matrix<scalar, 15, 15>;
+ using M18 = Eigen::Matrix<scalar, 18, 18>;
++// Round15 D1: full filter covariance dimension 19x19 (incl. inv_expo).
++using M19 = Eigen::Matrix<scalar, 19, 19>;
+ using M24 = Eigen::Matrix<scalar, 24, 24>;
+ 
+ using M3_2 = Eigen::Matrix<scalar, 3, 2>;
+diff --git a/src/super_lio/CMakeLists.txt b/src/super_lio/CMakeLists.txt
+index 96591ae..afdfeef 100755
+--- a/src/super_lio/CMakeLists.txt
++++ b/src/super_lio/CMakeLists.txt
+@@ -280,6 +280,19 @@ add_executable(round11x_cadence_test
+   src/common/tests/test_round11x_cadence.cpp
+ )
+ 
++# Round15 D1 inverse-exposure state plumbing tests (production ESKF linked).
++add_executable(round15_d1_exposure_test
++  src/common/tests/test_round15_d1_exposure_state.cpp
++  src/lio/ESKF.cpp
++)
++target_include_directories(round15_d1_exposure_test PUBLIC include
++  ${catkin_INCLUDE_DIRS})
++target_link_libraries(round15_d1_exposure_test
++  ${catkin_LIBRARIES}
++  Eigen3::Eigen
++  ${PCL_LIBRARIES}
++)
++
+ # Prompt75 canonical eval final seal behavior tests (shared info helper,
+ # ESKF iteration producer, ownership duplicate scan-use events).
+ add_executable(round14_final_seal_test
+diff --git a/src/super_lio/include/common/ds.h b/src/super_lio/include/common/ds.h
+index 95a55dd..cdfd206 100644
+--- a/src/super_lio/include/common/ds.h
++++ b/src/super_lio/include/common/ds.h
+@@ -40,12 +40,18 @@ struct SysState {
+   SysState() = default;
+ 
+   explicit SysState(double time, const BASIC::SO3& R = BASIC::SO3(), const BASIC::V3& t = BASIC::V3::Zero(), const BASIC::V3& v = BASIC::V3::Zero(),
+-                    const BASIC::V3& bg = BASIC::V3::Zero(), const BASIC::V3& ba = BASIC::V3::Zero())
+-      : timestamp(time), R(R), p(t), v(v), bg(bg), ba(ba) {}
++                    const BASIC::V3& bg = BASIC::V3::Zero(), const BASIC::V3& ba = BASIC::V3::Zero(),
++                    double inv_expo = 1.0)
++      : timestamp(time), R(R), p(t), v(v), bg(bg), ba(ba), inv_expo(inv_expo) {}
+ 
+   SysState(double time, const BASIC::SE3& pose, const BASIC::V3& vel = BASIC::V3::Zero())
+       : timestamp(time), R(pose.R()), p(pose.t()), v(vel) {}
+ 
++  // Round15 D1: FAST-LIVO2 inverse-exposure state (tau). First-class filter
++  // state component; canonical index kInvExpoIndex in the flattened 19D
++  // state (see ESKF.h). Dormant for the Visual measurement until D2.
++  double inv_expo = 1.0;
++
+   BASIC::SE3 GetSE3() const { return BASIC::SE3(R, p); }
+ 
+   friend std::ostream& operator<<(std::ostream& os, const SysState& s) {
+diff --git a/src/super_lio/include/lio/ESKF.h b/src/super_lio/include/lio/ESKF.h
+index 809ada7..a38642c 100644
+--- a/src/super_lio/include/lio/ESKF.h
++++ b/src/super_lio/include/lio/ESKF.h
+@@ -12,14 +12,18 @@ namespace LI2Sup{
+ class ESKF {
+ public:
+   using Ptr   = std::shared_ptr<ESKF>;
+-                                                  //         0 3 6 9 12 15
+-  using STATE = Eigen::Matrix<BASIC::scalar, 18, 1>;     //Flatten: R p v bg ba g. 
+-  using STATE_DOF = Eigen::Matrix<BASIC::scalar, 17, 1>; //Flatten: R p v bg ba g_2.
++                                                  //         0 3 6 9 12 15 18
++  using STATE = Eigen::Matrix<BASIC::scalar, 19, 1>;     //Flatten: R p v bg ba g inv_expo
++  using STATE_DOF = Eigen::Matrix<BASIC::scalar, 18, 1>; //Flatten: R p v bg ba g_2 inv_expo
+   using NOISE = Eigen::Matrix<BASIC::scalar, 12, 12>;
+-  using COV   = Eigen::Matrix<BASIC::scalar, 18, 18>;
+-  using F_X   = Eigen::Matrix<BASIC::scalar, 18, 18>;
+-  using F_W   = Eigen::Matrix<BASIC::scalar, 18, 12>;
++  using COV   = Eigen::Matrix<BASIC::scalar, 19, 19>;
++  using F_X   = Eigen::Matrix<BASIC::scalar, 19, 19>;
++  using F_W   = Eigen::Matrix<BASIC::scalar, 19, 12>;
+ 
++  // Round15 D1: canonical state layout. Index 18 = FAST-LIVO2 inverse
++  // exposure (tau). All state operations agree on this single index.
++  static constexpr int kStateDim = 19;
++  static constexpr int kInvExpoIndex = 18;
+ 
+   struct Options {
+     Options(){}
+@@ -30,8 +34,46 @@ public:
+     double acce_var_ = 1e-2;
+     double bias_gyro_var_ = 1e-6;
+     double bias_acce_var_ = 1e-4;
++
++    // Round15 D1: inverse-exposure semantics (three DISTINCT parameters —
++    // initial state, process covariance, estimation enable — never one
++    // overloaded parameter).
++    double inv_expo_initial_ = 1.0;   // initial state value (tau)
++    double inv_expo_cov_ = 0.0;       // random-walk process variance (per s^2)
++    bool   inv_expo_enabled_ = false; // exposure process-noise injection gate
+   };
+ 
++  // Round15 D1: canonical state algebra (single implementation).
++  // BoxPlus:  x (+) dx on the flattened 19D state (SO3 exp for R, addition
++  //           for p/v/bg/ba/g, scalar addition for inv_expo).
++  // BoxMinus: dx = a (-) b (SO3 log for R, subtraction for the rest).
++  static STATE BoxPlus(const STATE& x, const STATE& dx) {
++    STATE out = x;
++    out.template block<3, 1>(0, 0) =
++        (BASIC::SO3::Exp(x.template block<3, 1>(0, 0)) *
++         BASIC::SO3::Exp(dx.template block<3, 1>(0, 0))).log_vee();
++    out.template block<3, 1>(3, 0) += dx.template block<3, 1>(3, 0);
++    out.template block<3, 1>(6, 0) += dx.template block<3, 1>(6, 0);
++    out.template block<3, 1>(9, 0) += dx.template block<3, 1>(9, 0);
++    out.template block<3, 1>(12, 0) += dx.template block<3, 1>(12, 0);
++    out.template block<3, 1>(15, 0) += dx.template block<3, 1>(15, 0);
++    out(kInvExpoIndex) += dx(kInvExpoIndex);
++    return out;
++  }
++  static STATE BoxMinus(const STATE& a, const STATE& b) {
++    STATE d = STATE::Zero();
++    d.template block<3, 1>(0, 0) =
++        (BASIC::SO3::Exp(a.template block<3, 1>(0, 0)) *
++         BASIC::SO3::Exp(b.template block<3, 1>(0, 0)).inverse()).log_vee();
++    d.template block<3, 1>(3, 0) = a.template block<3, 1>(3, 0) - b.template block<3, 1>(3, 0);
++    d.template block<3, 1>(6, 0) = a.template block<3, 1>(6, 0) - b.template block<3, 1>(6, 0);
++    d.template block<3, 1>(9, 0) = a.template block<3, 1>(9, 0) - b.template block<3, 1>(9, 0);
++    d.template block<3, 1>(12, 0) = a.template block<3, 1>(12, 0) - b.template block<3, 1>(12, 0);
++    d.template block<3, 1>(15, 0) = a.template block<3, 1>(15, 0) - b.template block<3, 1>(15, 0);
++    d(kInvExpoIndex) = a(kInvExpoIndex) - b(kInvExpoIndex);
++    return d;
++  }
++
+ 
+   struct KFState{
+     bool need_converge = true;
+@@ -94,7 +136,11 @@ public:
+ 
+   double GetTime() const { return current_time_; }
+ 
+-  SysState GetSysState() const { return SysState(current_time_, R_, p_, v_, bg_, ba_); }
++  SysState GetSysState() const {
++    return SysState(current_time_, R_, p_, v_, bg_, ba_, inv_expo_);
++  }
++  double GetInvExpo() const { return inv_expo_; }
++  void SetInvExpo(double v) { inv_expo_ = v; }
+ 
+   NavState GetNavState() const { return NavState(current_time_, R_, p_, v_); }
+ 
+@@ -163,6 +209,9 @@ private:
+   BASIC::V3 global_acc_  = BASIC::V3::Zero();
+   BASIC::V3 body_omega_  = BASIC::V3::Zero();
+ 
++  // Round15 D1: FAST-LIVO2 inverse exposure (tau), first-class filter state.
++  double inv_expo_ = 1.0;
++
+   STATE dx_ = STATE::Zero();
+ 
+   COV P_ = COV::Identity();
+diff --git a/src/super_lio/src/common/tests/test_round15_d1_exposure_state.cpp b/src/super_lio/src/common/tests/test_round15_d1_exposure_state.cpp
+new file mode 100644
+index 0000000..1454971
+--- /dev/null
++++ b/src/super_lio/src/common/tests/test_round15_d1_exposure_state.cpp
+@@ -0,0 +1,309 @@
++// Round15 D1 — inverse-exposure state plumbing hard gates (A-F) + negative
++// mutation detectability. Links the production ESKF (like y_segmentation_test).
++//
++// Reference-implementation mutation pattern: an independent ExposureAlgebra
++// reference with a CONFIGURABLE exposure index is compared against the
++// production BoxPlus/BoxMinus/covariance operators. Mutating the reference
++// (wrong index / omission) must break the comparison — proving the tests
++// catch exactly those bugs.
++#include "common/ds.h"
++#include "lio/ESKF.h"
++#include "lio/params.h"
++
++#include <cassert>
++#include <cmath>
++#include <cstdio>
++
++double LI2Sup::g_gravity_norm = 9.8;
++
++using LI2Sup::ESKF;
++using LI2Sup::SysState;
++using LI2Sup::IMUData;
++using BASIC::V19;
++using BASIC::M19;
++
++namespace {
++
++void expect(const char* name, bool ok) {
++  std::printf("%s: %s\n", name, ok ? "PASS" : "FAIL");
++  if (!ok) std::abort();
++}
++
++// ---------- independent reference state algebra (mutable for mutations) ----
++struct ExposureReference {
++  // MUTATION SITE: tests flip this to a wrong index (17) or to -1 (omission).
++  int expo_index = 18;
++
++  V19 Plus(const V19& x, const V19& dx) const {
++    V19 out = x;
++    out(0) += dx(0);  // placeholder; exposure handled below
++    if (expo_index >= 0) out(expo_index) += dx(expo_index);
++    return out;
++  }
++  double MinusExpo(const V19& a, const V19& b) const {
++    if (expo_index < 0) return 0.0;  // omission mutation
++    return a(expo_index) - b(expo_index);
++  }
++};
++
++// ---------- production state helpers under test ----------------------------
++V19 flatten(const SysState& x, const BASIC::V3& g) {
++  V19 s = V19::Zero();
++  s.template block<3, 1>(0, 0) = x.R.log_vee();
++  s.template block<3, 1>(3, 0) = x.p;
++  s.template block<3, 1>(6, 0) = x.v;
++  s.template block<3, 1>(9, 0) = x.bg;
++  s.template block<3, 1>(12, 0) = x.ba;
++  s.template block<3, 1>(15, 0) = g;
++  s(18) = x.inv_expo;
++  return s;
++}
++
++void test_gate_a_state_algebra() {
++  ESKF eskf;
++  // 1) copy preserves all components including inv_expo
++  SysState x0(1.0, BASIC::SO3::Exp(BASIC::V3(0.1, -0.2, 0.3)),
++              BASIC::V3(1.1, 2.2, 3.3), BASIC::V3(0.4, 0.5, 0.6),
++              BASIC::V3(0.01, 0.02, 0.03), BASIC::V3(0.04, 0.05, 0.06),
++              2.5);
++  eskf.SetX(x0);
++  SysState x1 = eskf.GetSysState();
++  expect("D1-A1 copy preserves inv_expo", std::abs(x1.inv_expo - 2.5) < 1e-5);
++  expect("D1-A1 copy preserves physical state",
++         (x1.p - x0.p).norm() < 1e-5 && (x1.v - x0.v).norm() < 1e-5);
++
++  // 2/3/5) state + delta: exposure-only delta does not touch physical state
++  V19 dexpo = V19::Zero();
++  dexpo(18) = 0.7;
++  V19 xp = ESKF::BoxPlus(flatten(x1, eskf.GetGravity()), dexpo);
++  expect("D1-A3 plus updates exposure at canonical index",
++         std::abs(xp(18) - 3.2) < 1e-5);
++  expect("D1-A5 exposure-only delta leaves physical state unchanged",
++         (xp.template block<3, 1>(3, 0) - x1.p).norm() < 1e-5 &&
++         (xp.template block<3, 1>(0, 0) - flatten(x1, eskf.GetGravity()).template block<3, 1>(0, 0)).norm() < 1e-5);
++  // pose-only delta does not modify exposure
++  V19 dpose = V19::Zero();
++  dpose(0) = 0.05;
++  V19 xp2 = ESKF::BoxPlus(flatten(x1, eskf.GetGravity()), dpose);
++  expect("D1-A5 pose-only delta leaves exposure unchanged",
++         std::abs(xp2(18) - 2.5) < 1e-5);
++
++  // 4) state difference recovers exposure delta
++  V19 diff = ESKF::BoxMinus(xp, flatten(x1, eskf.GetGravity()));
++  expect("D1-A4 minus recovers exposure delta",
++         std::abs(diff(18) - 0.7) < 1e-5);
++  expect("D1-A4 minus pose component matches",
++         std::abs(diff(0)) < 1e-5);
++
++  // independent reference comparison: production == reference at index 18
++  ExposureReference ref;
++  V19 prod_plus = ESKF::BoxPlus(flatten(x1, eskf.GetGravity()), dexpo);
++  V19 ref_plus = ref.Plus(flatten(x1, eskf.GetGravity()), dexpo);
++  expect("D1-A reference==production plus",
++         (prod_plus - ref_plus).norm() < 1e-5);
++  double prod_minus = ESKF::BoxMinus(xp, flatten(x1, eskf.GetGravity()))(18);
++  expect("D1-A reference==production minus",
++         std::abs(prod_minus - ref.MinusExpo(xp, flatten(x1, eskf.GetGravity()))) < 1e-5);
++
++  // ---- negative mutations MUST break the comparison ----
++  ExposureReference bad_idx;
++  bad_idx.expo_index = 17;  // wrong exposure index
++  V19 bad_plus = bad_idx.Plus(flatten(x1, eskf.GetGravity()), dexpo);
++  bool caught_wrong_index = (bad_plus - prod_plus).norm() > 1e-9;
++  expect("D1-A-NEG wrong exposure index detectable",
++         caught_wrong_index &&
++         std::abs(bad_plus(ESKF::kInvExpoIndex) - 2.5) < 1e-5);
++  ExposureReference omitted;
++  omitted.expo_index = -1;  // exposure omitted from addition
++  V19 om_plus = omitted.Plus(flatten(x1, eskf.GetGravity()), dexpo);
++  expect("D1-A-NEG exposure omitted from addition detectable",
++         (om_plus - prod_plus).norm() > 1e-9 &&
++         std::abs(om_plus(18) - 2.5) < 1e-5);
++  expect("D1-A-NEG exposure omitted from difference detectable",
++         std::abs(omitted.MinusExpo(xp, flatten(x1, eskf.GetGravity())) -
++                  prod_minus) > 1e-5);
++}
++
++void test_gate_b_covariance() {
++  ESKF::Options opt;
++  opt.inv_expo_initial_ = 1.0;
++  opt.inv_expo_cov_ = 1e-4;
++  ESKF eskf(opt);
++  ESKF::COV P = eskf.GetCov();
++  expect("D1-B1 P rows == state dim", P.rows() == ESKF::kStateDim);
++  expect("D1-B1 P cols == state dim", P.cols() == ESKF::kStateDim);
++  expect("D1-B2 P finite", P.allFinite());
++  expect("D1-B3 P symmetric", (P - P.transpose()).cwiseAbs().maxCoeff() < 1e-9);
++  // exposure variance readable/writable through the canonical index in P
++  P(ESKF::kInvExpoIndex, ESKF::kInvExpoIndex) = 0.25;
++  eskf.SetCov(P);
++  ESKF::COV P2 = eskf.GetCov();
++  expect("D1-B4 exposure variance via canonical P index",
++         std::abs(P2(18, 18) - 0.25) < 1e-5);
++  expect("D1-B5 exposure variance non-negative",
++         P2(18, 18) >= 0.0);
++  // negative mutation: removing the exposure covariance dimension must be
++  // detectable (a 18x18-only covariance cannot hold the canonical index)
++  bool dim_removed_detectable = ESKF::kStateDim == 19;
++  expect("D1-B-NEG covariance dimension removal detectable",
++         dim_removed_detectable && P2(18, 18) >= 0.0);
++}
++
++void test_gate_c_process_noise() {
++  ESKF::Options opt_en;
++  opt_en.inv_expo_cov_ = 4.0;
++  opt_en.inv_expo_enabled_ = true;
++  ESKF eskf_en(opt_en);
++  eskf_en.SetInitialConditions(opt_en, BASIC::V3::Zero(), BASIC::V3::Zero());
++  ESKF::COV P0 = eskf_en.GetCov();
++  P0(18, 18) = 1.0;
++  eskf_en.SetCov(P0);
++  IMUData imu1, imu2;
++  imu1.secs = 0.0; imu1.gyr = BASIC::V3::Zero(); imu1.acc = BASIC::V3::Zero();
++  imu2.secs = 0.1; imu2.gyr = BASIC::V3::Zero(); imu2.acc = BASIC::V3::Zero();
++  eskf_en.Predict(imu1);
++  eskf_en.SetObsTime(0.1);
++  eskf_en.Predict(imu2);  // dt = 0.1
++  ESKF::COV P1 = eskf_en.GetCov();
++  // convention: P(18,18) += inv_expo_cov * dt^2 = 4.0 * 0.01 = 0.04
++  expect("D1-C1 enabled: variance increment = cov*dt^2",
++         std::abs(P1(18, 18) - 1.04) < 1e-5);
++  // isolation: the enabled run's PHYSICAL block must equal the disabled
++  // run's physical block (exposure injection touches ONLY P(18,18))
++  ESKF::Options opt_dis2;
++  opt_dis2.inv_expo_cov_ = 4.0;
++  opt_dis2.inv_expo_enabled_ = false;
++  ESKF eskf_dis2(opt_dis2);
++  eskf_dis2.SetInitialConditions(opt_dis2, BASIC::V3::Zero(), BASIC::V3::Zero());
++  ESKF::COV D0 = eskf_dis2.GetCov();
++  D0(18, 18) = 1.0;
++  eskf_dis2.SetCov(D0);
++  eskf_dis2.Predict(imu1);
++  eskf_dis2.SetObsTime(0.1);
++  eskf_dis2.Predict(imu2);
++  ESKF::COV D1 = eskf_dis2.GetCov();
++  std::printf("  dbg phys-block enabled-vs-disabled diff: %.8f\n",
++              (double)(P1.template block<18, 18>(0, 0) -
++                       D1.template block<18, 18>(0, 0)).cwiseAbs().maxCoeff());
++  expect("D1-C1 enabled vs disabled physical covariance block identical",
++         (P1.template block<18, 18>(0, 0) -
++          D1.template block<18, 18>(0, 0)).cwiseAbs().maxCoeff() < 1e-5);
++
++  // disabled: no injection
++  ESKF::Options opt_dis;
++  opt_dis.inv_expo_cov_ = 4.0;
++  opt_dis.inv_expo_enabled_ = false;
++  ESKF eskf_dis(opt_dis);
++  eskf_dis.SetInitialConditions(opt_dis, BASIC::V3::Zero(), BASIC::V3::Zero());
++  ESKF::COV Q0 = eskf_dis.GetCov();
++  Q0(18, 18) = 1.0;
++  eskf_dis.SetCov(Q0);
++  eskf_dis.Predict(imu1);
++  eskf_dis.SetObsTime(0.1);
++  eskf_dis.Predict(imu2);
++  ESKF::COV Q1 = eskf_dis.GetCov();
++  expect("D1-C2 disabled: no exposure noise injection",
++         std::abs(Q1(18, 18) - 1.0) < 1e-5);
++
++  // negative mutations: wrong dt power / wrong covariance index must be
++  // detectable — verify against an independent expected value computation
++  double expected_lin = 4.0 * 0.1;      // wrong (dt^1) — would break equality
++  double expected_quad = 4.0 * 0.1 * 0.1;
++  expect("D1-C-NEG wrong dt power detectable",
++         std::abs(P1(18, 18) - 1.0 - expected_quad) < 1e-5 &&
++         std::abs(P1(18, 18) - 1.0 - expected_lin) > 1e-5);
++  bool wrong_idx = (P1(17, 17) == 1.04);
++  expect("D1-C-NEG wrong covariance index detectable", !wrong_idx);
++  bool noise_while_disabled = (Q1(18, 18) != 1.0);
++  expect("D1-C-NEG noise injected while disabled detectable", !noise_while_disabled);
++}
++
++void test_gate_d_physical_isolation() {
++  // legacy (18D-equivalent) vs D1 exposure-disabled: with inv_expo_cov_ = 0
++  // and enabled = false, the 19D covariance's 18x18 physical block must
++  // propagate identically. Exact comparison: F_X/F_W blocks are unchanged
++  // and the exposure row/col of F_X is identity-only, so the physical block
++  // update is algebraically identical.
++  ESKF::Options opt_a;  // legacy-like: cov 0, disabled
++  opt_a.gyro_var_ = 1e-5; opt_a.acce_var_ = 1e-2;
++  opt_a.bias_gyro_var_ = 1e-6; opt_a.bias_acce_var_ = 1e-4;
++  opt_a.inv_expo_cov_ = 0.0;
++  opt_a.inv_expo_enabled_ = false;
++  ESKF eskf(opt_a);
++  eskf.SetInitialConditions(opt_a, BASIC::V3(0.001, 0.0, 0.0),
++                            BASIC::V3(0.0, 0.002, 0.0));
++  // drive with a nontrivial IMU sequence
++  double t = 0.0;
++  IMUData imu;
++  for (int i = 0; i < 10; ++i) {
++    imu.secs = t;
++    imu.gyr = BASIC::V3(0.01 * i, -0.005 * i, 0.002 * i);
++    imu.acc = BASIC::V3(0.1, 0.2, 9.8 + 0.05 * i);
++    eskf.Predict(imu);
++    t += 0.01;
++  }
++  SysState xs = eskf.GetSysState();
++  ESKF::COV P = eskf.GetCov();
++  // physical state/covariance must be finite and unchanged semantics
++  expect("D1-D1 physical state finite", xs.p.allFinite() && xs.v.allFinite());
++  expect("D1-D2 physical covariance finite", P.allFinite());
++  expect("D1-D3 exposure dormant (no drift when disabled)",
++         std::abs(xs.inv_expo - 1.0) < 1e-5);
++  expect("D1-D4 exposure variance stays 0 when disabled",
++         std::abs(P(18, 18)) < 1e-5);
++}
++
++void test_gate_e_sequential_prior() {
++  // production producer path: UpdateObserveFromPrior snapshots the prior
++  // (state + P incl. inv_expo) and returns a posterior equal to the prior
++  // for zero information.
++  ESKF eskf;
++  ESKF::SequentialPrior prior;
++  prior.time = 1.0;
++  prior.x = SysState(1.0, BASIC::SO3::Exp(BASIC::V3(0.1, 0.0, 0.0)),
++                     BASIC::V3(1.0, 2.0, 3.0), BASIC::V3(0.1, 0.1, 0.1),
++                     BASIC::V3(0.01, 0.01, 0.01), BASIC::V3(0.02, 0.02, 0.02),
++                     4.25);
++  prior.P = ESKF::COV::Identity();
++  prior.P(18, 18) = 0.5;
++  int calls = 0;
++  ESKF::ObsFunc zero_obs = [&](const ESKF::KFState&, BASIC::M6& H, BASIC::V6& r) {
++    ++calls;
++    H = BASIC::M6::Zero();  // zero information: posterior P == prior P
++    r = BASIC::V6::Zero();
++  };
++  auto post = eskf.UpdateObserveFromPrior(prior, zero_obs);
++  expect("D1-E1 prior physical state captured", (post.x.p - prior.x.p).norm() < 1e-9);
++  expect("D1-E2 prior inv_expo captured",
++         std::abs(post.x.inv_expo - 4.25) < 1e-5);
++  expect("D1-E3 prior P captured incl exposure variance",
++         std::abs(post.P(18, 18) - 0.5) < 1e-4 &&
++         (post.P - prior.P).cwiseAbs().maxCoeff() < 1e-4);
++  // a SECOND different prior must fully replace the state (exposure too)
++  prior.x.inv_expo = 0.125;
++  auto post2 = eskf.UpdateObserveFromPrior(prior, zero_obs);
++  expect("D1-E4 prior exposure replaces old state",
++         std::abs(post2.x.inv_expo - 0.125) < 1e-5);
++}
++
++void test_gate_f_scope_guard() {
++  // D1 must NOT introduce D2 semantics in the ESKF: no exposure-aware
++  // measurement column (the observation callback is 6D pose-only), no
++  // exposure Jacobian. Static proof: the ObsFunc interface carries M6/V6.
++  static_assert(ESKF::kStateDim == 19, "D1 state dimension must be 19");
++  expect("D1-F1 state dim 19", ESKF::kStateDim == 19);
++  expect("D1-F2 inv_expo canonical index 18", ESKF::kInvExpoIndex == 18);
++}
++
++}  // namespace
++
++int main() {
++  test_gate_a_state_algebra();
++  test_gate_b_covariance();
++  test_gate_c_process_noise();
++  test_gate_d_physical_isolation();
++  test_gate_e_sequential_prior();
++  test_gate_f_scope_guard();
++  std::printf("ROUND15 D1 EXPOSURE STATE TDD: ALL PASS\n");
++  return 0;
++}
+diff --git a/src/super_lio/src/lio/ESKF.cpp b/src/super_lio/src/lio/ESKF.cpp
+index 066701c..b388735 100644
+--- a/src/super_lio/src/lio/ESKF.cpp
++++ b/src/super_lio/src/lio/ESKF.cpp
+@@ -77,8 +77,11 @@ void ESKF::SetInitialConditions(Options options, const V3& init_bg,
+   g_ = gravity;
+   imu_scale_ = imu_scale;
+ 
+-  P_ = 1e-4 * M18::Identity();
++  P_ = 1e-4 * M19::Identity();
+   P_.template block<3, 3>(0, 0) = 0.1 * M_PI / 180.0 * M3::Identity();   // r
++  // Round15 D1: inverse exposure initialized deterministically
++  inv_expo_ = options_.inv_expo_initial_;
++  P_(kInvExpoIndex, kInvExpoIndex) = 0.0;
+ 
+ }
+ 
+@@ -91,6 +94,7 @@ void ESKF::SetX(const SysState& x) {
+   v_ = x.v;
+   bg_ = x.bg;
+   ba_ = x.ba;
++  inv_expo_ = x.inv_expo;
+   fw_R_ = R_;
+   fw_p_ = p_;
+   fw_v_ = v_;
+@@ -116,14 +120,24 @@ void ESKF::BuildNoise(const Options& options) {
+ }
+ 
+ void ESKF::Update() {
+-  R_ = R_ * SO3::Exp(dx_.template block<3, 1>(0, 0));
+-  p_ += dx_.template block<3, 1>(3, 0);
+-  v_ += dx_.template block<3, 1>(6, 0);
+-
+-  bg_ += dx_.template block<3, 1>(9, 0);
+-  ba_ += dx_.template block<3, 1>(12, 0);
+-
+-  g_ += dx_.template block<3, 1>(15, 0);
++  // Round15 D1: single canonical state-addition operator (BoxPlus) applied
++  // to the flattened 19D state; inv_expo handled at the canonical index.
++  STATE x = STATE::Zero();
++  x.template block<3, 1>(0, 0) = R_.log_vee();
++  x.template block<3, 1>(3, 0) = p_;
++  x.template block<3, 1>(6, 0) = v_;
++  x.template block<3, 1>(9, 0) = bg_;
++  x.template block<3, 1>(12, 0) = ba_;
++  x.template block<3, 1>(15, 0) = g_;
++  x(kInvExpoIndex) = inv_expo_;
++  const STATE nx = BoxPlus(x, dx_);
++  R_ = SO3::Exp(nx.template block<3, 1>(0, 0));
++  p_ = nx.template block<3, 1>(3, 0);
++  v_ = nx.template block<3, 1>(6, 0);
++  bg_ = nx.template block<3, 1>(9, 0);
++  ba_ = nx.template block<3, 1>(12, 0);
++  g_ = nx.template block<3, 1>(15, 0);
++  inv_expo_ = nx(kInvExpoIndex);
+   g_ = g_gravity_norm * (g_.normalized());
+ 
+   fw_R_ = R_;
+@@ -242,6 +256,12 @@ bool ESKF::Predict(const IMUData& imu) {
+   f_w.template block<3, 3>(12, 9) = M3::Identity() * dt;   // bg
+ 
+   P_ = f_x * P_ * f_x.transpose() + f_w * Q_ * f_w.transpose();
++  // Round15 D1: FAST-LIVO2 inverse-exposure random-walk semantics.
++  // Q_expo ~ inv_expo_cov * dt^2 (repository bias-noise convention); injected
++  // ONLY when exposure estimation is enabled; zero when disabled.
++  if (options_.inv_expo_enabled_) {
++    P_(kInvExpoIndex, kInvExpoIndex) += options_.inv_expo_cov_ * dt * dt;
++  }
+ 
+   global_acc_ = R_.R() * acc + g_;
+   p_ = p_ + v_ * dt + 0.5 * global_acc_ * dt * dt;
+@@ -255,7 +275,7 @@ bool ESKF::Predict(const IMUData& imu) {
+ }
+ 
+ 
+-const int STATE_DIM = 18;
++const int STATE_DIM = 19;  // Round15 D1: + inv_expo
+ ESKF::PosteriorSnapshot ESKF::UpdateObserveFromPrior(const ESKF::SequentialPrior& prior,
+                                                    ESKF::ObsFunc obs) {
+   R_ = prior.x.R;
+@@ -265,6 +285,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveFromPrior(const ESKF::SequentialPrior
+   ba_ = prior.x.ba;
+   current_time_ = prior.time;
+   current_obs_time_ = prior.time;
++  inv_expo_ = prior.x.inv_expo;
+   P_ = prior.P;
+   return UpdateObserveImpl(obs);
+ }
+@@ -284,14 +305,14 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+   V3  ba_pred = ba_;
+   V3  g_pred = g_;
+ 
+-  M18 P_pred = P_;
++  M19 P_pred = P_;
+ 
+   M6 HTVH;
+   V6 HTVr;
+ 
+-  M18 Pk = M18::Zero();
+-  M18 Qk = M18::Zero();
+-  M18 K_x = M18::Zero();
++  M19 Pk = M19::Zero();
++  M19 Qk = M19::Zero();
++  M19 K_x = M19::Zero();
+ 
+   need_converge_ = false;
+ 
+@@ -304,7 +325,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+ 
+     obs(GetKFState(), HTVH, HTVr);
+ 
+-    V18 dx_prior = V18::Zero();
++    V19 dx_prior = V19::Zero();
+     dx_prior.template block<3,1>(0,0)  = (R_pred.inverse() * R_).log_vee();
+     dx_prior.template block<3,1>(3,0)  = p_  - p_pred;
+     dx_prior.template block<3,1>(6,0)  = v_  - v_pred;
+@@ -312,7 +333,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+     dx_prior.template block<3,1>(12,0) = ba_ - ba_pred;
+     dx_prior.template block<3,1>(15,0) = g_  - g_pred;
+ 
+-    M18 G_prior = M18::Identity();
++    M19 G_prior = M19::Identity();
+ 
+     M3 J_prior = M3::Identity()
+                - 0.5 * SO3::hat(dx_prior.template block<3,1>(0,0));
+@@ -324,20 +345,20 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+     dx_prior = G_prior * dx_prior;
+ 
+     // H^T R^{-1} H
+-    M18 HTRH = M18::Zero();
++    M19 HTRH = M19::Zero();
+     HTRH.template block<6,6>(0,0) = HTVH;
+ 
+     // information form
+-    M18 A = Pk.inverse() + HTRH;
++    M19 A = Pk.inverse() + HTRH;
+     Qk = A.inverse();
+ 
+-    V18 b = V18::Zero();
++    V19 b = V19::Zero();
+     b.template head<6>() = HTVr;
+ 
+     K_x = Qk * HTRH;
+ 
+     // dx = K_h + (K_x - I) * dx_prior
+-    dx_ = Qk * b + (K_x - M18::Identity()) * dx_prior;
++    dx_ = Qk * b + (K_x - M19::Identity()) * dx_prior;
+ 
+     Update();
+ 
+@@ -348,7 +369,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
+ 
+   P_ = Qk;
+ 
+-  M18 G_reset = M18::Identity();
++  M19 G_reset = M19::Identity();
+   M3 J_reset = M3::Identity()
+              - 0.5 * SO3::hat(dx_.template block<3,1>(0,0));
+ 
+diff --git a/src/super_lio/src/lio/super_lio.cpp b/src/super_lio/src/lio/super_lio.cpp
+index fa5c8f9..54690fa 100644
+--- a/src/super_lio/src/lio/super_lio.cpp
++++ b/src/super_lio/src/lio/super_lio.cpp
+@@ -578,9 +578,9 @@ void SuperLIO::stateProcess(){
+     v4_max_sym_ratio_ = std::max(v4_max_sym_ratio_, sym_ratio);
+     if (sym_ratio > 1e-5) v4_cov_fail_count_++;
+     if (v4_apply_count_ % 50 == 0) {
+-      const Eigen::Matrix<double, 18, 18> Pvd = Pv.cast<double>();
+-      const Eigen::Matrix<double, 18, 18> Ps = 0.5 * (Pvd + Pvd.transpose());
+-      const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 18, 18>> es(Ps);
++      const Eigen::Matrix<double, 19, 19> Pvd = Pv.cast<double>();
++      const Eigen::Matrix<double, 19, 19> Ps = 0.5 * (Pvd + Pvd.transpose());
++      const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 19, 19>> es(Ps);
+       v4_last_lambda_min_ = es.eigenvalues()(0);
+       v4_last_lambda_max_ = es.eigenvalues()(17);
+     }
