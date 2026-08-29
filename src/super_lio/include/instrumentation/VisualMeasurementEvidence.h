@@ -90,7 +90,11 @@ class VisualMeasurementEvidence {
   std::uint64_t measurementFrames() const { return measurement_frames_; }
   std::uint64_t residualSamples() const { return residual_samples_; }
   std::uint64_t initialQueryAttempts() const { return initial_query_attempts_; }
-  std::uint64_t initialQueryHits() const { return query_hits_; }
+  std::uint64_t initialQueryHits() const {
+    // initial hits = global hits minus solver-callback hits (Prompt75 F3:
+    // the initial counter must exclude iterative solver activity).
+    return query_hits_ - solver_query_hits_;
+  }
   std::uint64_t initialCandidateObservations() const {
     return initial_candidate_observations_;
   }
