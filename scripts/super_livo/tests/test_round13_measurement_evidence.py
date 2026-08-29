@@ -13,7 +13,11 @@ VALIDATOR = ROOT / "scripts/super_livo/experiments/validate_d_visual_shadow_resu
 class MeasurementEvidenceIntegrationTest(unittest.TestCase):
     def test_m_t9_shadow_path_cannot_apply_state(self):
         source = (ROOT / "src/super_lio/src/lio/super_lio.cpp").read_text()
-        call = source[source.index("if(g_lio_v2_enabled && !g_lio_v4_apply){"):]
+        # Phase-B corrective (b0af1c1): the legacy LiDAR-callback Visual
+        # measurement path is additionally gated off under camera-epoch D
+        # (d_camera_epoch_visual); the shadow/no-apply semantics are unchanged.
+        start = source.index("if(g_lio_v2_enabled && !g_lio_v4_apply")
+        call = source[start:]
         call = call[:call.index("return;")]
         residual = source[source.index("int SuperLIO::runVisualResidual"):]
         residual = residual[:residual.index("void SuperLIO::runVisualLifecycle")]

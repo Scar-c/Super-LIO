@@ -47,10 +47,12 @@ class TestNormalizedSemanticProfiles(unittest.TestCase):
         # Prompt64: the APPLY profile additionally declares its REQUESTED
         # camera-epoch event placement (differs from the legacy Shadow
         # placement); state apply is the only enabled/flag change.
+        # requires_measurement_evidence is True for BOTH profiles (the Apply
+        # profile needs the same R14 measurement evidence even without a
+        # post-run validator), so it is NOT part of the semantic diff.
         self.assertEqual(self.sp.semantic_diff(shadow, apply),
                          {"semantic_profile", "visual_state_apply",
-                          "visual_state_apply_connectivity", "validator",
-                          "requires_measurement_evidence"})
+                          "visual_state_apply_connectivity", "validator"})
         self.assertIs(apply["visual_state_apply"], True)
         self.assertEqual(apply["visual_measurement_event"], "CAMERA_EPOCH")
 

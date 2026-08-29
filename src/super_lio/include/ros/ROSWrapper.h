@@ -98,8 +98,15 @@ public:
   int64_t lidarPointsInput() const { return lidar_points_input_; }
   int64_t rawLidarScansInput() const { return fullscan_ownership_.inputScans(); }
   int64_t fullscanGeometryUpdates() const { return fullscan_ownership_.usedScans(); }
+  int64_t fullscanGeometryScans() const { return fullscan_ownership_.usedScans(); }
   int64_t fullscanGeometryPoints() const { return fullscan_ownership_.usedPoints(); }
   int64_t fullscanDuplicatePoints() const { return fullscan_ownership_.duplicatePoints(); }
+  int64_t fullscanDuplicateScanUseEvents() const {
+    return fullscan_ownership_.duplicateScanUseEvents();
+  }
+  int64_t fullscanNeverUsedScans() const {
+    return fullscan_ownership_.neverUsedScans();
+  }
   int64_t fullscanNeverUsedPoints() const { return fullscan_ownership_.neverUsedPoints(); }
   int64_t fullscanExcludedPoints() const { return fullscan_ownership_.excludedPoints(); }
   int64_t fullscanExcludedScans() const { return fullscan_ownership_.excludedScans(); }

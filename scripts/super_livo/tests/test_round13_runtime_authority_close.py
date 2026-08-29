@@ -351,7 +351,10 @@ class TestProductionTrustChain(unittest.TestCase):
                          SLV_TEST_MODE="1", SLV_TEST_NODE_CMD=str(self.h.node),
                          SLV_LOCK_FILE=str(self.h.lock_root / "pc8.lock"))
         rc, out, run = self.h.run_supervisor("pc_t8", env)
-        self.assertNotEqual(rc, 0)  # fake-node seam still fails (no estimator)
+        # Phase-B (b0af1c1): D_VISUAL_APPLY is EXECUTABLE (no semantic-profile
+        # rejection); the fake-node seam runs the transaction to completion
+        # (D_VISUAL_APPLY has no post-run validator contract yet).
+        self.assertEqual(rc, 0)
         self.assertNotIn("SEMANTIC_PROFILE_FAIL", out)
 
 

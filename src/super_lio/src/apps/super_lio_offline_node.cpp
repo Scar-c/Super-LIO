@@ -501,7 +501,9 @@ int main(int argc, char** argv) {
         "Round11X fullscan ownership: raw_input_points=%lld "
         "pre_observe_excluded_scans=%lld pre_observe_excluded_points=%lld "
         "eligible_geometry_points=%lld used_once=%lld duplicate_use=%lld "
-        "never_used=%lld imu_only_segments=%lld\n",
+        "never_used=%lld imu_only_segments=%lld "
+        "raw_input_scans=%lld eligible_scans=%lld unique_used_scans=%lld "
+        "duplicate_scan_use_events=%lld eligible_never_used_scans=%lld\n",
         (long long)data_wrapper->fullscanGeometryPoints() +
             data_wrapper->fullscanNeverUsedPoints() +
             data_wrapper->fullscanExcludedPoints(),
@@ -512,7 +514,13 @@ int main(int argc, char** argv) {
         (long long)data_wrapper->fullscanGeometryPoints(),
         (long long)data_wrapper->fullscanDuplicatePoints(),
         (long long)data_wrapper->fullscanNeverUsedPoints(),
-        (long long)data_wrapper->imuOnlySegments());
+        (long long)data_wrapper->imuOnlySegments(),
+        (long long)data_wrapper->rawLidarScansInput(),
+        (long long)data_wrapper->fullscanGeometryScans() +
+            data_wrapper->fullscanNeverUsedScans(),
+        (long long)data_wrapper->fullscanGeometryScans(),
+        (long long)data_wrapper->fullscanDuplicateScanUseEvents(),
+        (long long)data_wrapper->fullscanNeverUsedScans());
   }
   if (g_lio_g1_enabled) {
     // G-2 maturity summary
@@ -851,6 +859,26 @@ int main(int argc, char** argv) {
                   (unsigned long long)bn.count, bn.percentile(0.50), bn.percentile(0.95), bn.percentile(0.99), bn.max);
       std::printf("VISUAL_MEASUREMENT proposed_correction=NOT_COMPUTED_BY_SHADOW_PROFILE state_apply_count=%lld\n",
                   (long long)lio->v4ApplyCount());
+      // Prompt75 F3: context-separated accounting (initial linearization
+      // vs iterative solver callbacks) from the SAME producer.
+      std::printf("R14 initial measurement query: attempts=%llu hits=%llu\n",
+                  (unsigned long long)measurement.initialQueryAttempts(),
+                  (unsigned long long)measurement.initialQueryHits());
+      std::printf("R14 initial measurement observation: frames=%llu candidates=%llu valid=%llu rejected=%llu residual_samples=%llu\n",
+                  (unsigned long long)measurement.initialMeasuredFrames(),
+                  (unsigned long long)measurement.initialCandidateObservations(),
+                  (unsigned long long)measurement.initialValidObservations(),
+                  (unsigned long long)measurement.initialRejectedObservations(),
+                  (unsigned long long)measurement.initialResidualSamples());
+      std::printf("R14 solver measurement query: attempts=%llu hits=%llu\n",
+                  (unsigned long long)measurement.solverQueryAttempts(),
+                  (unsigned long long)measurement.solverQueryHits());
+      std::printf("R14 solver measurement observation: frames=%llu candidates=%llu valid=%llu rejected=%llu residual_samples=%llu\n",
+                  (unsigned long long)measurement.solverMeasuredFrames(),
+                  (unsigned long long)measurement.solverCandidateObservations(),
+                  (unsigned long long)measurement.solverValidObservations(),
+                  (unsigned long long)measurement.solverRejectedObservations(),
+                  (unsigned long long)measurement.solverResidualSamples());
     }
     std::printf("V-2 photometric: frames=%lld accepted_landmarks=%lld total_samples=%lld meanSSE_per_sample=%.2f\n",
                 (long long)lio->visual_residual_accepted_frames(),
@@ -914,10 +942,16 @@ int main(int argc, char** argv) {
     };
     std::printf("R14 I_norm lambda_min P10=%.9g P50=%.9g P90=%.9g\n",
                 pct(lm, 0.1), pct(lm, 0.5), pct(lm, 0.9));
+    const auto& lmx = lio->r14INormLambdaMax();
+    std::printf("R14 I_norm lambda_max P10=%.9g P50=%.9g P90=%.9g\n",
+                pct(lmx, 0.1), pct(lmx, 0.5), pct(lmx, 0.9));
     std::printf("R14 I_norm trace P10=%.9g P50=%.9g P90=%.9g\n",
                 pct(tr, 0.1), pct(tr, 0.5), pct(tr, 0.9));
     std::printf("R14 I cond P10=%.9g P50=%.9g P90=%.9g\n",
                 pct(cd, 0.1), pct(cd, 0.5), pct(cd, 0.9));
+    std::printf("R14 I degenerate_frames=%lld invalid_frames=%lld\n",
+                (long long)lio->r14IDegenerateFrames(),
+                (long long)lio->r14IInvalidFrames());
     const auto& cpu = lio->r14VisualCpuMs();
     std::printf("R14 visual cpu P10=%.6g P50=%.6g P90=%.6g n=%zu\n",
                 pct(cpu, 0.1), pct(cpu, 0.5), pct(cpu, 0.9), cpu.size());
@@ -972,6 +1006,14 @@ int main(int argc, char** argv) {
       auto pct = [&](double p) { return static_cast<double>(s[static_cast<size_t>(p * (s.size() - 1))]); };
       std::printf("R14 solver callbacks_per_apply P10=%.1f P50=%.1f P90=%.1f max=%.1f n=%zu\n",
                   pct(0.1), pct(0.5), pct(0.9), (double)s.back(), s.size());
+    }
+    const auto& itpa = lio->r14SolverIterationsPerApply();
+    if (!itpa.empty()) {
+      auto s = itpa; std::sort(s.begin(), s.end());
+      auto pct = [&](double p) { return static_cast<double>(s[static_cast<size_t>(p * (s.size() - 1))]); };
+      double mean = std::accumulate(s.begin(), s.end(), 0.0) / s.size();
+      std::printf("R14 solver iterations_per_apply mean=%.3f P10=%.1f P50=%.1f P90=%.1f P99=%.1f max=%.1f n=%zu\n",
+                  mean, pct(0.1), pct(0.5), pct(0.9), pct(0.99), (double)s.back(), s.size());
     }
     const auto& rpf2 = lio->r14ResidualsPerFrame();
     int64_t init_total = 0;

@@ -565,6 +565,14 @@ protected:
   int64_t r14ApplyFail() const { return r14_apply_fail_; }
   int64_t r14SolverCallbackInvocations() const { return r14_solver_callback_invocations_; }
   int64_t r14SolverCompletedIterations() const { return r14_solver_completed_iterations_; }
+  const std::vector<int64_t>& r14SolverIterationsPerApply() const {
+    return r14_solver_iterations_per_apply_;
+  }
+  int64_t r14IDegenerateFrames() const { return r14_i_degenerate_frames_; }
+  int64_t r14IInvalidFrames() const { return r14_i_invalid_frames_; }
+  const std::vector<double>& r14INormLambdaMax() const {
+    return r14_i_norm_lambda_max_;
+  }
   const std::vector<int64_t>& r14SolverCallbacksPerApply() const { return r14_solver_callbacks_per_apply_; }
   int64_t r14PosteriorChainingFailures() const { return r14_posterior_chaining_failures_; }
   const std::vector<double>& r14ApplyDeltaPos() const { return r14_apply_delta_pos_; }
@@ -594,7 +602,10 @@ protected:
   int64_t r14_shadow_cov_writes_ = 0;
   std::vector<double> r14_dt_visual_;
   std::vector<double> r14_i_norm_lambda_min_;
+  std::vector<double> r14_i_norm_lambda_max_;
   std::vector<double> r14_i_norm_trace_;
+  int64_t r14_i_degenerate_frames_ = 0;
+  int64_t r14_i_invalid_frames_ = 0;
   std::vector<double> r14_i_cond_;
   std::vector<double> r14_visual_cpu_ms_;
   std::vector<int64_t> r14_residuals_per_frame_;
@@ -606,6 +617,7 @@ protected:
   int64_t r14_apply_fail_ = 0;
   int64_t r14_solver_callback_invocations_ = 0;
   std::vector<int64_t> r14_solver_callbacks_per_apply_;
+  std::vector<int64_t> r14_solver_iterations_per_apply_;
   int64_t r14_solver_callback_base_ = 0;
   int64_t r14_solver_completed_iterations_ = 0;
   int64_t r14_posterior_chaining_failures_ = 0;

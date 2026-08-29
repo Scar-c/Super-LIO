@@ -87,6 +87,10 @@ public:
   PosteriorSnapshot UpdateObserveFromPrior(const SequentialPrior& prior,
                                            ObsFunc obs);
   PosteriorSnapshot UpdateObserveImpl(ObsFunc obs);
+  // Prompt75 F2: iterations executed by the last UpdateObserveImpl call,
+  // incremented inside the actual iteration loop (behavior-neutral read-only
+  // counter; == observation callback invocations, see ESKF.cpp trace).
+  std::int64_t ObserveIterationCount() const { return observe_iteration_count_; }
 
   double GetTime() const { return current_time_; }
 
@@ -139,6 +143,7 @@ private:
   void Update();
   
   bool  need_converge_  = true;
+  std::int64_t observe_iteration_count_ = 0;
   float imu_scale_ = 1.0;
   bool trace_predict_ = false;
   std::vector<std::pair<double, double>> predict_trace_;

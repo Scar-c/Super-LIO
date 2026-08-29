@@ -113,10 +113,17 @@ def main():
     rms_axis = np.sqrt(np.mean(err ** 2, axis=0))
     ate = np.linalg.norm(rms_axis)
 
+    # Prompt75 F5: canonical 4-stat from the SAME aligned sample set.
+    norm_errors = np.linalg.norm(err, axis=1)
+
     print("NTU VIRAL official ATE (prism-compensated, %.2f s window)" % args.window)
-    print("  associated samples: %d / %d" % (len(P_est_use), len(P_est)))
+    print("  associated_samples: %d" % len(P_est_use))
+    print("  estimate_samples: %d" % len(P_est))
     print("  per-axis RMS (m): %.6f %.6f %.6f" % tuple(rms_axis))
     print("  ATE (m): %.6f" % ate)
+    print("  mean: %.6f" % norm_errors.mean())
+    print("  median: %.6f" % np.median(norm_errors))
+    print("  max: %.6f" % norm_errors.max())
     return 0
 
 

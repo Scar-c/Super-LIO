@@ -1,5 +1,6 @@
 
 #include "geometry/BilinearSample.h"
+#include "lio/VisualInformationMetrics.h"
 #include "geometry/FDHarness.h"
 #include "geometry/GateClassifier.h"
 #include "lio/super_lio.h"
@@ -272,22 +273,25 @@ void SuperLIO::statePropagateOnly() {
       if (!g_lio_v4_apply) {
         BASIC::M6 vh = BASIC::M6::Zero();
         BASIC::V6 vr = BASIC::V6::Zero();
+        // Prompt75 F3: initial-linearization context (excludes any solver
+        // callback activity).
+        visual_measurement_evidence_.setContext(
+            VisualMeasurementEvidence::Context::INITIAL);
         visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
         if (r14_camera_epoch_visual_enabled_ && visual_residual_count_ > 0) {
           r14_residuals_per_frame_.push_back(visual_residual_count_);
-          const Eigen::Matrix<double, 6, 6> Hd = vh.cast<double>();
-          const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> es(Hd);
-          const Eigen::VectorXd ev = es.eigenvalues();
-          const double lam_min = ev(0), lam_max = ev(5);
-          const double tr = Hd.trace();
-          const double cond = (std::abs(lam_max) > 1e-30)
-                                  ? std::abs(lam_max / std::max(lam_min, 1e-30))
-                                  : 0.0;
-          const double n_res = static_cast<double>(visual_residual_count_);
-          const Eigen::Matrix<double, 6, 6> Hn = Hd / n_res;
-          r14_i_norm_lambda_min_.push_back(Hn.eigenvalues().real().minCoeff());
-          r14_i_norm_trace_.push_back(Hn.trace());
-          r14_i_cond_.push_back(cond);
+          // Prompt75 F1: ONE shared compiled Visual information helper for
+          // A2 Shadow and B0 Apply (same symmetrization, normalization,
+          // sorted eigenvalues, degeneracy rule).
+          const VisualInformationMetrics info =
+              computeVisualInformationMetrics(vh.cast<double>(),
+                                              visual_residual_count_);
+          r14_i_norm_lambda_min_.push_back(info.lambda_min);
+          r14_i_norm_lambda_max_.push_back(info.lambda_max);
+          r14_i_norm_trace_.push_back(info.trace);
+          r14_i_cond_.push_back(info.condition);
+          if (info.degenerate) r14_i_degenerate_frames_++;
+          if (!info.valid) r14_i_invalid_frames_++;
         }
         const auto v1 = std::chrono::high_resolution_clock::now();
         if (r14_camera_epoch_visual_enabled_) {
@@ -303,6 +307,11 @@ void SuperLIO::statePropagateOnly() {
         auto apply_cb = [&](const ESKF::KFState& s, BASIC::M6& H,
                             BASIC::V6& b) {
           const SE3 sp = s.pose;
+          // Prompt75 F3/F12: solver-callback context so the per-callback
+          // query/observation/residual counters are accounted separately
+          // from the initial linearization.
+          visual_measurement_evidence_.setContext(
+              VisualMeasurementEvidence::Context::SOLVER);
           visual_residual_count_ = runVisualResidual(sp, H, b, false);
           r14_solver_callback_invocations_++;
         };
@@ -320,6 +329,9 @@ void SuperLIO::statePropagateOnly() {
         } else {
           BASIC::M6 h0 = BASIC::M6::Zero();
           BASIC::V6 b0 = BASIC::V6::Zero();
+          // Prompt75 F3: initial-linearization context.
+          visual_measurement_evidence_.setContext(
+              VisualMeasurementEvidence::Context::INITIAL);
           const int64_t initial_residual =
               runVisualResidual(pose, h0, b0, false);
           // initial-linearization measurement statistics (Phase-B
@@ -328,27 +340,17 @@ void SuperLIO::statePropagateOnly() {
           if (r14_camera_epoch_visual_enabled_) {
             r14_residuals_per_frame_.push_back(initial_residual);
             if (initial_residual > 0) {
-              // Prompt74: canonical spectral condition shared with the A2
-              // path: I_sym = 0.5(I+I^T); eigenvalues (SORTED ascending via
-              // SelfAdjointEigenSolver, same solver as the A2 branch);
-              // κ = λ_max/λ_min with an explicit degeneracy rule
-              // (λ_min <= 1e-12 -> DEGENERATE).
-              const Eigen::Matrix<double, 6, 6> Hd = h0.cast<double>();
-              const Eigen::Matrix<double, 6, 6> Isym =
-                  0.5 * (Hd + Hd.transpose());
-              const Eigen::Matrix<double, 6, 6> Hn =
-                  Isym / static_cast<double>(initial_residual);
-              const Eigen::SelfAdjointEigenSolver<
-                  Eigen::Matrix<double, 6, 6>>
-                  es(Hn);
-              const Eigen::VectorXd ev = es.eigenvalues();
-              const double lam_min = ev(0), lam_max = ev(5);
-              const double cond = (lam_min > 1e-12)
-                                      ? std::abs(lam_max / lam_min)
-                                      : std::numeric_limits<double>::infinity();
-              r14_i_norm_lambda_min_.push_back(lam_min);
-              r14_i_norm_trace_.push_back(Hn.trace());
-              r14_i_cond_.push_back(cond);
+              // Prompt75 F1: ONE shared compiled Visual information helper
+              // for A2 Shadow and B0 Apply.
+              const VisualInformationMetrics info =
+                  computeVisualInformationMetrics(h0.cast<double>(),
+                                                  initial_residual);
+              r14_i_norm_lambda_min_.push_back(info.lambda_min);
+              r14_i_norm_lambda_max_.push_back(info.lambda_max);
+              r14_i_norm_trace_.push_back(info.trace);
+              r14_i_cond_.push_back(info.condition);
+              if (info.degenerate) r14_i_degenerate_frames_++;
+              if (!info.valid) r14_i_invalid_frames_++;
             }
           }
           if (initial_residual == 0) {
@@ -364,7 +366,11 @@ void SuperLIO::statePropagateOnly() {
                   r14_solver_callback_invocations_ -
                   r14_solver_callback_base_);
               r14_solver_callback_base_ = r14_solver_callback_invocations_;
-              r14_solver_completed_iterations_ += 1;
+              // Prompt75 F2: iteration count from the ESKF loop source
+              // (ObserveIterationCount), NOT a post-return +1.
+              r14_solver_iterations_per_apply_.push_back(
+                  kf_->ObserveIterationCount());
+              r14_solver_completed_iterations_ += kf_->ObserveIterationCount();
               if (visual_residual_count_ > 0) r14_apply_success_++;
               else r14_apply_fail_++;
               const double dp = (v4_snap.x.p - prior.x.p).norm();
@@ -539,11 +545,15 @@ void SuperLIO::stateProcess(){
     const SE3 v4_pose_L(prior.x.R, prior.x.p);
     BASIC::M6 h0 = BASIC::M6::Zero();
     BASIC::V6 b0 = BASIC::V6::Zero();
+    visual_measurement_evidence_.setContext(
+        VisualMeasurementEvidence::Context::INITIAL);
     runVisualResidual(v4_pose_L, h0, b0, false);
     const double cost_init = last_visual_cost_;
     const auto v4_snap = kf_->UpdateObserveFromPrior(
         prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
           const SE3 pose = s.pose;
+          visual_measurement_evidence_.setContext(
+              VisualMeasurementEvidence::Context::SOLVER);
           runVisualResidual(pose, H, b, false);
         });
     const SE3 v4_pose_V(v4_snap.x.R, v4_snap.x.p);
@@ -968,6 +978,8 @@ void SuperLIO::Observe(){
         if(g_lio_v2_enabled && !g_lio_v4_apply && !d_camera_epoch_visual){
           BASIC::M6 vh = BASIC::M6::Zero();
           BASIC::V6 vr = BASIC::V6::Zero();
+          visual_measurement_evidence_.setContext(
+              VisualMeasurementEvidence::Context::INITIAL);
           visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
           r14RecordLidarCallbackVisual();
         }

@@ -280,6 +280,20 @@ add_executable(round11x_cadence_test
   src/common/tests/test_round11x_cadence.cpp
 )
 
+# Prompt75 canonical eval final seal behavior tests (shared info helper,
+# ESKF iteration producer, ownership duplicate scan-use events).
+add_executable(round14_final_seal_test
+  src/common/tests/test_round14_final_seal.cpp
+  src/lio/ESKF.cpp
+)
+target_include_directories(round14_final_seal_test PUBLIC include
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(round14_final_seal_test
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # Round 11Y IMU segmentation attribution tests (ESKF propagation semigroup).
 add_executable(y_segmentation_test
   src/common/tests/test_y_segmentation.cpp

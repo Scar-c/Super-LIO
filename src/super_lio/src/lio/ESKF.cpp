@@ -295,10 +295,12 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
 
   need_converge_ = false;
 
+  observe_iteration_count_ = 0;
   for (int iter = 0; iter < options_.num_iterations_; ++iter) {
     if (iter > 2) {
       need_converge_ = true;
     }
+    ++observe_iteration_count_;
 
     obs(GetKFState(), HTVH, HTVr);
 

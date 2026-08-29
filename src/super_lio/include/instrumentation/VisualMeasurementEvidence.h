@@ -30,21 +30,46 @@ struct BoundedNormSummary {
 
 class VisualMeasurementEvidence {
  public:
+  // Prompt75 F3: measurement-context separation. The global counters remain
+  // cumulative (existing consumers unchanged); per-context sub-counters let
+  // initial linearization and iterative solver callbacks be accounted
+  // separately. Pure instrumentation: no algorithm behavior depends on it.
+  enum class Context { INITIAL, SOLVER };
+
   explicit VisualMeasurementEvidence(bool enabled = false) : enabled_(enabled) {}
   void setEnabled(bool enabled) { enabled_ = enabled; }
   bool enabled() const { return enabled_; }
+  void setContext(Context ctx) { context_ = ctx; }
+  Context context() const { return context_; }
 
-  void recordQueryHit() { recordQuery(query_hits_); }
-  void recordQueryMiss() { recordQuery(query_misses_); }
-  void recordQueryRejectedExplicit() { recordQuery(query_rejected_explicit_); }
+  void recordQueryHit() { recordQuery(query_hits_, solver_query_hits_); }
+  void recordQueryMiss() { recordQuery(query_misses_, solver_query_misses_); }
+  void recordQueryRejectedExplicit() {
+    recordQuery(query_rejected_explicit_, solver_query_rejected_explicit_);
+  }
   void recordObservation(bool valid) {
     if (!enabled_) return;
     ++candidate_observations_;
     ++(valid ? valid_observations_ : rejected_observations_);
+    ++(context_ == Context::INITIAL ? initial_candidate_observations_
+                                    : solver_candidate_observations_);
+    ++(valid ? (context_ == Context::INITIAL ? initial_valid_observations_
+                                             : solver_valid_observations_)
+             : (context_ == Context::INITIAL ? initial_rejected_observations_
+                                             : solver_rejected_observations_));
   }
-  void recordMeasurementFrame() { if (enabled_) ++measurement_frames_; }
+  void recordMeasurementFrame() {
+    if (enabled_) {
+      ++measurement_frames_;
+      ++(context_ == Context::INITIAL ? initial_measured_frames_
+                                      : solver_measured_frames_);
+    }
+  }
   void recordResidualSamples(std::uint64_t count) {
-    if (enabled_) residual_samples_ += count;
+    if (!enabled_) return;
+    residual_samples_ += count;
+    if (context_ == Context::INITIAL) initial_residual_samples_ += count;
+    else solver_residual_samples_ += count;
   }
   void recordNormalEquations(double h_norm, bool h_finite,
                              double b_norm, bool b_finite) {
@@ -64,6 +89,28 @@ class VisualMeasurementEvidence {
   std::uint64_t rejectedObservations() const { return rejected_observations_; }
   std::uint64_t measurementFrames() const { return measurement_frames_; }
   std::uint64_t residualSamples() const { return residual_samples_; }
+  std::uint64_t initialQueryAttempts() const { return initial_query_attempts_; }
+  std::uint64_t initialQueryHits() const { return query_hits_; }
+  std::uint64_t initialCandidateObservations() const {
+    return initial_candidate_observations_;
+  }
+  std::uint64_t initialValidObservations() const { return initial_valid_observations_; }
+  std::uint64_t initialRejectedObservations() const {
+    return initial_rejected_observations_;
+  }
+  std::uint64_t initialMeasuredFrames() const { return initial_measured_frames_; }
+  std::uint64_t initialResidualSamples() const { return initial_residual_samples_; }
+  std::uint64_t solverQueryAttempts() const { return solver_query_attempts_; }
+  std::uint64_t solverQueryHits() const { return solver_query_hits_; }
+  std::uint64_t solverCandidateObservations() const {
+    return solver_candidate_observations_;
+  }
+  std::uint64_t solverValidObservations() const { return solver_valid_observations_; }
+  std::uint64_t solverRejectedObservations() const {
+    return solver_rejected_observations_;
+  }
+  std::uint64_t solverMeasuredFrames() const { return solver_measured_frames_; }
+  std::uint64_t solverResidualSamples() const { return solver_residual_samples_; }
   std::uint64_t hAccumulations() const { return h_accumulations_; }
   std::uint64_t hNonzero() const { return h_nonzero_; }
   std::uint64_t hZero() const { return h_zero_; }
@@ -76,10 +123,13 @@ class VisualMeasurementEvidence {
   const BoundedNormSummary& bNorms() const { return b_norms_; }
 
  private:
-  void recordQuery(std::uint64_t& outcome) {
+  void recordQuery(std::uint64_t& outcome, std::uint64_t& solver_outcome) {
     if (!enabled_) return;
     ++query_attempts_;
     ++outcome;
+    if (context_ == Context::INITIAL) ++initial_query_attempts_;
+    else ++solver_query_attempts_;
+    if (context_ == Context::SOLVER) ++solver_outcome;
   }
   static void classify(double norm, bool finite, std::uint64_t& total,
                        std::uint64_t& nonzero, std::uint64_t& zero,
@@ -91,6 +141,16 @@ class VisualMeasurementEvidence {
   }
 
   bool enabled_ = false;
+  Context context_ = Context::INITIAL;
+  std::uint64_t initial_query_attempts_ = 0;
+  std::uint64_t solver_query_attempts_ = 0, solver_query_hits_ = 0;
+  std::uint64_t solver_query_misses_ = 0, solver_query_rejected_explicit_ = 0;
+  std::uint64_t initial_candidate_observations_ = 0;
+  std::uint64_t initial_valid_observations_ = 0, initial_rejected_observations_ = 0;
+  std::uint64_t solver_candidate_observations_ = 0;
+  std::uint64_t solver_valid_observations_ = 0, solver_rejected_observations_ = 0;
+  std::uint64_t initial_measured_frames_ = 0, solver_measured_frames_ = 0;
+  std::uint64_t initial_residual_samples_ = 0, solver_residual_samples_ = 0;
   std::uint64_t query_attempts_ = 0, query_hits_ = 0, query_misses_ = 0;
   std::uint64_t query_rejected_explicit_ = 0;
   std::uint64_t candidate_observations_ = 0, valid_observations_ = 0;

@@ -117,6 +117,10 @@ class FullScanOwnershipAudit {
   void recordGeometryUse(int64_t scan_id, int64_t points) {
     if (!used_scans_.insert(scan_id).second) {
       duplicate_points_ += points;
+      // Prompt75 F9: count the duplicate SCAN-USE EVENT explicitly (the
+      // aggregate max(0, updates - scans) inference is blind to a
+      // compensating skip). Exact-once gate: duplicateScanUseEvents() == 0.
+      ++duplicate_scan_use_events_;
       return;
     }
     used_points_ += points;
@@ -131,6 +135,7 @@ class FullScanOwnershipAudit {
   int64_t inputPoints() const { return input_points_; }
   int64_t usedPoints() const { return used_points_; }
   int64_t duplicatePoints() const { return duplicate_points_; }
+  int64_t duplicateScanUseEvents() const { return duplicate_scan_use_events_; }
   int64_t excludedPoints() const { return excluded_points_; }
   int64_t neverUsedPoints() const {
     const int64_t eligible = input_points_ - excluded_points_;
@@ -142,6 +147,10 @@ class FullScanOwnershipAudit {
   int64_t usedScans() const {
     return static_cast<int64_t>(used_scans_.size());
   }
+  int64_t neverUsedScans() const {
+    const int64_t eligible = inputScans() - excludedScans();
+    return eligible > usedScans() ? eligible - usedScans() : 0;
+  }
   int64_t excludedScans() const {
     return static_cast<int64_t>(excluded_scans_.size());
   }
@@ -150,6 +159,7 @@ class FullScanOwnershipAudit {
   std::unordered_map<int64_t, int64_t> input_points_by_scan_;
   std::unordered_set<int64_t> used_scans_;
   std::unordered_set<int64_t> excluded_scans_;
+  int64_t duplicate_scan_use_events_ = 0;
   int64_t input_points_ = 0;
   int64_t used_points_ = 0;
   int64_t duplicate_points_ = 0;
