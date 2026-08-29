@@ -122,3 +122,29 @@
   RB-T10 corrected, FH-T1..T20, real no-bag transaction seam + mutation
   attacks, machine-readable CLOSE evidence
 - success: ROUND14_PHASEB_FINAL_HARD_CLOSE_AND_PHASEC_READY + Phase-B freeze
+
+## Prompt 78 — FINAL HARD CLOSE (future snapshot integrity) — CLOSED
+
+- F1 manifest-bound snapshot SHA now ENFORCED (actual == manifest; RB-T10
+  corrected, old recompute-and-pass was a false positive)
+- F2 snapshot production_revision + snapshot_schema_version REQUIRED (full
+  SHA only), schema field unified as snapshot_schema_version
+- production materializer: complete snapshot, atomic write, SHA of final
+  bytes bound before playback authorization (real no-bag seam verified with
+  independent shell sha256sum/git/schema checks + mutation attacks)
+- FH-RED-T1/T2 + FH-T1..T20; 43-gate machine CLOSE evidence (schema valid)
+- false-positive/stale tests ZERO; audit NONE; historical/numeric regression ZERO
+
+## ROUND14 PHASE-B FREEZE CONTRACT (§45)
+
+- ROUND14_PHASE_B = FROZEN_CLOSED
+- PHASE_B_ALGORITHM = FROZEN_CLOSED
+- PHASE_B_CANONICAL_EVAL = FROZEN_CLOSED
+- PHASE_B_RUN_PROVENANCE = FROZEN_CLOSED
+- PHASE_B_FUTURE_RUN_SNAPSHOT_CONTRACT = FROZEN_CLOSED
+- NO_FURTHER_PHASE_B_INFRA_EVAL_CORRECTIVE = TRUE
+- checkpoint identity (Phase C/D/E/F inherit): production revision + config
+  SHA256 + semantic snapshot SHA256 + dataset/run identity
+- PHASE_C_READY_FOR_OWNER_AUTHORIZATION = YES; PHASE_C_STARTED = NO
+- exception: only a regression introduced by a later authorized change may
+  reopen a specific invariant
