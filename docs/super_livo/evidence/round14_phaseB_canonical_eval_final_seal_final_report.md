@@ -14,9 +14,9 @@ Canonical B0 production revision:
 31d677e13ee32fc0f57940636283ae66f9a2e3dd
 
 Evidence/docs commit:
-<pending report commit>
+1763393d546f89469a1466b1853a4c0655d98dc8
 Actual delivered repository HEAD:
-<pending delivery record>
+1763393d546f89469a1466b1853a4c0655d98dc8
 ```
 
 ```text
@@ -35,9 +35,9 @@ frontier verified:
 YES
 
 final local:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 final remote:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 ahead:
 0
 behind:
@@ -570,17 +570,17 @@ pre-push local:
 pre-push remote:
 ccd1dd0fd412efbf04b694ea4a6a1745218ee247
 push RC:
-<pending>
+0
 post-push local:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 post-push remote:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 equal:
-<pending>
+YES
 ahead:
-<pending>
+0
 behind:
-<pending>
+0
 ```
 
 ```text
@@ -590,12 +590,12 @@ Eval-seal code SHA:
 A2/B0 production SHA:
 31d677e13ee32fc0f57940636283ae66f9a2e3dd
 Evidence/docs SHA:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 Actual delivered HEAD:
-<pending>
+1763393d546f89469a1466b1853a4c0655d98dc8
 
 All full SHAs internally consistent:
-PASS (pending delivery record)
+PASS
 ```
 
 ```text
@@ -678,8 +678,8 @@ Await Origin independent review.
 ## Delivery record (machine-generated after push)
 
 ```text
-Report commit:             <filled by delivery script>
-Actual delivered HEAD:     <filled by delivery script>
-Post-push local == remote: <filled by delivery script>
-ahead/behind:              <filled by delivery script>
+Report commit:             1763393d546f89469a1466b1853a4c0655d98dc8
+Actual delivered HEAD:     1763393d546f89469a1466b1853a4c0655d98dc8
+Post-push local == remote: YES
+ahead/behind:              0/0
 ```
