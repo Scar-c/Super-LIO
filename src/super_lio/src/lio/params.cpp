@@ -62,6 +62,9 @@ namespace LI2Sup{
   int g_kf_max_iterations = 4;
   bool g_kf_align_gravity = true;
   double g_kf_quit_eps;
+  double g_kf_inv_expo_cov = 0.2;      // FAST-LIVO2 source default
+  double g_kf_inv_expo_initial = 1.0;  // frozen LIVO2-compatible baseline
+  bool   g_kf_inv_expo_enabled = false;
 
   /// submap 
   double g_submap_resolution;

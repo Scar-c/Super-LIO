@@ -80,6 +80,14 @@ namespace LI2Sup{
   extern int g_kf_max_iterations;
   extern bool g_kf_align_gravity;
   extern double g_kf_quit_eps;
+  // Round15 Prompt82 C4: inverse-exposure process covariance (vio/inv_expo_cov
+  // FAST-LIVO2 authority). Generic default 0.2 (FAST-LIVO2 source default);
+  // NTU_VIRAL baseline effective 0.1 via the dataset config.
+  extern double g_kf_inv_expo_cov;
+  // Frozen LIVO2-compatible baseline initial inverse exposure (EXACT value 1.0).
+  extern double g_kf_inv_expo_initial;
+  // Exposure estimation gate (D1 default OFF; D2 enables the measurement path).
+  extern bool g_kf_inv_expo_enabled;
 
   /// submaps
   extern double g_submap_resolution;

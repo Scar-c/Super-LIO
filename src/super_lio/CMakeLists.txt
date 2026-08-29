@@ -284,6 +284,7 @@ add_executable(round11x_cadence_test
 add_executable(round15_d1_exposure_test
   src/common/tests/test_round15_d1_exposure_state.cpp
   src/lio/ESKF.cpp
+  src/lio/params.cpp
 )
 target_include_directories(round15_d1_exposure_test PUBLIC include
   ${catkin_INCLUDE_DIRS})
