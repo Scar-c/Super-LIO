@@ -148,3 +148,13 @@
 - PHASE_C_READY_FOR_OWNER_AUTHORIZATION = YES; PHASE_C_STARTED = NO
 - exception: only a regression introduced by a later authorized change may
   reopen a specific invariant
+
+## Prompt 79 — Three-Gate Zero-False-Positive FINAL CLOSE
+
+- G1 MANIFEST_SNAPSHOT_PATH_REQUIRED: resolver must not discover the run-dir
+  snapshot; manifest path is REQUIRED + exact authority
+- G2 REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY: drift mutation on REAL transaction
+  output; machine evidence type REAL_TRANSACTION_SEAM
+- G3 CLOSE_EVIDENCE_SELF_PROVENANCE: functional_corrective_commit provenance
+  validated (sha40/exists/descendant/diff); prompt-only/pre-fix rejected
+- GC-T1..T12; Origin-Q1..Q3; success: ROUND14_PHASEB_THREE_GATE_FINAL_CLOSE_AND_PHASEC_READY
