@@ -171,3 +171,14 @@
 - classification: ROUND14_PHASEB_THREE_GATE_FINAL_CLOSE_AND_PHASEC_READY
 - ROUND14_PHASE_B = FROZEN_CLOSED; NO_FURTHER_PHASE_B_INFRA_EVAL_CORRECTIVE = TRUE
 - STOP — Phase C awaits separate Owner authorization
+
+## Prompt81 — Round 15 M0 + D1 (FAST-LIVO2 semantic migration)
+
+- Prompt80 (broad Phase-C audit) = ABORTED_BEFORE_EXECUTION / SUPERSEDED_BY_ORIGIN_SOURCE_AUDIT
+- M0: canonical semantic migration scorecard (docs/super_livo/evidence/livo2_semantic_migration_scorecard.{md,json})
+- D1: inverse-exposure (inv_expo/tau) first-class ESKF state — state algebra,
+  covariance ownership (19D), random-walk propagation (enabled/disabled),
+  SequentialPrior full capture, LiDAR zero sensitivity; DC residual UNCHANGED
+- roadmap: M0/D1 -> D2 (exposure residual) -> D3 (pyramid/rollback) -> D4
+  (plane warp) -> D5 (closure) -> E1-E4 -> F (S3 ablation) -> G (map policy)
+- success: ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED
