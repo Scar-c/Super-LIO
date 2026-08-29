@@ -54,17 +54,18 @@ def fixture_run(tmp, lines, manifest=None, provenance=None, config_hash=None,
     if manifest:
         (d / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(manifest))
-        # Prompt77: synthetic fixtures are run-bound (RUN_EMBEDDED) — the
-        # fixture materializes its own semantic snapshot pre-"execution".
-        snap = yaml.safe_load((ROOT / "scripts/super_livo/evaluation"
-                               / "semantic_snapshot_v0.yaml").read_text())
-        snap["production_revision"] = manifest.get("production_revision", "a" * 40)
+        # Prompt77/78: synthetic fixtures are run-bound (RUN_EMBEDDED) — the
+        # PRODUCTION materializer writes the canonical snapshot format
+        # (policies block + runtime + revision + snapshot_schema_version).
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/experiments"))
+        import semantic_profiles as SP
         snap_file = d / "out" / "semantic_snapshot.yaml"
-        snap_file.write_text(yaml.safe_dump(snap))
-        sha = hashlib.sha256(snap_file.read_bytes()).hexdigest()
+        _, sha = SP.materialize_snapshot(
+            manifest, ROOT / "scripts/super_livo/evaluation/semantic_snapshot_v0.yaml",
+            snap_file)
         manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
         manifest["semantic_snapshot_sha256"] = sha
-        manifest["semantic_snapshot_schema_version"] = "1"
+        manifest["semantic_snapshot_schema_version"] = 1
         (d / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(manifest))
     if provenance:

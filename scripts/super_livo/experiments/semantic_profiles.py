@@ -235,6 +235,67 @@ def validate_manifest(manifest):
         raise SemanticProfileError("missing config provenance: " + ", ".join(missing_provenance))
     return True
 
+# Prompt78 §5-7: complete run-bound semantic snapshot materialization.
+# Merges the resolved runtime semantics + template policy IDs +
+# production_revision + snapshot_schema_version, writes ATOMICALLY
+# (temp file -> os.replace), hashes the FINAL bytes, and returns the sha256.
+SNAPSHOT_RUNTIME_FIELDS = (
+    "semantic_profile",
+    "visual_measurement_event",
+    "visual_measurement_timestamp_semantics",
+    "visual_measurement_exact_once",
+    "visual_apply_connectivity",
+    "camera_payload_ownership_mode",
+)
+# manifest key -> snapshot key for fields whose names differ
+SNAPSHOT_RUNTIME_ALIASES = {"visual_apply": "visual_state_apply"}
+SNAPSHOT_POLICY_FIELDS = (
+    "visual_map_policy_id",
+    "normalize_policy_id",
+    "exposure_policy_id",
+    "normal_policy_id",
+    "patch_policy_id",
+    "residual_policy_id",
+    "iteration_policy_id",
+)
+
+
+def materialize_snapshot(manifest, template_path, out_path, schema_version=1):
+    """Create the complete execution-time semantic snapshot.
+
+    Order: resolve revision -> resolve semantics -> materialize -> inject
+    production_revision + snapshot_schema_version -> atomic final write ->
+    hash the final bytes. Returns (out_path, sha256)."""
+    import hashlib
+    import os
+    import tempfile
+
+    template = yaml.safe_load(pathlib.Path(template_path).read_text()) or {}
+    policies = template.get("policies", {})
+    snapshot = {
+        "snapshot_schema_version": schema_version,
+        "production_revision": manifest.get("production_revision"),
+        # canonical policy block, same nesting as the historical snapshots
+        "policies": {key: policies.get(key) for key in SNAPSHOT_POLICY_FIELDS},
+    }
+    for key in SNAPSHOT_RUNTIME_FIELDS:
+        snapshot[key] = manifest.get(key)
+    for snap_key, man_key in SNAPSHOT_RUNTIME_ALIASES.items():
+        snapshot[snap_key] = manifest.get(man_key)
+    out_path = pathlib.Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(out_path.parent), suffix=".snap.tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.safe_dump(snapshot, f, sort_keys=False)
+        os.replace(tmp, str(out_path))
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    sha = hashlib.sha256(out_path.read_bytes()).hexdigest()
+    return str(out_path), sha
+
+
 def write_manifest(manifest, path):
     validate_manifest(manifest)
     target = pathlib.Path(path)
@@ -290,6 +351,7 @@ def main(argv=None):
     snap.add_argument("--manifest", required=True)
     snap.add_argument("--snapshot", required=True)
     snap.add_argument("--sha", required=True)
+    snap.add_argument("--template")
     args = parser.parse_args(argv)
     try:
         if args.command == "resolve":
@@ -311,15 +373,20 @@ def main(argv=None):
             manifest = load_manifest(args.manifest)
             print("1" if manifest.get("requires_measurement_evidence") else "0")
         elif args.command == "snapshot":
-            # Prompt77 §14-16: pre-execution semantic snapshot capture.
-            # Record the snapshot reference in the run manifest (provenance
-            # only; no algorithm behavior). FAIL-CLOSED: the manifest must
-            # reference the captured snapshot exactly.
+            # Prompt78: the production materializer writes the complete
+            # snapshot (runtime + policy + revision + schema) atomically and
+            # hashes the FINAL bytes; the manifest binds that hash.
             manifest = load_manifest(args.manifest)
-            manifest["semantic_snapshot_path"] = args.snapshot
-            manifest["semantic_snapshot_sha256"] = args.sha
-            manifest["semantic_snapshot_schema_version"] = "1"
+            if args.template:
+                snap_path, sha = materialize_snapshot(
+                    manifest, args.template, args.snapshot)
+            else:
+                snap_path, sha = args.snapshot, args.sha
+            manifest["semantic_snapshot_path"] = snap_path
+            manifest["semantic_snapshot_sha256"] = sha
+            manifest["semantic_snapshot_schema_version"] = 1
             write_manifest(manifest, args.manifest)
+            print(f"SNAPSHOT_CAPTURED {snap_path} {sha}")
         elif args.command == "validator":
             manifest = load_manifest(args.manifest)
             contract = manifest.get("validator", "")

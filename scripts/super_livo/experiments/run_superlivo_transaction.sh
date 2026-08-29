@@ -177,9 +177,11 @@ SNAP_OUT="$OUT_DIR/semantic_snapshot.yaml"
 if [ ! -f "$SNAP_TEMPLATE" ]; then
   FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic snapshot template missing";exit 1;
 fi
-cp "$SNAP_TEMPLATE" "$SNAP_OUT"
-SNAP_SHA=$(sha256sum "$SNAP_OUT" | cut -d' ' -f1)
-python3 "$SEMANTIC_TOOL" snapshot --manifest "$MANIFEST" --snapshot "$SNAP_OUT" --sha "$SNAP_SHA" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic snapshot manifest capture failed";exit 1; }
+# Prompt78: production materializer (semantic_profiles.py) merges runtime
+# semantics + template policies + production_revision + schema, writes the
+# snapshot ATOMICALLY, and hashes the FINAL bytes; the manifest binds that
+# hash before playback is authorized.
+python3 "$SEMANTIC_TOOL" snapshot --manifest "$MANIFEST" --snapshot "$SNAP_OUT" --template "$SNAP_TEMPLATE" --sha unused || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic snapshot capture failed";exit 1; }
 if [ -n "${SLV_TEST_VALIDATOR:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
   FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1";exit 2;
 fi

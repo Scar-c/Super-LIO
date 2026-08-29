@@ -108,22 +108,23 @@ def fixture_scorecard(stage, apply=None, event=None, ts=None, conn=None,
     else:
         (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(m))
-        # Prompt77: run-bound snapshot for synthetic fixtures (RUN_EMBEDDED)
-        snap = yaml.safe_load(SNAPSHOT.read_text())
-        snap["production_revision"] = m.get("production_revision", "a" * 40)
+        # Prompt77/78: run-bound snapshot via the PRODUCTION materializer
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/experiments"))
+        import semantic_profiles as SP
         snap_file = tmp / "out" / "semantic_snapshot.yaml"
-        snap_file.write_text(yaml.safe_dump(snap))
+        _, sha = SP.materialize_snapshot(m, SNAPSHOT, snap_file)
         m["semantic_snapshot_path"] = "semantic_snapshot.yaml"
-        m["semantic_snapshot_sha256"] = hashlib.sha256(snap_file.read_bytes()).hexdigest()
-        m["semantic_snapshot_schema_version"] = "1"
+        m["semantic_snapshot_sha256"] = sha
+        m["semantic_snapshot_schema_version"] = 1
         (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(m))
     (tmp / "out" / "run_provenance.yaml").write_text(
         yaml.safe_dump({"run": {"git_head": "a" * 40, "git_dirty": False}}))
     (tmp / "out" / "effective_config.post_resolve.yaml.sha256").write_text("c" * 64 + "\n")
     cmd = [sys.executable, str(EVAL), "--stage", stage, "--run-dir", str(tmp / "out"),
+           "--manifest", str(tmp / "out" / "resolved_experiment_semantics.yaml"),
            "--trajectory", str(tmp / "out" / "trajectory.tum"), "--gt", str(tmp / "gt.csv"),
-           "--expected-rows", "100", "--semantic-snapshot", str(SNAPSHOT)]
+           "--expected-rows", "100"]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stderr
     score = json.loads((tmp / "out" / "visual_eval_score.json").read_text())

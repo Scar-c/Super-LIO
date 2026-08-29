@@ -52,14 +52,15 @@ def _fixture_log(tmp, lines, rows=3981):
                 "scheduler_family": "D_CORRECTED",
                 "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
                 "full_lidar_observe_per_raw_scan": 1, "camera_stride": 1}
-    snap = yaml.safe_load((ROOT / "scripts/super_livo/evaluation"
-                           / "semantic_snapshot_v0.yaml").read_text())
-    snap["production_revision"] = "a" * 40
+    sys.path.insert(0, str(ROOT / "scripts/super_livo/experiments"))
+    import semantic_profiles as SP
     snap_file = d / "out" / "semantic_snapshot.yaml"
-    snap_file.write_text(yaml.safe_dump(snap))
+    _, sha = SP.materialize_snapshot(
+        manifest, ROOT / "scripts/super_livo/evaluation/semantic_snapshot_v0.yaml",
+        snap_file)
     manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
-    manifest["semantic_snapshot_sha256"] = hashlib.sha256(
-        snap_file.read_bytes()).hexdigest()
+    manifest["semantic_snapshot_sha256"] = sha
+    manifest["semantic_snapshot_schema_version"] = 1
     (d / "out" / "resolved_experiment_semantics.yaml").write_text(
         yaml.safe_dump(manifest))
     if rows:
@@ -75,6 +76,9 @@ def _fixture_log(tmp, lines, rows=3981):
 def run_eval(run_dir, stage, extra=()):
     cmd = [sys.executable, str(EVAL), "--stage", stage, "--run-dir",
            str(run_dir / "out")]
+    if (run_dir / "out" / "resolved_experiment_semantics.yaml").exists():
+        cmd += ["--manifest",
+                str(run_dir / "out" / "resolved_experiment_semantics.yaml")]
     if (run_dir / "out" / "trajectory.tum").exists():
         cmd += ["--trajectory", str(run_dir / "out" / "trajectory.tum")]
     if (run_dir / "gt.csv").exists() and not any(a == "--gt" for a in extra):

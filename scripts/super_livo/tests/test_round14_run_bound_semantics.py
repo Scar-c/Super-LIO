@@ -160,29 +160,53 @@ class TestRunBoundSemantics(unittest.TestCase):
             self.assertIn("SEMANTIC_PROVENANCE_MISSING", str(ctx.exception))
 
     def test_rb_t9_t10_run_embedded_snapshot(self):
-        # synthetic future run: run_dir semantic_snapshot.yaml + manifest refs
+        # synthetic future run produced through the PRODUCTION materializer
+        # (semantic_profiles.materialize_snapshot): RUN_EMBEDDED with a
+        # correct hash is accepted; a WRONG manifest hash must be rejected
+        # (Prompt78 §16 — old recompute-and-pass behavior was a false
+        # positive: OLD_TEST_WAS_FALSE_POSITIVE).
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/experiments"))
+        import semantic_profiles as SP
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="rb9-"))
         (tmp / "out").mkdir(parents=True)
-        snap = yaml.safe_load(TEMPLATE.read_text())
-        snap["production_revision"] = "a" * 40
-        snap["policies"]["visual_map_policy_id"] = "FAKE_RUN_POLICY_V1"
-        (tmp / "out" / "semantic_snapshot.yaml").write_text(yaml.safe_dump(snap))
         manifest = {"production_revision": "a" * 40, "semantic_profile": "D_VISUAL_APPLY",
                     "validator": "", "requires_measurement_evidence": True,
-                    "semantic_snapshot_path": "semantic_snapshot.yaml",
-                    "semantic_snapshot_sha256": "x" * 64,
+                    "scheduler_family": "D_CORRECTED", "camera_input_enabled": True,
+                    "camera_epoch_enabled": True, "visual_frontend_enabled": True,
+                    "visual_map_producer_enabled": True, "visual_measurement_enabled": True,
+                    "visual_state_apply": True, "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
+                    "full_lidar_observe_per_raw_scan": 1, "camera_stride": 1,
                     "visual_measurement_event": "CAMERA_EPOCH",
-                    "visual_state_apply": True}
-        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(yaml.safe_dump(manifest))
+                    "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+                    "visual_measurement_exact_once": True,
+                    "visual_state_apply_connectivity": "ESTABLISHED",
+                    "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+                    "config_provenance": {"lio": "x", "visual": "y",
+                                          "dataset_calibration": "z"},
+                    "semantic_profile_revision": "b" * 64,
+                    "dataset_adapter_revision": "c" * 64,
+                    "transaction_revision": "d" * 40}
+        snap_path, sha = SP.materialize_snapshot(
+            manifest, TEMPLATE, tmp / "out" / "semantic_snapshot.yaml")
+        manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
+        manifest["semantic_snapshot_sha256"] = sha
+        manifest["semantic_snapshot_schema_version"] = 1
+        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
+            yaml.safe_dump(manifest))
         s = V.build_scorecard("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", tmp / "out",
                               tmp / "out" / "resolved_experiment_semantics.yaml",
-                              semantic_snapshot=tmp / "out" / "semantic_snapshot.yaml")
+                              semantic_snapshot=snap_path)
         self.assertEqual(s["semantic_provenance"]["semantic_binding_mode"], "RUN_EMBEDDED")
-        self.assertEqual(s["actual_semantics"]["visual_map_policy_id"], "FAKE_RUN_POLICY_V1")
-        # RB-T10: hash mismatch in manifest -> resolver rehashes the file
-        self.assertEqual(
-            s["semantic_provenance"]["semantic_snapshot_sha256"],
-            hashlib.sha256((tmp / "out" / "semantic_snapshot.yaml").read_bytes()).hexdigest())
+        self.assertEqual(s["semantic_provenance"]["semantic_snapshot_sha256"], sha)
+        # RB-T10 corrected: wrong manifest hash -> SEMANTIC_SNAPSHOT_HASH_MISMATCH
+        manifest["semantic_snapshot_sha256"] = "0" * 64
+        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
+            yaml.safe_dump(manifest))
+        with self.assertRaises(ValueError) as ctx:
+            V.build_scorecard("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", tmp / "out",
+                              tmp / "out" / "resolved_experiment_semantics.yaml",
+                              semantic_snapshot=snap_path)
+        self.assertIn("SEMANTIC_SNAPSHOT_HASH_MISMATCH", str(ctx.exception))
 
     def test_rb_t11_t15_future_capture_contract_fields(self):
         # semantic_profiles snapshot subcommand records the manifest fields
@@ -210,17 +234,17 @@ class TestRunBoundSemantics(unittest.TestCase):
         mf = tmp / "out" / "resolved_experiment_semantics.yaml"
         mf.write_text(yaml.safe_dump(manifest))
         snap_file = tmp / "out" / "semantic_snapshot.yaml"
-        snap_file.write_text(TEMPLATE.read_text())
-        sha = hashlib.sha256(snap_file.read_bytes()).hexdigest()
         r = subprocess.run(
             [sys.executable, str(ROOT / "scripts/super_livo/experiments/semantic_profiles.py"),
-             "snapshot", "--manifest", str(mf), "--snapshot", str(snap_file), "--sha", sha],
+             "snapshot", "--manifest", str(mf), "--snapshot", str(snap_file),
+             "--template", str(TEMPLATE), "--sha", "unused"],
             capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         m2 = yaml.safe_load(mf.read_text())
         self.assertEqual(m2["semantic_snapshot_path"], str(snap_file))
-        self.assertEqual(m2["semantic_snapshot_sha256"], sha)
-        self.assertEqual(m2["semantic_snapshot_schema_version"], "1")
+        self.assertEqual(m2["semantic_snapshot_sha256"],
+                         hashlib.sha256(snap_file.read_bytes()).hexdigest())
+        self.assertEqual(m2["semantic_snapshot_schema_version"], 1)
 
     def test_rb_t16_template_advance_does_not_change_historical(self):
         tmp, snap, bind, tpl = fake_env()
@@ -254,19 +278,42 @@ class TestRunBoundSemantics(unittest.TestCase):
         # not alter the historical ones (they are separate files/hashes).
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="rb19-"))
         (tmp / "out").mkdir(parents=True)
-        snap = yaml.safe_load(TEMPLATE.read_text())
-        snap["snapshot_id"] = "PHASE_C_CHECKPOINT_V1"
-        snap["production_revision"] = "e" * 40
-        snap["policies"]["patch_policy_id"] = "PHASE_C_PATCH_V1"
-        (tmp / "out" / "semantic_snapshot.yaml").write_text(yaml.safe_dump(snap))
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/experiments"))
+        import semantic_profiles as SP
         manifest = {"production_revision": "e" * 40, "semantic_profile": "D_VISUAL_APPLY",
                     "validator": "", "requires_measurement_evidence": True,
-                    "visual_measurement_event": "CAMERA_EPOCH", "visual_state_apply": True,
-                    "semantic_snapshot_path": "semantic_snapshot.yaml"}
-        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(yaml.safe_dump(manifest))
+                    "scheduler_family": "D_CORRECTED", "camera_input_enabled": True,
+                    "camera_epoch_enabled": True, "visual_frontend_enabled": True,
+                    "visual_map_producer_enabled": True, "visual_measurement_enabled": True,
+                    "visual_state_apply": True, "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
+                    "full_lidar_observe_per_raw_scan": 1, "camera_stride": 1,
+                    "visual_measurement_event": "CAMERA_EPOCH",
+                    "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+                    "visual_measurement_exact_once": True,
+                    "visual_state_apply_connectivity": "ESTABLISHED",
+                    "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+                    "config_provenance": {"lio": "x", "visual": "y",
+                                          "dataset_calibration": "z"},
+                    "semantic_profile_revision": "b" * 64,
+                    "dataset_adapter_revision": "c" * 64,
+                    "transaction_revision": "d" * 40}
+        snap_path, sha = SP.materialize_snapshot(
+            manifest, TEMPLATE, tmp / "out" / "semantic_snapshot.yaml")
+        snap = yaml.safe_load(pathlib.Path(snap_path).read_text())
+        snap["snapshot_id"] = "PHASE_C_CHECKPOINT_V1"
+        snap["policies"]["patch_policy_id"] = "PHASE_C_PATCH_V1"
+        pathlib.Path(snap_path).write_text(yaml.safe_dump(snap))
+        snap = yaml.safe_load(pathlib.Path(snap_path).read_text())
+        _ = snap
+        sha = hashlib.sha256(pathlib.Path(snap_path).read_bytes()).hexdigest()
+        manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
+        manifest["semantic_snapshot_sha256"] = sha
+        manifest["semantic_snapshot_schema_version"] = 1
+        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
+            yaml.safe_dump(manifest))
         s = V.build_scorecard("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", tmp / "out",
                               tmp / "out" / "resolved_experiment_semantics.yaml",
-                              semantic_snapshot=tmp / "out" / "semantic_snapshot.yaml")
+                              semantic_snapshot=snap_path)
         self.assertEqual(s["actual_semantics"]["patch_policy_id"], "PHASE_C_PATCH_V1")
         # historical run unchanged
         hist = build("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", B0_RUN)

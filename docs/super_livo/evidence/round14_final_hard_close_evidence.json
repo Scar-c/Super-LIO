@@ -1,0 +1,350 @@
+{
+  "functional_commit": "72c5684179a1b61b05fc8330ec9713074732c547",
+  "hard_gates": {
+    "ACTUAL_SHA_EQUALS_MANIFEST_SHA": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "sha256sum <snapshot> == manifest.semantic_snapshot_sha256 (seam test)",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "CLOSE_EVIDENCE_JSON": {
+      "artifact": "round14_final_hard_close_evidence.json",
+      "command": "python3 scripts/super_livo/evaluation/close_evidence_validator.py",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "CLOSE_EVIDENCE_SCHEMA_VALID": {
+      "artifact": "round14_final_hard_close_evidence.json",
+      "command": "python3 scripts/super_livo/evaluation/close_evidence_validator.py",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "EVERY_HARD_GATE_HAS_BEHAVIORAL_EVIDENCE": {
+      "artifact": "round14_final_hard_close_evidence.json",
+      "command": "close_evidence_validator.py (evidence_type != static)",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "EVERY_NEGATIVE_GATE_HAS_MUTATION_PROOF": {
+      "artifact": "round14_final_hard_close_evidence.json",
+      "command": "close_evidence_validator.py (negative_test present)",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": "missing negative_test in a NEGATIVE_GATES entry",
+      "observed_failure_class": "rejected by validator",
+      "status": "PASS"
+    },
+    "F1_MANIFEST_SNAPSHOT_HASH_NOT_ENFORCED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest scripts/super_livo/tests/test_round14_final_hard_close.py::TestFutureRunIntegrity::test_fh_t2_snapshot_modified_after_bind_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t2_snapshot_modified_after_bind_rejected",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISMATCH",
+      "status": "PASS"
+    },
+    "F2_SNAPSHOT_REVISION_SCHEMA_BINDING_INCOMPLETE": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t6_snapshot_revision_removed_rejected ; ...::test_fh_t9_snapshot_schema_removed_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t6/test_fh_t9",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_REVISION_MISSING / SCHEMA_MISSING",
+      "status": "PASS"
+    },
+    "FALSE_POSITIVE_HARD_CLOSE_TESTS": {
+      "artifact": "final report",
+      "command": "false-positive audit (report \u00a736)",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": "audit scan of all snapshot tests",
+      "observed_failure_class": "no false positive",
+      "status": "PASS"
+    },
+    "FH_T1_T20": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest scripts/super_livo/tests/test_round14_final_hard_close.py",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "FINAL_SNAPSHOT_INTEGRITY_AUDIT_FINDINGS": {
+      "artifact": "final report",
+      "command": "final snapshot-integrity audit (report \u00a751)",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": "hash/revision/schema acceptance mutation",
+      "observed_failure_class": "all rejected",
+      "status": "PASS"
+    },
+    "HASH_MISMATCH_FAILS_CLOSED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t2/test_fh_t3",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "test_fh_t2/t3",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISMATCH",
+      "status": "PASS"
+    },
+    "HISTORICAL_A2_BINDING_NONREGRESSION": {
+      "artifact": "A2 artifact 20260829T052214Z",
+      "command": "pytest ...::TestHistoricalRegression::test_fh_t16_t17...",
+      "evidence_type": "REAL_HISTORICAL_E2E",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "HISTORICAL_B0_BINDING_NONREGRESSION": {
+      "artifact": "B0 artifact 20260829T052357Z",
+      "command": "pytest ...::TestHistoricalRegression::test_fh_t16_t17...",
+      "evidence_type": "REAL_HISTORICAL_E2E",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "HISTORICAL_CURRENT_TEMPLATE_IMMUNITY": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t16_t17_template_v999_does_not_change_historical",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "fake V999 template",
+      "observed_failure_class": "no change",
+      "status": "PASS"
+    },
+    "MANIFEST_PRODUCTION_REVISION_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t7_manifest_revision_modified_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t7",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_REVISION_MISMATCH",
+      "status": "PASS"
+    },
+    "MANIFEST_SNAPSHOT_HASH_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t4_manifest_hash_removed_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t4",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISSING",
+      "status": "PASS"
+    },
+    "MANIFEST_SNAPSHOT_PATH_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t1_correct_snapshot_accepted",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "MANIFEST_SNAPSHOT_SCHEMA_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t11_manifest_schema_removed_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t11",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_SCHEMA_MISSING",
+      "status": "PASS"
+    },
+    "NO_BAG_RERUN": {
+      "artifact": "final report",
+      "command": "report \u00a7Scope Freeze",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "NO_PARAMETER_TUNING": {
+      "artifact": "final report",
+      "command": "report \u00a7Scope Freeze",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "NO_PHASE_B_ALGORITHM_CHANGE": {
+      "artifact": "final report",
+      "command": "report \u00a7Scope Freeze",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "PHASE_B_EVENT_REGRESSION": {
+      "artifact": "visual_eval_score.json (B0)",
+      "command": "B0 artifact event fields",
+      "evidence_type": "REAL_HISTORICAL_E2E",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "PHASE_B_NUMERIC_REGRESSION": {
+      "artifact": "visual_eval_score.json (A2 052214Z / B0 052357Z)",
+      "command": "A2/B0 artifact scorecard regeneration",
+      "evidence_type": "REAL_HISTORICAL_E2E",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "PHASE_B_SOLVER_ACCOUNTING_REGRESSION": {
+      "artifact": "visual_eval_score.json (B0)",
+      "command": "B0 artifact solver fields",
+      "evidence_type": "REAL_HISTORICAL_E2E",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "PHASE_C_NOT_STARTED": {
+      "artifact": "final report",
+      "command": "report \u00a7Scope Freeze",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "RB_T10_CORRECTED_TO_REJECT_WRONG_HASH": {
+      "artifact": "test_round14_run_bound_semantics.py",
+      "command": "pytest ...::test_rb_t9_t10_run_embedded_snapshot",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "wrong manifest hash",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISMATCH",
+      "status": "PASS"
+    },
+    "REAL_SEAM_GIT_REVISION_VERIFICATION": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "git rev-parse HEAD (independent)",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "REAL_SEAM_POST_CAPTURE_MUTATION_REJECTED": {
+      "artifact": "seam copy",
+      "command": "seam copy mutation -> resolver",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "post-capture mutation",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISMATCH",
+      "status": "PASS"
+    },
+    "REAL_SEAM_REHASH_WRONG_REVISION_REJECTED": {
+      "artifact": "seam copy",
+      "command": "seam copy rehash + wrong revision -> resolver",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "rehash wrong revision",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_REVISION_MISMATCH",
+      "status": "PASS"
+    },
+    "REAL_SEAM_SCHEMA_ATTACK_REJECTED": {
+      "artifact": "seam copy",
+      "command": "seam copy rehash + schema mismatch -> resolver",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "rehash schema mismatch",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_SCHEMA_MISMATCH",
+      "status": "PASS"
+    },
+    "REAL_SEAM_SCHEMA_VERIFICATION": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "snapshot schema == manifest schema (seam test)",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "REAL_SEAM_SHELL_SHA_VERIFICATION": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "sha256sum <seam snapshot> (independent shell)",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t15_template_drift_after_run_unchanged",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "REAL_TRANSACTION_SNAPSHOT_SEAM": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml + resolved_experiment_semantics.yaml",
+      "command": "pytest ...::TestRealTransactionSeam::test_real_transaction_snapshot_seam",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "REVISION_MISMATCH_FAILS_CLOSED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t5/test_fh_t7",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "test_fh_t5/t7",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_REVISION_MISMATCH",
+      "status": "PASS"
+    },
+    "SCHEMA_MISMATCH_FAILS_CLOSED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t8/test_fh_t10",
+      "evidence_type": "ADVERSARIAL_REJECTION",
+      "negative_test": "test_fh_t8/t10",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_SCHEMA_MISMATCH",
+      "status": "PASS"
+    },
+    "SNAPSHOT_CAPTURE_PRE_EXECUTION": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml + manifest",
+      "command": "pytest ...::TestRealTransactionSeam::test_real_transaction_snapshot_seam",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "SNAPSHOT_FINAL_BYTES_HASHED_BEFORE_MANIFEST_BIND": {
+      "artifact": "scripts/super_livo/experiments/semantic_profiles.py",
+      "command": "semantic_profiles.py materialize_snapshot (temp -> os.replace -> sha -> manifest)",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "SNAPSHOT_PRODUCTION_REVISION_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t6_snapshot_revision_removed_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t6",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_REVISION_MISSING",
+      "status": "PASS"
+    },
+    "SNAPSHOT_REVISION_EQUALS_MANIFEST_REVISION": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "git rev-parse HEAD == snapshot.production_revision == manifest.production_revision",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "SNAPSHOT_SCHEMA_EQUALS_MANIFEST_SCHEMA": {
+      "artifact": "<seam run>/out/semantic_snapshot.yaml",
+      "command": "snapshot.snapshot_schema_version == manifest.semantic_snapshot_schema_version",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": null,
+      "observed_failure_class": null,
+      "status": "PASS"
+    },
+    "SNAPSHOT_SCHEMA_VERSION_REQUIRED": {
+      "artifact": "test_round14_final_hard_close.py",
+      "command": "pytest ...::test_fh_t9_snapshot_schema_removed_rejected",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "negative_test": "test_fh_t9",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_SCHEMA_MISSING",
+      "status": "PASS"
+    },
+    "STALE_HARD_CLOSE_TESTS": {
+      "artifact": "final report",
+      "command": "stale-test audit (report \u00a736)",
+      "evidence_type": "GENERATOR_BEHAVIOR",
+      "negative_test": "RB-T10 old recompute-and-pass",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_HASH_MISMATCH",
+      "status": "PASS"
+    }
+  },
+  "initial_head": "d97b06ad6044398dfecb2c88f774b8a445fb23ee"
+}

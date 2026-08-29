@@ -152,18 +152,44 @@ def _resolve_run_semantics(run_dir, manifest_data, canonical=True):
         snapshot_file = pathlib.Path(manifest_path)
         mode = BINDING_RUN_REFERENCED
     if snapshot_file is not None:
+        if not snapshot_file.exists():
+            raise ValueError("SEMANTIC_SNAPSHOT_MISSING")
+        manifest_sha = manifest_data.get("semantic_snapshot_sha256")
+        manifest_schema = manifest_data.get("semantic_snapshot_schema_version")
+        if not manifest_sha:
+            raise ValueError("SEMANTIC_SNAPSHOT_HASH_MISSING")
+        if not manifest_schema:
+            raise ValueError("SEMANTIC_SNAPSHOT_SCHEMA_MISSING")
+        if not manifest_rev:
+            raise ValueError("SEMANTIC_SNAPSHOT_REVISION_MISSING")
         data = yaml.safe_load(snapshot_file.read_text()) or {}
         policies = data.get("policies", {})
         rev = data.get("production_revision")
-        if manifest_rev and rev and rev != manifest_rev:
+        schema = data.get("snapshot_schema_version")
+        if not rev:
+            raise ValueError("SEMANTIC_SNAPSHOT_REVISION_MISSING")
+        if not schema:
+            raise ValueError("SEMANTIC_SNAPSHOT_SCHEMA_MISSING")
+        # §19: production revision must be a full 40-char git SHA
+        if not (isinstance(rev, str) and re.fullmatch(r"[0-9a-f]{40}", rev)):
+            raise ValueError(f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: {rev} not full SHA")
+        if rev != manifest_rev:
             raise ValueError(f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: {rev} != {manifest_rev}")
+        if str(schema) != str(manifest_schema):
+            raise ValueError(
+                f"SEMANTIC_SNAPSHOT_SCHEMA_MISMATCH: {schema} != {manifest_schema}")
+        actual_sha = hashlib.sha256(snapshot_file.read_bytes()).hexdigest()
+        if actual_sha != manifest_sha:
+            raise ValueError(
+                f"SEMANTIC_SNAPSHOT_HASH_MISMATCH: file {actual_sha[:12]} "
+                f"!= manifest {str(manifest_sha)[:12]}")
         return {
             "policies": policies,
             "snapshot_source": str(snapshot_file),
-            "snapshot_sha256": hashlib.sha256(snapshot_file.read_bytes()).hexdigest(),
+            "snapshot_sha256": actual_sha,
             "production_revision": rev,
             "binding_mode": mode,
-            "snapshot_schema_version": data.get("snapshot_schema_version"),
+            "snapshot_schema_version": schema,
         }
     # 2) historical revision binding (canonical 31d677e pair)
     if canonical:
