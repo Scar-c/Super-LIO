@@ -4,38 +4,23 @@
 
 ## Current frontier
 
-Prompt60 closed the missing query/H/b evidence using switchable aggregate
-instrumentation and exactly one NTU eee_01 `D_VISUAL_SHADOW` run. Lifecycle and
-measurement are ACTIVE, state apply is OFF, the transaction/cleanup gates pass,
-and the state-off trajectory is byte-identical to Prompt59. D_VISUAL_APPLY and
-all other datasets remain frozen pending Owner action.
+Round14 (Prompts 71-74) is CLOSED through Phase B on NTU eee_01. The
+camera-epoch Visual semantics family is established and canonically scored:
+A0/A1/A2 Shadow family at ATE 0.104098 (A1 == A0 byte-identical) and the
+corrected camera-epoch Apply B0 at ATE 0.133707 with single pre-solve,
+valid-measurement gate, exact-once counters, and initial-vs-iterative
+accounting. Prompt 74 closed the eval finalization (canonical stage-parent
+lineage, shared spectral information condition, initial residual total
+393229 vs SolverApplyCount 1965, solver callback/iteration counters), pushed
+at `20bb985`. Round14 is STOPPED_FOR_OWNER at
+`docs/super_livo/evidence/round14_stop_for_owner_phaseC_readiness.md`:
+Phase C (FAST-LIVO2 source-parity audit vs pinned `0d2c034`) requires Owner
+authorization; Phases D/E/F/G follow ADR-007. No parameter tuning, no config
+change; dataset expansion still frozen.
 
-Prompt61 hands execution from GTP to agent-ds and authorizes only the next
-normalized semantic step, `D_VISUAL_APPLY`, on NTU eee_01. The canonical
-Shadow is the immutable parent. Full playback remains gated on proof that the
-existing Apply path commits both latest-posterior state and covariance; all
-other datasets remain blocked.
-
-Prompt61 stopped before a full run. The normalized D Apply profile requires
-`imu_fullscan`, but the only production Visual posterior update is gated to
-`PARTIAL`; enabling the profile therefore cannot reach the solver or x/P
-commit. Resolving placement/connectivity requires a new Owner architecture
-decision and cannot silently restore the previously reverted Round13 changes.
-
-Prompt62 authorizes a narrowly bounded corrective: connect the already accepted
-D Visual measurement event to the existing x/P posterior primitive at the same
-epoch. Producer, camera payload, measurement math, LiDAR ownership, and every
-other dataset remain frozen; B-T1..B-T14 precede any full playback.
-
-Prompt62 stopped at B-T1. The current `IMU_ONLY` camera action removes its
-payload before `statePropagateOnly`, while the accepted Shadow H/b is produced
-later inside a full LiDAR Observe callback. Satisfying the same-camera-epoch
-contract therefore requires the payload/lifecycle/placement expansion that
-Prompt62 forbids. No production bridge or experiment was executed; Owner must
-authorize a new bounded camera-event handoff design before Apply can continue.
-
-Round13 Prompt59 normalized experiment identities and restored the historical
-Visual producer gates through a fail-closed semantic-profile layer. The sole
+Round14 before that: Prompt62 stopped at B-T1 (no production bridge); Round13
+Prompt59 normalized experiment identities and restored the historical Visual
+producer gates through a fail-closed semantic-profile layer. The sole
 NTU eee_01 D_VISUAL_SHADOW full run produced nonzero landmarks, candidates,
 accepted observations, and residual samples with apply_count zero, but did not
 persist the mandatory query-hit and H/b-nonzero counters. It is transaction
