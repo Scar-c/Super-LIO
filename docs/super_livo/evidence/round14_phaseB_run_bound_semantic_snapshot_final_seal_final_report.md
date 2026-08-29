@@ -6,9 +6,9 @@ Initial HEAD:
 Functional corrective commit:
 9e1e54609cdcdb3994fc6e524ac8a7cb443ebae1
 Evidence/report parent:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 Actual delivered remote HEAD:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 ```
 
 ```text
@@ -392,21 +392,21 @@ NO
 ```text
 === Remote Delivery ===
 pre-push local:
-<pending>
+9e1e54609cdcdb3994fc6e524ac8a7cb443ebae1
 pre-push remote:
-<pending>
+c35e313c2dd41f03deadbc75f54c2a3565c8b48a
 push:
-<pending>
+c35e313..6cbbf3e (normal push, RC 0)
 post-push local:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 post-push remote:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 equal:
-<pending>
+YES
 ahead:
-<pending>
+0
 behind:
-<pending>
+0
 ```
 
 ```text
@@ -414,9 +414,9 @@ behind:
 Functional corrective commit:
 9e1e54609cdcdb3994fc6e524ac8a7cb443ebae1
 Evidence/report parent:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 Actual delivered remote HEAD:
-<pending>
+6cbbf3eac59f0d13b743530e12dcf4fa51695e63
 internally consistent:
 PASS
 ```
