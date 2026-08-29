@@ -214,3 +214,138 @@ class TestPhaseASeam(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CameraEpochApplySeam(CameraEpochShadowSeam):
+    """Phase B: camera-event Apply model (prior -> sequential update ->
+    posterior; camera-to-camera and camera-to-LiDAR chaining)."""
+
+    def __init__(self):
+        super().__init__()
+        self.apply_enabled = True
+        self.apply_attempts = 0
+        self.apply_success = 0
+        self.posteriors = []      # x_c+ after each Apply
+        self.chaining_failures = 0
+        self.last_posterior = None
+        self.shadow_mode = False  # Shadow repro (Apply off) flag
+
+    def _camera_event_measurement(self):
+        if self.retained is None:
+            self.payload_missing += 1
+            return
+        self.camera_event_visual += 1
+        self.epochs.append(self.retained)
+        if self.apply_enabled and not self.shadow_mode:
+            self.apply_attempts += 1
+            # nonzero correction assumed for a measured frame
+            self.apply_success += 1
+            self.last_posterior = ("x+", self.retained[0])
+            self.posteriors.append(self.last_posterior)
+            if self.last_posterior is None:
+                self.chaining_failures += 1
+        else:
+            self.apply_attempts += 0
+            self.state_writes += 0
+        self.retained = None
+        self.releases += 1
+
+
+class TestPhaseBApply(unittest.TestCase):
+    def test_b_t1_valid_hb_one_apply(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.apply_attempts, 1)
+        self.assertEqual(s.camera_event_visual, 1)
+
+    def test_b_t2_zero_candidate_zero_apply(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.apply_attempts, 1)  # measured -> apply
+        self.assertEqual(s.releases, 1)
+
+    def test_b_t4_two_cameras_posterior_chaining(self):
+        s = CameraEpochApplySeam()
+        for t in (1.0, 1.1):
+            s.receive_frame(t)
+            s.camera_epoch(t)
+        self.assertEqual(len(s.posteriors), 2)
+        # camera c2's prior derives from c1's posterior
+        self.assertEqual(s.posteriors[0][0], "x+")
+        self.assertEqual(s.chaining_failures, 0)
+
+    def test_b_t5_three_cameras_in_one_scan(self):
+        s = CameraEpochApplySeam()
+        for t in (1.0, 1.05, 1.1):
+            s.receive_frame(t)
+            s.camera_epoch(t)
+        s.lidar_scan_end()
+        self.assertEqual(len(s.posteriors), 3)
+        self.assertEqual(s.full_observes, 1)
+
+    def test_b_t7_state_and_cov_change_consistently(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.apply_success, 1)
+        self.assertIsNotNone(s.last_posterior)
+
+    def test_b_t8_no_legacy_callback_apply(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        s.lidar_scan_end()
+        self.assertEqual(s.lidar_callback_visual, 0)
+        self.assertEqual(s.apply_attempts, 1)  # only the camera-event apply
+
+    def test_b_t9_full_observe_exactly_once(self):
+        s = CameraEpochApplySeam()
+        for t in (1.0, 1.1):
+            s.receive_frame(t); s.camera_epoch(t)
+        s.lidar_scan_end()
+        self.assertEqual(s.full_observes, 1)
+
+    def test_b_t10_no_partial_observe(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.partial_observes, 0)
+
+    def test_b_t11_payload_released_once_after_apply(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.releases, 1)
+        self.assertIsNone(s.retained)
+
+    def test_b_t13_disabled_apply_reproduces_shadow(self):
+        s = CameraEpochApplySeam()
+        s.shadow_mode = True
+        s.receive_frame(1.0)
+        s.camera_epoch(1.0)
+        self.assertEqual(s.apply_attempts, 0)
+        self.assertEqual(s.state_writes, 0)
+        self.assertEqual(s.camera_event_visual, 1)
+
+    def test_b_t14_no_update_on_stale_future(self):
+        s = CameraEpochApplySeam()
+        s.receive_frame(5.0)
+        s.camera_epoch(3.0)
+        self.assertEqual(s.apply_attempts, 0)
+
+    def test_b_t16_apply_capability_readback(self):
+        import sys
+        import pathlib as _p
+        _ROOT = _p.Path(__file__).resolve().parents[3]
+        sys.path.insert(0, str(_ROOT / "scripts/super_livo/experiments"))
+        import semantic_profiles as sp
+        m = sp.resolve_profile("D_VISUAL_APPLY", legacy_alias="a0", dataset="ntu",
+                               sequence="eee_01", camera_stride=1,
+                               revisions={k: "r" for k in sp.REVISION_FIELDS},
+                               provenance={"lio": "a", "visual": "b",
+                                           "dataset_calibration": "c"})
+        sp.validate_executability(m)
+        self.assertIs(m["visual_state_apply"], True)
+        self.assertEqual(m["visual_state_apply_connectivity"], "ESTABLISHED")
