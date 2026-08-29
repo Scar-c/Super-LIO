@@ -7,7 +7,7 @@ Prompt81 — M0 + D1
 Initial HEAD:
 001c9844e6b93e1752626ef500e390b0a6678ad9
 Final HEAD:
-<pending>
+ddaccc24b5897e3bfb44e3baae4b9110063a74c5
 ```
 
 ```text
@@ -205,12 +205,17 @@ UNCHANGED
 
 ```text
 === Changed Files ===
-<git diff --name-status 001c984..HEAD — see commit>
+M src/basic/include/basic/alias.h, M src/super_lio/include/common/ds.h,
+M src/super_lio/include/lio/ESKF.h, M src/super_lio/src/lio/ESKF.cpp,
+M src/super_lio/src/lio/super_lio.cpp, A src/super_lio/src/common/tests/test_round15_d1_exposure_state.cpp,
+A docs/super_livo/evidence/livo2_semantic_migration_scorecard.{md,json},
 ```
 
 ```text
 === Commits ===
-<git log --oneline 001c984..HEAD — see commit>
+7a84149 docs(round15): register Prompt81
+ e092505 docs(round15): M0 scorecard
+ 3829684 feat(round15): D1 inverse-exposure state plumbing
 ```
 
 ```text
