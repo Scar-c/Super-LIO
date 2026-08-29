@@ -276,8 +276,14 @@ if [ -n "$SEMANTIC_PROFILE" ]; then
   python3 "$SEMANTIC_TOOL" check-executable --manifest "$SEMANTIC_MANIFEST"
   g0=$(read_param /lio/g0/shadow)
   g1=$(read_param /lio/g1/enabled)
-  is_true "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 disabled"; exit 4; }
-  is_true "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 disabled"; exit 4; }
+  PRODUCER_EXPECTED="$(python3 "$SEMANTIC_TOOL" producer-expected --manifest "$SEMANTIC_MANIFEST")"
+  if [ "$PRODUCER_EXPECTED" = "true" ]; then
+    is_true "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 disabled"; exit 4; }
+    is_true "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 disabled"; exit 4; }
+  else
+    is_false "$g0" || { echo "SEMANTIC_PROFILE_FAIL: producer g0 enabled for scheduler base"; exit 4; }
+    is_false "$g1" || { echo "SEMANTIC_PROFILE_FAIL: producer g1 enabled for scheduler base"; exit 4; }
+  fi
   while IFS=$'\t' read -r semantic_key semantic_value; do
     [ -n "$semantic_key" ] || continue
     actual=$(read_param "$semantic_key")

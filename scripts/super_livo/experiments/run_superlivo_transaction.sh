@@ -175,8 +175,12 @@ VALIDATOR="${SLV_TEST_VALIDATOR:-$(python3 "$SEMANTIC_TOOL" validator --manifest
 # SLV_TEST_VALIDATOR: test-only hook. Requires explicit SLV_TEST_MODE=1
 # (default OFF, fail-closed): production can never silently replace the
 # canonical manifest validator.
-[ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="no validator contract for profile $PROFILE";exit 2; }
-[ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing: $VALIDATOR";exit 2; }
+# Round14: a profile whose manifest contract declares no validator (empty) —
+# e.g. D_SCHEDULER_BASE (measurement OFF) — needs no post-run validator;
+# non-empty contracts still fail closed if missing.
+if [ -n "$VALIDATOR" ]; then
+  [ -f "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="post-run validator missing: $VALIDATOR";exit 2; }
+fi
 sed -i "s|post-run validator: RESOLVED_AFTER_MANIFEST|post-run validator: $VALIDATOR|" "$RUN_DIR/preflight_evidence.txt"
 sed -i 's/PENDING_CHILD_FAIL_CLOSED_VALIDATION/PASS/;s/PENDING_CHILD_FAIL_CLOSED_READBACK/PASS/' "$RUN_DIR/preflight_evidence.txt"
 cat "$RUN_DIR/preflight_evidence.txt"
@@ -188,11 +192,14 @@ wait "$CHILD_PID"; rc=$?
 python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 [ -f "$TRAJ" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory missing";exit 1; }
 rows="$(wc -l < "$TRAJ")"; [ "$rows" -ge "${SLV_MIN_ROWS:-3000}" ] || { FINAL_CLASS=OUTPUT_FAIL;FINAL_REASON="trajectory rows=$rows";exit 1; }
-[ -n "$VALIDATOR" ] || { FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="validator contract unresolved";exit 2; }
-python3 "$VALIDATOR" --log "$OUT_DIR/node_stdout.log" --manifest "$MANIFEST" \
-  --out "$RUN_DIR/${PROFILE}_gate.yaml" || {
-    FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="post-run validator gate failed";exit 1;
-  }
+# Round14: empty validator contract (e.g. D_SCHEDULER_BASE) -> no post gate
+if [ -n "$VALIDATOR" ]; then :; fi
+if [ -n "$VALIDATOR" ]; then
+  python3 "$VALIDATOR" --log "$OUT_DIR/node_stdout.log" --manifest "$MANIFEST" \
+    --out "$RUN_DIR/${PROFILE}_gate.yaml" || {
+      FINAL_CLASS=SEMANTIC_RESULT_GATE_FAIL;FINAL_REASON="post-run validator gate failed";exit 1;
+    }
+fi
 cp "$TRAJ" "$RUN_DIR/trajectory.tum"
 VALID=true; FINAL_STATE=SUCCESS; FINAL_CLASS=""; FINAL_REASON="canonical semantic run; rows=$rows"
 exit 0

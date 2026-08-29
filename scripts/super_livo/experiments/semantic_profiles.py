@@ -43,34 +43,37 @@ _SHADOW = {
     "visual_state_apply": False,
     "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
     "full_lidar_observe_per_raw_scan": 1,
-    "visual_measurement_event": "FULL_LIDAR_OBSERVE_CALLBACK",
-    "visual_measurement_timestamp_semantics": "LIDAR_OBSERVE_CONVERGENCE_STATE",
+    "visual_measurement_event": "CAMERA_EPOCH",
+    "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
     "visual_measurement_exact_once": True,
-    "camera_payload_ownership_mode": "POP_AT_CAMERA_EPOCH",
+    "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+    "visual_state_apply_connectivity": "NOT_ESTABLISHED",
 }
-# Truthful representation of current Prompt60 production capability (source:
-# round13_current_d_event_source_audit.md): the accepted Visual H/b executes
-# in the full-LiDAR Observe convergence callback, NOT at the camera epoch.
+# Round14 Phase A production capability: camera-event Visual Shadow
+# measurement (payload retained, PropagateTo(t_c), lifecycle + H/b at t_c,
+# Shadow only, release exactly once).
 EFFECTIVE_PRODUCTION_CAPABILITY = {
-    "visual_measurement_event": "FULL_LIDAR_OBSERVE_CALLBACK",
-    "visual_measurement_timestamp_semantics": "LIDAR_OBSERVE_CONVERGENCE_STATE",
-    "camera_payload_ownership_mode": "POP_AT_CAMERA_EPOCH",
-    # Prompt60: one measurement event per eligible frame in the callback
-    # (measurement frames 823 counted once; no duplicate estimator callback).
+    "visual_measurement_event": "CAMERA_EPOCH",
+    "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+    "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+    # Round14 Phase A: one camera-event Visual measurement per retained
+    # processable camera payload; legacy LiDAR-callback placement removed.
     "visual_measurement_exact_once": True,
+    # Apply connectivity is NOT established on the D backbone yet (Phase B);
+    # only the Shadow path is executable.
+    "visual_state_apply_connectivity": "NOT_ESTABLISHED",
 }
-# Requested future intent: camera-event architecture (payload retained through
-# the camera epoch measurement). Resolves as a definition; FAILS executability
-# until production capability matches (RP-T7, no silent degradation).
+# Requested future intent: camera-event Apply (Phase B). Resolves as a
+# definition; FAILS executability until Apply connectivity is established.
 PROFILES = {
     "D_SCHEDULER_BASE": {
         "scheduler_family": "D_CORRECTED",
-        "camera_input_enabled": None,
-        "camera_epoch_enabled": None,
-        "visual_frontend_enabled": None,
-        "visual_map_producer_enabled": None,
-        "visual_measurement_enabled": None,
-        "visual_state_apply": None,
+        "camera_input_enabled": True,
+        "camera_epoch_enabled": True,
+        "visual_frontend_enabled": False,
+        "visual_map_producer_enabled": False,
+        "visual_measurement_enabled": False,
+        "visual_state_apply": False,
         "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
         "full_lidar_observe_per_raw_scan": 1,
         "visual_measurement_event": "NONE",
@@ -84,6 +87,7 @@ PROFILES = {
         "visual_measurement_event": "CAMERA_EPOCH",
         "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
         "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+        "visual_state_apply_connectivity": "CAMERA_EPOCH",
     },
 }
 
@@ -172,6 +176,8 @@ def validate_executability(manifest):
     if not manifest.get("visual_measurement_enabled"):
         return True
     for key, effective in EFFECTIVE_PRODUCTION_CAPABILITY.items():
+        if key == "visual_state_apply_connectivity" and not manifest.get("visual_state_apply"):
+            continue  # Apply connectivity is irrelevant for state-off profiles
         requested = manifest.get(key)
         if requested in (None, "NONE"):
             raise SemanticProfileError(f"{key} unresolved for measurement-enabled profile")
@@ -242,8 +248,8 @@ def git_revision(repo):
 
 def rosparams_for(manifest, out_dir):
     validate_manifest(manifest)
-    if manifest["semantic_profile"] == "D_SCHEDULER_BASE":
-        raise SemanticProfileError("D_SCHEDULER_BASE is descriptive, not executable")
+    # Round14 Phase A: D_SCHEDULER_BASE is executable (camera+epoch ON,
+    # Visual OFF) as the post-change state-off geometry reference (A1).
     boolean = lambda value: "true" if value else "false"
     return [
         ("/camera/enabled", boolean(manifest["camera_input_enabled"])),
@@ -274,6 +280,7 @@ def main(argv=None):
     executable = sub.add_parser("check-executable"); executable.add_argument("--manifest", required=True)
     validator = sub.add_parser("validator"); validator.add_argument("--manifest", required=True)
     evreq = sub.add_parser("evidence-required"); evreq.add_argument("--manifest", required=True)
+    prod = sub.add_parser("producer-expected"); prod.add_argument("--manifest", required=True)
     params = sub.add_parser("rosparams"); params.add_argument("--manifest", required=True); params.add_argument("--out-dir", required=True)
     args = parser.parse_args(argv)
     try:
@@ -289,6 +296,9 @@ def main(argv=None):
             validate_manifest(load_manifest(args.manifest))
         elif args.command == "check-executable":
             validate_executability(load_manifest(args.manifest))
+        elif args.command == "producer-expected":
+            manifest = load_manifest(args.manifest)
+            print("true" if manifest.get("visual_map_producer_enabled") else "false")
         elif args.command == "evidence-required":
             manifest = load_manifest(args.manifest)
             print("1" if manifest.get("requires_measurement_evidence") else "0")
