@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "stage_id": "M0",
+      "date": "2026-08-29",
+      "starting_commit": "001c9844e6b93e1752626ef500e390b0a6678ad9",
+      "ending_commit": "001c9844e6b93e1752626ef500e390b0a6678ad9",
+      "fast_livo2_reference_commit": "0d2c0346107b75b59934975adec9a6eeeb913c64",
+      "fast_livo2_target_functions_files": "N/A (baseline)",
+      "semantic_target": "record pre-migration Visual semantic state",
+      "super_livo_before": "camera-event Shadow + Apply (Phase A/B, CLOSED)",
+      "super_livo_after": "N/A (baseline)",
+      "classification_before": "PHASE_B_FROZEN_CLOSED",
+      "classification_after": "N/A",
+      "authorized_deviations": [
+        "DEV-POS-REP",
+        "DEV-POINT-COV"
+      ],
+      "production_path_changed": false,
+      "production_files": [],
+      "test_evidence": "Round14 suites (269 tests) \u2014 unchanged baseline",
+      "real_seam_evidence": "N/A (no production change)",
+      "negative_mutation_evidence": "N/A",
+      "dataset": "NTU",
+      "sequence": "eee_01",
+      "ATE": "A2 0.104098 m / corrected B0 0.133707 m (carry-forward; NOT rerun)",
+      "ATE_evaluator": "NTU official-style prism-compensated evaluator",
+      "visual_apply_count": "A2 0 / B0 1965 (carry-forward)",
+      "visual_residual_per_frame": "A2 241 / B0 208 (carry-forward)",
+      "visual_iterations_per_frame": "B0 4 (carry-forward)",
+      "visual_rollback_rate": "N/A (D3 not implemented)",
+      "inverse_exposure_statistics": "N/A (state MISSING)",
+      "visual_cpu_ms": "A2 4.56 / B0 12.39 (carry-forward)",
+      "visual_map_points": "N/A (not scored in Phase B)",
+      "memory": "N/A",
+      "regressions": "NONE",
+      "open_gaps": "all D/E/F/G stages",
+      "verdict": "BASELINE_RECORDED",
+      "next_authorized_stage": "D1",
+      "baseline_semantics": {
+        "lidar_posterior_to_visual_prior": "BACKEND_TRANSLATION_EQUIVALENT",
+        "pose_only_prior_correction": "BACKEND_TRANSLATION_EQUIVALENT",
+        "photometric_residual": "LEGACY_SUPER_LIVO_SEMANTIC",
+        "inverse_exposure_state": "MISSING_FAST_LIVO2_SEMANTIC",
+        "exposure_aware_residual": "MISSING_FAST_LIVO2_SEMANTIC",
+        "pyramid": "MISSING / LEGACY",
+        "photometric_rollback": "MISSING_FAST_LIVO2_SEMANTIC",
+        "covariance_timing": "NOT YET REPRODUCED",
+        "normal_plane_warp": "DIFFERENT SEMANTIC",
+        "reference_lifecycle": "DIFFERENT SEMANTIC",
+        "map_lifecycle": "DIFFERENT SEMANTIC"
+      },
+      "prompt80_status": "ABORTED_BEFORE_EXECUTION / SUPERSEDED_BY_ORIGIN_SOURCE_AUDIT"
+    }
+  ]
+}
