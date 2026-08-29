@@ -79,3 +79,14 @@
 - P4 FS-T28 stale 040348Z artifact replaced by clean canonical 052357Z/fixture
 - PS-T1..PS-T20 + AFC-T1..AFC-T20; actual-vs-expected semantics separated
 - no bag rerun; A2/B0 scorecards+registry regenerated from existing artifacts
+
+## Prompt 76 — Phase B eval provenance final corrective — CLOSED
+
+- P1 semantic snapshot file (semantic_snapshot_v0.yaml) — evaluator constants removed
+- P2 registry semantic columns from scorecard actual semantics (no stage inference)
+- P3 §42/§43 validator hard gates (event zero gates, Apply identity, semantic contract)
+- P4 FS-T28 replaced by clean canonical 052357Z artifact
+- PS-T1..T20 + AFC-T1..T20 (20/20 rejected); five-layer semantic+event ALL_MATCH
+- numeric results unchanged (A2 0.104098 / B0 0.133707); no bag rerun
+- classification: ROUND14_PHASEB_CANONICAL_EVAL_PROVENANCE_FULLY_CLOSED_AND_REMOTE_READY
+- STOP — Phase C awaits Origin authorization
