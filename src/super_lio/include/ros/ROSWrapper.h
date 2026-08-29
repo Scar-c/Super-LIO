@@ -92,6 +92,12 @@ public:
   bool sync_legacy_lidar_end(MeasureGroup& meas);
   bool sync_fullscan_camera_epoch(MeasureGroup& meas);
   int64_t staleImageDropCount() const { return stale_image_drop_count_; }
+  // Prompt84: camera payload lifetime — account the camera epoch WITHOUT
+  // popping (the payload stays valid through the camera-event Visual
+  // transaction and its post-solve lifecycle), and release exactly once.
+  void accountFullscanCameraRetain();
+  void releaseCameraPayload();
+  int64_t cameraPayloadReleases() const { return camera_payload_release_count_; }
   int64_t imagesConsumed() const { return images_consumed_; }
   int64_t emptySliceCount() const { return empty_slice_count_; }
   int64_t lidarPointsEmitted() const { return lidar_points_emitted_; }
@@ -112,6 +118,7 @@ public:
         lidar.raw_scan_id, lidar.pc ? static_cast<int64_t>(lidar.pc->size()) : 0);
   }
   int64_t imuOnlySegments() const { return imu_only_segments_; }
+  int64_t camera_payload_release_count_ = 0;
   const SliceAudit& s0Audit() const { return s0_audit_; }
   int64_t lidarPointsRetained() const { return lidar_points_retained_; }
   double lastEpochTime() const { return last_epoch_time_; }

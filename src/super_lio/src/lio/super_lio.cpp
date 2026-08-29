@@ -193,6 +193,13 @@ void SuperLIO::process(){
   }
   if (measures_.kind == MeasureKind::IMU_ONLY) {
     statePropagateOnly();
+    // Prompt84: camera-event sequential Visual transaction — the event LiDAR
+    // posterior (latest committed LiDAR posterior transported to t_c by this
+    // event's own IMU interval) is frozen as the Visual prior; the Visual
+    // update + post-solve lifecycle run at the SAME camera event; the payload
+    // is released exactly once afterwards; later propagation continues from
+    // the resulting sequential posterior.
+    runCameraEventVisual();
     return;
   }
   const bool uses_geometry = state_fn_ != &SuperLIO::stateWaitKFInit;
@@ -249,6 +256,48 @@ void SuperLIO::statePropagateOnly() {
   fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->CommitPropagationOnlyEpoch(measures_.epoch_ts);
   imu_propagation_segment_count_++;
+}
+
+void SuperLIO::runCameraEventVisual() {
+  // FAST-LIVO2 sequential authority: Visual prior = converged LiDAR
+  // posterior (x_L, P_L) frozen for the whole camera Visual transaction —
+  // never a recaptured Visual iterate and never an arbitrary later LiDAR
+  // state. On the D-family (IMU_FULLSCAN) camera event the LiDAR posterior
+  // is transported to t_c by the event's own IMU propagation (the state the
+  // ESKF holds right after statePropagateOnly).
+  if (!(g_lio_v4_apply && g_lio_camera_epoch &&
+        g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN &&
+        g_lio_v2_enabled && g_lio_v0_enabled)) {
+    return;
+  }
+  const CameraFrame* frame = data_wrapper_->cameraEpochFrame();
+  if (frame == nullptr || frame->data == nullptr || frame->data->empty()) {
+    return;
+  }
+  const SE3 pose = kf_->GetSE3();  // x_L(t_c)
+  runVisualLifecycle(pose, g_lio_v4_apply);
+  ESKF::SequentialPrior prior;
+  prior.time = kf_->GetTime();
+  prior.x = kf_->GetSysState();  // frozen event LiDAR posterior
+  prior.P = kf_->GetCov();
+  const SE3 v4_pose_L(prior.x.R, prior.x.p);
+  BASIC::M6 h0 = BASIC::M6::Zero();
+  BASIC::V6 b0 = BASIC::V6::Zero();
+  runVisualResidual(v4_pose_L, h0, b0, false);
+  const double cost_init = last_visual_cost_;
+  const auto v4_snap = kf_->UpdateObserveFromPrior(
+      prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
+        const SE3 pose2 = s.pose;
+        runVisualResidual(pose2, H, b, false);
+      });
+  const double cost_final = last_visual_cost_;
+  // post-solve lifecycle with the resulting sequential posterior
+  runVisualLifecycle(SE3(v4_snap.x.R, v4_snap.x.p), g_lio_v4_apply);
+  v4c_epochs_visual_++;
+  v4_apply_count_++;
+  if (cost_final < cost_init) v4c_cost_improved_++;
+  // payload release exactly once after the last Visual consumer
+  data_wrapper_->releaseCameraPayload();
 }
 
 
@@ -813,10 +862,12 @@ void SuperLIO::Observe(){
         if(g_lio_g1v_enabled){
           runG1VShadow(pose);
         }
-        if(g_lio_v0_enabled){
+        if(g_lio_v0_enabled && !(g_lio_camera_epoch &&
+             g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN)){
           runVisualLifecycle(pose, g_lio_v4_apply);
         }
-        if(g_lio_v2_enabled && !g_lio_v4_apply){
+        if(g_lio_v2_enabled && !g_lio_v4_apply && !(g_lio_camera_epoch &&
+             g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN)){
           BASIC::M6 vh = BASIC::M6::Zero();
           BASIC::V6 vr = BASIC::V6::Zero();
           visual_residual_count_ = runVisualResidual(pose, vh, vr, false);

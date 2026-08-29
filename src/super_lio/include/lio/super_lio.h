@@ -488,6 +488,9 @@ protected:
   void stateProcess();
   virtual bool kf_init();
   void statePropagateOnly();
+  // Prompt84: camera-event sequential Visual transaction (frozen event
+  // LiDAR posterior -> Visual update at the same event -> payload release).
+  void runCameraEventVisual();
   virtual bool map_init();
   void Propagation_Undistort();
   void DownSample();
