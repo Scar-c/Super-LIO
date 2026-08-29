@@ -956,9 +956,13 @@ int main(int argc, char** argv) {
       auto s = v; std::sort(s.begin(), s.end());
       return s[static_cast<size_t>(p * (s.size() - 1))];
     };
-    std::printf("R14 Apply attempts=%lld success=%lld\n",
+    std::printf("R14 Apply attempts=%lld success=%lld fail=%lld\n",
                 (long long)lio->r14ApplyAttempts(),
-                (long long)lio->r14ApplySuccess());
+                (long long)lio->r14ApplySuccess(),
+                (long long)lio->r14ApplyFail());
+    std::printf("R14 Apply skip zero_candidate=%lld zero_valid_residual=%lld\n",
+                (long long)lio->r14ApplySkipZeroCandidate(),
+                (long long)lio->r14ApplySkipZeroValidResidual());
     std::printf("R14 Apply delta_pos_m P50=%.6g P90=%.6g delta_rot_rad P50=%.6g\n",
                 pctv(dp, 0.5), pctv(dp, 0.9), pctv(dr, 0.5));
     std::printf("R14 cov_trace before_P50=%.6g after_P50=%.6g delta_P50=%.6g\n",

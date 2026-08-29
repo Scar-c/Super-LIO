@@ -260,17 +260,21 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         ev = subprocess.run(
             [sys.executable, ate_evaluator, "--est", trajectory, "--gt", gt],
             capture_output=True, text=True, timeout=300)
-        m = re.search(r"ATE \(m\): ([-0-9.e+]+)", ev.stdout)
-        if m:
-            score["accuracy"]["ape_translation_rmse_m"] = float(m.group(1))
-        else:
-            score["accuracy"]["ape_translation_rmse_m"] = "NOT_AVAILABLE"
+        def _find(label):
+            m = re.search(label + r":\s*([-0-9.e+]+)", ev.stdout)
+            return float(m.group(1)) if m else "NOT_AVAILABLE"
+        for key, label in [
+            ("ape_translation_rmse_m", r"ATE \(m\)"),
+            ("ape_translation_mean_m", r"mean"),
+            ("ape_translation_median_m", r"median"),
+            ("ape_translation_max_m", r"max"),
+        ]:
+            score["accuracy"][key] = _find(label)
     else:
-        score["accuracy"]["ape_translation_rmse_m"] = (
-            "NOT_AVAILABLE" if not (gt and trajectory) else "NOT_AVAILABLE")
-    score["accuracy"]["ape_translation_mean_m"] = "NOT_AVAILABLE"
-    score["accuracy"]["ape_translation_median_m"] = "NOT_AVAILABLE"
-    score["accuracy"]["ape_translation_max_m"] = "NOT_AVAILABLE"
+        for key in ("ape_translation_rmse_m", "ape_translation_mean_m",
+                    "ape_translation_median_m", "ape_translation_max_m"):
+            score["accuracy"][key] = (
+                "NOT_AVAILABLE" if not (gt and trajectory) else "NOT_AVAILABLE")
     score["accuracy"]["trajectory_completion_ratio"] = score["completion"]["completion_ratio"]
 
     return score

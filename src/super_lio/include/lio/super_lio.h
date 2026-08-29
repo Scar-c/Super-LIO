@@ -560,6 +560,9 @@ protected:
   int64_t r14ApplyAttempts() const { return r14_apply_attempts_; }
   int64_t r14ApplySuccess() const { return r14_apply_success_; }
   int64_t r14ApplySkippedZero() const { return r14_apply_skipped_zero_; }
+  int64_t r14ApplySkipZeroCandidate() const { return r14_apply_skip_zero_candidate_; }
+  int64_t r14ApplySkipZeroValidResidual() const { return r14_apply_skip_zero_valid_residual_; }
+  int64_t r14ApplyFail() const { return r14_apply_fail_; }
   int64_t r14PosteriorChainingFailures() const { return r14_posterior_chaining_failures_; }
   const std::vector<double>& r14ApplyDeltaPos() const { return r14_apply_delta_pos_; }
   const std::vector<double>& r14ApplyDeltaRot() const { return r14_apply_delta_rot_; }
@@ -595,6 +598,9 @@ protected:
   int64_t r14_apply_attempts_ = 0;
   int64_t r14_apply_success_ = 0;
   int64_t r14_apply_skipped_zero_ = 0;
+  int64_t r14_apply_skip_zero_candidate_ = 0;
+  int64_t r14_apply_skip_zero_valid_residual_ = 0;
+  int64_t r14_apply_fail_ = 0;
   int64_t r14_posterior_chaining_failures_ = 0;
   std::vector<double> r14_apply_delta_pos_;
   std::vector<double> r14_apply_delta_rot_;

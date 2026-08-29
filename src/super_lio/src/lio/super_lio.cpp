@@ -295,36 +295,72 @@ void SuperLIO::statePropagateOnly() {
               std::chrono::duration<double, std::milli>(v1 - v0).count());
         }
       } else {
-        // Phase B: camera-event Visual Apply. Prior = the propagated state
-        // at t_c (x_c^-/P_c^-); the sequential-prior update primitive
-        // produces the posterior (x_c^+/P_c^+) atomically; subsequent events
-        // propagate from this posterior (camera-to-camera and
-        // camera-to-LiDAR chaining).
-        runVisualLifecycle(pose, true);
+        // Phase B corrective: camera-event Visual Apply with a valid-
+        // measurement gate. The single pre-solve lifecycle (the shared call
+        // above, Bug B1 fixed) built the CURRENT camera frame's snapshot.
+        // The post-solve lifecycle is REQUIRED for every camera frame
+        // (landmark creation/map growth — §6 ZERO_MEASUREMENT_POST_LIFECYCLE
+        // = REQUIRED); it runs with the pre-solve pose when the Apply is
+        // skipped and with the Apply posterior after a valid update.
         ESKF::SequentialPrior prior;
         prior.time = kf_->GetTime();
         prior.x = kf_->GetSysState();
         prior.P = kf_->GetCov();
-        const auto v4_snap = kf_->UpdateObserveFromPrior(
-            prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
-              const SE3 sp = s.pose;
-              visual_residual_count_ = runVisualResidual(sp, H, b, false);
-            });
-        // post-solve lifecycle with the Apply posterior (V-4C semantics)
-        runVisualLifecycle(SE3(v4_snap.x.R, v4_snap.x.p), false);
-        if (r14_camera_epoch_visual_enabled_) {
-          r14_apply_attempts_++;
-          if (visual_residual_count_ > 0) r14_apply_success_++;
-          const double dp = (v4_snap.x.p - prior.x.p).norm();
-          const double drot =
-              (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
-          r14_apply_delta_pos_.push_back(dp);
-          r14_apply_delta_rot_.push_back(drot);
-          r14_cov_trace_before_.push_back(prior.P.diagonal().sum());
-          r14_cov_trace_after_.push_back(v4_snap.P.diagonal().sum());
-          r14_visual_cpu_ms_.push_back(
-              std::chrono::duration<double, std::milli>(
-                  std::chrono::high_resolution_clock::now() - v0).count());
+        if (active_visual_landmarks_.empty()) {
+          r14_apply_skip_zero_candidate_++;
+          runVisualLifecycle(pose, false);
+        } else {
+          BASIC::M6 h0 = BASIC::M6::Zero();
+          BASIC::V6 b0 = BASIC::V6::Zero();
+          const int64_t initial_residual =
+              runVisualResidual(pose, h0, b0, false);
+          // initial-linearization measurement statistics (Phase-B
+          // corrective: separate camera-frame measurement from iterative
+          // solver callback statistics)
+          if (r14_camera_epoch_visual_enabled_) {
+            r14_residuals_per_frame_.push_back(initial_residual);
+            if (initial_residual > 0) {
+              const Eigen::Matrix<double, 6, 6> Hd = h0.cast<double>();
+              const Eigen::Matrix<double, 6, 6> Hn =
+                  Hd / static_cast<double>(initial_residual);
+              r14_i_norm_lambda_min_.push_back(
+                  Hn.eigenvalues().real().minCoeff());
+              r14_i_norm_trace_.push_back(Hn.trace());
+              r14_i_cond_.push_back(
+                  (Hd.diagonal().maxCoeff() > 1e-30)
+                      ? std::abs(Hd.diagonal().maxCoeff() /
+                                 std::max(Hd.diagonal().minCoeff(), 1e-30))
+                      : 0.0);
+            }
+          }
+          if (initial_residual == 0) {
+            r14_apply_skip_zero_valid_residual_++;
+            runVisualLifecycle(pose, false);
+          } else {
+            r14_apply_attempts_++;
+            const auto v4_snap = kf_->UpdateObserveFromPrior(
+                prior,
+                [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
+                  const SE3 sp = s.pose;
+                  visual_residual_count_ = runVisualResidual(sp, H, b, false);
+                });
+            // post-solve lifecycle exactly once with the Apply posterior
+            runVisualLifecycle(SE3(v4_snap.x.R, v4_snap.x.p), false);
+            if (r14_camera_epoch_visual_enabled_) {
+              if (visual_residual_count_ > 0) r14_apply_success_++;
+              else r14_apply_fail_++;
+              const double dp = (v4_snap.x.p - prior.x.p).norm();
+              const double drot =
+                  (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
+              r14_apply_delta_pos_.push_back(dp);
+              r14_apply_delta_rot_.push_back(drot);
+              r14_cov_trace_before_.push_back(prior.P.diagonal().sum());
+              r14_cov_trace_after_.push_back(v4_snap.P.diagonal().sum());
+              r14_visual_cpu_ms_.push_back(
+                  std::chrono::duration<double, std::milli>(
+                      std::chrono::high_resolution_clock::now() - v0).count());
+            }
+          }
         }
       }
     } else {

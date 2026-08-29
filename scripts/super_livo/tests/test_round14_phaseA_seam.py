@@ -349,3 +349,141 @@ class TestPhaseBApply(unittest.TestCase):
         sp.validate_executability(m)
         self.assertIs(m["visual_state_apply"], True)
         self.assertEqual(m["visual_state_apply_connectivity"], "ESTABLISHED")
+
+
+class CameraEpochApplyCorrectedSeam(CameraEpochApplySeam):
+    """Phase-B corrective model: single pre-solve, valid-measurement gate,
+    exact-once Apply, truthful counters."""
+
+    def __init__(self):
+        super().__init__()
+        self.pre_solve_calls = 0
+        self.post_solve_calls = 0
+        self.attempts = 0
+        self.success = 0
+        self.fail = 0
+        self.skip_zero_candidate = 0
+        self.skip_zero_valid = 0
+        self.candidates = 1
+        self.valid_residual = 1
+
+    def _camera_event_measurement(self):
+        if self.retained is None:
+            self.payload_missing += 1
+            return
+        self.camera_event_visual += 1
+        self.epochs.append(self.retained)
+        self.pre_solve_calls += 1  # the single pre-solve lifecycle
+        if self.apply_enabled and not self.shadow_mode:
+            if self.candidates == 0:
+                self.skip_zero_candidate += 1
+            elif self.valid_residual == 0:
+                self.skip_zero_valid += 1
+            else:
+                self.attempts += 1
+                self.success += 1
+                self.post_solve_calls += 1
+                self.last_posterior = ("x+", self.retained[0])
+                self.posteriors.append(self.last_posterior)
+        self.retained = None
+        self.releases += 1
+
+
+class TestPhaseBCorrective(unittest.TestCase):
+    def test_bc_t1_t2_t3_valid_one_of_each(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.pre_solve_calls, 1)
+        self.assertEqual(s.attempts, 1)
+        self.assertEqual(s.post_solve_calls, 1)
+
+    def test_bc_t4_zero_candidate_no_solver(self):
+        s = CameraEpochApplyCorrectedSeam(); s.candidates = 0
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.attempts, 0)
+        self.assertEqual(s.skip_zero_candidate, 1)
+        self.assertEqual(s.post_solve_calls, 0)
+
+    def test_bc_t6_zero_valid_residual_no_solver(self):
+        s = CameraEpochApplyCorrectedSeam(); s.valid_residual = 0
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.attempts, 0)
+        self.assertEqual(s.skip_zero_valid, 1)
+
+    def test_bc_t7_skip_state_equals_prior(self):
+        s = CameraEpochApplyCorrectedSeam(); s.candidates = 0
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.state_writes, 0)
+        self.assertIsNone(s.last_posterior)
+
+    def test_bc_t9_no_cross_frame_leakage(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.candidates = 0
+        s.receive_frame(1.0); s.camera_epoch(1.0)  # skipped
+        s.candidates = 1
+        s.receive_frame(1.1); s.camera_epoch(1.1)  # eligible
+        self.assertEqual(s.skip_zero_candidate, 1)
+        self.assertEqual(s.attempts, 1)
+
+    def test_bc_t10_counter_identity(self):
+        s = CameraEpochApplyCorrectedSeam()
+        for t in (1.0, 1.1, 1.2):
+            s.receive_frame(t); s.camera_epoch(t)
+        self.assertEqual(s.attempts, s.success + s.fail)
+
+    def test_bc_t11_skip_reason_classified(self):
+        s = CameraEpochApplyCorrectedSeam(); s.candidates = 0
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.skip_zero_candidate, 1)
+        s2 = CameraEpochApplyCorrectedSeam(); s2.valid_residual = 0
+        s2.receive_frame(1.0); s2.camera_epoch(1.0)
+        self.assertEqual(s2.skip_zero_valid, 1)
+
+    def test_bc_t12_t13_payload_released_once(self):
+        for s in (CameraEpochApplyCorrectedSeam(),
+                  (lambda: (lambda x: (setattr(x, 'candidates', 0), x)[1])(CameraEpochApplyCorrectedSeam()))()):
+            s.receive_frame(1.0); s.camera_epoch(1.0)
+            self.assertEqual(s.releases, 1)
+            self.assertIsNone(s.retained)
+
+    def test_bc_t14_posterior_chaining(self):
+        s = CameraEpochApplyCorrectedSeam()
+        for t in (1.0, 1.1):
+            s.receive_frame(t); s.camera_epoch(t)
+        self.assertEqual(len(s.posteriors), 2)
+        self.assertEqual(s.chaining_failures, 0)
+
+    def test_bc_t15_no_legacy_callback_apply(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        s.lidar_scan_end()
+        self.assertEqual(s.lidar_callback_visual, 0)
+
+    def test_bc_t16_full_observe_exactly_once(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        s.lidar_scan_end()
+        self.assertEqual(s.full_observes, 1)
+
+    def test_bc_t17_no_partial_observe(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.partial_observes, 0)
+
+    def test_bc_t18_shadow_mode_unchanged(self):
+        s = CameraEpochApplyCorrectedSeam(); s.shadow_mode = True
+        s.receive_frame(1.0); s.camera_epoch(1.0)
+        self.assertEqual(s.attempts, 0)
+        self.assertEqual(s.camera_event_visual, 1)
+        self.assertEqual(s.pre_solve_calls, 1)
+
+    def test_bc_t20_exception_path_deterministic(self):
+        s = CameraEpochApplyCorrectedSeam()
+        s.receive_frame(1.0)
+        try:
+            raise RuntimeError("simulated")
+        except RuntimeError:
+            pass
+        s.camera_epoch(1.0)
+        self.assertEqual(s.releases, 1)
+        self.assertEqual(s.pre_solve_calls, 1)
