@@ -13,3 +13,9 @@
   density, ATE population, completion ratio, info/compute/spatial, registry
   schema + validation)
 - then Phase B: D_VISUAL_APPLY camera-event connectivity + posterior chaining
+
+## Prompt 73 — Phase B corrective
+
+- Bug B1: duplicate pre-solve lifecycle (271+303) — CLOSED
+- Bug B2: solver called with zero valid measurement — CLOSED (valid gate)
+- invalid first B0 = NONCANONICAL; corrected B0 = B0_D_CAMERA_EPOCH_APPLY_CORRECTED
