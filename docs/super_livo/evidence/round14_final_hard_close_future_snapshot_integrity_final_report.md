@@ -6,9 +6,9 @@ d97b06ad6044398dfecb2c88f774b8a445fb23ee
 Functional corrective commit:
 c58ecddd6f754909d39e7632231c242854694b3b
 Evidence/report parent:
-<pending>
+b704744eac469fac5e0bfa771261cd6c0fff2ca6
 Actual delivered remote HEAD:
-<pending>
+b704744eac469fac5e0bfa771261cd6c0fff2ca6
 ```
 
 ```text
@@ -349,21 +349,21 @@ NO
 ```text
 === Remote Delivery ===
 pre-push local:
-<pending>
+c58ecddd6f754909d39e7632231c242854694b3b
 pre-push remote:
-<pending>
+72c5684179a1b61b05fc8330ec9713074732c547
 push:
-<pending>
+72c5684..b704744 (normal push, RC 0)
 post-push local:
-<pending>
+b704744eac469fac5e0bfa771261cd6c0fff2ca6
 post-push remote:
-<pending>
+b704744eac469fac5e0bfa771261cd6c0fff2ca6
 equal:
-<pending>
+YES
 ahead:
-<pending>
+0
 behind:
-<pending>
+0
 ```
 
 ```text
