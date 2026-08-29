@@ -157,6 +157,8 @@ using V9 = Eigen::Matrix<scalar, 9, 1>;
 using V12 = Eigen::Matrix<scalar, 12, 1>;
 using V15 = Eigen::Matrix<scalar, 15, 1>;
 using V18 = Eigen::Matrix<scalar, 18, 1>;
+// Round15 D1: canonical state dimension 19 (R p v bg ba g + inverse exposure).
+using V19 = Eigen::Matrix<scalar, 19, 1>;
 using V24 = Eigen::Matrix<scalar, 24, 1>;
 using V30 = Eigen::Matrix<scalar, 30, 1>;
 using V36 = Eigen::Matrix<scalar, 36, 1>;
@@ -179,6 +181,8 @@ using M9 = Eigen::Matrix<scalar, 9, 9>;
 using M12 = Eigen::Matrix<scalar, 12, 12>;
 using M15 = Eigen::Matrix<scalar, 15, 15>;
 using M18 = Eigen::Matrix<scalar, 18, 18>;
+// Round15 D1: full filter covariance dimension 19x19 (incl. inv_expo).
+using M19 = Eigen::Matrix<scalar, 19, 19>;
 using M24 = Eigen::Matrix<scalar, 24, 24>;
 
 using M3_2 = Eigen::Matrix<scalar, 3, 2>;

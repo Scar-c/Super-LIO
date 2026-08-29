@@ -280,6 +280,19 @@ add_executable(round11x_cadence_test
   src/common/tests/test_round11x_cadence.cpp
 )
 
+# Round15 D1 inverse-exposure state plumbing tests (production ESKF linked).
+add_executable(round15_d1_exposure_test
+  src/common/tests/test_round15_d1_exposure_state.cpp
+  src/lio/ESKF.cpp
+)
+target_include_directories(round15_d1_exposure_test PUBLIC include
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(round15_d1_exposure_test
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # Prompt75 canonical eval final seal behavior tests (shared info helper,
 # ESKF iteration producer, ownership duplicate scan-use events).
 add_executable(round14_final_seal_test

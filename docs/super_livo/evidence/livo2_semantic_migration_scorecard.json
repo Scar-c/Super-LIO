@@ -52,6 +52,68 @@
         "map_lifecycle": "DIFFERENT SEMANTIC"
       },
       "prompt80_status": "ABORTED_BEFORE_EXECUTION / SUPERSEDED_BY_ORIGIN_SOURCE_AUDIT"
+    },
+    {
+      "stage_id": "D1",
+      "date": "2026-08-29",
+      "starting_commit": "7a8414983d81610de6135e809e62eb418cf3657e",
+      "ending_commit": "e0925057ae0b24f0e9861120fbd4c9848456f832",
+      "fast_livo2_reference_commit": "0d2c0346107b75b59934975adec9a6eeeb913c64",
+      "fast_livo2_target_functions_files": [
+        "ESKF state/COV layout",
+        "exposure state ownership (inv_expo)"
+      ],
+      "semantic_target": "inverse exposure as first-class filter state (state algebra + covariance + propagation + prior capture); DC residual unchanged",
+      "super_livo_before": "18D ESKF state; inverse exposure MISSING_FAST_LIVO2_SEMANTIC",
+      "super_livo_after": "19D ESKF state; inv_expo at canonical index 18 with random-walk propagation (enabled/disabled), full covariance, SequentialPrior capture",
+      "classification_before": "MISSING_FAST_LIVO2_SEMANTIC",
+      "classification_after": "PARTIAL_MIGRATION (REPRODUCED_STATE_PLUMBING)",
+      "authorized_deviations": [
+        "DEV-POS-REP",
+        "DEV-POINT-COV"
+      ],
+      "production_path_changed": true,
+      "production_files": [
+        "src/basic/include/basic/alias.h",
+        "src/super_lio/include/common/ds.h",
+        "src/super_lio/include/lio/ESKF.h",
+        "src/super_lio/src/lio/ESKF.cpp",
+        "src/super_lio/src/lio/super_lio.cpp"
+      ],
+      "test_evidence": "round15_d1_exposure_test (gates A-F + negative mutations) ALL PASS; y_segmentation/s1_prior/v4c/v4r0/hb0/tb1/round14_final_seal C++ ALL PASS; 269 python tests PASS",
+      "real_seam_evidence": "bounded production run d1_bounded_production/20260829T093236Z: node rc=0, 19D filter full pipeline (trajectory 1194 rows; visual warmup window produced 0 residuals \u2014 bounded-window artifact, validator failed on evidence volume only)",
+      "negative_mutation_evidence": "wrong exposure index / exposure omitted from plus/minus / covariance dimension removal / wrong dt power / noise-while-disabled all DETECTABLE",
+      "dataset": "N/A (no ATE run for D1)",
+      "sequence": "N/A",
+      "ATE": "N/A \u2014 not required for state-plumbing semantic gate",
+      "ATE_evaluator": "N/A",
+      "visual_apply_count": "carry-forward / N/A",
+      "visual_residual_per_frame": "carry-forward / N/A",
+      "visual_iterations_per_frame": "carry-forward / N/A",
+      "visual_rollback_rate": "N/A (D3 not implemented)",
+      "inverse_exposure_statistics": {
+        "initial_value": 1.0,
+        "initial_variance": 0.0,
+        "process_covariance_param": "inv_expo_cov_ (0.0 default)",
+        "enabled_injection": "P(18,18) += inv_expo_cov*dt^2",
+        "disabled_injection": 0.0,
+        "test_values": "cov=4.0 dt=0.1 -> +0.04 enabled; 0.0 disabled"
+      },
+      "visual_cpu_ms": "N/A unless bounded runtime seam was executed (not measured)",
+      "visual_map_points": "N/A",
+      "memory": "N/A",
+      "regressions": "NONE (269 python + 8 C++ binaries all PASS)",
+      "open_gaps": [
+        "D2 exposure-aware residual",
+        "D3 pyramid/rollback",
+        "D4 plane warp",
+        "D5 closure",
+        "E1-E4",
+        "F",
+        "G"
+      ],
+      "verdict": "PARTIAL_MIGRATION \u2014 state plumbing REPRODUCED; DC residual UNCHANGED",
+      "next_authorized_stage": "D2"
     }
   ]
 }

@@ -40,11 +40,17 @@ struct SysState {
   SysState() = default;
 
   explicit SysState(double time, const BASIC::SO3& R = BASIC::SO3(), const BASIC::V3& t = BASIC::V3::Zero(), const BASIC::V3& v = BASIC::V3::Zero(),
-                    const BASIC::V3& bg = BASIC::V3::Zero(), const BASIC::V3& ba = BASIC::V3::Zero())
-      : timestamp(time), R(R), p(t), v(v), bg(bg), ba(ba) {}
+                    const BASIC::V3& bg = BASIC::V3::Zero(), const BASIC::V3& ba = BASIC::V3::Zero(),
+                    double inv_expo = 1.0)
+      : timestamp(time), R(R), p(t), v(v), bg(bg), ba(ba), inv_expo(inv_expo) {}
 
   SysState(double time, const BASIC::SE3& pose, const BASIC::V3& vel = BASIC::V3::Zero())
       : timestamp(time), R(pose.R()), p(pose.t()), v(vel) {}
+
+  // Round15 D1: FAST-LIVO2 inverse-exposure state (tau). First-class filter
+  // state component; canonical index kInvExpoIndex in the flattened 19D
+  // state (see ESKF.h). Dormant for the Visual measurement until D2.
+  double inv_expo = 1.0;
 
   BASIC::SE3 GetSE3() const { return BASIC::SE3(R, p); }
 

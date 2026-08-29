@@ -77,8 +77,11 @@ void ESKF::SetInitialConditions(Options options, const V3& init_bg,
   g_ = gravity;
   imu_scale_ = imu_scale;
 
-  P_ = 1e-4 * M18::Identity();
+  P_ = 1e-4 * M19::Identity();
   P_.template block<3, 3>(0, 0) = 0.1 * M_PI / 180.0 * M3::Identity();   // r
+  // Round15 D1: inverse exposure initialized deterministically
+  inv_expo_ = options_.inv_expo_initial_;
+  P_(kInvExpoIndex, kInvExpoIndex) = 0.0;
 
 }
 
@@ -91,6 +94,7 @@ void ESKF::SetX(const SysState& x) {
   v_ = x.v;
   bg_ = x.bg;
   ba_ = x.ba;
+  inv_expo_ = x.inv_expo;
   fw_R_ = R_;
   fw_p_ = p_;
   fw_v_ = v_;
@@ -116,14 +120,24 @@ void ESKF::BuildNoise(const Options& options) {
 }
 
 void ESKF::Update() {
-  R_ = R_ * SO3::Exp(dx_.template block<3, 1>(0, 0));
-  p_ += dx_.template block<3, 1>(3, 0);
-  v_ += dx_.template block<3, 1>(6, 0);
-
-  bg_ += dx_.template block<3, 1>(9, 0);
-  ba_ += dx_.template block<3, 1>(12, 0);
-
-  g_ += dx_.template block<3, 1>(15, 0);
+  // Round15 D1: single canonical state-addition operator (BoxPlus) applied
+  // to the flattened 19D state; inv_expo handled at the canonical index.
+  STATE x = STATE::Zero();
+  x.template block<3, 1>(0, 0) = R_.log_vee();
+  x.template block<3, 1>(3, 0) = p_;
+  x.template block<3, 1>(6, 0) = v_;
+  x.template block<3, 1>(9, 0) = bg_;
+  x.template block<3, 1>(12, 0) = ba_;
+  x.template block<3, 1>(15, 0) = g_;
+  x(kInvExpoIndex) = inv_expo_;
+  const STATE nx = BoxPlus(x, dx_);
+  R_ = SO3::Exp(nx.template block<3, 1>(0, 0));
+  p_ = nx.template block<3, 1>(3, 0);
+  v_ = nx.template block<3, 1>(6, 0);
+  bg_ = nx.template block<3, 1>(9, 0);
+  ba_ = nx.template block<3, 1>(12, 0);
+  g_ = nx.template block<3, 1>(15, 0);
+  inv_expo_ = nx(kInvExpoIndex);
   g_ = g_gravity_norm * (g_.normalized());
 
   fw_R_ = R_;
@@ -242,6 +256,12 @@ bool ESKF::Predict(const IMUData& imu) {
   f_w.template block<3, 3>(12, 9) = M3::Identity() * dt;   // bg
 
   P_ = f_x * P_ * f_x.transpose() + f_w * Q_ * f_w.transpose();
+  // Round15 D1: FAST-LIVO2 inverse-exposure random-walk semantics.
+  // Q_expo ~ inv_expo_cov * dt^2 (repository bias-noise convention); injected
+  // ONLY when exposure estimation is enabled; zero when disabled.
+  if (options_.inv_expo_enabled_) {
+    P_(kInvExpoIndex, kInvExpoIndex) += options_.inv_expo_cov_ * dt * dt;
+  }
 
   global_acc_ = R_.R() * acc + g_;
   p_ = p_ + v_ * dt + 0.5 * global_acc_ * dt * dt;
@@ -255,7 +275,7 @@ bool ESKF::Predict(const IMUData& imu) {
 }
 
 
-const int STATE_DIM = 18;
+const int STATE_DIM = 19;  // Round15 D1: + inv_expo
 ESKF::PosteriorSnapshot ESKF::UpdateObserveFromPrior(const ESKF::SequentialPrior& prior,
                                                    ESKF::ObsFunc obs) {
   R_ = prior.x.R;
@@ -265,6 +285,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveFromPrior(const ESKF::SequentialPrior
   ba_ = prior.x.ba;
   current_time_ = prior.time;
   current_obs_time_ = prior.time;
+  inv_expo_ = prior.x.inv_expo;
   P_ = prior.P;
   return UpdateObserveImpl(obs);
 }
@@ -284,14 +305,14 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
   V3  ba_pred = ba_;
   V3  g_pred = g_;
 
-  M18 P_pred = P_;
+  M19 P_pred = P_;
 
   M6 HTVH;
   V6 HTVr;
 
-  M18 Pk = M18::Zero();
-  M18 Qk = M18::Zero();
-  M18 K_x = M18::Zero();
+  M19 Pk = M19::Zero();
+  M19 Qk = M19::Zero();
+  M19 K_x = M19::Zero();
 
   need_converge_ = false;
 
@@ -304,7 +325,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
 
     obs(GetKFState(), HTVH, HTVr);
 
-    V18 dx_prior = V18::Zero();
+    V19 dx_prior = V19::Zero();
     dx_prior.template block<3,1>(0,0)  = (R_pred.inverse() * R_).log_vee();
     dx_prior.template block<3,1>(3,0)  = p_  - p_pred;
     dx_prior.template block<3,1>(6,0)  = v_  - v_pred;
@@ -312,7 +333,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
     dx_prior.template block<3,1>(12,0) = ba_ - ba_pred;
     dx_prior.template block<3,1>(15,0) = g_  - g_pred;
 
-    M18 G_prior = M18::Identity();
+    M19 G_prior = M19::Identity();
 
     M3 J_prior = M3::Identity()
                - 0.5 * SO3::hat(dx_prior.template block<3,1>(0,0));
@@ -324,20 +345,20 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
     dx_prior = G_prior * dx_prior;
 
     // H^T R^{-1} H
-    M18 HTRH = M18::Zero();
+    M19 HTRH = M19::Zero();
     HTRH.template block<6,6>(0,0) = HTVH;
 
     // information form
-    M18 A = Pk.inverse() + HTRH;
+    M19 A = Pk.inverse() + HTRH;
     Qk = A.inverse();
 
-    V18 b = V18::Zero();
+    V19 b = V19::Zero();
     b.template head<6>() = HTVr;
 
     K_x = Qk * HTRH;
 
     // dx = K_h + (K_x - I) * dx_prior
-    dx_ = Qk * b + (K_x - M18::Identity()) * dx_prior;
+    dx_ = Qk * b + (K_x - M19::Identity()) * dx_prior;
 
     Update();
 
@@ -348,7 +369,7 @@ ESKF::PosteriorSnapshot ESKF::UpdateObserveImpl(ESKF::ObsFunc obs) {
 
   P_ = Qk;
 
-  M18 G_reset = M18::Identity();
+  M19 G_reset = M19::Identity();
   M3 J_reset = M3::Identity()
              - 0.5 * SO3::hat(dx_.template block<3,1>(0,0));
 

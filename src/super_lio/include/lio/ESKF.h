@@ -12,14 +12,18 @@ namespace LI2Sup{
 class ESKF {
 public:
   using Ptr   = std::shared_ptr<ESKF>;
-                                                  //         0 3 6 9 12 15
-  using STATE = Eigen::Matrix<BASIC::scalar, 18, 1>;     //Flatten: R p v bg ba g. 
-  using STATE_DOF = Eigen::Matrix<BASIC::scalar, 17, 1>; //Flatten: R p v bg ba g_2.
+                                                  //         0 3 6 9 12 15 18
+  using STATE = Eigen::Matrix<BASIC::scalar, 19, 1>;     //Flatten: R p v bg ba g inv_expo
+  using STATE_DOF = Eigen::Matrix<BASIC::scalar, 18, 1>; //Flatten: R p v bg ba g_2 inv_expo
   using NOISE = Eigen::Matrix<BASIC::scalar, 12, 12>;
-  using COV   = Eigen::Matrix<BASIC::scalar, 18, 18>;
-  using F_X   = Eigen::Matrix<BASIC::scalar, 18, 18>;
-  using F_W   = Eigen::Matrix<BASIC::scalar, 18, 12>;
+  using COV   = Eigen::Matrix<BASIC::scalar, 19, 19>;
+  using F_X   = Eigen::Matrix<BASIC::scalar, 19, 19>;
+  using F_W   = Eigen::Matrix<BASIC::scalar, 19, 12>;
 
+  // Round15 D1: canonical state layout. Index 18 = FAST-LIVO2 inverse
+  // exposure (tau). All state operations agree on this single index.
+  static constexpr int kStateDim = 19;
+  static constexpr int kInvExpoIndex = 18;
 
   struct Options {
     Options(){}
@@ -30,7 +34,45 @@ public:
     double acce_var_ = 1e-2;
     double bias_gyro_var_ = 1e-6;
     double bias_acce_var_ = 1e-4;
+
+    // Round15 D1: inverse-exposure semantics (three DISTINCT parameters —
+    // initial state, process covariance, estimation enable — never one
+    // overloaded parameter).
+    double inv_expo_initial_ = 1.0;   // initial state value (tau)
+    double inv_expo_cov_ = 0.0;       // random-walk process variance (per s^2)
+    bool   inv_expo_enabled_ = false; // exposure process-noise injection gate
   };
+
+  // Round15 D1: canonical state algebra (single implementation).
+  // BoxPlus:  x (+) dx on the flattened 19D state (SO3 exp for R, addition
+  //           for p/v/bg/ba/g, scalar addition for inv_expo).
+  // BoxMinus: dx = a (-) b (SO3 log for R, subtraction for the rest).
+  static STATE BoxPlus(const STATE& x, const STATE& dx) {
+    STATE out = x;
+    out.template block<3, 1>(0, 0) =
+        (BASIC::SO3::Exp(x.template block<3, 1>(0, 0)) *
+         BASIC::SO3::Exp(dx.template block<3, 1>(0, 0))).log_vee();
+    out.template block<3, 1>(3, 0) += dx.template block<3, 1>(3, 0);
+    out.template block<3, 1>(6, 0) += dx.template block<3, 1>(6, 0);
+    out.template block<3, 1>(9, 0) += dx.template block<3, 1>(9, 0);
+    out.template block<3, 1>(12, 0) += dx.template block<3, 1>(12, 0);
+    out.template block<3, 1>(15, 0) += dx.template block<3, 1>(15, 0);
+    out(kInvExpoIndex) += dx(kInvExpoIndex);
+    return out;
+  }
+  static STATE BoxMinus(const STATE& a, const STATE& b) {
+    STATE d = STATE::Zero();
+    d.template block<3, 1>(0, 0) =
+        (BASIC::SO3::Exp(a.template block<3, 1>(0, 0)) *
+         BASIC::SO3::Exp(b.template block<3, 1>(0, 0)).inverse()).log_vee();
+    d.template block<3, 1>(3, 0) = a.template block<3, 1>(3, 0) - b.template block<3, 1>(3, 0);
+    d.template block<3, 1>(6, 0) = a.template block<3, 1>(6, 0) - b.template block<3, 1>(6, 0);
+    d.template block<3, 1>(9, 0) = a.template block<3, 1>(9, 0) - b.template block<3, 1>(9, 0);
+    d.template block<3, 1>(12, 0) = a.template block<3, 1>(12, 0) - b.template block<3, 1>(12, 0);
+    d.template block<3, 1>(15, 0) = a.template block<3, 1>(15, 0) - b.template block<3, 1>(15, 0);
+    d(kInvExpoIndex) = a(kInvExpoIndex) - b(kInvExpoIndex);
+    return d;
+  }
 
 
   struct KFState{
@@ -94,7 +136,11 @@ public:
 
   double GetTime() const { return current_time_; }
 
-  SysState GetSysState() const { return SysState(current_time_, R_, p_, v_, bg_, ba_); }
+  SysState GetSysState() const {
+    return SysState(current_time_, R_, p_, v_, bg_, ba_, inv_expo_);
+  }
+  double GetInvExpo() const { return inv_expo_; }
+  void SetInvExpo(double v) { inv_expo_ = v; }
 
   NavState GetNavState() const { return NavState(current_time_, R_, p_, v_); }
 
@@ -162,6 +208,9 @@ private:
   BASIC::V3 g_{0, 0, - (BASIC::scalar)g_gravity_norm};
   BASIC::V3 global_acc_  = BASIC::V3::Zero();
   BASIC::V3 body_omega_  = BASIC::V3::Zero();
+
+  // Round15 D1: FAST-LIVO2 inverse exposure (tau), first-class filter state.
+  double inv_expo_ = 1.0;
 
   STATE dx_ = STATE::Zero();
 

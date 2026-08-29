@@ -578,9 +578,9 @@ void SuperLIO::stateProcess(){
     v4_max_sym_ratio_ = std::max(v4_max_sym_ratio_, sym_ratio);
     if (sym_ratio > 1e-5) v4_cov_fail_count_++;
     if (v4_apply_count_ % 50 == 0) {
-      const Eigen::Matrix<double, 18, 18> Pvd = Pv.cast<double>();
-      const Eigen::Matrix<double, 18, 18> Ps = 0.5 * (Pvd + Pvd.transpose());
-      const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 18, 18>> es(Ps);
+      const Eigen::Matrix<double, 19, 19> Pvd = Pv.cast<double>();
+      const Eigen::Matrix<double, 19, 19> Ps = 0.5 * (Pvd + Pvd.transpose());
+      const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 19, 19>> es(Ps);
       v4_last_lambda_min_ = es.eigenvalues()(0);
       v4_last_lambda_max_ = es.eigenvalues()(17);
     }

@@ -97,13 +97,28 @@ G  final map policy selection
 
 ## D1 — inverse-exposure filter-state plumbing
 
-(filled after implementation; see the scorecard JSON)
-
 ```text
 inverse exposure filter state:   MISSING_FAST_LIVO2_SEMANTIC -> PARTIAL_MIGRATION (REPRODUCED_STATE_PLUMBING)
-exposure covariance:             MISSING -> REPRODUCED
-exposure propagation:            MISSING -> REPRODUCED
+exposure covariance:             MISSING -> REPRODUCED (P 19x19, canonical index 18)
+exposure propagation:            MISSING -> REPRODUCED (P(18,18) += inv_expo_cov*dt^2 when enabled; 0 when disabled)
 exposure-aware visual residual:  MISSING -> STILL MISSING (D2)
 DC residual:                     LEGACY_SUPER_LIVO_SEMANTIC -> UNCHANGED
 pyramid / rollback / normal warp / map lifecycle: UNCHANGED
 ```
+
+Layout: 19D ESKF state (R p v bg ba g inv_expo); canonical index 18;
+BoxPlus/BoxMinus canonical operators; initial inv_expo 1.0 (deterministic,
+P(18,18)=0); three distinct params (inv_expo_initial_ / inv_expo_cov_ /
+inv_expo_enabled_); LiDAR structurally zero exposure sensitivity (6x6
+HTRH block only); SequentialPrior carries the full 19D state + P.
+
+Gates: D1-A state algebra PASS; D1-B covariance PASS; D1-C process noise
+PASS; D1-D physical isolation PASS (enabled-vs-disabled physical block
+identical); D1-E SequentialPrior integrity PASS; D1-F scope guard PASS.
+Negative mutations (wrong index / omitted plus / omitted minus / dim
+removal / wrong dt power / noise-while-disabled) all detectable.
+
+Bounded production seam: d1_bounded_production/20260829T093236Z — node
+rc=0 with the 19D filter through kf_init/propagation/LiDAR/Visual
+(trajectory 1194 rows; 120s window is Visual-map warmup — 0 residuals,
+validator evidence-volume failure only; NOT a full run, NOT scored for ATE).
