@@ -127,6 +127,10 @@ def resolve_validator_path(relative):
 VALIDATOR_CONTRACT = {
     # (validator path, requires_measurement_evidence)
     "D_VISUAL_SHADOW": ("scripts/super_livo/experiments/validate_d_visual_shadow_result.py", True),
+    # Phase B: the APPLY profile needs the same lightweight measurement
+    # evidence (R14 counters) but has no post-run validator contract yet
+    # (the Shadow validator is apply-off specific).
+    "D_VISUAL_APPLY": ("", True),
 }
 
 def validator_contract_for(profile):

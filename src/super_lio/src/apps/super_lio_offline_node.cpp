@@ -217,6 +217,7 @@ int main(int argc, char** argv) {
   nh.getParam("/lio/v4/photo_variance", v4_photo_var);
   lio->setPhotoResidualVariance(v4_photo_var);
   nh.getParam("/lio/v4/apply", g_lio_v4_apply);
+  std::printf("[offline_node] v4_apply=%d\n", g_lio_v4_apply ? 1 : 0);
   {
     int s0_audit_i = 0;
     nh.getParam("/lio/s0/audit", s0_audit_i);
@@ -946,6 +947,23 @@ int main(int argc, char** argv) {
                 (long long)lio->r14ShadowApplyAttempts(),
                 (long long)lio->r14ShadowStateWrites(),
                 (long long)lio->r14ShadowCovWrites());
+    const auto& dp = lio->r14ApplyDeltaPos();
+    const auto& dr = lio->r14ApplyDeltaRot();
+    const auto& cb = lio->r14CovTraceBefore();
+    const auto& ca = lio->r14CovTraceAfter();
+    auto pctv = [](const std::vector<double>& v, double p) {
+      if (v.empty()) return -1.0;
+      auto s = v; std::sort(s.begin(), s.end());
+      return s[static_cast<size_t>(p * (s.size() - 1))];
+    };
+    std::printf("R14 Apply attempts=%lld success=%lld\n",
+                (long long)lio->r14ApplyAttempts(),
+                (long long)lio->r14ApplySuccess());
+    std::printf("R14 Apply delta_pos_m P50=%.6g P90=%.6g delta_rot_rad P50=%.6g\n",
+                pctv(dp, 0.5), pctv(dp, 0.9), pctv(dr, 0.5));
+    std::printf("R14 cov_trace before_P50=%.6g after_P50=%.6g delta_P50=%.6g\n",
+                pctv(cb, 0.5), pctv(ca, 0.5),
+                (cb.size() ? pctv(cb, 0.5) - pctv(ca, 0.5) : -1.0));
   }
   if (g_lio_v0_enabled) {
     std::printf("V-0 VisualMap: parents=%zu landmarks=%lld slots_used=%lld created=%lld frames=%lld attempts=%lld\n",
