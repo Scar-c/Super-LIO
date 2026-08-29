@@ -194,3 +194,12 @@
   bounded production seam node rc=0
 - classification: ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED
 - D2 NOT AUTHORIZED — await Owner review
+
+## Prompt82 — Round 15 D1 Source-Parity Corrective Closure
+
+- C1: initial exposure variance 1e-5 (FAST-LIVO2 parity; was 0) — named constant
+- C2: real exposure-DISABLED LiDAR update seam (finite/symmetric/zero sensitivity)
+- C3: camera timing (exposure_time_init) vs inv_expo state separation audit
+- C4: inv_expo_cov config provenance (generic default 0.2 / NTU effective 0.1)
+- C5: POINT_COV_POLICY = DEFERRED_MIGRATION_TO_E3 (supersedes DEV-POINT-COV permanence)
+- T1-T12 + M1-M6; commits P82-1..P82-5; D1 = CLOSED_AFTER_PROMPT82_CORRECTIVE
