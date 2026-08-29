@@ -158,3 +158,16 @@
 - G3 CLOSE_EVIDENCE_SELF_PROVENANCE: functional_corrective_commit provenance
   validated (sha40/exists/descendant/diff); prompt-only/pre-fix rejected
 - GC-T1..T12; Origin-Q1..Q3; success: ROUND14_PHASEB_THREE_GATE_FINAL_CLOSE_AND_PHASEC_READY
+
+## Prompt 79 — Three-Gate Zero-False-Positive FINAL CLOSE — CLOSED
+
+- G1 manifest path REQUIRED + exact authority (SEMANTIC_SNAPSHOT_PATH_MISSING;
+  no file discovery; GC-T1..T3; Origin-Q1 YES)
+- G2 real-seam template drift (GC-T4/T5 on real transaction output;
+  machine evidence REAL_TRANSACTION_SEAM enforced; GC-T6; Origin-Q2 YES)
+- G3 evidence self-provenance (functional_corrective_commit 2dc0341
+  validated sha40/exists/descendant/diff; GC-T7..T11; Origin-Q3 YES)
+- GC-T1..T12 all PASS; 269 round14+round13 tests PASS; regressions ZERO
+- classification: ROUND14_PHASEB_THREE_GATE_FINAL_CLOSE_AND_PHASEC_READY
+- ROUND14_PHASE_B = FROZEN_CLOSED; NO_FURTHER_PHASE_B_INFRA_EVAL_CORRECTIVE = TRUE
+- STOP — Phase C awaits separate Owner authorization
