@@ -134,3 +134,13 @@ evaluator-context infrastructure, corrected by `a2a3a16`; corrected attempt
 `20260828T1110_corridor02` invalid due to estimator divergence (22.9 km
 endpoint displacement, repeated zero effective features/NaN residuals). No
 parameter tuning or cherry-picked rerun was performed. Round12 remains PARTIAL.
+
+## Prompt84 — Pre-Governance Recovery (branch super-livo-rebuild)
+
+- historical super-livo = evidence (Prompt59+ governance HISTORICAL /
+  NOT MIGRATED INTO ACTIVE REBUILD ARCHITECTURE)
+- recovery base 8321586 = PRODUCTION_CLEAN_BUT_RUNNER_GOVERNANCE_PRESENT
+- camera-epoch sequential reconstruction: event LiDAR posterior frozen at t_c
+  -> Visual transaction at the same event -> payload exact-once release
+- Issue #263: bootstrap vs mature refresh = TWO_LIFECYCLE_SITES
+- success: SUPER_LIVO_PRE_GOVERNANCE_RECOVERY_AND_CAMERA_EPOCH_SEQUENTIAL_SCAFFOLD_CLOSED

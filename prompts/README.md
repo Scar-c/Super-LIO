@@ -68,3 +68,4 @@ Canonical directory：本 `prompts/` 目录。文件命名规范：`NN_short_sna
 - Input/Output HEAD：凡无法从 prompt 文本或 git log 确认的填 `unknown`；`no commit` 表示该轮只产出 local tracker/docs 未推送的 commit。
 - 当前 active workflow：`04_v1_implementation/`（v1 tracer graph：TB-1 → G-0 → … → M-0，见 `docs/super_livo/specs/super_livo_v1_spec.md` 与 `.scratch/super-livo-v1/issues/`）。
 - Round 4 与 08 均被 07（offline-first recovery）合并替代；07 的 Phase D 再经 Round 5 固化为 v1 冻结。
+| 84 | 84_round15_pre_governance_recovery.md | Round 15 — Pre-Governance Recovery + Camera-Epoch Sequential Reconstruction | IN_PROGRESS — rebuild branch from 8321586 | 8321586 | 本轮产出 | D1 clean migration |
