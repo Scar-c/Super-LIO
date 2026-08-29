@@ -112,3 +112,13 @@
 - anti-reinterpretation gate: fake V999 -> A2/B0 byte-equivalent
 - classification: ROUND14_PHASEB_RUN_BOUND_SEMANTIC_PROVENANCE_FULLY_CLOSED_AND_REMOTE_READY
 - STOP — Phase C awaits Origin authorization
+
+## Prompt 78 — FINAL HARD CLOSE (future snapshot integrity)
+
+- F1 manifest snapshot SHA not enforced by resolver (recomputes, no equality)
+- F2 snapshot production_revision/schema optional in resolver
+- fixes: complete snapshot materialization (runtime+policy+rev+schema, atomic,
+  pre-execution), strict resolver contract with explicit failure classes,
+  RB-T10 corrected, FH-T1..T20, real no-bag transaction seam + mutation
+  attacks, machine-readable CLOSE evidence
+- success: ROUND14_PHASEB_FINAL_HARD_CLOSE_AND_PHASEC_READY + Phase-B freeze
