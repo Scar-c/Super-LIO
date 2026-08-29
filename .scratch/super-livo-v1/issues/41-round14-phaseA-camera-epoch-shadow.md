@@ -52,3 +52,19 @@
 - FS-T1..FS-T30 + adversarial false-close suite
 - clean canonical A2 + B0 reruns (same SHA, same build, single-variable diff)
 - five-layer consistency; final report §85
+
+## Prompt 75 — Phase B canonical eval final seal — CLOSED
+
+- F1 shared compiled helper (A2+B0 single callsite, ONE degeneracy rule)
+- F2 solver iteration producer = ESKF loop (iterations 7758 == callbacks 7758)
+- F3 initial-vs-iterative counters (initial hits 395308 fix in 31d677e)
+- F4 initial residual mean; F5 GT 4-stat canonical; F6 A1 parent=A0 enforced
+- F8 explicit LiDAR scan fields; F9 duplicate scan-use events (0)
+- F10 EVIDENCE_MISSING; F11 --expected-rows; F12 immutable semantic IDs
+- F13 clean canonical runs (31d677e, git_dirty=0)
+- registry generator (scorecard JSON -> generated TSV); FS-T1..T30;
+  adversarial suite 12/12 rejected; five-layer ALL_MATCH
+- canonical A2 20260829T052214Z (ATE 0.104098) / B0 20260829T052357Z
+  (ATE 0.133707); single-variable config diff PASS
+- classification: ROUND14_PHASEB_CANONICAL_EVAL_FULLY_SEALED_AND_REMOTE_READY
+- STOP — Phase C awaits Origin authorization

@@ -105,10 +105,8 @@ def _row_from_scorecard(score):
     comp = score.get("compute", {})
     rat = score.get("ratios", {})
     stage = p.get("stage_id", "UNREGISTERED_STAGE")
-    apply_stage = stage.startswith("B0")
-    solver = "NOT_APPLICABLE"
-    if apply_stage:
-        solver = None
+    apply_stage = stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED"
+    solver = "NOT_APPLICABLE" if not apply_stage else None
 
     row = {
         "Stage": stage,
@@ -118,9 +116,12 @@ def _row_from_scorecard(score):
         "ConfigHash": p.get("config_hash"),
         "Dataset": p.get("dataset"),
         "Sequence": p.get("sequence"),
-        "VisualEvent": ({"B0_D_CAMERA_EPOCH_APPLY_CORRECTED": "CAMERA_EPOCH"}.get(stage)
-                        if stage in CANONICAL_STAGE_PARENTS
-                        else "UNREGISTERED_STAGE"),
+        "VisualEvent": {
+            "A0_D_LEGACY_PLACEMENT_SHADOW": "FULL_LIDAR_OBSERVE_CALLBACK",
+            "A1_D_SCHEDULER_BASE": "NONE",
+            "A2_D_CAMERA_EPOCH_SHADOW": "CAMERA_EPOCH",
+            "B0_D_CAMERA_EPOCH_APPLY_CORRECTED": "CAMERA_EPOCH",
+        }.get(stage, "UNREGISTERED_STAGE"),
         "VisualApply": stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED",
         "VisualMapPolicy": p.get("visual_map_policy"),
         "NormalizePolicy": p.get("normalize_semantics"),
@@ -155,16 +156,16 @@ def _row_from_scorecard(score):
         "InitialConditionP50": info.get("condition_P50"),
         "InitialDegenerateFrames": info.get("degenerate_frames"),
         "InitialMetricInvalidFrames": info.get("metric_invalid_frames"),
-        "SolverApplyCount": m.get("solver_apply_count", solver),
-        "SolverIterationCount": m.get("solver_iteration_count", solver),
-        "SolverCallbackInvocations": m.get("solver_callback_invocations", solver),
-        "SolverResidualSamplesTotal": m.get("solver_residual_samples_total", solver),
-        "SolverIterationsPerApplyP50": m.get("solver_iterations_per_apply_P50", solver),
-        "ApplyEligibleFrames": m.get("solver_apply_count", solver),
-        "ApplySuccess": m.get("solver_apply_success", solver),
-        "ApplyFailures": m.get("solver_apply_fail", solver),
-        "ApplySkipZeroCandidate": m.get("solver_apply_skip_zero_candidate", solver),
-        "ApplySkipZeroValidResidual": m.get("solver_apply_skip_zero_valid", solver),
+        "SolverApplyCount": m.get("solver_apply_count") if apply_stage else solver,
+        "SolverIterationCount": m.get("solver_iteration_count") if apply_stage else solver,
+        "SolverCallbackInvocations": m.get("solver_callback_invocations") if apply_stage else solver,
+        "SolverResidualSamplesTotal": m.get("solver_residual_samples_total") if apply_stage else solver,
+        "SolverIterationsPerApplyP50": m.get("solver_iterations_per_apply_P50") if apply_stage else solver,
+        "ApplyEligibleFrames": m.get("solver_apply_count") if apply_stage else solver,
+        "ApplySuccess": m.get("solver_apply_success") if apply_stage else solver,
+        "ApplyFailures": m.get("solver_apply_fail") if apply_stage else solver,
+        "ApplySkipZeroCandidate": m.get("solver_apply_skip_zero_candidate") if apply_stage else solver,
+        "ApplySkipZeroValidResidual": m.get("solver_apply_skip_zero_valid") if apply_stage else solver,
         "RawLidarInputScans": c.get("raw_lidar_input_scans"),
         "PreObserveExcludedScans": c.get("preobserve_excluded_scans"),
         "EligibleRawScans": c.get("eligible_raw_scans"),
