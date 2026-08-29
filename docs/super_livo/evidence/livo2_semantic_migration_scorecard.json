@@ -114,6 +114,66 @@
       ],
       "verdict": "PARTIAL_MIGRATION \u2014 state plumbing REPRODUCED; DC residual UNCHANGED",
       "next_authorized_stage": "D2"
+    },
+    {
+      "stage_id": "D1_PROMPT82_CORRECTIVE",
+      "date": "2026-08-29",
+      "starting_commit": "c8c958465f3c19ad17b7d4a26f14a2956a6ed85d",
+      "ending_commit": "1138a02fd3edb98f59022cafb36428cf2455ed5a",
+      "source_authority": "FAST-LIVO2 0d2c034 (vio/inv_expo_cov; exposure init)",
+      "source_target": "D1 source parity: init variance 1e-5; config-driven inv_expo_cov; timing/state separation",
+      "prompt81_original_closure": "ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED",
+      "origin_post_delivery_review": "D1_CORRECTIVE_REQUIRED",
+      "prompt82_correction_reason": [
+        "INITIAL_EXPOSURE_VARIANCE_PARITY",
+        "POINT_COV_POLICY_SUPERSEDED",
+        "TIMING_VS_STATE_SEPARATION_AUDIT",
+        "INV_EXPO_COV_PROVENANCE"
+      ],
+      "inv_expo_initial_state": "1.0 (frozen EXACT_FAST_LIVO2_VALUE; CONFIGURABLE_BACKEND_EXTENSION with baseline 1.0)",
+      "inv_expo_initial_variance": "0.0 -> 1e-5 (kInitialInvExposureVariance)",
+      "inv_expo_cov_default": "0.2 (FAST-LIVO2 source default, params.cpp)",
+      "inv_expo_cov_NTU_effective": "0.1 (eee_01_tb0_offline.yaml /lio/kf/kf_inv_expo_cov)",
+      "exposure_enabled_behavior": "P(18,18) += inv_expo_cov * dt^2 (runtime field)",
+      "exposure_disabled_behavior": "no exposure process-noise injection (exact)",
+      "timing_exposure_time_init_relation": "camera time offset (/camera/time_offset) applied ONLY to image timestamps; NOT PRESENT as exposure_time_init parameter; mechanically separated from inv_expo state",
+      "point_cov_policy": "POINT_COV_POLICY = DEFERRED_MIGRATION_TO_E3 (supersedes Prompt81 DEV-POINT-COV permanence)",
+      "authorized_deviations": [
+        "DEV-POS-REP (OWNER_AUTHORIZED_BACKEND_REPRESENTATION)"
+      ],
+      "deferred_semantics": [
+        "point covariance -> E1/E3",
+        "exposure-aware residual -> D2",
+        "pyramid/rollback -> D3"
+      ],
+      "production_paths": [
+        "src/super_lio/include/lio/ESKF.h",
+        "src/super_lio/src/lio/ESKF.cpp",
+        "src/super_lio/src/lio/super_lio.cpp",
+        "src/super_lio/src/ros/ROSWrapper.cpp",
+        "src/super_lio/src/lio/params.{h,cpp}"
+      ],
+      "tests": [
+        "T1-T12 (C++ + Python) ALL PASS; round15_d1_exposure_test ALL PASS"
+      ],
+      "negative_mutations": [
+        "M1 zero init variance (T1 fails)",
+        "M2 wrong index (D1-A-NEG)",
+        "M3 timing->state (T7 scan)",
+        "M4 state->timestamp (T8 scan)",
+        "M5 hard-coded cov (T9/T10)",
+        "M6 noise-while-disabled (D1-C-NEG)"
+      ],
+      "real_seam_evidence": "C++ production-seam: real init -> propagation -> LiDAR UpdateObserveFromPrior (exposure disabled) -> finite/symmetric posterior; zero exposure sensitivity",
+      "ATE": "N/A \u2014 Prompt82 D1 corrective only",
+      "visual_residual": "N/A \u2014 DC residual unchanged",
+      "visual_iterations": "N/A",
+      "rollback": "N/A \u2014 D3 not implemented",
+      "CPU": "N/A \u2014 no bounded runtime seam executed this corrective",
+      "map_size": "N/A",
+      "memory": "N/A",
+      "verdict": "D1 = CLOSED_AFTER_PROMPT82_CORRECTIVE",
+      "next_stage": "D2 (not authorized until Origin reviews P82-3)"
     }
   ]
 }

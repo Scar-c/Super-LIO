@@ -122,3 +122,24 @@ Bounded production seam: d1_bounded_production/20260829T093236Z — node
 rc=0 with the 19D filter through kf_init/propagation/LiDAR/Visual
 (trajectory 1194 rows; 120s window is Visual-map warmup — 0 residuals,
 validator evidence-volume failure only; NOT a full run, NOT scored for ATE).
+
+## D1 — Prompt82 Source-Parity Corrective (superseding)
+
+```text
+Prompt81 D1 original closure:  ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED
+Origin post-delivery review:   D1_CORRECTIVE_REQUIRED
+Prompt82 reason:               INITIAL_EXPOSURE_VARIANCE_PARITY /
+                               POINT_COV_POLICY_SUPERSEDED /
+                               TIMING_VS_STATE_SEPARATION_AUDIT /
+                               INV_EXPO_COV_PROVENANCE
+
+inv_expo initial state:  1.0 (unchanged)
+inv_expo initial variance: 0.0 -> 1e-5 (kInitialInvExposureVariance, FAST-LIVO2 parity)
+inv_expo_cov:            generic default 0.2 (FAST-LIVO2 source) / NTU effective 0.1 (config authority;
+                         rosparam /lio/kf/kf_inv_expo_cov -> g_kf_inv_expo_cov -> ESKF::Options -> Predict)
+camera timing:           /camera/time_offset applied ONLY to image timestamps; exposure_time_init
+                         NOT PRESENT / NOT MIGRATED; mechanically separated from inv_expo state
+POINT_COV_POLICY:        DEFERRED_MIGRATION_TO_E3 (supersedes Prompt81 DEV-POINT-COV permanence;
+                         Prompt81 text preserved as the historical issued contract)
+D1 final status:         CLOSED_AFTER_PROMPT82_CORRECTIVE
+```
