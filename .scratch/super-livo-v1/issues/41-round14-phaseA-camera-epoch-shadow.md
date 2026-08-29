@@ -90,3 +90,13 @@
 - numeric results unchanged (A2 0.104098 / B0 0.133707); no bag rerun
 - classification: ROUND14_PHASEB_CANONICAL_EVAL_PROVENANCE_FULLY_CLOSED_AND_REMOTE_READY
 - STOP — Phase C awaits Origin authorization
+
+## Prompt 77 — Phase B run-bound semantic snapshot final seal
+
+- defect: policy IDs resolved from CURRENT checkout snapshot -> historical
+  reinterpretation risk (RUN_BOUND_POLICY_SNAPSHOT_MISSING)
+- RED: fake V999 current template changes historical A2/B0 semantics
+- fix: immutable historical snapshot derived from 31d677e + binding records
+  + canonical resolver (RUN_EMBEDDED/RUN_REFERENCED/HISTORICAL_REVISION_BINDING)
+  + future-run pre-execution snapshot capture
+- RB-T1..T20 + AFC-T21..T25; anti-reinterpretation CLOSE gate
