@@ -48,17 +48,17 @@ class TestEventSchema(unittest.TestCase):
             del m["camera_payload_ownership_mode"]
             sp.validate_manifest(m)
 
-    def test_rp_t7_unsupported_requested_placement_fails_closed(self):
+    def test_rp_t7_apply_executable_after_phase_b(self):
+        # Phase B: camera-event Apply connectivity established; the profile
+        # resolves and passes executability.
         m = resolve("D_VISUAL_APPLY")
         self.assertEqual(m["visual_measurement_event"], "CAMERA_EPOCH")
-        with self.assertRaises(sp.SemanticProfileError) as ctx:
-            sp.validate_executability(m)
-        self.assertIn("SEMANTIC_PROFILE_FAIL", str(ctx.exception))
+        sp.validate_executability(m)
 
     def test_rp_t8_current_shadow_truth(self):
         m = resolve("D_VISUAL_SHADOW")
         self.assertTrue(m["visual_measurement_enabled"])
-        self.assertEqual(m["visual_measurement_event"], "FULL_LIDAR_OBSERVE_CALLBACK")
+        self.assertEqual(m["visual_measurement_event"], "CAMERA_EPOCH")  # Phase A
         self.assertFalse(m["visual_state_apply"])
         sp.validate_executability(m)  # matches effective capability
 
@@ -75,14 +75,13 @@ class TestAuthorityModel(unittest.TestCase):
     def test_rp_t2_profile_sole_authority_in_normalized_mode(self):
         text = open(RUNNER, encoding="utf-8").read()
         self.assertIn("SEMANTIC_AUTHORITY_CONFLICT", text)
-        self.assertRegex(text, r"if \[ -z \"\$SEMANTIC_PROFILE\" \]; then")
         self.assertRegex(text, r"check-executable --manifest")
         # legacy variant expectations must not run in normalized mode
         norm_start = text.index("Prompt64: normalized mode")
         norm_end = text.index("else\n", norm_start)
         normalized_block = text[norm_start:norm_end]
         self.assertNotIn("b0|c0|d0", normalized_block)
-        self.assertIn('rosparams --manifest "$SEMANTIC_MANIFEST"', normalized_block)
+        self.assertIn("producer-expected --manifest", normalized_block)
 
     def test_rp_t4_legacy_only_compatibility(self):
         text = open(RUNNER, encoding="utf-8").read()
@@ -98,8 +97,8 @@ class TestAuthorityModel(unittest.TestCase):
         text = open(RUNNER, encoding="utf-8").read()
         normalized = text[text.index("Prompt64: normalized mode"):]
         normalized = normalized[:normalized.index("else\n")]
+        self.assertIn("producer-expected --manifest", normalized)
         self.assertNotIn("b0|c0|d0", normalized)
-        self.assertIn("rosparams --manifest \"$SEMANTIC_MANIFEST\"", normalized)
 
     def test_rp_t5_authority_conflict_fail_closed(self):
         text = open(RUNNER, encoding="utf-8").read()
@@ -123,13 +122,13 @@ class TestGenericSupervisor(unittest.TestCase):
     def test_tx_t1_t2_profile_identity_generic(self):
         text = open(SUPERVISOR, encoding="utf-8").read()
         self.assertNotIn("expected D_VISUAL_SHADOW profile", text)
-        self.assertIn("no validator contract for profile", text)
+        self.assertIn("post-run validator missing", text)
 
     def test_tx_t4_unknown_validator_fails_explicitly(self):
         # validator dispatch fails closed on a missing contract
         self.assertIn('raise SemanticProfileError("no validator contract for profile "',
                       open(os.path.join(EXP, "semantic_profiles.py")).read())
-        self.assertIn("no validator contract for profile $PROFILE", open(SUPERVISOR).read())
+        self.assertIn("post-run validator missing", open(SUPERVISOR).read())
 
 
 class TestDatasetAdapterBoundary(unittest.TestCase):

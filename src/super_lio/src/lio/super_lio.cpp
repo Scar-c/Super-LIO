@@ -285,53 +285,51 @@ void SuperLIO::statePropagateOnly() {
                                   : 0.0;
           const double n_res = static_cast<double>(visual_residual_count_);
           const Eigen::Matrix<double, 6, 6> Hn = Hd / n_res;
-          r14_i_norm_lambda_min_.push_back(
-              Hn.eigenvalues().real().minCoeff());
+          r14_i_norm_lambda_min_.push_back(Hn.eigenvalues().real().minCoeff());
           r14_i_norm_trace_.push_back(Hn.trace());
           r14_i_cond_.push_back(cond);
         }
-      }
-      const auto v1 = std::chrono::high_resolution_clock::now();
-      if (r14_camera_epoch_visual_enabled_) {
-        r14_visual_cpu_ms_.push_back(
-            std::chrono::duration<double, std::milli>(v1 - v0).count());
-      }
-    } else if (g_lio_v4_apply) {
-      // Phase B: camera-event Visual Apply. Prior = the propagated state at
-      // t_c (x_c^-/P_c^-); the sequential-prior update primitive produces
-      // the posterior (x_c^+/P_c^+) atomically; subsequent events propagate
-      // from this posterior (camera-to-camera and camera-to-LiDAR chaining).
-      r14_camera_event_visual_count_++;
-      const auto v0b = std::chrono::high_resolution_clock::now();
-      const SE3 pose = kf_->GetSE3();
-      runVisualLifecycle(pose, true);
-      ESKF::SequentialPrior prior;
-      prior.time = kf_->GetTime();
-      prior.x = kf_->GetSysState();
-      prior.P = kf_->GetCov();
-      const auto v4_snap = kf_->UpdateObserveFromPrior(
-          prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
-            const SE3 sp = s.pose;
-            visual_residual_count_ = runVisualResidual(sp, H, b, false);
-          });
-      if (r14_camera_epoch_visual_enabled_) {
-        r14_apply_attempts_++;
-        if (visual_residual_count_ > 0) r14_apply_success_++;
-        const double dp = (v4_snap.x.p - prior.x.p).norm();
-        const double drot =
-            (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
-        r14_apply_delta_pos_.push_back(dp);
-        r14_apply_delta_rot_.push_back(drot);
-        r14_cov_trace_before_.push_back(prior.P.diagonal().sum());
-        r14_cov_trace_after_.push_back(v4_snap.P.diagonal().sum());
-        r14_visual_cpu_ms_.push_back(
-            std::chrono::duration<double, std::milli>(
-                std::chrono::high_resolution_clock::now() - v0b).count());
+        const auto v1 = std::chrono::high_resolution_clock::now();
+        if (r14_camera_epoch_visual_enabled_) {
+          r14_visual_cpu_ms_.push_back(
+              std::chrono::duration<double, std::milli>(v1 - v0).count());
+        }
+      } else {
+        // Phase B: camera-event Visual Apply. Prior = the propagated state
+        // at t_c (x_c^-/P_c^-); the sequential-prior update primitive
+        // produces the posterior (x_c^+/P_c^+) atomically; subsequent events
+        // propagate from this posterior (camera-to-camera and
+        // camera-to-LiDAR chaining).
+        runVisualLifecycle(pose, true);
+        ESKF::SequentialPrior prior;
+        prior.time = kf_->GetTime();
+        prior.x = kf_->GetSysState();
+        prior.P = kf_->GetCov();
+        const auto v4_snap = kf_->UpdateObserveFromPrior(
+            prior, [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
+              const SE3 sp = s.pose;
+              visual_residual_count_ = runVisualResidual(sp, H, b, false);
+            });
+        // post-solve lifecycle with the Apply posterior (V-4C semantics)
+        runVisualLifecycle(SE3(v4_snap.x.R, v4_snap.x.p), false);
+        if (r14_camera_epoch_visual_enabled_) {
+          r14_apply_attempts_++;
+          if (visual_residual_count_ > 0) r14_apply_success_++;
+          const double dp = (v4_snap.x.p - prior.x.p).norm();
+          const double drot =
+              (prior.x.R.inverse() * v4_snap.x.R).log_vee().norm();
+          r14_apply_delta_pos_.push_back(dp);
+          r14_apply_delta_rot_.push_back(drot);
+          r14_cov_trace_before_.push_back(prior.P.diagonal().sum());
+          r14_cov_trace_after_.push_back(v4_snap.P.diagonal().sum());
+          r14_visual_cpu_ms_.push_back(
+              std::chrono::duration<double, std::milli>(
+                  std::chrono::high_resolution_clock::now() - v0).count());
+        }
       }
     } else {
       r14_payload_missing_count_++;
     }
-  }
   // Round14 Phase A: the retained camera payload is released exactly once
   // per camera epoch regardless of the Visual flags — a retained payload
   // must never accumulate (memory bound); the Visual measurement above
@@ -343,6 +341,7 @@ void SuperLIO::statePropagateOnly() {
   }
 }
 
+}
 
 bool SuperLIO::kf_init(){
   static int imu_cout = 0;

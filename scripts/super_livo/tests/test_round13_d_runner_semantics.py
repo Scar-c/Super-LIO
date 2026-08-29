@@ -49,9 +49,7 @@ class TestNormalizedSemanticProfiles(unittest.TestCase):
         # placement); state apply is the only enabled/flag change.
         self.assertEqual(self.sp.semantic_diff(shadow, apply),
                          {"semantic_profile", "visual_state_apply",
-                          "visual_measurement_event",
-                          "visual_measurement_timestamp_semantics",
-                          "camera_payload_ownership_mode", "validator",
+                          "visual_state_apply_connectivity", "validator",
                           "requires_measurement_evidence"})
         self.assertIs(apply["visual_state_apply"], True)
         self.assertEqual(apply["visual_measurement_event"], "CAMERA_EPOCH")

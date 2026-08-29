@@ -182,12 +182,11 @@ class TestTransactionRunnerSeam(unittest.TestCase):
         self.assertIsNotNone(state)
         self.assertEqual(state["state"], "SUCCESS")
 
-    def test_tr_t5_unsupported_apply_fails_at_capability_gate(self):
+    def test_tr_t5_apply_executable_after_phase_b(self):
+        # Phase B: D_VISUAL_APPLY now executes (the capability gate opens).
         rc, out, state = self.harness.run("D_VISUAL_APPLY", "tr_t5")
-        self.assertIn("SEMANTIC_PROFILE_FAIL", out)
         self.assertNotIn("SEMANTIC_AUTHORITY_CONFLICT", out)
-        self.assertNotIn("measurement instrumentation not enabled", out)
-        self.assertNotIn("profile_resolved", out)
+        self.assertNotIn("SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1", out)
 
     def test_tr_t8_missing_validator_fails(self):
         rc, out, state = self.harness.run("D_VISUAL_SHADOW", "tr_t8",

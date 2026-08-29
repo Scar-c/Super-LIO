@@ -346,13 +346,13 @@ class TestProductionTrustChain(unittest.TestCase):
         rc, out, run = self.h.run_supervisor("pc_t6", env, cwd="/tmp")
         self.assertEqual(rc, 0, out)
 
-    def test_pc_t8_apply_fails_at_capability_gate(self):
+    def test_pc_t8_apply_executable_after_phase_b(self):
         env = self.h.env(SLV_SEMANTIC_PROFILE="D_VISUAL_APPLY",
                          SLV_TEST_MODE="1", SLV_TEST_NODE_CMD=str(self.h.node),
                          SLV_LOCK_FILE=str(self.h.lock_root / "pc8.lock"))
         rc, out, run = self.h.run_supervisor("pc_t8", env)
-        self.assertNotEqual(rc, 0)
-        self.assertIn("SEMANTIC_PROFILE_FAIL", out)
+        self.assertNotEqual(rc, 0)  # fake-node seam still fails (no estimator)
+        self.assertNotIn("SEMANTIC_PROFILE_FAIL", out)
 
 
 
