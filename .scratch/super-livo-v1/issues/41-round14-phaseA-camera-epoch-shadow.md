@@ -182,3 +182,15 @@
 - roadmap: M0/D1 -> D2 (exposure residual) -> D3 (pyramid/rollback) -> D4
   (plane warp) -> D5 (closure) -> E1-E4 -> F (S3 ablation) -> G (map policy)
 - success: ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED
+
+## Prompt81 — Round 15 M0 + D1 — CLOSED
+
+- M0 canonical semantic migration scorecard (md + JSON); Prompt80 ABORTED recorded
+- D1: 19D ESKF state with inverse exposure at canonical index 18; BoxPlus/
+  BoxMinus canonical operators; P 19x19 (exposure variance via canonical
+  index); random-walk propagation (enabled/disabled, +cov*dt^2); SequentialPrior
+  full capture; LiDAR zero exposure sensitivity; DC residual UNCHANGED
+- gates A-F + negative mutations PASS; 269 python + 8 C++ binaries regression;
+  bounded production seam node rc=0
+- classification: ROUND15_M0_D1_LIVO2_SEMANTIC_MIGRATION_CLOSED
+- D2 NOT AUTHORIZED — await Owner review
