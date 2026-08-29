@@ -68,3 +68,14 @@
   (ATE 0.133707); single-variable config diff PASS
 - classification: ROUND14_PHASEB_CANONICAL_EVAL_FULLY_SEALED_AND_REMOTE_READY
 - STOP — Phase C awaits Origin authorization
+
+## Prompt 76 — Phase B eval provenance final corrective
+
+- P1 semantic snapshot must come from the RUN (explicit file-backed
+  semantic_snapshot_v0.yaml keyed by resolved profile), not evaluator constants
+- P2 registry semantic columns from scorecard actual values (no stage inference)
+- P3 validator hard gates §42/§43: event zero-gates, Apply identity, semantic
+  contract, config hash
+- P4 FS-T28 stale 040348Z artifact replaced by clean canonical 052357Z/fixture
+- PS-T1..PS-T20 + AFC-T1..AFC-T20; actual-vs-expected semantics separated
+- no bag rerun; A2/B0 scorecards+registry regenerated from existing artifacts
