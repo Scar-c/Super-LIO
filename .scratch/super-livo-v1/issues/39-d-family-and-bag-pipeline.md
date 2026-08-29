@@ -144,3 +144,15 @@ parameter tuning or cherry-picked rerun was performed. Round12 remains PARTIAL.
   -> Visual transaction at the same event -> payload exact-once release
 - Issue #263: bootstrap vs mature refresh = TWO_LIFECYCLE_SITES
 - success: SUPER_LIVO_PRE_GOVERNANCE_RECOVERY_AND_CAMERA_EPOCH_SEQUENTIAL_SCAFFOLD_CLOSED
+
+## Prompt84 — STOP_FOR_OWNER_RECOVERY_BASE_MEMORY_DEFECT
+
+- rebuild branch super-livo-rebuild created from 8321586 (audited
+  PRODUCTION_CLEAN_BUT_RUNNER_GOVERNANCE_PRESENT)
+- 84-1 registration + audit; 84-2 minimal seam tests; 84-3 KEY camera-epoch
+  sequential reconstruction (40c3d7f); 84-4 reference contract = N/A
+- camera-disabled LIO smoke: RSS -> 20.8GB (base defect; Round12-era base
+  lacks Round13 memory fixes); OOM at 24.7GB in the camera-enabled attempt
+- STOP_FOR_OWNER: base not usable as-is; §4 forbids auto base swap
+- awaiting Origin decision: later base candidate or authorized bounded
+  memory repair
