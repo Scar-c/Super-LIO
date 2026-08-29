@@ -90,9 +90,10 @@ GATES = [
     ("REAL_SEAM_SCHEMA_ATTACK_REJECTED", "ADVERSARIAL_REJECTION",
      "seam copy rehash + schema mismatch -> resolver",
      "seam copy", "rehash schema mismatch", "SEMANTIC_SNAPSHOT_SCHEMA_MISMATCH"),
-    ("REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY", "RESOLVER_BEHAVIOR",
-     "pytest ...::test_fh_t15_template_drift_after_run_unchanged",
-     "test_round14_final_hard_close.py", None, None),
+    ("REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY", "REAL_TRANSACTION_SEAM",
+     "pytest ...::TestGateG2::test_gc_t5_g2_real_seam_template_drift_unchanged",
+     "<real seam run>/out/semantic_snapshot.yaml + manifest",
+     "GC-T5 template V999 drift", "no change (byte/value equality)"),
     ("RB_T10_CORRECTED_TO_REJECT_WRONG_HASH", "RESOLVER_BEHAVIOR",
      "pytest ...::test_rb_t9_t10_run_embedded_snapshot",
      "test_round14_run_bound_semantics.py", "wrong manifest hash",
@@ -148,6 +149,19 @@ GATES = [
     ("FINAL_SNAPSHOT_INTEGRITY_AUDIT_FINDINGS", "GENERATOR_BEHAVIOR",
      "final snapshot-integrity audit (report §51)",
      "final report", "hash/revision/schema acceptance mutation", "all rejected"),
+    ("G1_MANIFEST_SNAPSHOT_PATH_REQUIRED", "RESOLVER_BEHAVIOR",
+     "pytest scripts/super_livo/tests/test_round14_gate_close.py::TestGateG1",
+     "test_round14_gate_close.py", "GC-T2 (path removed, file present)",
+     "SEMANTIC_SNAPSHOT_PATH_MISSING"),
+    ("G2_REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY", "REAL_TRANSACTION_SEAM",
+     "pytest ...::TestGateG2::test_gc_t4_g2_real_seam_baseline_accepted ; "
+     "::test_gc_t5_g2_real_seam_template_drift_unchanged",
+     "<real seam run>/out/semantic_snapshot.yaml + manifest",
+     "GC-T5 (template V999 drift on real output)", "no change"),
+    ("G3_CLOSE_EVIDENCE_SELF_PROVENANCE", "GIT_PROVENANCE_VALIDATION",
+     "python3 scripts/super_livo/evaluation/close_evidence_validator.py",
+     "round14_final_hard_close_evidence.json",
+     "GC-T8 (prompt-only commit)", "FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH"),
 ]
 
 

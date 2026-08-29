@@ -1,5 +1,6 @@
 {
-  "functional_commit": "72c5684179a1b61b05fc8330ec9713074732c547",
+  "evidence_generation_commit_or_parent": "2dc0341b6ca5cbdce77e8fe363260904a00ecb66",
+  "functional_corrective_commit": "2dc0341b6ca5cbdce77e8fe363260904a00ecb66",
   "hard_gates": {
     "ACTUAL_SHA_EQUALS_MANIFEST_SHA": {
       "artifact": "<seam run>/out/semantic_snapshot.yaml",
@@ -79,6 +80,54 @@
       "evidence_type": "GENERATOR_BEHAVIOR",
       "negative_test": "hash/revision/schema acceptance mutation",
       "observed_failure_class": "all rejected",
+      "status": "PASS"
+    },
+    "G1_MANIFEST_SNAPSHOT_PATH_REQUIRED": {
+      "artifact": "test_round14_gate_close.py",
+      "authority": "visual_eval_score.py _resolve_run_semantics",
+      "command": "pytest scripts/super_livo/tests/test_round14_gate_close.py",
+      "evidence_type": "RESOLVER_BEHAVIOR",
+      "expected_failure": "SEMANTIC_SNAPSHOT_PATH_MISSING",
+      "gate_id": "G1",
+      "negative_mutation_test": "GC-T2",
+      "negative_test": "GC-T2 (path removed, file present)",
+      "observed_failure": "SEMANTIC_SNAPSHOT_PATH_MISSING",
+      "observed_failure_class": "SEMANTIC_SNAPSHOT_PATH_MISSING",
+      "positive_test": "GC-T1",
+      "production_path": "visual_eval_score.py::_resolve_run_semantics",
+      "semantic_invariant": "manifest must explicitly bind the semantic snapshot path; file existence is not manifest ownership",
+      "status": "PASS"
+    },
+    "G2_REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY": {
+      "artifact": "<real seam run>/out/semantic_snapshot.yaml + manifest",
+      "authority": "run_superlivo_transaction.sh + materialize_snapshot",
+      "command": "pytest ...::TestGateG2::test_gc_t5_g2_real_seam_template_drift_unchanged",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "expected_failure": "no change (immunity)",
+      "gate_id": "G2",
+      "negative_mutation_test": "GC-T5",
+      "negative_test": "GC-T5 (template V999 drift on real output)",
+      "observed_failure": "no change (byte/value equality)",
+      "observed_failure_class": "no change",
+      "positive_test": "GC-T4",
+      "production_path": "run_superlivo_transaction.sh -> semantic_profiles.materialize_snapshot -> manifest binding -> playback authorization",
+      "semantic_invariant": "later modification of the current repository semantic template must have zero effect on an already-captured real transaction run",
+      "status": "PASS"
+    },
+    "G3_CLOSE_EVIDENCE_SELF_PROVENANCE": {
+      "artifact": "round14_final_hard_close_evidence.json",
+      "authority": "close_evidence_validator.py::validate_provenance",
+      "command": "python3 scripts/super_livo/evaluation/close_evidence_validator.py",
+      "evidence_type": "GIT_PROVENANCE_VALIDATION",
+      "expected_failure": "FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH",
+      "gate_id": "G3",
+      "negative_mutation_test": "GC-T8",
+      "negative_test": "GC-T8 (prompt-only commit)",
+      "observed_failure": "FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH",
+      "observed_failure_class": "FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH",
+      "positive_test": "GC-T7",
+      "production_path": "close_evidence_validator.py::validate_provenance",
+      "semantic_invariant": "the machine CLOSE evidence must identify the exact functional corrective commit (never a prompt-only/pre-fix commit)",
       "status": "PASS"
     },
     "HASH_MISMATCH_FAILS_CLOSED": {
@@ -258,11 +307,11 @@
       "status": "PASS"
     },
     "REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY": {
-      "artifact": "test_round14_final_hard_close.py",
-      "command": "pytest ...::test_fh_t15_template_drift_after_run_unchanged",
-      "evidence_type": "RESOLVER_BEHAVIOR",
-      "negative_test": null,
-      "observed_failure_class": null,
+      "artifact": "<real seam run>/out/semantic_snapshot.yaml + manifest",
+      "command": "pytest ...::TestGateG2::test_gc_t5_g2_real_seam_template_drift_unchanged",
+      "evidence_type": "REAL_TRANSACTION_SEAM",
+      "negative_test": "GC-T5 template V999 drift",
+      "observed_failure_class": "no change (byte/value equality)",
       "status": "PASS"
     },
     "REAL_TRANSACTION_SNAPSHOT_SEAM": {
@@ -346,5 +395,13 @@
       "status": "PASS"
     }
   },
-  "initial_head": "d97b06ad6044398dfecb2c88f774b8a445fb23ee"
+  "initial_head": "8e46a6ef92481f39e6bd5ba86a933192e4dce0d1",
+  "production_paths_tested": [
+    "scripts/super_livo/evaluation/visual_eval_score.py",
+    "scripts/super_livo/evaluation/close_evidence_validator.py",
+    "scripts/super_livo/evaluation/close_evidence_generator.py",
+    "scripts/super_livo/experiments/semantic_profiles.py",
+    "scripts/super_livo/experiments/run_superlivo_transaction.sh",
+    "scripts/super_livo/tests/test_round14_gate_close.py"
+  ]
 }

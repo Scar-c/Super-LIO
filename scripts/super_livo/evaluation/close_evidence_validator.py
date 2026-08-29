@@ -19,6 +19,8 @@ EVIDENCE = ROOT / "docs/super_livo/evidence/round14_final_hard_close_evidence.js
 EVIDENCE_TYPES = {
     "REAL_TRANSACTION_SEAM", "RESOLVER_BEHAVIOR", "GENERATOR_BEHAVIOR",
     "ADVERSARIAL_REJECTION", "REAL_HISTORICAL_E2E", "PRODUCTION_HELPER_UNIT",
+    "GIT_PROVENANCE_VALIDATION", "NEGATIVE_MUTATION_PROOF",
+    "TEMPLATE_DRIFT_MUTATION", "E2E_GENERATOR",
 }
 NEGATIVE_GATES = {
     "F1_MANIFEST_SNAPSHOT_HASH_NOT_ENFORCED",
@@ -35,6 +37,9 @@ NEGATIVE_GATES = {
     "FALSE_POSITIVE_HARD_CLOSE_TESTS", "STALE_HARD_CLOSE_TESTS",
     "EVERY_NEGATIVE_GATE_HAS_MUTATION_PROOF",
     "FINAL_SNAPSHOT_INTEGRITY_AUDIT_FINDINGS",
+    "G1_MANIFEST_SNAPSHOT_PATH_REQUIRED",
+    "G2_REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY",
+    "G3_CLOSE_EVIDENCE_SELF_PROVENANCE",
 }
 REAL_SEAM_GATES = {
     "SNAPSHOT_CAPTURE_PRE_EXECUTION",
@@ -72,8 +77,9 @@ def validate(path=EVIDENCE):
             errors.append(f"gate {name}: PASS without artifact")
         if name in NEGATIVE_GATES and not g.get("negative_test"):
             errors.append(f"gate {name}: adversarial gate without negative test")
-        if name in REAL_SEAM_GATES and etype == "GENERATOR_BEHAVIOR":
-            errors.append(f"gate {name}: real-seam gate backed by synthetic fixture")
+        if name in REAL_SEAM_GATES and etype != "REAL_TRANSACTION_SEAM":
+            errors.append(f"gate {name}: real-seam gate requires "
+                          f"REAL_TRANSACTION_SEAM (got {etype})")
         if not g.get("command"):
             errors.append(f"gate {name}: no command")
     # every expected §52 gate present
