@@ -203,3 +203,18 @@
 - C4: inv_expo_cov config provenance (generic default 0.2 / NTU effective 0.1)
 - C5: POINT_COV_POLICY = DEFERRED_MIGRATION_TO_E3 (supersedes DEV-POINT-COV permanence)
 - T1-T12 + M1-M6; commits P82-1..P82-5; D1 = CLOSED_AFTER_PROMPT82_CORRECTIVE
+
+## Prompt82 — D1 Source-Parity Corrective Closure — CLOSED
+
+- C1: P_expo init 1e-5 (kInitialInvExposureVariance; was 0)
+- C2: exposure-disabled real LiDAR update finite/symmetric/zero-sensitivity
+- C3: /camera/time_offset only in image timestamps; exposure_time_init NOT
+  PRESENT; no cross-wiring
+- C4: inv_expo_cov chain rosparam->g_*->Options->Predict (default 0.2 /
+  NTU effective 0.1); no hard-code override
+- C5: POINT_COV_POLICY = DEFERRED_MIGRATION_TO_E3 (Prompt81 preserved verbatim)
+- T1-T12 + M1-M6; 316 python + C++ seam PASS
+- KEY FUNCTIONAL COMMIT = 1138a02fd3edb98f59022cafb36428cf2455ed5a
+- classification: ROUND15_PROMPT82_D1_SOURCE_PARITY_CORRECTIVE_CLOSED;
+  D1 = CLOSED_AFTER_PROMPT82_CORRECTIVE
+- D2 AUTHORIZED = NO (await Origin review of P82-3)
