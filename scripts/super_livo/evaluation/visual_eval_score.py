@@ -54,7 +54,7 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None):
             "result_path": str(run),
         },
         "completion": {
-            "experiment_valid": (run / "state.json").exists(),
+            "experiment_valid": None,
             "trajectory_rows": None,
         },
         "camera_event_measurement": {},
@@ -69,10 +69,13 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None):
 
     # completion / validity
     st = run / "state.json"
+    if not st.exists() and run.parent.exists():
+        st = run.parent / "state.json"
     if st.exists():
         data = json.loads(st.read_text())
         score["completion"]["experiment_valid"] = (
             data.get("state") == "SUCCESS" and data.get("cleanup_verified") is True)
+
     if trajectory and pathlib.Path(trajectory).exists():
         score["completion"]["trajectory_rows"] = sum(
             1 for _ in open(trajectory))
@@ -129,6 +132,13 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None):
         text, r"R14 payload released-before: (\d+)")
     score["event_placement"]["payload_release_after_measurement"] = _int(
         text, r"R14 payload release-after: (\d+)")
+    # legacy placement mapping: no R14 counters -> camera-event=0,
+    # LiDAR-callback = measurement frames (the historical placement)
+    if (score["event_placement"]["camera_event_visual_count"] is None
+            and score["event_placement"]["lidar_callback_visual_count"] is None):
+        frames = score["camera_event_measurement"]["frames_with_measurement"]
+        score["event_placement"]["camera_event_visual_count"] = 0
+        score["event_placement"]["lidar_callback_visual_count"] = frames or 0
 
     # timestamp semantics
     dt_max = _float(text, r"R14 dt_visual max=([-0-9.e+]+)")
@@ -141,7 +151,7 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None):
     # information score
     lm_norm = _float(text, r"R14 I_norm lambda_min P50=([-0-9.e+]+)")
     tr_norm = _float(text, r"R14 I_norm trace P50=([-0-9.e+]+)")
-    cond = _float(text, r"R14 I cond P50=([-0-9.e+]+)")
+    cond = _float(text, r"cond P50=([-0-9.e+]+)")
     score["information"] = {"lambda_min_norm_P50": lm_norm,
                             "trace_norm_P50": tr_norm, "cond_P50": cond}
 
