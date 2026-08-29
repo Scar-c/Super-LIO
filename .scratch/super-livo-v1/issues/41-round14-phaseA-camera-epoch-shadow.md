@@ -100,3 +100,15 @@
   + canonical resolver (RUN_EMBEDDED/RUN_REFERENCED/HISTORICAL_REVISION_BINDING)
   + future-run pre-execution snapshot capture
 - RB-T1..T20 + AFC-T21..T25; anti-reinterpretation CLOSE gate
+
+## Prompt 77 — Phase B run-bound semantic snapshot final seal — CLOSED
+
+- RED: current template already reinterpreted 31d677e runs (NOT_IMPLEMENTED_V0
+  vs NOT_IMPLEMENTED etc.); fake V999 changed historical IDs
+- immutable 31d677e snapshot (git-show derived, 7 IDs EXACT_MATCH) + binding
+  records + canonical resolver (RUN_EMBEDDED/REFERENCED/HISTORICAL_BINDING,
+  fail-closed)
+- future-run pre-execution snapshot capture seam; RB-T1..T20 + AFC-T21..T25
+- anti-reinterpretation gate: fake V999 -> A2/B0 byte-equivalent
+- classification: ROUND14_PHASEB_RUN_BOUND_SEMANTIC_PROVENANCE_FULLY_CLOSED_AND_REMOTE_READY
+- STOP — Phase C awaits Origin authorization
