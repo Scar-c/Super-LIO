@@ -34,3 +34,21 @@
 - registry 27-col typed schema; EF-T1..T18 PASS; build PASS; pushed 20bb985
 - Round14 CLOSED through Phase B; STOP FOR OWNER — Phase C authorization
   (see docs/super_livo/evidence/round14_stop_for_owner_phaseC_readiness.md)
+
+## Prompt 75 — Phase B canonical eval final seal (pre-Phase-C hard gate)
+
+- F1 shared compiled information helper (A2+B0 single callsite, one degeneracy rule)
+- F2 solver iteration producer = ESKF UpdateObserveImpl loop (authoritative)
+- F3 initial-vs-iterative measurement counters (no contamination)
+- F4 initial residual mean; ambiguous ResidualSamplesTotal removed
+- F5 GT 4-stat canonical (same aligned sample set)
+- F6 A1 parent=A0; registry validator exact-parent enforcement
+- F8/F9 explicit LiDAR scan fields + duplicate scan-use event counter
+- F10 no event-placement fallback inference
+- F11 completion reference explicit (no 3981 hardcode)
+- F12 immutable semantic IDs (no CURRENT)
+- F13 clean-run provenance (code committed first, git_dirty=0)
+- registry generator: scorecard JSON -> generated TSV (no manual rows)
+- FS-T1..FS-T30 + adversarial false-close suite
+- clean canonical A2 + B0 reruns (same SHA, same build, single-variable diff)
+- five-layer consistency; final report §85
