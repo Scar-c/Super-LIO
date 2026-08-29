@@ -562,6 +562,7 @@ protected:
   const std::vector<double>& r14INormTrace() const { return r14_i_norm_trace_; }
   const std::vector<double>& r14ICond() const { return r14_i_cond_; }
   const std::vector<double>& r14VisualCpuMs() const { return r14_visual_cpu_ms_; }
+  const std::vector<int64_t>& r14ResidualsPerFrame() const { return r14_residuals_per_frame_; }
   void r14RecordLidarCallbackVisual() { r14_lidar_callback_visual_count_++; }
   void r14RecordDuplicateVisual() { r14_duplicate_visual_count_++; }
 
@@ -582,6 +583,7 @@ protected:
   std::vector<double> r14_i_norm_trace_;
   std::vector<double> r14_i_cond_;
   std::vector<double> r14_visual_cpu_ms_;
+  std::vector<int64_t> r14_residuals_per_frame_;
   MeasureGroup measures_;
   
   bool flg_init_ = false;

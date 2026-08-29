@@ -906,18 +906,29 @@ int main(int argc, char** argv) {
     const auto& lm = lio->r14INormLambdaMin();
     const auto& tr = lio->r14INormTrace();
     const auto& cd = lio->r14ICond();
-    auto med = [](const std::vector<double>& v) {
-      if (v.empty()) return -1.0;
-      auto s = v; std::sort(s.begin(), s.end());
-      return s[s.size() / 2];
+    auto pct = [](std::vector<double> s, double p) {
+      if (s.empty()) return -1.0;
+      std::sort(s.begin(), s.end());
+      return s[static_cast<size_t>(p * (s.size() - 1))];
     };
-    std::printf("R14 I_norm lambda_min P50=%.9g trace P50=%.9g cond P50=%.9g\n",
-                med(lm), med(tr), med(cd));
+    std::printf("R14 I_norm lambda_min P10=%.9g P50=%.9g P90=%.9g\n",
+                pct(lm, 0.1), pct(lm, 0.5), pct(lm, 0.9));
+    std::printf("R14 I_norm trace P10=%.9g P50=%.9g P90=%.9g\n",
+                pct(tr, 0.1), pct(tr, 0.5), pct(tr, 0.9));
+    std::printf("R14 I cond P10=%.9g P50=%.9g P90=%.9g\n",
+                pct(cd, 0.1), pct(cd, 0.5), pct(cd, 0.9));
     const auto& cpu = lio->r14VisualCpuMs();
-    if (!cpu.empty()) {
-      auto s = cpu; std::sort(s.begin(), s.end());
-      std::printf("R14 visual cpu P50=%.6g n=%zu\n", s[s.size() / 2], s.size());
-    }
+    std::printf("R14 visual cpu P10=%.6g P50=%.6g P90=%.6g n=%zu\n",
+                pct(cpu, 0.1), pct(cpu, 0.5), pct(cpu, 0.9), cpu.size());
+    const auto& rpf = lio->r14ResidualsPerFrame();
+    auto pcti = [](std::vector<int64_t> s, double p) {
+      if (s.empty()) return -1.0;
+      std::sort(s.begin(), s.end());
+      return static_cast<double>(s[static_cast<size_t>(p * (s.size() - 1))]);
+    };
+    std::printf("R14 residuals_per_frame P10=%.1f P50=%.1f P90=%.1f P99=%.1f n=%zu\n",
+                pcti(rpf, 0.1), pcti(rpf, 0.5), pcti(rpf, 0.9), pcti(rpf, 0.99),
+                rpf.size());
     std::printf("R14 camera-epoch Visual: executions=%lld\n",
                 (long long)lio->r14CameraEventVisualCount());
     std::printf("R14 LiDAR-callback Visual: executions=%lld skipped=%lld\n",

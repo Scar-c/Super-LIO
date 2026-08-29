@@ -274,6 +274,7 @@ void SuperLIO::statePropagateOnly() {
         BASIC::V6 vr = BASIC::V6::Zero();
         visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
         if (r14_camera_epoch_visual_enabled_ && visual_residual_count_ > 0) {
+          r14_residuals_per_frame_.push_back(visual_residual_count_);
           const Eigen::Matrix<double, 6, 6> Hd = vh.cast<double>();
           const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> es(Hd);
           const Eigen::VectorXd ev = es.eigenvalues();
