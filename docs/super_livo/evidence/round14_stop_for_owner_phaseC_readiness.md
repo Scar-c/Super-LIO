@@ -44,7 +44,7 @@ PHASE_B_ALGORITHM              = CLOSED  (unchanged by Prompt 74)
    counters added (aggregate only): 7758 callback invocations, 1965
    completed iterations, callbacks/apply P10/P50/P90/max = 4/4/4/4.
 5. **One authorized estimator rerun** (final corrected B0,
-   `20260829T033913Z`) to produce the missing initial-total + solver-counter
+   `20260829T040348Z`) to produce the missing initial-total + solver-counter
    producer data. A0/A1/A2 were NOT rerun.
 
 ## Where the evidence lives
@@ -55,7 +55,7 @@ results/round14_phaseA/
   a1_scheduler_base/20260829T015720Z
   a2_camera_epoch_shadow/20260829T021933Z   (scorecard regenerated at eval
     a2_camera_epoch_shadow/20260829T020200Z  corrective; canonical = 021933)
-  b0_camera_epoch_apply_corrected/20260829T033913Z
+  b0_camera_epoch_apply_corrected/20260829T040348Z
     each: out/visual_eval_score.json + .tsv + trajectory + manifest
 docs/super_livo/evidence/visual_semantics_eval_registry.tsv   (27-col typed)
 docs/super_livo/evidence/round14_phaseB_eval_finalization.md
