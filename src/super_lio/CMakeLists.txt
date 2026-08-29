@@ -268,6 +268,18 @@ target_link_libraries(round11z_sampler_test
   ${PCL_LIBRARIES}
 )
 
+# Prompt84 rebuild camera-epoch sequential seam checks.
+add_executable(prompt84_rebuild_seam_test
+  src/common/tests/test_prompt84_rebuild_seam.cpp
+  src/lio/ESKF.cpp
+)
+target_include_directories(prompt84_rebuild_seam_test PUBLIC include)
+target_link_libraries(prompt84_rebuild_seam_test
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
+)
+
 # Round 11X camera-epoch/full-scan cadence policy and ownership tests.
 add_executable(round11x_cadence_test
   src/common/tests/test_round11x_cadence.cpp
