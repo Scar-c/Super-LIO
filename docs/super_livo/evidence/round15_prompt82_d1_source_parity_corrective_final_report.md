@@ -244,9 +244,9 @@ KEY FUNCTIONAL COMMIT:
 ledger/evidence commit:
 9557f71b5c3d12cf447523a6d94bb36fe80dbbc8
 final report/tracker commit:
-<pending-filled-at-delivery>
+222da452143c06bd6537784fb282928f645bd47e
 delivery metadata commit:
-<pending (if used)>
+<pending>
 ```
 
 ```text
@@ -296,3 +296,9 @@ NO
 Await Origin independent review of the KEY FUNCTIONAL COMMIT
 (1138a02fd3edb98f59022cafb36428cf2455ed5a).
 ```
+
+## Delivery record (post-push)
+
+Actual delivered remote HEAD: 222da452143c06bd6537784fb282928f645bd47e
+Post-push local == remote: YES
+ahead/behind: 0/0
