@@ -298,6 +298,14 @@ void SuperLIO::statePropagateOnly() {
         // Phase B corrective: camera-event Visual Apply with a valid-
         // measurement gate. The single pre-solve lifecycle (the shared call
         // above, Bug B1 fixed) built the CURRENT camera frame's snapshot.
+        // Prompt74: the Apply lambda counts solver observation callback
+        // invocations and completed iterations (aggregate, default OFF).
+        auto apply_cb = [&](const ESKF::KFState& s, BASIC::M6& H,
+                            BASIC::V6& b) {
+          const SE3 sp = s.pose;
+          visual_residual_count_ = runVisualResidual(sp, H, b, false);
+          r14_solver_callback_invocations_++;
+        };
         // The post-solve lifecycle is REQUIRED for every camera frame
         // (landmark creation/map growth — §6 ZERO_MEASUREMENT_POST_LIFECYCLE
         // = REQUIRED); it runs with the pre-solve pose when the Apply is
@@ -320,17 +328,22 @@ void SuperLIO::statePropagateOnly() {
           if (r14_camera_epoch_visual_enabled_) {
             r14_residuals_per_frame_.push_back(initial_residual);
             if (initial_residual > 0) {
+              // Prompt74: canonical spectral condition shared with the A2
+              // path: I_sym = 0.5(I+I^T); eigenvalues; κ = λ_max/λ_min with
+              // an explicit degeneracy rule (λ_min <= 1e-12 -> DEGENERATE).
               const Eigen::Matrix<double, 6, 6> Hd = h0.cast<double>();
+              const Eigen::Matrix<double, 6, 6> Isym =
+                  0.5 * (Hd + Hd.transpose());
               const Eigen::Matrix<double, 6, 6> Hn =
-                  Hd / static_cast<double>(initial_residual);
-              r14_i_norm_lambda_min_.push_back(
-                  Hn.eigenvalues().real().minCoeff());
+                  Isym / static_cast<double>(initial_residual);
+              const Eigen::VectorXd ev = Hn.eigenvalues().real();
+              const double lam_min = ev(0), lam_max = ev(5);
+              const double cond = (lam_min > 1e-12)
+                                      ? std::abs(lam_max / lam_min)
+                                      : std::numeric_limits<double>::infinity();
+              r14_i_norm_lambda_min_.push_back(lam_min);
               r14_i_norm_trace_.push_back(Hn.trace());
-              r14_i_cond_.push_back(
-                  (Hd.diagonal().maxCoeff() > 1e-30)
-                      ? std::abs(Hd.diagonal().maxCoeff() /
-                                 std::max(Hd.diagonal().minCoeff(), 1e-30))
-                      : 0.0);
+              r14_i_cond_.push_back(cond);
             }
           }
           if (initial_residual == 0) {
@@ -338,15 +351,15 @@ void SuperLIO::statePropagateOnly() {
             runVisualLifecycle(pose, false);
           } else {
             r14_apply_attempts_++;
-            const auto v4_snap = kf_->UpdateObserveFromPrior(
-                prior,
-                [&](const ESKF::KFState& s, BASIC::M6& H, BASIC::V6& b) {
-                  const SE3 sp = s.pose;
-                  visual_residual_count_ = runVisualResidual(sp, H, b, false);
-                });
+            const auto v4_snap = kf_->UpdateObserveFromPrior(prior, apply_cb);
             // post-solve lifecycle exactly once with the Apply posterior
             runVisualLifecycle(SE3(v4_snap.x.R, v4_snap.x.p), false);
             if (r14_camera_epoch_visual_enabled_) {
+              r14_solver_callbacks_per_apply_.push_back(
+                  r14_solver_callback_invocations_ -
+                  r14_solver_callback_base_);
+              r14_solver_callback_base_ = r14_solver_callback_invocations_;
+              r14_solver_completed_iterations_ += 1;
               if (visual_residual_count_ > 0) r14_apply_success_++;
               else r14_apply_fail_++;
               const double dp = (v4_snap.x.p - prior.x.p).norm();

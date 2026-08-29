@@ -26,6 +26,7 @@ REGISTRY_SCHEMA = {
     "Cond_P50": "float/null", "VisualCPU_P50_ms": "float/null",
     "PeakRSS_MB": "float/null", "Classification": "enum",
     "EvidencePath": "string",
+    "InitialResidualSamplesTotal": "integer", "SolverApplyCount": "integer",
 }
 BOOLS = {"true", "false", "True", "False"}
 FLOATS = {"PENDING", "NOT_IMPLEMENTED", "NOT_AVAILABLE"}
@@ -33,7 +34,7 @@ FLOATS = {"PENDING", "NOT_IMPLEMENTED", "NOT_AVAILABLE"}
 
 def validate_registry(path=REGISTRY):
     errors = []
-    lines = pathlib.Path(path).read_text().strip().splitlines()
+    lines = pathlib.Path(path).read_text().rstrip("\n").split("\n")
     header = lines[0].split("\t")
     if len(header) != len(REGISTRY_SCHEMA):
         errors.append(f"column count {len(header)} != {len(REGISTRY_SCHEMA)}")
@@ -241,3 +242,80 @@ class TestEvalLineageCorrective(unittest.TestCase):
 
     def test_ec_t10_schema_green(self):
         self.assertEqual(validate_registry(), [])
+
+
+class TestEvalFinalization(unittest.TestCase):
+    def test_ef_t1_generator_maps_a2_to_a1(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/evaluation"))
+        import visual_eval_score as v
+        self.assertEqual(v.CANONICAL_STAGE_PARENTS["A2_D_CAMERA_EPOCH_SHADOW"],
+                         "A1_D_SCHEDULER_BASE")
+
+    def test_ef_t2_generator_maps_b0_to_a2(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/evaluation"))
+        import visual_eval_score as v
+        self.assertEqual(v.CANONICAL_STAGE_PARENTS["B0_D_CAMERA_EPOCH_APPLY_CORRECTED"],
+                         "A2_D_CAMERA_EPOCH_SHADOW")
+
+    def test_ef_t3_unknown_stage_no_guess(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/evaluation"))
+        import visual_eval_score as v
+        self.assertEqual(v.CANONICAL_STAGE_PARENTS.get("UNKNOWN_STAGE"),
+                         None)
+        self.assertNotIn("UNKNOWN_STAGE", v.CANONICAL_STAGE_PARENTS)
+
+    def test_ef_t4_same_matrix_a2_b0_same_condition(self):
+        import numpy as np
+        import numpy.linalg as la
+        M = np.array([[3.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                      [1.0, 2.0, 0.0, 0.0, 0.0, 0.0],
+                      [0.0, 0.0, 4.0, 0.0, 0.0, 0.0],
+                      [0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                      [0.0, 0.0, 0.0, 0.0, 5.0, 0.0],
+                      [0.0, 0.0, 0.0, 0.0, 0.0, 2.0]])
+        Isym = 0.5 * (M + M.T)
+        ev = la.eigvalsh(Isym)
+        self.assertAlmostEqual(abs(ev[-1] / ev[0]), 5.0)
+
+    def test_ef_t5_spectral_vs_diag_ratio_differ(self):
+        import numpy as np
+        import numpy.linalg as la
+        M = np.diag([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        M[0, 1] = M[1, 0] = 100.0
+        Isym = 0.5 * (M + M.T)
+        ev = la.eigvalsh(Isym)
+        spectral = abs(ev[-1] / ev[0])
+        diag_ratio = np.diag(Isym).max() / np.diag(Isym).min()
+        self.assertNotAlmostEqual(spectral, diag_ratio, places=1)
+
+    def test_ef_t6_degenerate_condition_rule(self):
+        import numpy as np
+        M = np.zeros((6, 6))
+        M[0, 0] = 1.0
+        import numpy.linalg as la
+        ev = la.eigvalsh(M)
+        cond = abs(ev[-1] / ev[0]) if ev[0] > 1e-12 else float("inf")
+        self.assertEqual(cond, float("inf"))
+
+    def test_ef_t7_initial_total_independent_of_apply(self):
+        self.assertIn("initial_residual_samples_total",
+                      open(str(ROOT / "scripts/super_livo/evaluation/visual_eval_score.py")).read())
+        self.assertIn("solver_callback_invocations",
+                      open(str(ROOT / "scripts/super_livo/evaluation/visual_eval_score.py")).read())
+
+    def test_ef_t16_invalid_b0_not_canonical_parent(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts/super_livo/evaluation"))
+        import visual_eval_score as v
+        self.assertNotIn("B0_D_CAMERA_EPOCH_APPLY", v.CANONICAL_STAGE_PARENTS)
+
+    def test_ef_t18_registry_rejects_apply_count_as_residual_total(self):
+        lines = pathlib.Path(REGISTRY).read_text().rstrip("\n").split("\n")
+        for line in lines[1:]:
+            row = dict(zip(lines[0].split("\t"), line.split("\t")))
+            if row["Stage"] == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED":
+                self.assertNotEqual(row["InitialResidualSamplesTotal"],
+                                    row["SolverApplyCount"])

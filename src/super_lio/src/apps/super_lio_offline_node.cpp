@@ -963,6 +963,21 @@ int main(int argc, char** argv) {
     std::printf("R14 Apply skip zero_candidate=%lld zero_valid_residual=%lld\n",
                 (long long)lio->r14ApplySkipZeroCandidate(),
                 (long long)lio->r14ApplySkipZeroValidResidual());
+    std::printf("R14 solver callbacks=%lld completed_iterations=%lld\n",
+                (long long)lio->r14SolverCallbackInvocations(),
+                (long long)lio->r14SolverCompletedIterations());
+    const auto& cba = lio->r14SolverCallbacksPerApply();
+    if (!cba.empty()) {
+      auto s = cba; std::sort(s.begin(), s.end());
+      auto pct = [&](double p) { return static_cast<double>(s[static_cast<size_t>(p * (s.size() - 1))]); };
+      std::printf("R14 solver callbacks_per_apply P10=%.1f P50=%.1f P90=%.1f max=%.1f n=%zu\n",
+                  pct(0.1), pct(0.5), pct(0.9), (double)s.back(), s.size());
+    }
+    const auto& rpf2 = lio->r14ResidualsPerFrame();
+    int64_t init_total = 0;
+    for (auto v : rpf2) init_total += v;
+    std::printf("R14 initial_residual_samples_total=%lld initial_frames=%zu\n",
+                (long long)init_total, rpf2.size());
     std::printf("R14 Apply delta_pos_m P50=%.6g P90=%.6g delta_rot_rad P50=%.6g\n",
                 pctv(dp, 0.5), pctv(dp, 0.9), pctv(dr, 0.5));
     std::printf("R14 cov_trace before_P50=%.6g after_P50=%.6g delta_P50=%.6g\n",

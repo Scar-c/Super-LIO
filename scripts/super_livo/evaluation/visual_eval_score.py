@@ -39,6 +39,15 @@ def _pct_of(vectors, label):
     return {k: v for k, v in vectors.items() if label in k}
 
 
+# Prompt74: explicit canonical stage-parent map (single source of truth).
+CANONICAL_STAGE_PARENTS = {
+    "A0_D_LEGACY_PLACEMENT_SHADOW": "-",
+    "A1_D_SCHEDULER_BASE": "A0_D_LEGACY_PLACEMENT_SHADOW",
+    "A2_D_CAMERA_EPOCH_SHADOW": "A1_D_SCHEDULER_BASE",
+    "B0_D_CAMERA_EPOCH_APPLY_CORRECTED": "A2_D_CAMERA_EPOCH_SHADOW",
+}
+
+
 def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
                     ate_evaluator=None):
     run = pathlib.Path(run_dir)
@@ -54,8 +63,7 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         "provenance": {
             "git_sha": manifest_data.get("production_revision"),
             "stage_id": stage,
-            "parent_stage": "A0_D_LEGACY_PLACEMENT_SHADOW" if stage.startswith("A2")
-                           else ("-" if stage.endswith("_BASE") or stage.endswith("_LEGACY") else "A2_D_CAMERA_EPOCH_SHADOW"),
+            "parent_stage": CANONICAL_STAGE_PARENTS.get(stage, "UNREGISTERED_STAGE"),
             "dataset": manifest_data.get("dataset"),
             "sequence": manifest_data.get("sequence"),
             "config_path": manifest_data.get("config_provenance", {}).get("dataset_calibration"),
@@ -164,6 +172,12 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         text, r"VISUAL_MEASUREMENT b:.* nonzero=(\d+)")
     score["measurement_counts"]["residual_samples_total"] = _int(
         text, r"VISUAL_MEASUREMENT observation:.* residual_samples=(\d+)")
+    score["measurement_counts"]["initial_residual_samples_total"] = _int(
+        text, r"R14 initial_residual_samples_total=(\d+)")
+    score["measurement_counts"]["solver_callback_invocations"] = _int(
+        text, r"R14 solver callbacks=(\d+)")
+    score["measurement_counts"]["solver_completed_iterations"] = _int(
+        text, r"R14 solver callbacks=\d+ completed_iterations=(\d+)")
 
     # residual density per frame (R14 per-frame vector percentiles)
     rpf = text
