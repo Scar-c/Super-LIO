@@ -56,12 +56,12 @@ registry plausibility, real producer fields).
 ## Final corrected B0 (eee_01, B0_D_CAMERA_EPOCH_APPLY_CORRECTED)
 
 ```text
-run: round14_phaseA/b0_camera_epoch_apply_corrected/20260829T033913Z
+run: round14_phaseA/b0_camera_epoch_apply_corrected/20260829T040348Z
 experiment_valid=true  cleanup_verified=true  3981 rows
 Apply attempts 1965 = success 1965 + fail 0
 skip zero candidate 1   skip zero valid 0
 initial residual total 393229   initial residuals/frame P50 208
-initial lambda_min_norm P50 12874974.5   initial spectral condition P50 0.000343
+initial lambda_min_norm P50 2212.82   initial spectral condition P50 4547.69
 solver callbacks 7758   completed iterations 1965   callbacks/apply P50 4
 delta_pos P50 0.0088m   delta_rot P50 0.0020rad
 placement clean (callback 0, dup 0, payload 0/0)   full Observe 3985
@@ -73,7 +73,7 @@ ATE 0.133707
 ```text
 APE RMSE: 0.104098 -> 0.133707 (+0.0296 regression)
 initial residuals/frame P50: 241 -> 208
-initial lambda_min_norm P50: 2276 -> 2213 (A2 retained spectral values)
+initial lambda_min_norm P50: 2276.08 -> 2212.82 (comparable: same sorted-spectral definition)
 Visual CPU P50: 4.31 -> 12.66 ms
 ```
 
@@ -93,3 +93,23 @@ CANONICAL_STAGE_LINEAGE = CLOSED
 NO_PARAMETER_TUNING = PASS
 PHASE_C_READY_FOR_OWNER_AUTHORIZATION = YES (not started)
 ```
+
+## Spectral helper defect found during final report (fixed, rerun)
+
+The first Prompt-74 spectral edit used `Hn.eigenvalues().real()` (general
+EigenSolver — UNSORTED) with `ev(0)`/`ev(5)` taken as min/max. For the
+symmetric I_sym this yields arbitrary first/last entries: the resulting
+B0 lambda_min_norm P50 = 12874974.5 contradicted trace P50 = 24257218
+(trace/6 must bound a sorted ascending min) and condition P50 = 0.000343
+(< 1, impossible for the definition). The A2 branch always used
+SelfAdjointEigenSolver (sorted). The B0 branch now uses the same
+SelfAdjointEigenSolver on I_sym; the corrected run (20260829T040348Z)
+reproduces the A2 scale:
+
+```text
+A2:  lambda_min_norm P50 2276.08   condition P50 4325.43
+B0:  lambda_min_norm P50 2212.82   condition P50 4547.69
+```
+
+All Apply/solver/lifecycle counters byte-identical to the previous
+corrected B0 (deterministic); ATE unchanged 0.133707.

@@ -33,7 +33,7 @@ semantics changed. Phase-B algorithm = CLOSED (unchanged).
 ## Final corrected B0
 
 ```text
-run: round14_phaseA/b0_camera_epoch_apply_corrected/20260829T033913Z
+run: round14_phaseA/b0_camera_epoch_apply_corrected/20260829T040348Z
 ATE 0.133707   initial residual total 393229 (not Apply count)
 solver callbacks 7758   iterations 1965   callbacks/apply P50 4
 Apply 1965 = success 1965 + fail 0

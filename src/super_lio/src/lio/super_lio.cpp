@@ -329,14 +329,19 @@ void SuperLIO::statePropagateOnly() {
             r14_residuals_per_frame_.push_back(initial_residual);
             if (initial_residual > 0) {
               // Prompt74: canonical spectral condition shared with the A2
-              // path: I_sym = 0.5(I+I^T); eigenvalues; κ = λ_max/λ_min with
-              // an explicit degeneracy rule (λ_min <= 1e-12 -> DEGENERATE).
+              // path: I_sym = 0.5(I+I^T); eigenvalues (SORTED ascending via
+              // SelfAdjointEigenSolver, same solver as the A2 branch);
+              // κ = λ_max/λ_min with an explicit degeneracy rule
+              // (λ_min <= 1e-12 -> DEGENERATE).
               const Eigen::Matrix<double, 6, 6> Hd = h0.cast<double>();
               const Eigen::Matrix<double, 6, 6> Isym =
                   0.5 * (Hd + Hd.transpose());
               const Eigen::Matrix<double, 6, 6> Hn =
                   Isym / static_cast<double>(initial_residual);
-              const Eigen::VectorXd ev = Hn.eigenvalues().real();
+              const Eigen::SelfAdjointEigenSolver<
+                  Eigen::Matrix<double, 6, 6>>
+                  es(Hn);
+              const Eigen::VectorXd ev = es.eigenvalues();
               const double lam_min = ev(0), lam_max = ev(5);
               const double cond = (lam_min > 1e-12)
                                       ? std::abs(lam_max / lam_min)
