@@ -647,6 +647,27 @@ void ROSWrapper::accountFullscanCamera(bool stale) {
   images_consumed_++;
 }
 
+// Round14 Phase A: RETAIN_THROUGH_MEASUREMENT ownership. The IMU_ONLY epoch
+// accounts the camera epoch (histogram + counters) but does NOT pop the
+// payload; the camera-epoch Visual measurement in statePropagateOnly uses it
+// and releaseCameraPayload() releases it exactly once afterwards.
+void ROSWrapper::accountFullscanCameraRetain() {
+  if (camera_buffer_.empty()) return;
+  const double t_c = camera_buffer_.oldest().timestamp;
+  const double dt_ms = (t_c - last_epoch_time_) * 1000.0;
+  if (dt_ms >= -200.0 && dt_ms < 200.0) {
+    camera_epoch_dt_hist_[static_cast<int>(dt_ms + 200.0)]++;
+  }
+  last_epoch_time_ = t_c;
+  camera_epoch_count_++;
+  images_consumed_++;
+}
+
+void ROSWrapper::releaseCameraPayload() {
+  if (camera_buffer_.empty()) return;
+  camera_buffer_.popOldest();
+}
+
 // Round 11X full-scan policies keep raw LiDAR buffers immutable at camera
 // epochs. Shadow only closes camera accounting. IMU-full emits an IMU-only
 // measurement after initialization, while raw geometry remains owned by the
@@ -687,7 +708,7 @@ bool ROSWrapper::sync_fullscan_camera_epoch(MeasureGroup& meas) {
         }
         imu_buffer_.pop_front();
       }
-      accountFullscanCamera(false);
+      accountFullscanCameraRetain();
       imu_only_segments_++;
       sync_count_++;
       return true;

@@ -539,6 +539,49 @@ protected:
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;
+
+ public:
+  // ---- Round14 Phase A: camera-event Visual Shadow evidence (default OFF,
+  // aggregate only, gated by /lio/evidence/visual_measurement) ----
+  void r14SetCameraEpochVisualEnabled(bool on) {
+    r14_camera_epoch_visual_enabled_ = on;
+  }
+  bool r14CameraEpochVisualEnabled() const { return r14_camera_epoch_visual_enabled_; }
+  int64_t r14CameraEventVisualCount() const { return r14_camera_event_visual_count_; }
+  int64_t r14LidarCallbackVisualCount() const { return r14_lidar_callback_visual_count_; }
+  int64_t r14LidarCallbackSkippedCount() const { return r14_lidar_callback_skipped_count_; }
+  int64_t r14DuplicateVisualCount() const { return r14_duplicate_visual_count_; }
+  int64_t r14PayloadMissingCount() const { return r14_payload_missing_count_; }
+  int64_t r14PayloadReleasedBeforeCount() const { return r14_payload_released_before_count_; }
+  int64_t r14PayloadReleaseAfterCount() const { return r14_payload_release_after_count_; }
+  int64_t r14ShadowApplyAttempts() const { return r14_shadow_apply_attempts_; }
+  int64_t r14ShadowStateWrites() const { return r14_shadow_state_writes_; }
+  int64_t r14ShadowCovWrites() const { return r14_shadow_cov_writes_; }
+  const std::vector<double>& r14DtVisual() const { return r14_dt_visual_; }
+  const std::vector<double>& r14INormLambdaMin() const { return r14_i_norm_lambda_min_; }
+  const std::vector<double>& r14INormTrace() const { return r14_i_norm_trace_; }
+  const std::vector<double>& r14ICond() const { return r14_i_cond_; }
+  const std::vector<double>& r14VisualCpuMs() const { return r14_visual_cpu_ms_; }
+  void r14RecordLidarCallbackVisual() { r14_lidar_callback_visual_count_++; }
+  void r14RecordDuplicateVisual() { r14_duplicate_visual_count_++; }
+
+ protected:
+  bool r14_camera_epoch_visual_enabled_ = false;
+  int64_t r14_camera_event_visual_count_ = 0;
+  int64_t r14_lidar_callback_visual_count_ = 0;
+  int64_t r14_lidar_callback_skipped_count_ = 0;
+  int64_t r14_duplicate_visual_count_ = 0;
+  int64_t r14_payload_missing_count_ = 0;
+  int64_t r14_payload_released_before_count_ = 0;
+  int64_t r14_payload_release_after_count_ = 0;
+  int64_t r14_shadow_apply_attempts_ = 0;
+  int64_t r14_shadow_state_writes_ = 0;
+  int64_t r14_shadow_cov_writes_ = 0;
+  std::vector<double> r14_dt_visual_;
+  std::vector<double> r14_i_norm_lambda_min_;
+  std::vector<double> r14_i_norm_trace_;
+  std::vector<double> r14_i_cond_;
+  std::vector<double> r14_visual_cpu_ms_;
   MeasureGroup measures_;
   
   bool flg_init_ = false;

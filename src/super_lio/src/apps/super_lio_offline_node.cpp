@@ -210,6 +210,7 @@ int main(int argc, char** argv) {
   bool measurement_evidence = false;
   nh.getParam("/lio/evidence/visual_measurement", measurement_evidence);
   lio->setVisualMeasurementEvidenceEnabled(measurement_evidence);
+  lio->r14SetCameraEpochVisualEnabled(measurement_evidence);
   std::printf("[offline_node] measurement_evidence_instrumentation=%d\n",
               measurement_evidence ? 1 : 0);
   double v4_photo_var = 100.0;
@@ -892,6 +893,48 @@ int main(int argc, char** argv) {
                   lio->fdConvRz()[0], lio->fdConvRz()[1],
                   lio->fdConvRz()[2], lio->fdConvRz()[3]);
     }
+  }
+  if (lio->r14CameraEpochVisualEnabled()) {
+    const auto& dtv = lio->r14DtVisual();
+    if (!dtv.empty()) {
+      auto s = dtv; std::sort(s.begin(), s.end());
+      auto pct = [&](double p) { return s[static_cast<size_t>(p * (s.size() - 1))]; };
+      std::printf("R14 dt_visual max=%.9g mean=%.9g P50=%.9g P99=%.9g n=%zu\n",
+                  s.back(), std::accumulate(s.begin(), s.end(), 0.0) / s.size(),
+                  pct(0.5), pct(0.99), s.size());
+    }
+    const auto& lm = lio->r14INormLambdaMin();
+    const auto& tr = lio->r14INormTrace();
+    const auto& cd = lio->r14ICond();
+    auto med = [](const std::vector<double>& v) {
+      if (v.empty()) return -1.0;
+      auto s = v; std::sort(s.begin(), s.end());
+      return s[s.size() / 2];
+    };
+    std::printf("R14 I_norm lambda_min P50=%.9g trace P50=%.9g cond P50=%.9g\n",
+                med(lm), med(tr), med(cd));
+    const auto& cpu = lio->r14VisualCpuMs();
+    if (!cpu.empty()) {
+      auto s = cpu; std::sort(s.begin(), s.end());
+      std::printf("R14 visual cpu P50=%.6g n=%zu\n", s[s.size() / 2], s.size());
+    }
+    std::printf("R14 camera-epoch Visual: executions=%lld\n",
+                (long long)lio->r14CameraEventVisualCount());
+    std::printf("R14 LiDAR-callback Visual: executions=%lld skipped=%lld\n",
+                (long long)lio->r14LidarCallbackVisualCount(),
+                (long long)lio->r14LidarCallbackSkippedCount());
+    std::printf("R14 duplicate Visual: count=%lld\n",
+                (long long)lio->r14DuplicateVisualCount());
+    std::printf("R14 payload missing: %lld\n",
+                (long long)lio->r14PayloadMissingCount());
+    std::printf("R14 payload released-before: %lld\n",
+                (long long)lio->r14PayloadReleasedBeforeCount());
+    std::printf("R14 payload release-after: %lld\n",
+                (long long)lio->r14PayloadReleaseAfterCount());
+    std::printf("R14 Shadow apply_attempts=%lld state_writes=%lld cov_writes=%lld\n",
+                (long long)lio->r14ShadowApplyAttempts(),
+                (long long)lio->r14ShadowStateWrites(),
+                (long long)lio->r14ShadowCovWrites());
   }
   if (g_lio_v0_enabled) {
     std::printf("V-0 VisualMap: parents=%zu landmarks=%lld slots_used=%lld created=%lld frames=%lld attempts=%lld\n",

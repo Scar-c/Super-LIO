@@ -249,6 +249,65 @@ void SuperLIO::statePropagateOnly() {
   fullscan_propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->CommitPropagationOnlyEpoch(measures_.epoch_ts);
   imu_propagation_segment_count_++;
+
+  // Round14 Phase A: camera-event Visual Shadow measurement.
+  // Ownership: RETAIN_THROUGH_MEASUREMENT. The camera payload was retained by
+  // the IMU_ONLY sync (accountFullscanCameraRetain). At t_c we run the
+  // existing Visual lifecycle + residual/Hb against x_c^- (the propagated
+  // state at the camera epoch), record the Shadow evidence, then release the
+  // payload exactly once. Visual state/covariance Apply stays disabled
+  // (Shadow only) for this phase.
+  if (g_lio_camera_epoch &&
+      g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN &&
+      g_lio_v0_enabled && g_lio_v2_enabled) {
+    const bool have_frame = data_wrapper_->cameraEpochFrame() != nullptr;
+    if (r14_camera_epoch_visual_enabled_) {
+      r14_dt_visual_.push_back(std::abs(kf_->GetTime() - measures_.epoch_ts));
+    }
+    if (have_frame) {
+      r14_camera_event_visual_count_++;
+      const auto v0 = std::chrono::high_resolution_clock::now();
+      const SE3 pose = kf_->GetSE3();  // x_c^-, P_c^- at t_c
+      runVisualLifecycle(pose, g_lio_v4_apply);
+      if (!g_lio_v4_apply) {
+        BASIC::M6 vh = BASIC::M6::Zero();
+        BASIC::V6 vr = BASIC::V6::Zero();
+        visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
+        if (r14_camera_epoch_visual_enabled_ && visual_residual_count_ > 0) {
+          const Eigen::Matrix<double, 6, 6> Hd = vh.cast<double>();
+          const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> es(Hd);
+          const Eigen::VectorXd ev = es.eigenvalues();
+          const double lam_min = ev(0), lam_max = ev(5);
+          const double tr = Hd.trace();
+          const double cond = (std::abs(lam_max) > 1e-30)
+                                  ? std::abs(lam_max / std::max(lam_min, 1e-30))
+                                  : 0.0;
+          const double n_res = static_cast<double>(visual_residual_count_);
+          const Eigen::Matrix<double, 6, 6> Hn = Hd / n_res;
+          r14_i_norm_lambda_min_.push_back(
+              Hn.eigenvalues().real().minCoeff());
+          r14_i_norm_trace_.push_back(Hn.trace());
+          r14_i_cond_.push_back(cond);
+        }
+      }
+      const auto v1 = std::chrono::high_resolution_clock::now();
+      if (r14_camera_epoch_visual_enabled_) {
+        r14_visual_cpu_ms_.push_back(
+            std::chrono::duration<double, std::milli>(v1 - v0).count());
+      }
+    } else {
+      r14_payload_missing_count_++;
+    }
+  }
+  // Round14 Phase A: the retained camera payload is released exactly once
+  // per camera epoch regardless of the Visual flags — a retained payload
+  // must never accumulate (memory bound); the Visual measurement above
+  // consumes the frame first when the Visual path is active.
+  if (g_lio_camera_epoch &&
+      g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN) {
+    data_wrapper_->releaseCameraPayload();
+    r14_payload_release_after_count_++;
+  }
 }
 
 
@@ -813,13 +872,21 @@ void SuperLIO::Observe(){
         if(g_lio_g1v_enabled){
           runG1VShadow(pose);
         }
-        if(g_lio_v0_enabled){
+        const bool d_camera_epoch_visual =
+            g_lio_camera_epoch &&
+            g_lidar_update_policy == LidarUpdatePolicy::IMU_FULLSCAN;
+        if(g_lio_v0_enabled && !d_camera_epoch_visual){
           runVisualLifecycle(pose, g_lio_v4_apply);
+          r14RecordLidarCallbackVisual();
         }
-        if(g_lio_v2_enabled && !g_lio_v4_apply){
+        if(g_lio_v2_enabled && !g_lio_v4_apply && !d_camera_epoch_visual){
           BASIC::M6 vh = BASIC::M6::Zero();
           BASIC::V6 vr = BASIC::V6::Zero();
           visual_residual_count_ = runVisualResidual(pose, vh, vr, false);
+          r14RecordLidarCallbackVisual();
+        }
+        if (d_camera_epoch_visual && r14_camera_epoch_visual_enabled_) {
+          r14_lidar_callback_skipped_count_++;
         }
       }
       return;

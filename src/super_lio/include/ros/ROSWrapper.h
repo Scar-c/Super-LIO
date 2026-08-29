@@ -204,6 +204,11 @@ public:
     return lidar_buffer_.empty() ? -1.0 : lidar_buffer_.front().end_time;
   }
 
+public:
+  // Round14 Phase A: RETAIN_THROUGH_MEASUREMENT camera payload ownership
+  void accountFullscanCameraRetain();
+  void releaseCameraPayload();
+
 private:
   void accountFullscanCamera(bool stale);
   void imuHandler(const sensor_msgs::Imu::ConstPtr&);
