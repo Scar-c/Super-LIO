@@ -59,9 +59,9 @@ EFFECTIVE_PRODUCTION_CAPABILITY = {
     # Round14 Phase A: one camera-event Visual measurement per retained
     # processable camera payload; legacy LiDAR-callback placement removed.
     "visual_measurement_exact_once": True,
-    # Apply connectivity is NOT established on the D backbone yet (Phase B);
-    # only the Shadow path is executable.
-    "visual_state_apply_connectivity": "NOT_ESTABLISHED",
+    # Phase B: camera-event Apply connectivity established (sequential-prior
+    # update at t_c via UpdateObserveFromPrior).
+    "visual_state_apply_connectivity": "ESTABLISHED",
 }
 # Requested future intent: camera-event Apply (Phase B). Resolves as a
 # definition; FAILS executability until Apply connectivity is established.
@@ -87,7 +87,7 @@ PROFILES = {
         "visual_measurement_event": "CAMERA_EPOCH",
         "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
         "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
-        "visual_state_apply_connectivity": "CAMERA_EPOCH",
+        "visual_state_apply_connectivity": "ESTABLISHED",
     },
 }
 

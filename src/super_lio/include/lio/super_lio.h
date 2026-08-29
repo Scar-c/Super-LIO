@@ -557,6 +557,14 @@ protected:
   int64_t r14ShadowApplyAttempts() const { return r14_shadow_apply_attempts_; }
   int64_t r14ShadowStateWrites() const { return r14_shadow_state_writes_; }
   int64_t r14ShadowCovWrites() const { return r14_shadow_cov_writes_; }
+  int64_t r14ApplyAttempts() const { return r14_apply_attempts_; }
+  int64_t r14ApplySuccess() const { return r14_apply_success_; }
+  int64_t r14ApplySkippedZero() const { return r14_apply_skipped_zero_; }
+  int64_t r14PosteriorChainingFailures() const { return r14_posterior_chaining_failures_; }
+  const std::vector<double>& r14ApplyDeltaPos() const { return r14_apply_delta_pos_; }
+  const std::vector<double>& r14ApplyDeltaRot() const { return r14_apply_delta_rot_; }
+  const std::vector<double>& r14CovTraceBefore() const { return r14_cov_trace_before_; }
+  const std::vector<double>& r14CovTraceAfter() const { return r14_cov_trace_after_; }
   const std::vector<double>& r14DtVisual() const { return r14_dt_visual_; }
   const std::vector<double>& r14INormLambdaMin() const { return r14_i_norm_lambda_min_; }
   const std::vector<double>& r14INormTrace() const { return r14_i_norm_trace_; }
@@ -584,6 +592,14 @@ protected:
   std::vector<double> r14_i_cond_;
   std::vector<double> r14_visual_cpu_ms_;
   std::vector<int64_t> r14_residuals_per_frame_;
+  int64_t r14_apply_attempts_ = 0;
+  int64_t r14_apply_success_ = 0;
+  int64_t r14_apply_skipped_zero_ = 0;
+  int64_t r14_posterior_chaining_failures_ = 0;
+  std::vector<double> r14_apply_delta_pos_;
+  std::vector<double> r14_apply_delta_rot_;
+  std::vector<double> r14_cov_trace_before_;
+  std::vector<double> r14_cov_trace_after_;
   MeasureGroup measures_;
   
   bool flg_init_ = false;
