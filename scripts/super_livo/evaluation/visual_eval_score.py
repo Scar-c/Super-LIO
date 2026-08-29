@@ -27,6 +27,46 @@ import yaml
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 DEFAULT_SEMANTIC_SNAPSHOT = REPO / "scripts/super_livo/evaluation/semantic_snapshot_v0.yaml"
+HISTORICAL_SNAPSHOT_DIR = REPO / "scripts/super_livo/evaluation/semantic_snapshots"
+RUN_BINDING_DIR = REPO / "docs/super_livo/evidence/run_semantic_bindings"
+
+# Prompt77 §12: canonical semantic binding modes (no other canonical mode).
+BINDING_RUN_EMBEDDED = "RUN_EMBEDDED"
+BINDING_RUN_REFERENCED = "RUN_REFERENCED"
+BINDING_HISTORICAL = "HISTORICAL_REVISION_BINDING"
+BINDING_NONE = "SEMANTIC_PROVENANCE_MISSING"
+
+# Prompt76 §7/§19: EXPECTED stage semantic contract (validator metadata
+# only). Loaded from the current template's stage_contracts — it describes
+# the STAGE, never the run; actual semantics always come from the run.
+import contextlib
+
+
+@contextlib.contextmanager
+def _semantic_env(snap_dir=None, template=None, binding_dir=None):
+    """Test-only injection for the semantic resolution directories."""
+    global HISTORICAL_SNAPSHOT_DIR, DEFAULT_SEMANTIC_SNAPSHOT, RUN_BINDING_DIR
+    old = (HISTORICAL_SNAPSHOT_DIR, DEFAULT_SEMANTIC_SNAPSHOT, RUN_BINDING_DIR)
+    if snap_dir is not None:
+        HISTORICAL_SNAPSHOT_DIR = pathlib.Path(snap_dir)
+    if template is not None:
+        DEFAULT_SEMANTIC_SNAPSHOT = pathlib.Path(template)
+    if binding_dir is not None:
+        RUN_BINDING_DIR = pathlib.Path(binding_dir)
+    try:
+        yield
+    finally:
+        HISTORICAL_SNAPSHOT_DIR, DEFAULT_SEMANTIC_SNAPSHOT, RUN_BINDING_DIR = old
+
+
+def _load_stage_contracts():
+    if not DEFAULT_SEMANTIC_SNAPSHOT.exists():
+        return {}
+    data = yaml.safe_load(DEFAULT_SEMANTIC_SNAPSHOT.read_text()) or {}
+    return data.get("stage_contracts", {})
+
+
+SEMANTIC_STAGE_CONTRACTS = _load_stage_contracts()
 
 # Prompt74: explicit canonical stage-parent map (single source of truth).
 # Prompt75 F6: A1 -> A0 exactly; registry validator enforces this map.
@@ -83,6 +123,108 @@ def _float(text, pattern):
     return float(m.group(1)) if m else None
 
 
+def _resolve_run_semantics(run_dir, manifest_data, canonical=True):
+    """Prompt77 §11-13: canonical semantic policy source resolution.
+
+    Returns a dict with keys: policies, snapshot_source, snapshot_sha256,
+    production_revision, binding_mode, runtime (manifest semantics).
+
+    Resolution order (canonical):
+      1. run-embedded/run-referenced snapshot (future runs)
+      2. validated historical revision binding (canonical 31d677e pair)
+      else -> SEMANTIC_PROVENANCE_MISSING (fail-closed).
+
+    The current-checkout template semantic_snapshot_v0.yaml is NEVER a
+    canonical source for historical runs.
+    """
+    run = pathlib.Path(run_dir)
+    manifest_rev = manifest_data.get("production_revision")
+    # 1) run-bound snapshot: <run_dir>/semantic_snapshot.yaml with manifest
+    #    references (RUN_EMBEDDED) or an explicit path (RUN_REFERENCED).
+    embedded = run / "semantic_snapshot.yaml"
+    manifest_path = manifest_data.get("semantic_snapshot_path")
+    snapshot_file = None
+    mode = None
+    if embedded.exists():
+        snapshot_file = embedded
+        mode = BINDING_RUN_EMBEDDED
+    elif manifest_path and pathlib.Path(manifest_path).exists():
+        snapshot_file = pathlib.Path(manifest_path)
+        mode = BINDING_RUN_REFERENCED
+    if snapshot_file is not None:
+        data = yaml.safe_load(snapshot_file.read_text()) or {}
+        policies = data.get("policies", {})
+        rev = data.get("production_revision")
+        if manifest_rev and rev and rev != manifest_rev:
+            raise ValueError(f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: {rev} != {manifest_rev}")
+        return {
+            "policies": policies,
+            "snapshot_source": str(snapshot_file),
+            "snapshot_sha256": hashlib.sha256(snapshot_file.read_bytes()).hexdigest(),
+            "production_revision": rev,
+            "binding_mode": mode,
+            "snapshot_schema_version": data.get("snapshot_schema_version"),
+        }
+    # 2) historical revision binding (canonical 31d677e pair)
+    if canonical:
+        binding = _find_historical_binding(manifest_rev, run)
+        if binding is not None:
+            snap_path = REPO / binding.get("semantic_snapshot_source", "")
+            if not snap_path.exists():
+                raise ValueError("SEMANTIC_BINDING_SNAPSHOT_MISSING")
+            data = yaml.safe_load(snap_path.read_text()) or {}
+            snap_rev = data.get("production_revision")
+            if snap_rev != manifest_rev:
+                raise ValueError(
+                    f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: snapshot {snap_rev} "
+                    f"!= run {manifest_rev}")
+            derived = data.get("derived_from_revision")
+            if derived and derived != manifest_rev:
+                raise ValueError(
+                    f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: derived {derived} "
+                    f"!= run {manifest_rev}")
+            actual_sha = hashlib.sha256(snap_path.read_bytes()).hexdigest()
+            bound_sha = binding.get("semantic_snapshot_sha256")
+            if bound_sha and bound_sha != actual_sha:
+                raise ValueError(
+                    f"SEMANTIC_SNAPSHOT_HASH_MISMATCH: binding {bound_sha} "
+                    f"!= file {actual_sha}")
+            return {
+                "policies": data.get("policies", {}),
+                "snapshot_source": str(snap_path),
+                "snapshot_sha256": hashlib.sha256(snap_path.read_bytes()).hexdigest(),
+                "production_revision": snap_rev,
+                "binding_mode": BINDING_HISTORICAL,
+                "snapshot_schema_version": data.get("snapshot_schema_version"),
+            }
+        # fail-closed: no valid canonical source
+        raise ValueError("SEMANTIC_PROVENANCE_MISSING: no run-bound or "
+                         "historical-revision-bound semantic snapshot")
+    return {
+        "policies": {}, "snapshot_source": None, "snapshot_sha256": None,
+        "production_revision": None, "binding_mode": BINDING_NONE,
+        "snapshot_schema_version": None,
+    }
+
+
+def _find_historical_binding(production_revision, run_dir):
+    """Locate a validated historical binding whose run matches the artifact
+    (run_id and production_revision) — never stage-name generic."""
+    if not RUN_BINDING_DIR.exists():
+        return None
+    for bfile in sorted(RUN_BINDING_DIR.glob("*.yaml")):
+        data = yaml.safe_load(bfile.read_text()) or {}
+        runs = data.get("runs", {})
+        run_root = pathlib.Path(run_dir).resolve()
+        candidates = {run_root, run_root.parent}
+        for entry in runs.values():
+            if (entry.get("production_revision") == production_revision
+                    and entry.get("result_path")
+                    and pathlib.Path(entry["result_path"]).resolve() in candidates):
+                return data
+    return None
+
+
 def _load_semantic_snapshot(path=None):
     """Read the explicit machine-readable semantic snapshot (P1). Returns
     (policies dict, contracts dict, source_path, source_sha256) or None
@@ -109,6 +251,12 @@ def _resolve_actual_semantics(manifest_data, policies, snapshot_path,
     actual["semantic_source_sha256"] = snapshot_sha
     actual["semantic_profile_revision"] = manifest_data.get(
         "semantic_profile_revision", "SEMANTIC_PROVENANCE_MISSING")
+    # Prompt77 §18: per-semantic-group provenance (run manifest vs snapshot).
+    actual["_provenance"] = {
+        "runtime_fields": {k: "run_manifest" for k in MANIFEST_SEMANTIC_FIELDS},
+        "policy_fields": {k: "semantic_snapshot" for k in POLICY_ID_KEYS},
+        "semantic_snapshot_sha256": snapshot_sha,
+    }
     return actual
 
 
@@ -149,12 +297,24 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         manifest_data = yaml.safe_load(pathlib.Path(manifest).read_text()) or {}
 
     prov, prov_status = _load_run_provenance(run)
-    policies, contracts, snap_path, snap_sha = _load_semantic_snapshot(
-        semantic_snapshot)
-    # Prompt76: actual semantics from the RUN (manifest + snapshot file).
-    actual = _resolve_actual_semantics(manifest_data, policies or {},
-                                       snap_path, snap_sha)
-    expected = (contracts or {}).get(stage, {})
+    # Prompt77: canonical semantic policy source resolution — the
+    # current-checkout template is NEVER a canonical historical source.
+    try:
+        bound = _resolve_run_semantics(run, manifest_data, canonical=True)
+    except ValueError as exc:
+        if not legacy_mode:
+            raise
+        bound = {
+            "policies": {}, "snapshot_source": None, "snapshot_sha256": None,
+            "production_revision": None, "binding_mode": BINDING_NONE,
+            "snapshot_schema_version": None,
+        }
+        bound["_legacy_error"] = str(exc)
+    # Prompt76: actual semantics from the RUN (manifest + bound snapshot).
+    actual = _resolve_actual_semantics(manifest_data, bound.get("policies", {}),
+                                       bound.get("snapshot_source"),
+                                       bound.get("snapshot_sha256"))
+    expected = (SEMANTIC_STAGE_CONTRACTS or {}).get(stage, {})
     missing_semantics = any(
         actual[k] == "SEMANTIC_PROVENANCE_MISSING" for k in
         MANIFEST_SEMANTIC_FIELDS + POLICY_ID_KEYS)
@@ -176,15 +336,21 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         "actual_semantics": actual,
         "expected_stage_semantics": expected,
         "semantic_provenance": {
-            "semantic_source_path": snap_path,
-            "semantic_source_sha256": snap_sha,
+            "semantic_binding_mode": bound.get("binding_mode"),
+            "semantic_snapshot_source": bound.get("snapshot_source"),
+            "semantic_snapshot_sha256": bound.get("snapshot_sha256"),
+            "semantic_snapshot_production_revision": bound.get("production_revision"),
+            "semantic_snapshot_schema_version": bound.get("snapshot_schema_version"),
             "manifest_semantic_profile": manifest_data.get("semantic_profile"),
             "semantic_profile_revision": manifest_data.get(
                 "semantic_profile_revision"),
             "manifest_path": str(pathlib.Path(manifest).resolve()) if manifest
                             and pathlib.Path(manifest).exists() else "EVIDENCE_MISSING",
             "complete": (not missing_semantics
-                         and snap_sha is not None
+                         and bound.get("snapshot_sha256") is not None
+                         and bound.get("binding_mode") in
+                         (BINDING_RUN_EMBEDDED, BINDING_RUN_REFERENCED,
+                          BINDING_HISTORICAL)
                          and manifest_data.get("semantic_profile") is not None),
             "mode": "LEGACY" if legacy_mode else "CANONICAL",
         },

@@ -168,6 +168,18 @@ done
 MANIFEST="$OUT_DIR/resolved_experiment_semantics.yaml"; TRAJ="$OUT_DIR/trajectory.tum"
 python3 "$SEMANTIC_TOOL" validate --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="manifest validation failed";exit 1; }
 python3 "$SEMANTIC_TOOL" check-executable --manifest "$MANIFEST" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="profile not executable against production capability";exit 1; }
+# Prompt77 §14-16: pre-execution semantic snapshot capture (provenance only).
+# The snapshot is materialized from the CURRENT template BEFORE estimator
+# playback and referenced by the manifest with its SHA256; a future
+# repository change cannot reinterpret this run.
+SNAP_TEMPLATE=/home/lc/super_livo/src/Super-LIO/scripts/super_livo/evaluation/semantic_snapshot_v0.yaml
+SNAP_OUT="$OUT_DIR/semantic_snapshot.yaml"
+if [ ! -f "$SNAP_TEMPLATE" ]; then
+  FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic snapshot template missing";exit 1;
+fi
+cp "$SNAP_TEMPLATE" "$SNAP_OUT"
+SNAP_SHA=$(sha256sum "$SNAP_OUT" | cut -d' ' -f1)
+python3 "$SEMANTIC_TOOL" snapshot --manifest "$MANIFEST" --snapshot "$SNAP_OUT" --sha "$SNAP_SHA" || { FINAL_CLASS=SEMANTIC_PROFILE_FAIL;FINAL_REASON="semantic snapshot manifest capture failed";exit 1; }
 if [ -n "${SLV_TEST_VALIDATOR:-}" ] && [ "${SLV_TEST_MODE:-0}" != "1" ]; then
   FINAL_CLASS=STATIC_PREFLIGHT_FAIL;FINAL_REASON="SLV_TEST_VALIDATOR set without SLV_TEST_MODE=1";exit 2;
 fi

@@ -6,8 +6,11 @@ validation now come from the registry GENERATOR (visual_eval_registry.py,
 single source of truth); behavioral tests here cover the scorecard builder.
 FS-T1..FS-T30 in test_round14_final_seal.py are the CLOSE gates.
 """
+import hashlib
 import json
 import pathlib
+
+import yaml
 import subprocess
 import sys
 import tempfile
@@ -28,6 +31,37 @@ def _fixture_log(tmp, lines, rows=3981):
     (d / "out").mkdir(parents=True)
     (d / "out" / "node_stdout.log").write_text("\n".join(lines))
     (d / "state.json").write_text('{"state":"SUCCESS","cleanup_verified":true}')
+    # Prompt77: synthetic fixtures materialize a run-bound semantic snapshot
+    manifest = {"semantic_profile": "D_VISUAL_APPLY", "validator": "",
+                "requires_measurement_evidence": True,
+                "production_revision": "a" * 40,
+                "semantic_profile_revision": "b" * 64,
+                "dataset_adapter_revision": "c" * 64,
+                "transaction_revision": "d" * 40,
+                "config_provenance": {"lio": "x", "visual": "y",
+                                      "dataset_calibration": "z"},
+                "visual_measurement_event": "CAMERA_EPOCH",
+                "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+                "visual_state_apply": True,
+                "visual_state_apply_connectivity": "ESTABLISHED",
+                "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+                "visual_measurement_exact_once": True,
+                "visual_measurement_enabled": True,
+                "camera_input_enabled": True, "camera_epoch_enabled": True,
+                "visual_frontend_enabled": True, "visual_map_producer_enabled": True,
+                "scheduler_family": "D_CORRECTED",
+                "raw_lidar_policy": "FULL_RAW_SCAN_AT_SCAN_END",
+                "full_lidar_observe_per_raw_scan": 1, "camera_stride": 1}
+    snap = yaml.safe_load((ROOT / "scripts/super_livo/evaluation"
+                           / "semantic_snapshot_v0.yaml").read_text())
+    snap["production_revision"] = "a" * 40
+    snap_file = d / "out" / "semantic_snapshot.yaml"
+    snap_file.write_text(yaml.safe_dump(snap))
+    manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
+    manifest["semantic_snapshot_sha256"] = hashlib.sha256(
+        snap_file.read_bytes()).hexdigest()
+    (d / "out" / "resolved_experiment_semantics.yaml").write_text(
+        yaml.safe_dump(manifest))
     if rows:
         (d / "out" / "trajectory.tum").write_text(
             "\n".join(f"{1.0 + i * 1e-3:.9f} 0 0 0 0 0 0 1" for i in range(rows)))
@@ -180,7 +214,7 @@ class TestScorecardSemantics(unittest.TestCase):
 class TestEvalFinalizationGuardrails(unittest.TestCase):
     def test_ef_t3_unknown_stage_no_guess(self):
         self.assertEqual(V.build_scorecard(
-            "UNKNOWN_STAGE_XYZ", tempfile.mkdtemp(), None
+            "UNKNOWN_STAGE_XYZ", tempfile.mkdtemp(), None, legacy_mode=True
         )["provenance"]["parent_stage"], "UNREGISTERED_STAGE")
 
 

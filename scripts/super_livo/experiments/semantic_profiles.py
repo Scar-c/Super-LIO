@@ -286,6 +286,10 @@ def main(argv=None):
     evreq = sub.add_parser("evidence-required"); evreq.add_argument("--manifest", required=True)
     prod = sub.add_parser("producer-expected"); prod.add_argument("--manifest", required=True)
     params = sub.add_parser("rosparams"); params.add_argument("--manifest", required=True); params.add_argument("--out-dir", required=True)
+    snap = sub.add_parser("snapshot")
+    snap.add_argument("--manifest", required=True)
+    snap.add_argument("--snapshot", required=True)
+    snap.add_argument("--sha", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "resolve":
@@ -306,6 +310,16 @@ def main(argv=None):
         elif args.command == "evidence-required":
             manifest = load_manifest(args.manifest)
             print("1" if manifest.get("requires_measurement_evidence") else "0")
+        elif args.command == "snapshot":
+            # Prompt77 §14-16: pre-execution semantic snapshot capture.
+            # Record the snapshot reference in the run manifest (provenance
+            # only; no algorithm behavior). FAIL-CLOSED: the manifest must
+            # reference the captured snapshot exactly.
+            manifest = load_manifest(args.manifest)
+            manifest["semantic_snapshot_path"] = args.snapshot
+            manifest["semantic_snapshot_sha256"] = args.sha
+            manifest["semantic_snapshot_schema_version"] = "1"
+            write_manifest(manifest, args.manifest)
         elif args.command == "validator":
             manifest = load_manifest(args.manifest)
             contract = manifest.get("validator", "")

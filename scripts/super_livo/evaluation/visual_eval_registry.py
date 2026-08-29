@@ -18,6 +18,8 @@ import pathlib
 import re
 import sys
 
+import yaml
+
 from visual_eval_score import CANONICAL_STAGE_PARENTS
 from visual_eval_score import MANIFEST_SEMANTIC_FIELDS, POLICY_ID_KEYS
 from visual_eval_score import _load_semantic_snapshot
@@ -58,6 +60,8 @@ REGISTRY_SCHEMA = {
     "ApplyFailures": "int/null", "ApplySkipZeroCandidate": "int/null",
     "ApplySkipZeroValidResidual": "int/null",
     "SemanticSourceSha256": "sha64/null", "SemanticProfileRevision": "sha64/null",
+    "SemanticSnapshotSHA256": "sha64/null", "SemanticBindingMode": "enum/string",
+    "SemanticProductionRevision": "sha40/null",
     "RawLidarInputScans": "int/null", "PreObserveExcludedScans": "int/null",
     "EligibleRawScans": "int/null", "UniqueGeometryUsedScans": "int/null",
     "GeometryUpdateEvents": "int/null", "DuplicateGeometryUseEvents": "int/null",
@@ -179,6 +183,12 @@ def _row_from_scorecard(score):
             "semantic_source_sha256"),
         "SemanticProfileRevision": score.get("semantic_provenance", {}).get(
             "semantic_profile_revision"),
+        "SemanticSnapshotSHA256": score.get("semantic_provenance", {}).get(
+            "semantic_snapshot_sha256"),
+        "SemanticBindingMode": score.get("semantic_provenance", {}).get(
+            "semantic_binding_mode"),
+        "SemanticProductionRevision": score.get("semantic_provenance", {}).get(
+            "semantic_snapshot_production_revision"),
         "RawLidarInputScans": c.get("raw_lidar_input_scans"),
         "PreObserveExcludedScans": c.get("preobserve_excluded_scans"),
         "EligibleRawScans": c.get("eligible_raw_scans"),
@@ -235,8 +245,14 @@ def validate_canonical_scorecard(score, contracts=None, stage=None):
         errors.append("CANONICAL_RUN_DIRTY_SOURCE")
     if not p.get("config_hash"):
         errors.append("CANONICAL_CONFIG_HASH_MISSING")
-    if not score.get("semantic_provenance", {}).get("complete"):
+    sp = score.get("semantic_provenance", {})
+    if not sp.get("complete"):
         errors.append("SEMANTIC_PROVENANCE_MISSING")
+    if not sp.get("semantic_snapshot_sha256"):
+        errors.append("SEMANTIC_SNAPSHOT_HASH_MISSING")
+    if sp.get("semantic_binding_mode") not in (
+            "RUN_EMBEDDED", "RUN_REFERENCED", "HISTORICAL_REVISION_BINDING"):
+        errors.append(f"SEMANTIC_BINDING_MODE_INVALID {sp.get('semantic_binding_mode')}")
     # expected stage contract from the snapshot
     if contracts is None:
         _, contracts, _, _ = _load_semantic_snapshot()
@@ -393,8 +409,22 @@ def validate_registry(path, schema=None, canonical_stage_parents=None):
                 val = row.get(col, "NOT_AVAILABLE")
                 if val in NULL_MARKERS or val == "" or val != _norm(exp.get(key)):
                     errors.append(f"row {i}: semantic contract {col}: {val} != {exp.get(key)}")
-            # Prompt76 §42/§43: policy IDs must equal the snapshot contract
-            policies, _, _, _ = _load_semantic_snapshot()
+            # Prompt76 §42/§43 / Prompt77: policy IDs must equal the RUN'S
+            # BOUND snapshot contract. Historical rows bind to the immutable
+            # semantic_snapshots/<revision>.yaml; run-bound rows are gated at
+            # the scorecard level (the TSV validator cannot see the run dir).
+            binding_mode = row.get("SemanticBindingMode", "")
+            if binding_mode == "HISTORICAL_REVISION_BINDING":
+                rev = row.get("SemanticProductionRevision", "")
+                bound = pathlib.Path(__file__).resolve().parents[3] / \
+                    "scripts/super_livo/evaluation/semantic_snapshots" / f"{rev}.yaml"
+                if bound.exists():
+                    policies = (yaml.safe_load(bound.read_text()) or {}).get("policies", {})
+                else:
+                    policies = {}
+                    errors.append(f"row {i}: bound snapshot file missing {bound.name}")
+            else:
+                policies = None
             for col, pkey in (
                 ("VisualMapPolicy", "visual_map_policy_id"),
                 ("NormalizePolicy", "normalize_policy_id"),
@@ -404,10 +434,12 @@ def validate_registry(path, schema=None, canonical_stage_parents=None):
                 ("ResidualPolicy", "residual_policy_id"),
                 ("IterationPolicy", "iteration_policy_id"),
             ):
+                if policies is None:
+                    continue  # run-bound rows gated at the scorecard level
                 val = row[col]
                 if val in NULL_MARKERS or val == "" or \
-                   val != _norm((policies or {}).get(pkey)):
-                    errors.append(f"row {i}: policy contract {col}: {val} != {(policies or {}).get(pkey)}")
+                   val != _norm(policies.get(pkey)):
+                    errors.append(f"row {i}: policy contract {col}: {val} != {policies.get(pkey)}")
             # event placement zero gates (numeric evidence required)
             for col in ("CameraEventVisualCount", "LidarCallbackVisualCount",
                         "DuplicateVisualEventCount", "PayloadMissing",
@@ -431,6 +463,14 @@ def validate_registry(path, schema=None, canonical_stage_parents=None):
                     expected = tok[0] if tok else None
                     if expected and row["ConfigHash"] != expected:
                         errors.append(f"row {i}: config hash {row['ConfigHash'][:8]} != artifact {expected[:8]}")
+            # Prompt77: canonical semantic snapshot binding must be verified
+            if row["SemanticBindingMode"] != "HISTORICAL_REVISION_BINDING" and \
+               row["SemanticBindingMode"] not in ("RUN_EMBEDDED", "RUN_REFERENCED"):
+                errors.append(f"row {i}: semantic binding {row['SemanticBindingMode']} invalid")
+            if row["SemanticSnapshotSHA256"] in NULL_MARKERS or row["SemanticSnapshotSHA256"] == "":
+                errors.append(f"row {i}: semantic snapshot hash missing")
+            if row["SemanticProductionRevision"] != row["HEAD"]:
+                errors.append(f"row {i}: semantic snapshot revision {row['SemanticProductionRevision']} != HEAD {row['HEAD']}")
             if row["GitDirty"] == "1":
                 errors.append(f"row {i}: canonical {stage} from dirty source")
             if row["Classification"] != "VALID":

@@ -6,6 +6,7 @@ file); the registry generator copies scorecard actual values (no stage
 inference); the validator enforces §42/§43 hard conditions. Real-artifact
 E2E uses ONLY the clean canonical pair (A2 052214Z / B0 052357Z).
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -107,6 +108,16 @@ def fixture_scorecard(stage, apply=None, event=None, ts=None, conn=None,
     else:
         (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(m))
+        # Prompt77: run-bound snapshot for synthetic fixtures (RUN_EMBEDDED)
+        snap = yaml.safe_load(SNAPSHOT.read_text())
+        snap["production_revision"] = m.get("production_revision", "a" * 40)
+        snap_file = tmp / "out" / "semantic_snapshot.yaml"
+        snap_file.write_text(yaml.safe_dump(snap))
+        m["semantic_snapshot_path"] = "semantic_snapshot.yaml"
+        m["semantic_snapshot_sha256"] = hashlib.sha256(snap_file.read_bytes()).hexdigest()
+        m["semantic_snapshot_schema_version"] = "1"
+        (tmp / "out" / "resolved_experiment_semantics.yaml").write_text(
+            yaml.safe_dump(m))
     (tmp / "out" / "run_provenance.yaml").write_text(
         yaml.safe_dump({"run": {"git_head": "a" * 40, "git_dirty": False}}))
     (tmp / "out" / "effective_config.post_resolve.yaml.sha256").write_text("c" * 64 + "\n")
@@ -166,7 +177,11 @@ class TestProvenanceSemantics(TestProvenanceSemantics if False else unittest.Tes
         self.assertEqual(s["provenance"]["stage_id"], "A2_D_CAMERA_EPOCH_SHADOW")
 
     def test_ps_t6_t7_policy_ids_from_snapshot_file(self):
-        snap = yaml.safe_load(SNAPSHOT.read_text())
+        # the canonical pair binds HISTORICALLY to the immutable 31d677e
+        # snapshot (Prompt77), not to today's template.
+        HIST = (ROOT / "scripts/super_livo/evaluation/semantic_snapshots"
+                / "31d677e13ee32fc0f57940636283ae66f9a2e3dd.yaml")
+        snap = yaml.safe_load(HIST.read_text())
         s = build_real("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", B0_RUN)
         a = s["actual_semantics"]
         for key in ("visual_map_policy_id", "normalize_policy_id",
@@ -174,8 +189,10 @@ class TestProvenanceSemantics(TestProvenanceSemantics if False else unittest.Tes
                     "patch_policy_id", "residual_policy_id",
                     "iteration_policy_id"):
             self.assertEqual(a[key], snap["policies"][key])
-        self.assertEqual(s["semantic_provenance"]["semantic_source_sha256"],
-                         snap and V._load_semantic_snapshot()[3])
+        self.assertEqual(s["semantic_provenance"]["semantic_snapshot_sha256"],
+                         hashlib.sha256(HIST.read_bytes()).hexdigest())
+        self.assertEqual(s["semantic_provenance"]["semantic_binding_mode"],
+                         "HISTORICAL_REVISION_BINDING")
 
     def test_ps_t8_registry_semantics_equal_scorecard(self):
         a2 = build_real("A2_D_CAMERA_EPOCH_SHADOW", A2_RUN)

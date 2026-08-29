@@ -1,0 +1,30 @@
+# Prompt77: IMMUTABLE historical semantic snapshot for the clean Phase-B
+# canonical pair. Derived mechanically from the production revision
+# 31d677e13ee32fc0f57940636283ae66f9a2e3dd (where the policy IDs lived in
+# scripts/super_livo/evaluation/visual_eval_score.py's SEMANTIC_SNAPSHOT_IDS).
+# This file is a historical truth record: it MUST NOT be edited, renamed, or
+# re-derived from the current checkout. Future-run semantic policy truth is
+# captured at run creation (see the run-bound snapshot contract); this file
+# binds the accepted 31d677e A2/B0 runs.
+snapshot_schema_version: 1
+snapshot_type: HISTORICAL_REVISION_BINDING
+production_revision: 31d677e13ee32fc0f57940636283ae66f9a2e3dd
+derived_from_revision: 31d677e13ee32fc0f57940636283ae66f9a2e3dd
+source_files_at_revision:
+  - scripts/super_livo/evaluation/visual_eval_score.py
+source_blob_sha:
+  scripts/super_livo/evaluation/visual_eval_score.py: 01aa29b9e9a26550a167ea100f93c5c99aab1c83
+
+# Historical values mechanically extracted from that revision (Prompt77 §7).
+# Historical truth wins: these are the 31d677e-era identifiers, NOT today's
+# renames (NOT_IMPLEMENTED_V0 / SUPER_LIVO_PRE_PHASEC_RESIDUAL_V0 /
+# SUPER_LIVO_PRE_PHASEC_ITERATION_V0 are the CURRENT template's future-run
+# names and must not be retrofitted onto the historical runs).
+policies:
+  visual_map_policy_id: S3_SPATIAL_BALANCED_V0
+  normalize_policy_id: NOT_IMPLEMENTED
+  exposure_policy_id: NOT_IMPLEMENTED
+  normal_policy_id: NOT_IMPLEMENTED
+  patch_policy_id: SUPER_LIVO_PRE_PHASEC_PATCH_V0
+  residual_policy_id: SUPER_LIVO_PRE_PHASEC_PHOTOMETRIC_V0
+  iteration_policy_id: SUPER_LIVO_PRE_PHASEC_IESKF_VISUAL_V0

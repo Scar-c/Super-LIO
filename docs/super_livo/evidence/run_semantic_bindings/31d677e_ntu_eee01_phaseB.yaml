@@ -1,0 +1,27 @@
+# Prompt77 §9/§10: canonical binding record — historical A2/B0 runs to the
+# immutable 31d677e semantic snapshot. The runs predate runtime snapshot
+# capture, so the binding is the explicit, versioned, machine-readable link.
+# binding_revision match is enforced by the validator (must equal the run
+# manifest production_revision).
+binding_schema_version: 1
+binding_reason: historical canonical run predates runtime snapshot capture
+binding_derivation_evidence:
+  - git show 31d677e:scripts/super_livo/evaluation/visual_eval_score.py
+    SEMANTIC_SNAPSHOT_IDS (policy IDs at the production revision)
+  - snapshot file scripts/super_livo/evaluation/semantic_snapshots/31d677e13ee32fc0f57940636283ae66f9a2e3dd.yaml
+  - run manifests resolved_experiment_semantics.yaml (production_revision)
+semantic_snapshot_source: scripts/super_livo/evaluation/semantic_snapshots/31d677e13ee32fc0f57940636283ae66f9a2e3dd.yaml
+semantic_snapshot_sha256: 005eef9a3966f74c1cfcc32735833f766cd1d2de4f5d20ff90ee5b532c7908b1
+runs:
+  A2:
+    run_id: a2_camera_epoch_shadow/20260829T052214Z
+    result_path: /home/lc/super_livo/results/round14_phaseA/a2_camera_epoch_shadow/20260829T052214Z
+    production_revision: 31d677e13ee32fc0f57940636283ae66f9a2e3dd
+    git_dirty: 0
+    binding_mode: HISTORICAL_REVISION_BINDING
+  B0:
+    run_id: b0_camera_epoch_apply_corrected/20260829T052357Z
+    result_path: /home/lc/super_livo/results/round14_phaseA/b0_camera_epoch_apply_corrected/20260829T052357Z
+    production_revision: 31d677e13ee32fc0f57940636283ae66f9a2e3dd
+    git_dirty: 0
+    binding_mode: HISTORICAL_REVISION_BINDING

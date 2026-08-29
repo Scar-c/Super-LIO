@@ -7,6 +7,7 @@ BEHAVIORAL / GENERATOR_LEVEL / PRODUCTION_HELPER_UNIT / REAL_E2E only:
 - registry tests go through visual_eval_registry.generate_registry(...)
 - round-trip tests consume REAL run artifacts (results/round14_phaseA)
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -51,6 +52,19 @@ def fixture_run(tmp, lines, manifest=None, provenance=None, config_hash=None,
     (d / "out" / "node_stdout.log").write_text("\n".join(lines))
     (d / "state.json").write_text(state)
     if manifest:
+        (d / "out" / "resolved_experiment_semantics.yaml").write_text(
+            yaml.safe_dump(manifest))
+        # Prompt77: synthetic fixtures are run-bound (RUN_EMBEDDED) — the
+        # fixture materializes its own semantic snapshot pre-"execution".
+        snap = yaml.safe_load((ROOT / "scripts/super_livo/evaluation"
+                               / "semantic_snapshot_v0.yaml").read_text())
+        snap["production_revision"] = manifest.get("production_revision", "a" * 40)
+        snap_file = d / "out" / "semantic_snapshot.yaml"
+        snap_file.write_text(yaml.safe_dump(snap))
+        sha = hashlib.sha256(snap_file.read_bytes()).hexdigest()
+        manifest["semantic_snapshot_path"] = "semantic_snapshot.yaml"
+        manifest["semantic_snapshot_sha256"] = sha
+        manifest["semantic_snapshot_schema_version"] = "1"
         (d / "out" / "resolved_experiment_semantics.yaml").write_text(
             yaml.safe_dump(manifest))
     if provenance:
