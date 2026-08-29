@@ -438,6 +438,12 @@ bool SuperLIO::kf_init(){
   options.bias_acce_var_ = g_imu_nba;
   options.num_iterations_ = g_kf_max_iterations;
   options.quit_eps_ = g_kf_quit_eps;
+  // Round15 Prompt82 C4: inverse-exposure parameters flow from the effective
+  // config (rosparam /lio/kf/kf_inv_expo_*) through the globals into the
+  // ESKF Options; no estimator hard-code overrides the NTU effective values.
+  options.inv_expo_cov_ = g_kf_inv_expo_cov;
+  options.inv_expo_initial_ = g_kf_inv_expo_initial;
+  options.inv_expo_enabled_ = g_kf_inv_expo_enabled;
 
   float imu_scale = g_gravity_norm / mean_acce.norm();
   kf_->SetInitialConditions(options, mean_gyro, V3::Zero(), imu_scale, ref_gravity);

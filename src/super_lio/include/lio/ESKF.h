@@ -24,6 +24,10 @@ public:
   // exposure (tau). All state operations agree on this single index.
   static constexpr int kStateDim = 19;
   static constexpr int kInvExpoIndex = 18;
+  // Prompt82 C1: FAST-LIVO2 source-parity initial inverse-exposure variance.
+  // P(inv_expo, inv_expo) = 1e-5 at the canonical estimator initialization.
+  // Named constant — never scatter the literal through production files.
+  static constexpr double kInitialInvExposureVariance = 1e-5;
 
   struct Options {
     Options(){}

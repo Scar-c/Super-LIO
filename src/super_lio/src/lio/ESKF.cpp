@@ -79,9 +79,10 @@ void ESKF::SetInitialConditions(Options options, const V3& init_bg,
 
   P_ = 1e-4 * M19::Identity();
   P_.template block<3, 3>(0, 0) = 0.1 * M_PI / 180.0 * M3::Identity();   // r
-  // Round15 D1: inverse exposure initialized deterministically
+  // Round15 D1 / Prompt82 C1: inverse exposure initialized to the FAST-LIVO2
+  // source-parity value (state 1.0, variance kInitialInvExposureVariance).
   inv_expo_ = options_.inv_expo_initial_;
-  P_(kInvExpoIndex, kInvExpoIndex) = 0.0;
+  P_(kInvExpoIndex, kInvExpoIndex) = kInitialInvExposureVariance;
 
 }
 

@@ -148,6 +148,11 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/kf/kf_max_iterations", g_kf_max_iterations);
   nh.getParam("/lio/kf/kf_align_gravity", g_kf_align_gravity);
   nh.getParam("/lio/kf/kf_quit_eps", g_kf_quit_eps);
+  // Round15 Prompt82 C4: inverse-exposure config authority (vio/inv_expo_cov
+  // FAST-LIVO2 semantics; NTU baseline effective 0.1).
+  nh.getParam("/lio/kf/kf_inv_expo_cov", g_kf_inv_expo_cov);
+  nh.getParam("/lio/kf/kf_inv_expo_initial", g_kf_inv_expo_initial);
+  nh.getParam("/lio/kf/kf_inv_expo_enabled", g_kf_inv_expo_enabled);
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);
