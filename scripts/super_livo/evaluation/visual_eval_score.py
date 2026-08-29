@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import pathlib
 import re
@@ -25,6 +26,8 @@ import yaml
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
+DEFAULT_SEMANTIC_SNAPSHOT = REPO / "scripts/super_livo/evaluation/semantic_snapshot_v0.yaml"
+
 # Prompt74: explicit canonical stage-parent map (single source of truth).
 # Prompt75 F6: A1 -> A0 exactly; registry validator enforces this map.
 CANONICAL_STAGE_PARENTS = {
@@ -34,18 +37,31 @@ CANONICAL_STAGE_PARENTS = {
     "B0_D_CAMERA_EPOCH_APPLY_CORRECTED": "A2_D_CAMERA_EPOCH_SHADOW",
 }
 
-# Prompt75 F12/§64: immutable semantic checkpoint IDs (Phase C/D parent
-# semantics). "CURRENT" is forbidden in the canonical registry; later phases
-# change exactly one ID per semantic-family checkpoint.
-SEMANTIC_SNAPSHOT_IDS = {
-    "visual_map_policy": "S3_SPATIAL_BALANCED_V0",
-    "normalize_semantics": "NOT_IMPLEMENTED",
-    "exposure_semantics": "NOT_IMPLEMENTED",
-    "normal_semantics": "NOT_IMPLEMENTED",
-    "patch_semantics": "SUPER_LIVO_PRE_PHASEC_PATCH_V0",
-    "residual_semantics": "SUPER_LIVO_PRE_PHASEC_PHOTOMETRIC_V0",
-    "iteration_semantics": "SUPER_LIVO_PRE_PHASEC_IESKF_VISUAL_V0",
-}
+# Prompt76 P1: semantic authority is the RUN. Policy IDs and the expected
+# stage contract live in the explicit machine-readable semantic snapshot
+# file (semantic_snapshot_v0.yaml) — NEVER as evaluator constants. Missing
+# snapshot/provenance for canonical stages is SEMANTIC_PROVENANCE_MISSING,
+# never a default.
+MANIFEST_SEMANTIC_FIELDS = (
+    "semantic_profile",
+    "visual_measurement_enabled",
+    "visual_measurement_event",
+    "visual_measurement_timestamp_semantics",
+    "visual_measurement_exact_once",
+    "camera_payload_ownership_mode",
+    "visual_state_apply",
+    "visual_state_apply_connectivity",
+)
+
+POLICY_ID_KEYS = (
+    "visual_map_policy_id",
+    "normalize_policy_id",
+    "exposure_policy_id",
+    "normal_policy_id",
+    "patch_policy_id",
+    "residual_policy_id",
+    "iteration_policy_id",
+)
 
 EVENT_PLACEMENT_FIELDS = (
     "camera_event_visual_count",
@@ -65,6 +81,35 @@ def _int(text, pattern):
 def _float(text, pattern):
     m = re.search(pattern, text)
     return float(m.group(1)) if m else None
+
+
+def _load_semantic_snapshot(path=None):
+    """Read the explicit machine-readable semantic snapshot (P1). Returns
+    (policies dict, contracts dict, source_path, source_sha256) or None
+    entries when the file is absent."""
+    path = pathlib.Path(path) if path else DEFAULT_SEMANTIC_SNAPSHOT
+    if not path.exists():
+        return None, None, str(path), None
+    data = yaml.safe_load(path.read_text()) or {}
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    return (data.get("policies", {}), data.get("stage_contracts", {}),
+            str(path), sha)
+
+
+def _resolve_actual_semantics(manifest_data, policies, snapshot_path,
+                              snapshot_sha):
+    """actual semantics: resolved run manifest fields + snapshot policy IDs.
+    No stage-name inference, no evaluator constants, no fallback defaults."""
+    actual = {}
+    for key in MANIFEST_SEMANTIC_FIELDS:
+        actual[key] = manifest_data.get(key, "SEMANTIC_PROVENANCE_MISSING")
+    for key in POLICY_ID_KEYS:
+        actual[key] = policies.get(key, "SEMANTIC_PROVENANCE_MISSING")
+    actual["semantic_source_path"] = snapshot_path
+    actual["semantic_source_sha256"] = snapshot_sha
+    actual["semantic_profile_revision"] = manifest_data.get(
+        "semantic_profile_revision", "SEMANTIC_PROVENANCE_MISSING")
+    return actual
 
 
 def _load_run_provenance(run):
@@ -93,7 +138,8 @@ def _load_config_sha256(run):
 
 
 def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
-                    ate_evaluator=None, expected_rows=None):
+                    ate_evaluator=None, expected_rows=None,
+                    semantic_snapshot=None, legacy_mode=False):
     run = pathlib.Path(run_dir)
     node_log = run / "node_stdout.log"
     text = node_log.read_text(errors="replace") if node_log.exists() else ""
@@ -103,7 +149,15 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
         manifest_data = yaml.safe_load(pathlib.Path(manifest).read_text()) or {}
 
     prov, prov_status = _load_run_provenance(run)
-    not_impl = "NOT_IMPLEMENTED"
+    policies, contracts, snap_path, snap_sha = _load_semantic_snapshot(
+        semantic_snapshot)
+    # Prompt76: actual semantics from the RUN (manifest + snapshot file).
+    actual = _resolve_actual_semantics(manifest_data, policies or {},
+                                       snap_path, snap_sha)
+    expected = (contracts or {}).get(stage, {})
+    missing_semantics = any(
+        actual[k] == "SEMANTIC_PROVENANCE_MISSING" for k in
+        MANIFEST_SEMANTIC_FIELDS + POLICY_ID_KEYS)
     score = {
         "provenance": {
             "git_sha": manifest_data.get("production_revision") or prov.get("git_sha"),
@@ -115,16 +169,24 @@ def build_scorecard(stage, run_dir, manifest, trajectory=None, gt=None,
             "sequence": manifest_data.get("sequence"),
             "config_path": manifest_data.get("config_provenance", {}).get("dataset_calibration"),
             "config_hash": _load_config_sha256(run),
-            "semantic_profile": manifest_data.get("semantic_profile"),
-            # Prompt75 F12: immutable IDs from the semantic snapshot.
-            "visual_map_policy": SEMANTIC_SNAPSHOT_IDS["visual_map_policy"],
-            "normalize_semantics": SEMANTIC_SNAPSHOT_IDS["normalize_semantics"],
-            "exposure_semantics": SEMANTIC_SNAPSHOT_IDS["exposure_semantics"],
-            "normal_semantics": SEMANTIC_SNAPSHOT_IDS["normal_semantics"],
-            "patch_semantics": SEMANTIC_SNAPSHOT_IDS["patch_semantics"],
-            "residual_semantics": SEMANTIC_SNAPSHOT_IDS["residual_semantics"],
-            "iteration_semantics": SEMANTIC_SNAPSHOT_IDS["iteration_semantics"],
             "result_path": str(run),
+        },
+        # Prompt76 §5/§21: ACTUAL run semantics (authoritative) vs the
+        # expected stage contract (validator metadata) kept separately.
+        "actual_semantics": actual,
+        "expected_stage_semantics": expected,
+        "semantic_provenance": {
+            "semantic_source_path": snap_path,
+            "semantic_source_sha256": snap_sha,
+            "manifest_semantic_profile": manifest_data.get("semantic_profile"),
+            "semantic_profile_revision": manifest_data.get(
+                "semantic_profile_revision"),
+            "manifest_path": str(pathlib.Path(manifest).resolve()) if manifest
+                            and pathlib.Path(manifest).exists() else "EVIDENCE_MISSING",
+            "complete": (not missing_semantics
+                         and snap_sha is not None
+                         and manifest_data.get("semantic_profile") is not None),
+            "mode": "LEGACY" if legacy_mode else "CANONICAL",
         },
         "completion": {
             "experiment_valid": None,
@@ -439,12 +501,19 @@ def main(argv=None):
     ap.add_argument("--gt")
     ap.add_argument("--expected-rows", type=int,
                     help="explicit completion reference (Prompt75 F11)")
+    ap.add_argument("--semantic-snapshot",
+                    default=str(DEFAULT_SEMANTIC_SNAPSHOT),
+                    help="explicit machine-readable semantic snapshot (P1)")
+    ap.add_argument("--legacy-mode", action="store_true",
+                    help="legacy mode: missing historical fields allowed as "
+                         "LEGACY_NOT_CAPTURED (A0/A1)")
     ap.add_argument("--ate-evaluator",
                     default=str(REPO / "scripts/super_livo/evaluation/ntu_viral_official_ate.py"))
     args = ap.parse_args(argv)
     score = build_scorecard(args.stage, args.run_dir, args.manifest,
                             args.trajectory, args.gt, args.ate_evaluator,
-                            args.expected_rows)
+                            args.expected_rows, args.semantic_snapshot,
+                            args.legacy_mode)
     out_json = pathlib.Path(args.run_dir) / "visual_eval_score.json"
     out_tsv = pathlib.Path(args.run_dir) / "visual_eval_score.tsv"
     out_json.write_text(json.dumps(score, indent=2, sort_keys=False))

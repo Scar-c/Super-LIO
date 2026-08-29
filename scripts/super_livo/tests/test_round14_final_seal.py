@@ -72,6 +72,9 @@ def fixture_run(tmp, lines, manifest=None, provenance=None, config_hash=None,
 def run_eval(run_dir, stage, extra=()):
     cmd = [sys.executable, str(EVAL), "--stage", stage, "--run-dir",
            str(run_dir / "out")]
+    if (run_dir / "out" / "resolved_experiment_semantics.yaml").exists():
+        cmd += ["--manifest",
+                str(run_dir / "out" / "resolved_experiment_semantics.yaml")]
     if (run_dir / "out" / "trajectory.tum").exists():
         cmd += ["--trajectory", str(run_dir / "out" / "trajectory.tum")]
     if (run_dir / "gt.csv").exists() and not any(a == "--gt" for a in extra):
@@ -81,10 +84,23 @@ def run_eval(run_dir, stage, extra=()):
     return r, json.loads((run_dir / "out" / "visual_eval_score.json").read_text())
 
 
-MANIFEST = {"dataset": "NTU", "sequence": "eee_01",
-            "semantic_profile": "D_VISUAL_APPLY",
+def make_manifest(stage="B0_D_CAMERA_EPOCH_APPLY_CORRECTED"):
+    apply = stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED"
+    return {"dataset": "NTU", "sequence": "eee_01",
+            "semantic_profile": "D_VISUAL_APPLY" if apply else "D_VISUAL_SHADOW",
+            "visual_measurement_enabled": True,
+            "visual_measurement_event": "CAMERA_EPOCH",
+            "visual_measurement_timestamp_semantics": "CAMERA_EPOCH_PROPAGATED_STATE",
+            "visual_measurement_exact_once": True,
+            "camera_payload_ownership_mode": "RETAIN_THROUGH_MEASUREMENT",
+            "visual_state_apply": apply,
+            "visual_state_apply_connectivity": "ESTABLISHED" if apply else "NOT_ESTABLISHED",
             "config_provenance": {"dataset_calibration": "/cfg/eee_01.yaml"},
-            "production_revision": "a" * 40}
+            "production_revision": "a" * 40,
+            "semantic_profile_revision": "b" * 64}
+
+
+MANIFEST = make_manifest()
 PROVENANCE = {"git_head": "a" * 40, "git_dirty": False}
 OWNERSHIP = ("Round11X fullscan ownership: raw_input_points=1000 "
              "pre_observe_excluded_scans=1 pre_observe_excluded_points=10 "
@@ -189,7 +205,7 @@ class TestFinalSealEvaluator(unittest.TestCase):
     def _card(self, stage="B0_D_CAMERA_EPOCH_APPLY_CORRECTED", lines=None, **kw):
         d = fixture_run(tempfile.mkdtemp(prefix="fs-"),
                         lines or BASE_LINES,
-                        manifest=dict(MANIFEST, production_revision=PROVENANCE["git_head"]),
+                        manifest=dict(make_manifest(stage), production_revision=PROVENANCE["git_head"]),
                         provenance=PROVENANCE, config_hash="c" * 64, **kw)
         r, s = run_eval(d, stage)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -208,7 +224,8 @@ class TestFinalSealEvaluator(unittest.TestCase):
 
     def test_fs_t13_scorecard_parses_gt_4stat(self):
         d = fixture_run(tempfile.mkdtemp(prefix="fs13-"), BASE_LINES,
-                        manifest=dict(MANIFEST, production_revision=PROVENANCE["git_head"]),
+                        manifest=dict(make_manifest("B0_D_CAMERA_EPOCH_APPLY_CORRECTED"),
+                                      production_revision=PROVENANCE["git_head"]),
                         provenance=PROVENANCE, config_hash="c" * 64)
         r, s = run_eval(d, "B0_D_CAMERA_EPOCH_APPLY_CORRECTED")
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -240,7 +257,8 @@ class TestFinalSealEvaluator(unittest.TestCase):
         d, s = self._card()
         self.assertEqual(s["completion"]["expected_or_reference_rows"], None)
         d2 = fixture_run(tempfile.mkdtemp(prefix="fs23-"), BASE_LINES,
-                         manifest=dict(MANIFEST, production_revision=PROVENANCE["git_head"]),
+                         manifest=dict(make_manifest("B0_D_CAMERA_EPOCH_APPLY_CORRECTED"),
+                                       production_revision=PROVENANCE["git_head"]),
                          provenance=PROVENANCE, config_hash="c" * 64)
         r, s2 = run_eval(d2, "B0_D_CAMERA_EPOCH_APPLY_CORRECTED", ["--expected-rows", "3981"])
         self.assertEqual(s2["completion"]["expected_or_reference_rows"], 3981)
@@ -248,10 +266,11 @@ class TestFinalSealEvaluator(unittest.TestCase):
 
     def test_fs_t24_semantic_labels_from_snapshot(self):
         _, s = self._card()
-        p = s["provenance"]
-        self.assertEqual(p["patch_semantics"], "SUPER_LIVO_PRE_PHASEC_PATCH_V0")
-        self.assertEqual(p["iteration_semantics"], "SUPER_LIVO_PRE_PHASEC_IESKF_VISUAL_V0")
-        self.assertNotIn("CURRENT", json.dumps(p))
+        a = s["actual_semantics"]
+        self.assertEqual(a["patch_policy_id"], "SUPER_LIVO_PRE_PHASEC_PATCH_V0")
+        self.assertEqual(a["iteration_policy_id"], "SUPER_LIVO_PRE_PHASEC_ITERATION_V0")
+        self.assertEqual(a["visual_map_policy_id"], "S3_SPATIAL_BALANCED_V0")
+        self.assertNotIn("CURRENT", json.dumps(s["actual_semantics"]))
 
     def test_fs_t25_config_sha_non_null(self):
         _, s = self._card()
@@ -303,8 +322,12 @@ class TestFinalSealRegistry(unittest.TestCase):
         prov = dict(PROVENANCE)
         if dirty:
             prov["git_dirty"] = True
-        d = fixture_run(tempfile.mkdtemp(prefix="fsr-"), lines or BASE_LINES,
-                        manifest=dict(MANIFEST, production_revision=prov["git_head"]),
+        use_lines = list(lines) if lines else list(BASE_LINES)
+        if stage != "B0_D_CAMERA_EPOCH_APPLY_CORRECTED":
+            use_lines = [l for l in use_lines if "R14 Apply attempts=" not in l]
+            use_lines.append("R14 Apply attempts=0 success=0 fail=0")
+        d = fixture_run(tempfile.mkdtemp(prefix="fsr-"), use_lines,
+                        manifest=dict(make_manifest(stage), production_revision=prov["git_head"]),
                         provenance=prov, config_hash=config_hash)
         extra = ["--expected-rows", str(expected_rows)] if expected_rows else []
         r, s = run_eval(d, stage, extra)
@@ -359,11 +382,16 @@ class TestFinalSealRegistry(unittest.TestCase):
         R.generate_registry({"A2_D_CAMERA_EPOCH_SHADOW": a2}, tmp)
         self.assertEqual(tmp.read_text(), baseline)
 
-    def test_fs_t28_real_round_trip_preserves_numerics(self):
-        real = ROOT / "/home/lc/super_livo/results/round14_phaseA/b0_camera_epoch_apply_corrected/20260829T040348Z"
+    def test_fs_t28_clean_canonical_round_trip_preserves_numerics(self):
+        # Prompt76 P4: FS-T28 uses the CLEAN canonical B0 artifact
+        # (20260829T052357Z) with CURRENT solver semantics: Apply 1965,
+        # iterations 7758 (ESKF loop), callbacks 7758, iteration == callback,
+        # iteration != apply.
+        real = pathlib.Path(
+            "/home/lc/super_livo/results/round14_phaseA/"
+            "b0_camera_epoch_apply_corrected/20260829T052357Z")
         if not real.exists():
-            self.skipTest("real B0 run artifact absent")
-        score_path = real / "out" / "visual_eval_score.json"
+            self.skipTest("clean canonical B0 artifact absent")
         gt = pathlib.Path(
             "/home/lc/super_livo/results/round13_visual_baseline/"
             "ntu_eee_01/eee_01_leica_pose.csv")
@@ -373,20 +401,24 @@ class TestFinalSealRegistry(unittest.TestCase):
         score = s
         row = R._row_from_scorecard(score)
         checks = [
-            ("InitialResidualSamplesTotal", "393229"),
+            ("InitialResidualSamplesTotal", "24890308"),
             ("SolverApplyCount", "1965"),
-            ("SolverIterationCount", "1965"),
+            ("SolverIterationCount", "7758"),
             ("SolverCallbackInvocations", "7758"),
             ("APE_RMSE_m", "0.133707"),
+            ("DuplicateGeometryUseEvents", "0"),
+            ("InitialValidObservationRatio", "0.99474081"),
         ]
         for col, expected in checks:
             self.assertEqual(R._norm(row[col]), expected, col)
-        self.assertIn(R._norm(row["InitialValidObservationRatio"]), ("0.9949", "NOT_AVAILABLE"))
-        # the 040348Z artifact predates the duplicate-scan-use producer token;
-        # the hard exact-once gate is exercised by fixtures and the new clean
-        # runs (FS-T21 + canonical runs), not by the stale artifact.
-        self.assertIn(R._norm(row["DuplicateGeometryUseEvents"]),
-                      ("0", "NOT_AVAILABLE"))
+        # current ESKF semantics: iteration == callbacks and, with >1
+        # iteration per Apply, iteration != apply.
+        self.assertEqual(row["SolverIterationCount"], row["SolverCallbackInvocations"])
+        self.assertNotEqual(row["SolverIterationCount"], row["SolverApplyCount"])
+        # git provenance of the canonical artifact
+        self.assertEqual(score["provenance"]["git_sha"],
+                         "31d677e13ee32fc0f57940636283ae66f9a2e3dd")
+        self.assertEqual(str(score["provenance"]["git_dirty"]), "0")
 
     def test_fs_t29_invalid_b0_not_canonical_parent(self):
         self.assertNotIn("B0_D_CAMERA_EPOCH_APPLY_INVALID", v.CANONICAL_STAGE_PARENTS.values())
@@ -424,8 +456,12 @@ class TestAdversarialFalseClose(unittest.TestCase):
         prov = dict(PROVENANCE)
         if dirty:
             prov["git_dirty"] = True
-        d = fixture_run(tempfile.mkdtemp(prefix="adv-"), lines or BASE_LINES,
-                        manifest=dict(MANIFEST, production_revision=prov["git_head"]),
+        use_lines = list(lines) if lines else list(BASE_LINES)
+        if stage != "B0_D_CAMERA_EPOCH_APPLY_CORRECTED":
+            use_lines = [l for l in use_lines if "R14 Apply attempts=" not in l]
+            use_lines.append("R14 Apply attempts=0 success=0 fail=0")
+        d = fixture_run(tempfile.mkdtemp(prefix="adv-"), use_lines,
+                        manifest=dict(make_manifest(stage), production_revision=prov["git_head"]),
                         provenance=prov, config_hash="c" * 64)
         r, s = run_eval(d, stage)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -477,9 +513,9 @@ class TestAdversarialFalseClose(unittest.TestCase):
     def test_missing_event_evidence_rejected(self):
         lines = [l for l in BASE_LINES if "R14 camera-epoch Visual" not in l]
         b0 = self._card_file("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", lines=lines)
-        tmp = pathlib.Path(tempfile.mkdtemp(prefix="adv-")) / "reg.tsv"
-        R.generate_registry({"B0_D_CAMERA_EPOCH_APPLY_CORRECTED": b0}, tmp)
-        self._reject("missing event evidence", R.validate_registry(tmp), "camera-event")
+        with self.assertRaises(ValueError) as ctx:
+            R.generate_registry({"B0_D_CAMERA_EPOCH_APPLY_CORRECTED": b0}, None)
+        self.assertIn("CANONICAL_EVENT_EVIDENCE_MISSING", str(ctx.exception))
 
     def test_duplicate_geometry_use_rejected(self):
         self._reject("duplicate geometry use", self._reg("DuplicateGeometryUseEvents", "1"),
@@ -490,7 +526,8 @@ class TestAdversarialFalseClose(unittest.TestCase):
 
     def test_wrong_completion_reference_rejected(self):
         d = fixture_run(tempfile.mkdtemp(prefix="adv-"), BASE_LINES,
-                        manifest=dict(MANIFEST, production_revision=PROVENANCE["git_head"]),
+                        manifest=dict(make_manifest("B0_D_CAMERA_EPOCH_APPLY_CORRECTED"),
+                                      production_revision=PROVENANCE["git_head"]),
                         provenance=PROVENANCE, config_hash="c" * 64)
         r, s = run_eval(d, "B0_D_CAMERA_EPOCH_APPLY_CORRECTED", ["--expected-rows", "5000"])
         self.assertEqual(s["completion"]["completion_ratio"] is not None, True)

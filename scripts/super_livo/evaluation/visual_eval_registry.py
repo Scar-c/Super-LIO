@@ -19,6 +19,8 @@ import re
 import sys
 
 from visual_eval_score import CANONICAL_STAGE_PARENTS
+from visual_eval_score import MANIFEST_SEMANTIC_FIELDS, POLICY_ID_KEYS
+from visual_eval_score import _load_semantic_snapshot
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
@@ -26,7 +28,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 REGISTRY_SCHEMA = {
     "Stage": "string", "ParentStage": "string", "HEAD": "sha40/null",
     "GitDirty": "int/null", "ConfigHash": "sha64/null", "Dataset": "string",
-    "Sequence": "string", "VisualEvent": "enum/string", "VisualApply": "bool",
+    "Sequence": "string", "VisualEvent": "enum/string",
+    "TimestampSemantics": "string", "VisualApply": "bool",
+    "ApplyConnectivity": "string", "PayloadOwnershipMode": "string",
     "VisualMapPolicy": "string", "NormalizePolicy": "string",
     "ExposurePolicy": "string", "NormalPolicy": "string", "PatchPolicy": "string",
     "ResidualPolicy": "string", "IterationPolicy": "string",
@@ -53,6 +57,7 @@ REGISTRY_SCHEMA = {
     "ApplyEligibleFrames": "int/null", "ApplySuccess": "int/null",
     "ApplyFailures": "int/null", "ApplySkipZeroCandidate": "int/null",
     "ApplySkipZeroValidResidual": "int/null",
+    "SemanticSourceSha256": "sha64/null", "SemanticProfileRevision": "sha64/null",
     "RawLidarInputScans": "int/null", "PreObserveExcludedScans": "int/null",
     "EligibleRawScans": "int/null", "UniqueGeometryUsedScans": "int/null",
     "GeometryUpdateEvents": "int/null", "DuplicateGeometryUseEvents": "int/null",
@@ -107,6 +112,9 @@ def _row_from_scorecard(score):
     stage = p.get("stage_id", "UNREGISTERED_STAGE")
     apply_stage = stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED"
     solver = "NOT_APPLICABLE" if not apply_stage else None
+    # Prompt76 P2: semantic columns MUST come from the scorecard ACTUAL
+    # semantics (resolved run manifest + snapshot) — never from the stage.
+    a = score.get("actual_semantics", {})
 
     row = {
         "Stage": stage,
@@ -116,20 +124,21 @@ def _row_from_scorecard(score):
         "ConfigHash": p.get("config_hash"),
         "Dataset": p.get("dataset"),
         "Sequence": p.get("sequence"),
-        "VisualEvent": {
-            "A0_D_LEGACY_PLACEMENT_SHADOW": "FULL_LIDAR_OBSERVE_CALLBACK",
-            "A1_D_SCHEDULER_BASE": "NONE",
-            "A2_D_CAMERA_EPOCH_SHADOW": "CAMERA_EPOCH",
-            "B0_D_CAMERA_EPOCH_APPLY_CORRECTED": "CAMERA_EPOCH",
-        }.get(stage, "UNREGISTERED_STAGE"),
-        "VisualApply": stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED",
-        "VisualMapPolicy": p.get("visual_map_policy"),
-        "NormalizePolicy": p.get("normalize_semantics"),
-        "ExposurePolicy": p.get("exposure_semantics"),
-        "NormalPolicy": p.get("normal_semantics"),
-        "PatchPolicy": p.get("patch_semantics"),
-        "ResidualPolicy": p.get("residual_semantics"),
-        "IterationPolicy": p.get("iteration_semantics"),
+        "VisualEvent": a.get("visual_measurement_event", "SEMANTIC_PROVENANCE_MISSING"),
+        "TimestampSemantics": a.get("visual_measurement_timestamp_semantics",
+                                    "SEMANTIC_PROVENANCE_MISSING"),
+        "VisualApply": a.get("visual_state_apply", "SEMANTIC_PROVENANCE_MISSING"),
+        "ApplyConnectivity": a.get("visual_state_apply_connectivity",
+                                   "SEMANTIC_PROVENANCE_MISSING"),
+        "PayloadOwnershipMode": a.get("camera_payload_ownership_mode",
+                                      "SEMANTIC_PROVENANCE_MISSING"),
+        "VisualMapPolicy": a.get("visual_map_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "NormalizePolicy": a.get("normalize_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "ExposurePolicy": a.get("exposure_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "NormalPolicy": a.get("normal_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "PatchPolicy": a.get("patch_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "ResidualPolicy": a.get("residual_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
+        "IterationPolicy": a.get("iteration_policy_id", "SEMANTIC_PROVENANCE_MISSING"),
         "APE_RMSE_m": acc.get("ape_translation_rmse_m"),
         "APE_Mean_m": acc.get("ape_translation_mean_m"),
         "APE_Median_m": acc.get("ape_translation_median_m"),
@@ -166,6 +175,10 @@ def _row_from_scorecard(score):
         "ApplyFailures": m.get("solver_apply_fail") if apply_stage else solver,
         "ApplySkipZeroCandidate": m.get("solver_apply_skip_zero_candidate") if apply_stage else solver,
         "ApplySkipZeroValidResidual": m.get("solver_apply_skip_zero_valid") if apply_stage else solver,
+        "SemanticSourceSha256": score.get("semantic_provenance", {}).get(
+            "semantic_source_sha256"),
+        "SemanticProfileRevision": score.get("semantic_provenance", {}).get(
+            "semantic_profile_revision"),
         "RawLidarInputScans": c.get("raw_lidar_input_scans"),
         "PreObserveExcludedScans": c.get("preobserve_excluded_scans"),
         "EligibleRawScans": c.get("eligible_raw_scans"),
@@ -206,6 +219,75 @@ def _check_canonical_provenance(stage, row, score):
                     f"{row['ConfigHash']} != {expected}")
 
 
+def validate_canonical_scorecard(score, contracts=None, stage=None):
+    """Prompt76 §42/§43: hard conditions for a canonical A2/B0 scorecard.
+    Returns a list of error strings; empty means CANONICAL_SCORECARD_VALID."""
+    stage = stage or score.get("provenance", {}).get("stage_id")
+    errors = []
+    if stage not in ("A2_D_CAMERA_EPOCH_SHADOW",
+                     "B0_D_CAMERA_EPOCH_APPLY_CORRECTED"):
+        return errors
+    p = score.get("provenance", {})
+    a = score.get("actual_semantics", {})
+    ep = score.get("event_placement", {})
+    m = score.get("measurement_counts", {})
+    if str(p.get("git_dirty")) != "0":
+        errors.append("CANONICAL_RUN_DIRTY_SOURCE")
+    if not p.get("config_hash"):
+        errors.append("CANONICAL_CONFIG_HASH_MISSING")
+    if not score.get("semantic_provenance", {}).get("complete"):
+        errors.append("SEMANTIC_PROVENANCE_MISSING")
+    # expected stage contract from the snapshot
+    if contracts is None:
+        _, contracts, _, _ = _load_semantic_snapshot()
+    expected = (contracts or {}).get(stage, {})
+    for key in ("visual_measurement_event",
+                "visual_measurement_timestamp_semantics",
+                "visual_state_apply", "visual_state_apply_connectivity",
+                "camera_payload_ownership_mode"):
+        if a.get(key) != expected.get(key):
+            errors.append(f"CANONICAL_STAGE_SEMANTIC_MISMATCH {key}: "
+                          f"actual {a.get(key)} != expected {expected.get(key)}")
+    # event placement gates
+    for name, val in (("CameraEventVisualCount", ep.get("camera_event_visual_count")),
+                      ("LidarCallbackVisualCount", ep.get("lidar_callback_visual_count")),
+                      ("DuplicateVisualEventCount", ep.get("duplicate_visual_event_count")),
+                      ("PayloadMissingAtMeasurement", ep.get("payload_missing_at_measurement")),
+                      ("PayloadReleasedBeforeMeasurement", ep.get("payload_released_before_measurement"))):
+        if not isinstance(val, int):
+            errors.append(f"CANONICAL_EVENT_EVIDENCE_MISSING {name}={val}")
+    if not (isinstance(ep.get("camera_event_visual_count"), int)
+            and ep["camera_event_visual_count"] > 0):
+        errors.append("A2_B0_CAMERA_EVENT_REQUIRED")
+    if ep.get("lidar_callback_visual_count") != 0:
+        errors.append("LIDAR_CALLBACK_VISUAL_MUST_BE_ZERO")
+    if ep.get("duplicate_visual_event_count") != 0:
+        errors.append("DUPLICATE_VISUAL_EVENT_MUST_BE_ZERO")
+    if ep.get("payload_missing_at_measurement") != 0:
+        errors.append("PAYLOAD_MISSING_MUST_BE_ZERO")
+    if ep.get("payload_released_before_measurement") != 0:
+        errors.append("PAYLOAD_EARLY_RELEASE_MUST_BE_ZERO")
+    if stage == "A2_D_CAMERA_EPOCH_SHADOW":
+        if m.get("solver_apply_count") not in (0, None):
+            errors.append("A2_APPLY_ATTEMPTS_MUST_BE_ZERO")
+    elif stage == "B0_D_CAMERA_EPOCH_APPLY_CORRECTED":
+        if not (isinstance(m.get("solver_apply_count"), int)
+                and m["solver_apply_count"] > 0):
+            errors.append("B0_APPLY_ATTEMPTS_REQUIRED")
+        if not (isinstance(m.get("solver_apply_success"), int)
+                and isinstance(m.get("solver_apply_fail"), int)
+                and m["solver_apply_count"] ==
+                m["solver_apply_success"] + m["solver_apply_fail"]):
+            errors.append("B0_APPLY_IDENTITY_FAIL")
+        if m.get("solver_iteration_count") != m.get("solver_callback_invocations"):
+            errors.append("SOLVER_ITERATION_CALLBACK_IDENTITY_FAIL")
+        itpa = m.get("solver_iterations_per_apply_P50")
+        if isinstance(itpa, (int, float)) and itpa > 1 and \
+           m.get("solver_iteration_count") == m.get("solver_apply_count"):
+            errors.append("APPLY_COUNT_SUBSTITUTED_FOR_ITERATION")
+    return errors
+
+
 def _classify(row, score):
     if row["Stage"] in ("A0_D_LEGACY_PLACEMENT_SHADOW", "A1_D_SCHEDULER_BASE"):
         return "MIGRATED_HISTORICAL"
@@ -232,6 +314,11 @@ def generate_registry(scorecards, out_path, schema=None):
         # mechanically consistent with the run artifact (config hash) and a
         # clean source; mismatch/dirty -> hard rejection, not classification.
         _check_canonical_provenance(stage, row, score)
+        # Prompt76 §42/§43: canonical A2/B0 must pass the hard semantic
+        # contract BEFORE any row is emitted.
+        hard = validate_canonical_scorecard(score, stage=stage)
+        if hard:
+            raise ValueError("CANONICAL_SCORECARD_INVALID: " + "; ".join(hard))
         rows.append(row)
         seen.add(stage)
     # any extra (non-canonical / historical) stages
@@ -293,6 +380,57 @@ def validate_registry(path, schema=None, canonical_stage_parents=None):
         if row["Classification"] not in CLASSIFICATIONS:
             errors.append(f"row {i}: classification {row['Classification']}")
         if stage in ("A2_D_CAMERA_EPOCH_SHADOW", "B0_D_CAMERA_EPOCH_APPLY_CORRECTED"):
+            # Prompt76 §42/§43 semantic contract from the snapshot file
+            _, contracts, _, _ = _load_semantic_snapshot()
+            exp = (contracts or {}).get(stage, {})
+            for key, col in (
+                ("visual_measurement_event", "VisualEvent"),
+                ("visual_measurement_timestamp_semantics", "TimestampSemantics"),
+                ("visual_state_apply", "VisualApply"),
+                ("visual_state_apply_connectivity", "ApplyConnectivity"),
+                ("camera_payload_ownership_mode", "PayloadOwnershipMode"),
+            ):
+                val = row.get(col, "NOT_AVAILABLE")
+                if val in NULL_MARKERS or val == "" or val != _norm(exp.get(key)):
+                    errors.append(f"row {i}: semantic contract {col}: {val} != {exp.get(key)}")
+            # Prompt76 §42/§43: policy IDs must equal the snapshot contract
+            policies, _, _, _ = _load_semantic_snapshot()
+            for col, pkey in (
+                ("VisualMapPolicy", "visual_map_policy_id"),
+                ("NormalizePolicy", "normalize_policy_id"),
+                ("ExposurePolicy", "exposure_policy_id"),
+                ("NormalPolicy", "normal_policy_id"),
+                ("PatchPolicy", "patch_policy_id"),
+                ("ResidualPolicy", "residual_policy_id"),
+                ("IterationPolicy", "iteration_policy_id"),
+            ):
+                val = row[col]
+                if val in NULL_MARKERS or val == "" or \
+                   val != _norm((policies or {}).get(pkey)):
+                    errors.append(f"row {i}: policy contract {col}: {val} != {(policies or {}).get(pkey)}")
+            # event placement zero gates (numeric evidence required)
+            for col in ("CameraEventVisualCount", "LidarCallbackVisualCount",
+                        "DuplicateVisualEventCount", "PayloadMissing",
+                        "PayloadReleasedBeforeMeasurement"):
+                val = row[col]
+                if val in NULL_MARKERS or val == "":
+                    errors.append(f"row {i}: CANONICAL_EVENT_EVIDENCE_MISSING {col}")
+            if not row["CameraEventVisualCount"].isdigit() or \
+               int(row["CameraEventVisualCount"]) <= 0:
+                errors.append(f"row {i}: camera-event count must be > 0")
+            for col in ("LidarCallbackVisualCount", "DuplicateVisualEventCount",
+                        "PayloadMissing", "PayloadReleasedBeforeMeasurement"):
+                if not row[col].isdigit() or int(row[col]) != 0:
+                    errors.append(f"row {i}: {col} must be 0")
+            # config hash must match the run artifact (EvidencePath)
+            evid = row["EvidencePath"]
+            if evid not in NULL_MARKERS and evid != "":
+                sha_file = pathlib.Path(evid) / "effective_config.post_resolve.yaml.sha256"
+                if sha_file.exists():
+                    tok = sha_file.read_text(errors="replace").strip().split()
+                    expected = tok[0] if tok else None
+                    if expected and row["ConfigHash"] != expected:
+                        errors.append(f"row {i}: config hash {row['ConfigHash'][:8]} != artifact {expected[:8]}")
             if row["GitDirty"] == "1":
                 errors.append(f"row {i}: canonical {stage} from dirty source")
             if row["Classification"] != "VALID":

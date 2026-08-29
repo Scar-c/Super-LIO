@@ -1,0 +1,46 @@
+# Prompt76 P1: explicit machine-readable semantic snapshot — the single
+# source of immutable policy IDs and the canonical stage semantic contract.
+# The evaluator and registry generator READ this file; they must never
+# contain these IDs as evaluator constants. The resolved run manifest
+# (resolved_experiment_semantics.yaml: semantic_profile + revisions) is the
+# run's semantic authority; this snapshot pins the immutable pre-Phase-C
+# policy IDs and the expected stage contract used for validation.
+snapshot_id: SUPER_LIVO_PRE_PHASEC_V0
+schema_version: 1
+
+policies:
+  visual_map_policy_id: S3_SPATIAL_BALANCED_V0
+  normalize_policy_id: NOT_IMPLEMENTED_V0
+  exposure_policy_id: NOT_IMPLEMENTED_V0
+  normal_policy_id: NOT_IMPLEMENTED_V0
+  patch_policy_id: SUPER_LIVO_PRE_PHASEC_PATCH_V0
+  residual_policy_id: SUPER_LIVO_PRE_PHASEC_RESIDUAL_V0
+  iteration_policy_id: SUPER_LIVO_PRE_PHASEC_ITERATION_V0
+
+# Expected semantic contract per canonical stage (validator metadata only;
+# actual semantics always come from the run artifact).
+stage_contracts:
+  A0_D_LEGACY_PLACEMENT_SHADOW:
+    visual_measurement_event: FULL_LIDAR_OBSERVE_CALLBACK
+    visual_measurement_timestamp_semantics: LEGACY
+    visual_state_apply: false
+    visual_state_apply_connectivity: NOT_ESTABLISHED
+    camera_payload_ownership_mode: NOT_APPLICABLE
+  A1_D_SCHEDULER_BASE:
+    visual_measurement_event: NONE
+    visual_measurement_timestamp_semantics: LEGACY
+    visual_state_apply: false
+    visual_state_apply_connectivity: NOT_ESTABLISHED
+    camera_payload_ownership_mode: NOT_APPLICABLE
+  A2_D_CAMERA_EPOCH_SHADOW:
+    visual_measurement_event: CAMERA_EPOCH
+    visual_measurement_timestamp_semantics: CAMERA_EPOCH_PROPAGATED_STATE
+    visual_state_apply: false
+    visual_state_apply_connectivity: NOT_ESTABLISHED
+    camera_payload_ownership_mode: RETAIN_THROUGH_MEASUREMENT
+  B0_D_CAMERA_EPOCH_APPLY_CORRECTED:
+    visual_measurement_event: CAMERA_EPOCH
+    visual_measurement_timestamp_semantics: CAMERA_EPOCH_PROPAGATED_STATE
+    visual_state_apply: true
+    visual_state_apply_connectivity: ESTABLISHED
+    camera_payload_ownership_mode: RETAIN_THROUGH_MEASUREMENT
