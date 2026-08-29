@@ -168,3 +168,9 @@ Prompt 55. Round12 CLOSED (ROUND12_PARENT_REPRO_AND_LEDGER_CLOSED); Round13 OPEN
 - real bag execution: BLOCKED
 - camera-event corrective: BLOCKED_ON_ORIGIN_FINAL_CLOSE_REVIEW
 - infrastructure: FINAL_PROOF_DEBT_CLOSE
+
+## Round 14 — Phase A (prompt 71)
+
+- ROUND13_INFRASTRUCTURE = CLOSED (frozen)
+- Phase A: camera-event Visual Shadow semantics (retain→PropagateTo→measure→shadow→release→ONE LiDAR Observe)
+- A0/A1/A2 on eee_01 + visual_eval_scorecard + registry
