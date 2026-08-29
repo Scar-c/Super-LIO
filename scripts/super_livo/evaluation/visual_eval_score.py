@@ -139,18 +139,28 @@ def _resolve_run_semantics(run_dir, manifest_data, canonical=True):
     """
     run = pathlib.Path(run_dir)
     manifest_rev = manifest_data.get("production_revision")
-    # 1) run-bound snapshot: <run_dir>/semantic_snapshot.yaml with manifest
-    #    references (RUN_EMBEDDED) or an explicit path (RUN_REFERENCED).
-    embedded = run / "semantic_snapshot.yaml"
+    # Prompt79 G1: when the manifest CLAIMS a run-bound snapshot, the path is
+    # REQUIRED and is the exact authority (no file discovery). Historical
+    # runs (no path field) fall through to their revision binding; a run
+    # with neither is SEMANTIC_SNAPSHOT_PATH_MISSING (fail-closed).
     manifest_path = manifest_data.get("semantic_snapshot_path")
-    snapshot_file = None
-    mode = None
-    if embedded.exists():
-        snapshot_file = embedded
-        mode = BINDING_RUN_EMBEDDED
-    elif manifest_path and pathlib.Path(manifest_path).exists():
-        snapshot_file = pathlib.Path(manifest_path)
-        mode = BINDING_RUN_REFERENCED
+    if manifest_path:
+        resolved_path = pathlib.Path(manifest_path)
+        if not resolved_path.is_absolute():
+            resolved_path = run / resolved_path
+        if not resolved_path.exists():
+            raise ValueError("SEMANTIC_SNAPSHOT_MISSING")
+        snapshot_file = resolved_path
+        mode = (BINDING_RUN_EMBEDDED
+                if resolved_path == (run / "semantic_snapshot.yaml").resolve()
+                else BINDING_RUN_REFERENCED)
+    else:
+        # no run-bound claim: historical revision binding or fail-closed
+        if canonical:
+            binding = _find_historical_binding(manifest_rev, run)
+            if binding is not None:
+                return _resolve_historical_binding(binding, manifest_rev)
+        raise ValueError("SEMANTIC_SNAPSHOT_PATH_MISSING")
     if snapshot_file is not None:
         if not snapshot_file.exists():
             raise ValueError("SEMANTIC_SNAPSHOT_MISSING")
@@ -195,34 +205,7 @@ def _resolve_run_semantics(run_dir, manifest_data, canonical=True):
     if canonical:
         binding = _find_historical_binding(manifest_rev, run)
         if binding is not None:
-            snap_path = REPO / binding.get("semantic_snapshot_source", "")
-            if not snap_path.exists():
-                raise ValueError("SEMANTIC_BINDING_SNAPSHOT_MISSING")
-            data = yaml.safe_load(snap_path.read_text()) or {}
-            snap_rev = data.get("production_revision")
-            if snap_rev != manifest_rev:
-                raise ValueError(
-                    f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: snapshot {snap_rev} "
-                    f"!= run {manifest_rev}")
-            derived = data.get("derived_from_revision")
-            if derived and derived != manifest_rev:
-                raise ValueError(
-                    f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: derived {derived} "
-                    f"!= run {manifest_rev}")
-            actual_sha = hashlib.sha256(snap_path.read_bytes()).hexdigest()
-            bound_sha = binding.get("semantic_snapshot_sha256")
-            if bound_sha and bound_sha != actual_sha:
-                raise ValueError(
-                    f"SEMANTIC_SNAPSHOT_HASH_MISMATCH: binding {bound_sha} "
-                    f"!= file {actual_sha}")
-            return {
-                "policies": data.get("policies", {}),
-                "snapshot_source": str(snap_path),
-                "snapshot_sha256": hashlib.sha256(snap_path.read_bytes()).hexdigest(),
-                "production_revision": snap_rev,
-                "binding_mode": BINDING_HISTORICAL,
-                "snapshot_schema_version": data.get("snapshot_schema_version"),
-            }
+            return _resolve_historical_binding(binding, manifest_rev)
         # fail-closed: no valid canonical source
         raise ValueError("SEMANTIC_PROVENANCE_MISSING: no run-bound or "
                          "historical-revision-bound semantic snapshot")
@@ -230,6 +213,38 @@ def _resolve_run_semantics(run_dir, manifest_data, canonical=True):
         "policies": {}, "snapshot_source": None, "snapshot_sha256": None,
         "production_revision": None, "binding_mode": BINDING_NONE,
         "snapshot_schema_version": None,
+    }
+
+
+def _resolve_historical_binding(binding, manifest_rev):
+    """Resolve a validated historical revision binding (Prompt77/79)."""
+    snap_path = REPO / binding.get("semantic_snapshot_source", "")
+    if not snap_path.exists():
+        raise ValueError("SEMANTIC_BINDING_SNAPSHOT_MISSING")
+    data = yaml.safe_load(snap_path.read_text()) or {}
+    snap_rev = data.get("production_revision")
+    if snap_rev != manifest_rev:
+        raise ValueError(
+            f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: snapshot {snap_rev} "
+            f"!= run {manifest_rev}")
+    derived = data.get("derived_from_revision")
+    if derived and derived != manifest_rev:
+        raise ValueError(
+            f"SEMANTIC_SNAPSHOT_REVISION_MISMATCH: derived {derived} "
+            f"!= run {manifest_rev}")
+    actual_sha = hashlib.sha256(snap_path.read_bytes()).hexdigest()
+    bound_sha = binding.get("semantic_snapshot_sha256")
+    if bound_sha and bound_sha != actual_sha:
+        raise ValueError(
+            f"SEMANTIC_SNAPSHOT_HASH_MISMATCH: binding {bound_sha} "
+            f"!= file {actual_sha}")
+    return {
+        "policies": data.get("policies", {}),
+        "snapshot_source": str(snap_path),
+        "snapshot_sha256": hashlib.sha256(snap_path.read_bytes()).hexdigest(),
+        "production_revision": snap_rev,
+        "binding_mode": BINDING_HISTORICAL,
+        "snapshot_schema_version": data.get("snapshot_schema_version"),
     }
 
 

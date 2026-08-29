@@ -106,7 +106,7 @@ class TestRunBoundSemantics(unittest.TestCase):
         with V._semantic_env(binding_dir=tmp.parent):
             with self.assertRaises(ValueError) as ctx:
                 build("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", B0_RUN)
-            self.assertIn("SEMANTIC_PROVENANCE_MISSING", str(ctx.exception))
+            self.assertIn("SEMANTIC_SNAPSHOT_PATH_MISSING", str(ctx.exception))
 
     def test_rb_t5_content_change_without_hash_update_rejected(self):
         snap = pathlib.Path(tempfile.mkdtemp()) / "snap.yaml"
@@ -157,7 +157,7 @@ class TestRunBoundSemantics(unittest.TestCase):
         with V._semantic_env(binding_dir=tmp):
             with self.assertRaises(ValueError) as ctx:
                 build("A2_D_CAMERA_EPOCH_SHADOW", A2_RUN)
-            self.assertIn("SEMANTIC_PROVENANCE_MISSING", str(ctx.exception))
+            self.assertIn("SEMANTIC_SNAPSHOT_PATH_MISSING", str(ctx.exception))
 
     def test_rb_t9_t10_run_embedded_snapshot(self):
         # synthetic future run produced through the PRODUCTION materializer
@@ -390,7 +390,7 @@ class TestAdversarialRunBound(unittest.TestCase):
         with V._semantic_env(binding_dir=tmp):
             with self.assertRaises(ValueError) as ctx:
                 build("A2_D_CAMERA_EPOCH_SHADOW", A2_RUN)
-            self.assertIn("SEMANTIC_PROVENANCE_MISSING", str(ctx.exception))
+            self.assertIn("SEMANTIC_SNAPSHOT_PATH_MISSING", str(ctx.exception))
 
 
 if __name__ == "__main__":

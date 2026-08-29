@@ -9,6 +9,8 @@ marked PASS.
 """
 import json
 import pathlib
+import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -41,6 +43,7 @@ REAL_SEAM_GATES = {
     "SNAPSHOT_SCHEMA_EQUALS_MANIFEST_SCHEMA", "REAL_TRANSACTION_SNAPSHOT_SEAM",
     "REAL_SEAM_SHELL_SHA_VERIFICATION", "REAL_SEAM_GIT_REVISION_VERIFICATION",
     "REAL_SEAM_SCHEMA_VERIFICATION",
+    "REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY",
 }
 
 
@@ -111,8 +114,61 @@ def validate(path=EVIDENCE):
     return errors
 
 
+import argparse
+
+
+def _git(args):
+    return subprocess.check_output(["git"] + args, text=True).strip()
+
+
+def validate_provenance(data):
+    """G3: functional-corrective-commit self-provenance."""
+    errors = []
+    fc = data.get("functional_corrective_commit")
+    if not fc:
+        errors.append("FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: missing")
+        return errors
+    if not re.fullmatch(r"[0-9a-f]{40}", str(fc)):
+        errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {fc} not sha40")
+        return errors
+    try:
+        subprocess.check_output(["git", "cat-file", "-e", fc + "^{commit}"],
+                                stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {fc} not a commit")
+        return errors
+    initial = data.get("initial_head")
+    try:
+        base = subprocess.check_output(
+            ["git", "merge-base", "--is-ancestor", initial, fc],
+            stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {fc} not descendant of initial")
+        return errors
+    # the functional commit must contain the relevant gate-closing code paths
+    required_paths = data.get("production_paths_tested", [])
+    for path in required_paths:
+        try:
+            blob = subprocess.check_output(
+                ["git", "show", f"{fc}:{path}"], stderr=subprocess.DEVNULL).decode()
+        except subprocess.CalledProcessError:
+            errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {path} absent at {fc}")
+            continue
+        if path.endswith("visual_eval_score.py") and "SEMANTIC_SNAPSHOT_PATH_MISSING" not in blob:
+            errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {path} lacks G1 fix at {fc}")
+        if path.endswith("close_evidence_validator.py") and "REAL_SEAM_TEMPLATE_DRIFT_IMMUNITY" not in blob:
+            errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {path} lacks G2 fix at {fc}")
+        if path.endswith("close_evidence_validator.py") and "FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH" not in blob:
+            errors.append(f"FUNCTIONAL_COMMIT_PROVENANCE_MISMATCH: {path} lacks G3 fix at {fc}")
+    return errors
+
+
 def main(argv=None):
-    errors = validate()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--evidence", default=str(EVIDENCE))
+    args = ap.parse_args(argv)
+    errors = validate(args.evidence)
+    errors += validate_provenance(json.loads(pathlib.Path(args.evidence).read_text()))
     if errors:
         print("CLOSE_EVIDENCE_SCHEMA_VALID = FAIL")
         for e in errors:

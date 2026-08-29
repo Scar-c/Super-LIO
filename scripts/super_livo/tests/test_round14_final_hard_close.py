@@ -293,7 +293,7 @@ class TestHistoricalRegression(unittest.TestCase):
         with V._semantic_env(binding_dir=tmp.parent):
             with self.assertRaises(ValueError) as ctx:
                 self._hist("A2_D_CAMERA_EPOCH_SHADOW", A2_RUN)
-            self.assertIn("SEMANTIC_PROVENANCE_MISSING", str(ctx.exception))
+            self.assertIn("SEMANTIC_SNAPSHOT_PATH_MISSING", str(ctx.exception))
 
 
 class TestRealTransactionSeam(unittest.TestCase):
@@ -370,10 +370,20 @@ class TestRealTransactionSeam(unittest.TestCase):
             semantic_snapshot=snapshot)
         self.assertEqual(score["semantic_provenance"]["semantic_binding_mode"],
                          "RUN_EMBEDDED")
+        # §41-43: mutation attacks on COPIES of the seam output. The copied
+        # manifest must be re-pointed at the copy's own snapshot (the copy
+        # is a relocated run); the manifest hash stays the ORIGINAL binding.
+        def rebind(copy_dir):
+            snap = copy_dir / "semantic_snapshot.yaml"
+            m = yaml.safe_load((copy_dir / "resolved_experiment_semantics.yaml").read_text())
+            m["semantic_snapshot_path"] = str(snap)
+            (copy_dir / "resolved_experiment_semantics.yaml").write_text(yaml.safe_dump(m))
+            return snap
+
         # §41: post-capture mutation of a COPY is rejected
         copy = pathlib.Path(tempfile.mkdtemp()) / "out"
         shutil.copytree(out, copy)
-        snap2 = copy / "semantic_snapshot.yaml"
+        snap2 = rebind(copy)
         snap2.write_text(snap2.read_text() + "# mutated\n")
         with self.assertRaises(ValueError) as ctx:
             V.build_scorecard("B0_D_CAMERA_EPOCH_APPLY_CORRECTED", copy,
@@ -383,7 +393,7 @@ class TestRealTransactionSeam(unittest.TestCase):
         # §42: rehash + wrong revision rejected
         copy2 = pathlib.Path(tempfile.mkdtemp()) / "out"
         shutil.copytree(out, copy2)
-        snap3 = copy2 / "semantic_snapshot.yaml"
+        snap3 = rebind(copy2)
         d = yaml.safe_load(snap3.read_text())
         d["production_revision"] = "f" * 40
         snap3.write_text(yaml.safe_dump(d))
@@ -398,7 +408,7 @@ class TestRealTransactionSeam(unittest.TestCase):
         # §43: rehash + schema mismatch rejected
         copy3 = pathlib.Path(tempfile.mkdtemp()) / "out"
         shutil.copytree(out, copy3)
-        snap4 = copy3 / "semantic_snapshot.yaml"
+        snap4 = rebind(copy3)
         d = yaml.safe_load(snap4.read_text())
         d["snapshot_schema_version"] = 99
         snap4.write_text(yaml.safe_dump(d))
