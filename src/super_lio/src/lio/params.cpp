@@ -8,6 +8,10 @@ using namespace BASIC;
 namespace LI2Sup{
 
   const std::string g_root_dir = std::string(ROOT);
+  /// P9: generated runtime evidence output dir (run_baseline
+  /// sets /lio/offline/out_dir to the run directory; default
+  /// keeps legacy behavior when unset).
+  std::string g_output_dir = g_root_dir;
   std::atomic<bool> g_flag_run = true; 
   bool g_flg_map_init = true;
 

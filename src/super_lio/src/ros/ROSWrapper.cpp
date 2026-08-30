@@ -15,6 +15,7 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/map/if_filter", g_if_filter);
   nh.getParam("/lio/map/save_map_dir", g_save_map_dir);
   g_save_map_dir = g_root_dir + g_save_map_dir;
+  nh.getParam("/lio/offline/out_dir", g_output_dir);
   nh.getParam("/lio/map/map_name", g_map_name);
   nh.getParam("/lio/map/ds_size", g_map_ds_size);
   nh.getParam("/lio/map/save_interval", g_pcd_save_interval);

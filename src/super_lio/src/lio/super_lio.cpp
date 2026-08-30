@@ -1155,7 +1155,7 @@ void SuperLIO::printTimeRecord(){
   }
   if(g_prob_lio_assoc_shadow_enable){
     // persist per-frame bounded summaries (G-P5.C4/C6 evidence)
-    std::ofstream fout(g_root_dir + "assoc_shadow_frames.csv");
+    std::ofstream fout(g_output_dir + "/assoc_shadow_frames.csv");
     if(fout){
       fout << "frame_id,timestamp,obs_iter,need_converge,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,rej_active,rej_late,sticky,flip,acc2rej,rej2acc,sticky_skip,counterfactual,"
               "r_min,r_mean,r_max,s_min,s_mean,s_max,z_min,z_mean,z_max,"
