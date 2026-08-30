@@ -421,6 +421,13 @@ def main(argv=None):
     eval_rc = 1
     metric = None
     eval_artifact = None
+    derived_gt = (
+        gt_for_eval
+        if gt_for_eval is not None
+        and pathlib.Path(gt_for_eval).is_file()
+        and (gt is None or pathlib.Path(gt_for_eval).resolve() != pathlib.Path(gt).resolve())
+        else None
+    )
     if shell_rc == 0 and adapter_rc == 0 and trajectory.is_file():
         eval_rc, eval_artifact, metric = evaluate(
             profile, trajectory, gt_for_eval, run_dir
@@ -452,15 +459,15 @@ def main(argv=None):
         "ground_truth": (
             {"source": "bag_topic", "topic": args.gt_topic or profile["gt_topic"],
              "derived_tum": (
-                 identity(gt_for_eval)
-                 if gt_for_eval is not None and pathlib.Path(gt_for_eval).is_file()
+                 identity(derived_gt)
+                 if derived_gt is not None
                  else None
              )}
             if gt_source == "bag_topic"
             else {"source": gt_source, "source_identity": identity(gt),
                   "derived_tum": (
-                      identity(gt_for_eval)
-                      if gt_for_eval is not None and pathlib.Path(gt_for_eval).is_file()
+                      identity(derived_gt)
+                      if derived_gt is not None
                       else None
                   )}
         ),

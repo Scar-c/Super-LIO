@@ -71,18 +71,24 @@ int main(int argc, char** argv) {
 
   // In-process publishers feeding the production wrapper's subscribers.
   // The wrapper uses its own callback queue; spinOnce() drains it.
-  ros::Publisher pub_lidar =
-      nh.advertise<sensor_msgs::PointCloud2>(g_lidar_topic, 1000);
+  ros::Publisher pub_lidar;
   ros::Publisher pub_lidar_custom;
   if (g_lidar_type == LID_TYPE::LIVOX) {
     pub_lidar_custom =
         nh.advertise<livox_ros_driver::CustomMsg>(g_lidar_topic, 1000);
+  } else {
+    pub_lidar =
+        nh.advertise<sensor_msgs::PointCloud2>(g_lidar_topic, 1000);
   }
   ros::Publisher pub_imu =
       nh.advertise<sensor_msgs::Imu>(g_imu_topic, 10000);
 
-  std::vector<ros::Publisher> wait_pubs = {pub_lidar, pub_imu};
-  if (pub_lidar_custom) wait_pubs.push_back(pub_lidar_custom);
+  std::vector<ros::Publisher> wait_pubs = {pub_imu};
+  if (g_lidar_type == LID_TYPE::LIVOX) {
+    wait_pubs.push_back(pub_lidar_custom);
+  } else {
+    wait_pubs.push_back(pub_lidar);
+  }
   if (!waitForSubscribers(wait_pubs, 30.0)) {
     std::printf("[offline_node] ERROR: timeout waiting for wrapper "
                 "subscribers on %s / %s\n",
