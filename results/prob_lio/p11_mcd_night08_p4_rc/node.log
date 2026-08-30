@@ -1,0 +1,27 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0831 03:14:30.927371 320863 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0831 03:14:30.937464 320863 ROSWrapper.cpp:310] [32m ---> Using Lidar type: LIVOX[0m
+I0831 03:14:30.943452 320863 super_lio.cpp:91] [32m ---> [SuperLIO]: initialized.[0m
+I0831 03:14:31.021495 320863 super_lio.cpp:99] [32m ---> [SuperLIO]: KF init done[0m
+I0831 03:14:31.029474 320863 super_lio.cpp:108] [32m ---> [SuperLIO]: Map init done[0m
+I0831 03:15:11.385262 320863 timer.h:40] >>> ===== Printing run time =====
+I0831 03:15:11.385318 320863 timer.h:46] > [ DownSample ] average time usage: 0.334984 ms , called times: 4661
+I0831 03:15:11.385354 320863 timer.h:46] > [ Observe ] average time usage: 4.80479 ms , called times: 4661
+I0831 03:15:11.385380 320863 timer.h:46] > [ Undistort ] average time usage: 0.681912 ms , called times: 4661
+I0831 03:15:11.385403 320863 timer.h:46] > [ UpdateMap ] average time usage: 0.836123 ms , called times: 4661
+I0831 03:15:11.385417 320863 super_lio.cpp:1159] [32m ---> [Prob-LIO P3] QR plane cov shadow: attempted: 13517793, valid: 13517793, rank_invalid: 0, nonfinite: 0[0m
+I0831 03:15:11.385432 320863 super_lio.cpp:1241] [32m ---> [Prob-LIO P4] weights attempted: 17677647, valid: 17677647, invalid_nonfinite: 0, invalid_negative: 0; valid w: count=17677647 min=8.76997e-07 max=995.616 mean=492.354 near_ceiling(>999)=0 bins=619/3739/27603/293345/17352341; plane var min=1.03798e-06 max=1.14026e+06 mean=0.131348; point var min=5.27971e-07 max=0.00736857 mean=0.00104106[0m
+I0831 03:15:11.385454 320863 super_lio.cpp:1260] [32m ---> [Prob-LIO] pipeline ON (pose model super_right_consistent, storage double): cov frames: 4661, points: 6878517, invalid: 0; map cov init inserts: 13239, update inserts: 6878517, hknn cov returns: 97958455, invalid: 2[0m
+[offline_node] bag=/home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_input/ntu_night_08_lio_filtered.bag start_offset=-1.000 duration=-1.000
+[offline_node] wrapper subscribers connected
+[OfflineReader] view 1645018879.502s..1645019346.271s lidar=4667 imu=185463 other=0 wall=40.305s sensor=466.769s speed=11.581x
+
+=== Offline accounting ===
+bag_relevant_messages: 190130
+lidar read: 4667   imu read: 185463   other: 0
+first/last bag time: 1645018879.502415 / 1645019346.270871
+first/last sensor time: 1645018879.502201 / 1645019346.270790
+sensor_duration_s: 466.769
+wall_processing_s: 40.305
+speed_factor: 11.581x
+trajectory: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_p4_rc/trajectory.tum

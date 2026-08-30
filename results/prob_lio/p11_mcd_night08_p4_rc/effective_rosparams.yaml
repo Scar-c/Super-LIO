@@ -1,0 +1,77 @@
+eva:
+  timer: true
+extrinsic:
+  lidar_imu:
+  - -0.010514839241742317
+  - -0.008989784841758377
+  - 0.03735646863833463
+  - 0.9998581316050806
+  - -0.0002258196228773494
+  - -0.016842377168758943
+  - -0.00017111407692153792
+  - -0.999994705851753
+  - 0.0032494597148797887
+  - -0.016843021794484745
+  - -0.003246116751423288
+  - -0.9998528768488223
+  odom_robo:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+hash_map:
+  hash_capacity: 2000000
+  vox_resolution: 0.5
+kf:
+  kf_align_gravity: true
+  kf_max_iterations: 4
+  kf_quit_eps: 0.001
+  kf_type: 0
+map:
+  ds_size: 0.25
+  if_filter: false
+  map_name: map.pcd
+  save_interval: 500
+  save_map: false
+  save_map_dir: map
+offline:
+  bag: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_input/ntu_night_08_lio_filtered.bag
+  out_dir: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_p4_rc
+output:
+  dense: true
+  map: true
+  ml_map: false
+  plan_env_body: false
+  plan_env_world: false
+  planner: false
+  pub_step: 1
+  robot: false
+prob_lio:
+  association_mode: super_legacy
+  association_pose_cov_model: inherit_map
+  association_sensor_cov_model: extrinsic_consistent
+  cov_enable: true
+  cov_validation_mode: light
+  map_cov_storage_precision: double
+  map_pose_cov_model: super_right_consistent
+  p2p_weight_mode: prob_livo2
+  prob_assoc_shadow_enable: false
+  qr_plane_cov_enable: true
+ros:
+  imu_topic: /vn100/imu
+  lidar_topic: /livox/lidar
+sensor:
+  blind: 2.0
+  enable_downsample: true
+  filter_rate: 3.0
+  gravity_norm: 9.81
+  imu_na: 0.1
+  imu_nba: 0.0001
+  imu_nbg: 0.0001
+  imu_ng: 0.1
+  imu_type: 0
+  lidar_type: 1
+  maxrange: 1000.0
+  voxel_fliter_size: 0.5

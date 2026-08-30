@@ -1,0 +1,19 @@
+base_config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/MCD_ATH.yaml
+  exists: true
+  size_bytes: 1364
+  sha256: ccafd53ef5ec1e3caa9e224e73a12ff20ab8f7638e60ac1bb62bf02b22174d23
+dataset: MCD
+sequence: ntu_night_08
+variant: P4-RC
+rosparam_overrides:
+  /lio/prob_lio/cov_enable: 'true'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: super_right_consistent
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'true'
+  /lio/prob_lio/p2p_weight_mode: prob_livo2
+  /lio/prob_lio/association_mode: super_legacy
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: inherit_map
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
