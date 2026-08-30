@@ -1,0 +1,43 @@
+schema_version: 1
+evaluator:
+  name: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+  provenance_tier: DATASET_AUTHOR_BENCHMARK
+  upstream_repository: https://github.com/ntu-aris/viral_eval
+  upstream_revision: 194dd4595b1fb5e8ae2a5a0c01255f816ab4082f
+  upstream_files_sha256:
+    evaluate_one.m: 20756b58d56dcaa66d9add0d41662034c01a329ca0fb4cda1215e5c853faec11
+    traj_align.m: f0ab16497ab35e709bf7c2c96a44aa50eec0f1bd78b595f7cd5ddd9fbb6bb319
+    combteeth.m: 817bb3070c5d778e84e54e31a5d61094ce5c444f13e70809291a89541cba9e87
+    vecitp.m: 730ccf7a973fba6dfaec2729d97c5861e6dc1a493df9a890c623ab21b37323d5
+    quatconv.m: 5a28231a53b18ded9d4361e0d00738e5dbcb1cb1d0bf7ce8fd0a049dbb1294a8
+    trans_B2prism.csv: e4f50bcbbc3e670d268aab26ad80de77013819413833bb9642bea46db90232b9
+  wrapper_path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_ntu_viral_official.py
+  wrapper_sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
+inputs:
+  estimate:
+    path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_215502/trajectory.tum
+    size_bytes: 648427
+    sha256: 6a8cc65adf3c90e07ddcfa86d7baae9eb53ce31214711636b15f0de909e06e13
+  leica:
+    path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_182308/gt/leica_gt.tum
+    size_bytes: 478932
+    sha256: 1829bbbd60da4e5ec3b94a51ee96431f443b6672f18c76ed24d060497040049e
+result:
+  primary_metric: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+  translation_ate_rmse_m: 0.11887563928223766
+  component_rmse_m:
+  - 0.0369644325299099
+  - 0.05006408927729747
+  - 0.10128492142139033
+  matched: 3329
+  lever_arm_applied: true
+  prism_translation_B_m:
+  - -0.293656
+  - -0.012288
+  - -0.273095
+  alignment: SE3_UMEYAMA_NO_SCALE
+  association: LINEAR_GT_INTERPOLATION_AT_ESTIMATE_TIMESTAMPS
+  interpolation_max_bracket_s: 0.1
+  interpolation_bracket_comparison: STRICT_LESS_THAN
+  estimated_pose_frame: IMU_BODY_W_T_B
+  ground_truth_measurement_frame: LEICA_PRISM_POSITION_IN_LEICA_WORLD
