@@ -30,13 +30,21 @@
 
 set -u
 
-WS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# This checkout is nested inside the catkin workspace used to build it. Keep
+# Git/artifact paths rooted at the checkout, but source the workspace that
+# owns the current devel product. A standalone checkout still uses itself.
+CATKIN_WS="${PROB_LIO_CATKIN_WS:-$REPO_ROOT}"
+if [ -z "${PROB_LIO_CATKIN_WS:-}" ] && [ -f "$REPO_ROOT/../../devel/setup.bash" ] \
+    && [ -d "$REPO_ROOT/../../build" ]; then
+  CATKIN_WS="$(cd "$REPO_ROOT/../.." && pwd)"
+fi
 source /opt/ros/noetic/setup.bash
-[ -f "$WS_ROOT/devel/setup.bash" ] && source "$WS_ROOT/devel/setup.bash"
+[ -f "$CATKIN_WS/devel/setup.bash" ] && source "$CATKIN_WS/devel/setup.bash"
 
 BAG=""
-CONFIG="$WS_ROOT/src/super_lio/config/NTU.yaml"
-OUT="$WS_ROOT/results/prob_lio"
+CONFIG="$REPO_ROOT/src/super_lio/config/NTU.yaml"
+OUT="$REPO_ROOT/results/prob_lio"
 DURATION=""
 RATE="1.0"
 OFFLINE=0
@@ -81,7 +89,7 @@ fi
 # Clean-source project rule (prompt6 §1): canonical closure runs require a
 # clean committed worktree; diagnostic runs may be dirty when explicitly
 # requested (no --canonical).
-GIT_STATUS_SHORT="$(git -C "$WS_ROOT" status --short | tr '\n' ';')"
+GIT_STATUS_SHORT="$(git -C "$REPO_ROOT" status --short | tr '\n' ';')"
 if [ "$CANONICAL" -eq 1 ] && [ -n "$GIT_STATUS_SHORT" ]; then
   echo "ERR: --canonical requires a clean worktree; git status: $GIT_STATUS_SHORT" >&2
   exit 3
@@ -112,19 +120,20 @@ META_LOG="$RUN_DIR/meta.txt"
 RESULT_BAG="$RUN_DIR/result.bag"
 
 GIT_DIRTY="no"
-GIT_STATUS_SHORT="$(git -C "$WS_ROOT" status --short | tr '\n' ';')"
+GIT_STATUS_SHORT="$(git -C "$REPO_ROOT" status --short | tr '\n' ';')"
 if [ -n "$GIT_STATUS_SHORT" ]; then GIT_DIRTY="yes"; fi
 GIT_DIFF_SHA256=""
 if [ "$GIT_DIRTY" = "yes" ]; then
-  GIT_DIFF_SHA256="$(git -C "$WS_ROOT" diff | sha256sum | cut -d' ' -f1)"
+  GIT_DIFF_SHA256="$(git -C "$REPO_ROOT" diff | sha256sum | cut -d' ' -f1)"
 fi
 {
-  echo "workspace_root: $WS_ROOT"
-  echo "git_branch: $(git -C "$WS_ROOT" branch --show-current)"
-  echo "run_git_head: $(git -C "$WS_ROOT" rev-parse HEAD)"
+  echo "repository_root: $REPO_ROOT"
+  echo "catkin_workspace: $CATKIN_WS"
+  echo "git_branch: $(git -C "$REPO_ROOT" branch --show-current)"
+  echo "run_git_head: $(git -C "$REPO_ROOT" rev-parse HEAD)"
   echo "run_git_dirty: $GIT_DIRTY"
   echo "run_git_status_short: $GIT_STATUS_SHORT"
-  echo "production_tree_oid: $(git -C "$WS_ROOT" rev-parse HEAD:src/super_lio)"
+  echo "production_tree_oid: $(git -C "$REPO_ROOT" rev-parse HEAD:src/super_lio)"
   echo "algorithm_commit: ${ALGORITHM_COMMIT:-<unset>}"
   echo "git_diff_sha256: ${GIT_DIFF_SHA256:-clean}"
   echo "config: $CONFIG"
