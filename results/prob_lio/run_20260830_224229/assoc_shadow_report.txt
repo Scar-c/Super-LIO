@@ -1,0 +1,62 @@
+=== P5 shadow association diagnosis ===
+frames=3981 attempted=10666916
+quadrant matrix: LA_PA=10568793 LA_PR=88494 LR_PA=1567 LR_PR=8062
+matrix sum=10666916 (== attempted: OK)
+invalid: nonfinite=0 negative=0
+LA_PR component summaries (weighted by frame LA_PR):
+  |r| mean=0.1859 min=0.0138 max=0.9944
+  sigma_assoc mean=3.2495e-03
+  z=|r|/sqrt(var) mean=4.378
+  plane_var mean=1.0847e-04
+  query_sensor_var mean=2.0724e-04
+  query_pose_rot_var mean=2.9309e-03
+  query_pose_pos_var mean=2.8705e-06
+  neighbor_count mean=7.28 max=12.45 (weighted by frame LA_PR)
+  probe_rescued=9032 (10.2% of LA_PR)
+
+count-bin table (LA_PR candidates):
+  bin        n      LA_PR  LA_PR_rate  plane_var_mean  z_mean
+      1   321604     5784       1.80%     2.5210e-04   4.592
+    2-4  2771330    28398       1.02%     1.6167e-04   4.456
+    5-9  2567526    23388       0.91%     8.5888e-05   4.328
+  10-14  2781539    18279       0.66%     5.9089e-05   4.307
+  15-20  2224917    12645       0.57%     3.6473e-05   4.301
+
+top 10 frames by LA_PR count:
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+   1996  1609059213.350000     449      0.200
+   2321  1609059245.870000     419      0.198
+   2000  1609059213.760000     416      0.199
+   1995  1609059213.250000     355      0.137
+   2325  1609059246.250000     352      0.143
+   1999  1609059213.650000     314      0.137
+   2322  1609059245.970000     298      0.125
+   2320  1609059245.760000     296      0.127
+   1236  1609059137.340000     272      0.091
+   1997  1609059213.450000     271      0.109
+
+top 10 frames by LA_PR/legacy fraction:
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+   1996  1609059213.350000     449      0.200
+   2000  1609059213.760000     416      0.199
+   2321  1609059245.870000     419      0.198
+   2325  1609059246.250000     352      0.143
+   1999  1609059213.650000     314      0.137
+   1995  1609059213.250000     355      0.137
+   2320  1609059245.760000     296      0.127
+   2322  1609059245.970000     298      0.125
+   2267  1609059240.470000     216      0.112
+   2268  1609059240.570000     206      0.110
+
+first spike frame (LA_PR>=100): 517 (t=1609059065.470000, LA_PR=163)
+disagreement bursts (5-gap): 50
+  frames 1996..1996 (n=1, total LA_PR=449)
+  frames 2321..1995 (n=3, total LA_PR=1190)
+  frames 2325..1999 (n=2, total LA_PR=666)
+  frames 2322..1236 (n=3, total LA_PR=866)
+  frames 1997..1997 (n=1, total LA_PR=271)
+  frames 2039..1685 (n=3, total LA_PR=716)
+  frames 2035..1786 (n=3, total LA_PR=684)
+  frames 2270..1221 (n=3, total LA_PR=662)
+  frames 2267..1686 (n=4, total LA_PR=832)
+  frames 2257..752 (n=4, total LA_PR=773)

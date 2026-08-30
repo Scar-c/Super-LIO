@@ -58,18 +58,20 @@ def main():
         f"(== attempted: {'OK' if abs(S('la_pa')+S('la_pr')+S('lr_pa')+S('lr_pr')-S('attempted'))<1 else 'MISMATCH'})")
     add(f"invalid: nonfinite={S('inv_nf'):.0f} negative={S('inv_neg'):.0f}")
     nlapr = lapr_mean if lapr_mean > 0 else 1.0
-    add("LA_PR component summaries (mean over LA_PR):")
-    add(f"  |r| mean={S('r_mean')/nlapr:.4f} min={min(r['r_min'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f} max={max(r['r_max'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f}")
-    add(f"  sigma_assoc mean={S('s_mean')/nlapr:.4e}")
-    add(f"  z=|r|/sqrt(var) mean={S('z_mean')/nlapr:.3f}")
-    add(f"  plane_var mean={S('pv_mean')/nlapr:.4e}")
-    add(f"  query_sensor_var mean={S('sv_mean')/nlapr:.4e}")
-    add(f"  query_pose_rot_var mean={S('rv_mean')/nlapr:.4e}")
-    add(f"  query_pose_pos_var mean={S('tv_mean')/nlapr:.4e}")
+    def wmean(col):
+        return sum(r[col] * r["la_pr"] for r in rows) / nlapr
+    add("LA_PR component summaries (weighted by frame LA_PR):")
+    add(f"  |r| mean={wmean('r_mean'):.4f} min={min(r['r_min'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f} max={max(r['r_max'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f}")
+    add(f"  sigma_assoc mean={wmean('s_mean'):.4e}")
+    add(f"  z=|r|/sqrt(var) mean={wmean('z_mean'):.3f}")
+    add(f"  plane_var mean={wmean('pv_mean'):.4e}")
+    add(f"  query_sensor_var mean={wmean('sv_mean'):.4e}")
+    add(f"  query_pose_rot_var mean={wmean('rv_mean'):.4e}")
+    add(f"  query_pose_pos_var mean={wmean('tv_mean'):.4e}")
     wt_mean = (sum(r["cnt_mean_mean"] * r["la_pr"] for r in rows) / nlapr
-               if lapr_sum else 0.0)
+               if lapr_mean else 0.0)
     wt_max = (sum(r["cnt_max_mean"] * r["la_pr"] for r in rows) / nlapr
-              if lapr_sum else 0.0)
+              if lapr_mean else 0.0)
     add(f"  neighbor_count mean={wt_mean:.2f} max={wt_max:.2f} "
         f"(weighted by frame LA_PR)")
     add(f"  probe_rescued={S('probe_rescued'):.0f} "
@@ -81,8 +83,8 @@ def main():
     for i, lab in enumerate(bin_labels):
         bn = S(f"bin{i+1}_n")
         bl = S(f"bin{i+1}_lapr")
-        bz = S(f"bin{i+1}_z")
-        bpv = S(f"bin{i+1}_pv")
+        bz = sum(r[f"bin{i+1}_z"] * r[f"bin{i+1}_lapr"] for r in rows)
+        bpv = sum(r[f"bin{i+1}_pv"] * r[f"bin{i+1}_lapr"] for r in rows)
         denom = bl if bl > 0 else 1.0
         add(f"  {lab:>5}  {bn:7.0f}  {bl:7.0f}  "
             f"{100.0*bl/bn if bn else 0:9.2f}%  {bpv/denom:13.4e}  {bz/denom:6.3f}")
