@@ -29,7 +29,7 @@ remain Super-LIO's own.
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
-| P5 | Probabilistic Association (optional / second stage) | **CLOSED/PASS** (round P5-1; Owner audit pending) |
+| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** (round P5-1 impl; P5-2 corrective+diagnosis in progress; Owner audit pending) |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
 ## 4. Authoritative seam IDs (S0–S13)
@@ -713,8 +713,9 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
   performed.
 - Diff audit: only S2/S10 + config/params; ESKF, HKNN search, QR geometry,
   OctVox map, `compute_error()` (legacy path) unchanged.
-- Status: **P4 = CLOSED / OWNER VERIFIED**; **P5 = CLOSED/PASS** (Owner audit
-  pending — not claimed Owner-verified); P5 remains the final roadmap stage.
+- Status: **P4 = CLOSED / OWNER VERIFIED**; **P5 = IMPLEMENTATION COMPLETE /
+  OWNER DIAGNOSIS PENDING** (normalized at the start of round P5-2; NOT
+  Owner-verified; Owner audit pending).
 
 ## 10. Gate summary
 
