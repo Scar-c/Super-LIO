@@ -78,6 +78,18 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   // P3 (S9): QR plane covariance shadow.
   nh.getParam("/lio/prob_lio/qr_plane_cov_enable", g_prob_lio_qr_plane_cov);
 
+  // P3-C2 (G-P3.C2): qr ON implies covariance pipeline ON. The invalid state
+  // (cov OFF + qr ON) is normalized — never silently executed on absent
+  // map covariance.
+  if (g_prob_lio_qr_plane_cov && !g_prob_lio_cov_enable) {
+    LOG(WARNING) << YELLOW
+                 << " ---> [Prob-LIO] qr_plane_cov_enable=true with "
+                    "covariance pipeline OFF: normalizing pipeline=ON"
+                 << RESET;
+    g_prob_lio_cov_enable =
+        ResolveQrCovDependency(g_prob_lio_qr_plane_cov, g_prob_lio_cov_enable);
+  }
+
 
   // extrinsic
   std::vector<scalar> extrinsic_lidar_imu, extrinsic_odom_robo;

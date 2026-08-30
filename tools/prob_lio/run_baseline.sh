@@ -71,10 +71,20 @@ PLAY_LOG="$RUN_DIR/play.log"
 META_LOG="$RUN_DIR/meta.txt"
 RESULT_BAG="$RUN_DIR/result.bag"
 
+GIT_DIRTY="no"
+GIT_STATUS_SHORT="$(git -C "$WS_ROOT" status --short | tr '\n' ';')"
+if [ -n "$GIT_STATUS_SHORT" ]; then GIT_DIRTY="yes"; fi
+GIT_DIFF_SHA256=""
+if [ "$GIT_DIRTY" = "yes" ]; then
+  GIT_DIFF_SHA256="$(git -C "$WS_ROOT" diff | sha256sum | cut -d' ' -f1)"
+fi
 {
   echo "workspace_root: $WS_ROOT"
   echo "git_branch: $(git -C "$WS_ROOT" branch --show-current)"
   echo "git_head: $(git -C "$WS_ROOT" rev-parse HEAD)"
+  echo "git_status_short: $GIT_STATUS_SHORT"
+  echo "git_dirty: $GIT_DIRTY"
+  echo "git_diff_sha256: ${GIT_DIFF_SHA256:-clean}"
   echo "config: $CONFIG"
   echo "bag: $BAG"
   echo "rate: $RATE"

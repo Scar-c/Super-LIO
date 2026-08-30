@@ -280,6 +280,108 @@ static void test_gp32_fd_jacobian() {
   ++g_checks;
 }
 
+
+// ---------------------------------------------------------------------------
+// G-P3.C1 — N=4 full-rank QR sensitivity finite-difference closure
+// ---------------------------------------------------------------------------
+static void test_gp3c1_n4_fd() {
+  std::printf("== G-P3.C1 N=4 full-rank QR sensitivity FD ==\n");
+  // All fixtures are NEAR a plane with noise so e_i = p_i^T q + 1 != 0
+  // (term-omission mutations detectable) while |residual| <= 0.1 (legacy
+  // accepted). A rank-3 A with a non-identity column pivot is targeted for
+  // the pivot case.
+  const PlanePointsArray set_ordinary = {
+      {{1.03, -0.02, 0.01}, {0.0, 1.02, 0.0}, {-0.01, 0.0, 1.03},
+       {0.5, 0.52, -0.01}}};  // near x+y+z=1
+  const PlanePointsArray set_oblique = {
+      {{0.06, -0.05, 7.0 / 3.0 + 0.02}, {7.06, 0.0, -0.03}, {-0.05, -3.46, 0.0},
+       {1.02, 1.06, 8.0 / 3.0 + 0.02}}};  // near x - 2y + 3z = 7
+  const PlanePointsArray set_pivot = {
+      {{-2.0, 1.02, 3.03}, {0.0, 2.01, 5.02}, {2.01, 3.0, 7.0},
+       {4.0, 4.03, 8.98}}};  // near z = x + 5, y = 1..4 (col2 norm largest)
+
+  for (const auto& pts : {set_ordinary, set_oblique, set_pivot}) {
+    const int N = 4;
+    const PlaneFitQr fit = SolvePlaneFitQr(pts, N);
+    CHECK(fit.solved && fit.legacy_accepted);
+    CHECK(fit.rank() == 3);
+    const Eigen::Matrix3d R = fit.qr4.matrixR().topLeftCorner(3, 3);
+    const auto& P = fit.qr4.colsPermutation();
+    const Eigen::Vector3i perm = P.indices();
+    const bool nontrivial_perm = (perm(0) != 0 || perm(1) != 1);
+    std::printf("  N=4 rank=%d permutation=(%d,%d,%d)%s cond=%.3e\n",
+                fit.rank(), perm(0), perm(1), perm(2),
+                nontrivial_perm ? " [NON-TRIVIAL]" : "",
+                std::abs(R(2, 2)) / std::abs(R(0, 0)));
+
+    const double s = fit.q.norm();
+    const Eigen::Vector3d n = fit.q / s;
+    Eigen::Matrix<double, 4, 3> G;
+    G.topRows<3>() = (Eigen::Matrix3d::Identity() - n * n.transpose()) / s;
+    G.bottomRows<1>() = -fit.q.transpose() / (s * s * s);
+
+    for (double eps : {1e-4, 1e-5, 1e-6}) {
+      for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < 3; ++j) {
+          const Eigen::Vector4d fd = fd_pi(pts, N, i, j, eps);
+          const double e_i = pts[i].dot(fit.q) + 1.0;
+          Eigen::Matrix3d B =
+              -(pts[i] * fit.q.transpose() +
+                e_i * Eigen::Matrix3d::Identity());
+          Eigen::Matrix3d Z =
+              R.transpose().template triangularView<Eigen::Lower>().solve(
+                  P.transpose() * B);
+          Eigen::Matrix3d Y =
+              R.template triangularView<Eigen::Upper>().solve(Z);
+          Eigen::Matrix3d Jq = P * Y;
+          const Eigen::Vector4d analytic = G * Jq.col(j);
+          const double abs_err = (fd - analytic).norm();
+          const double rel_err = abs_err / std::max(fd.norm(), 1e-12);
+          CHECK_NEAR(abs_err, 0.0, 1e-3, "N=4 analytic vs central FD");
+          if (abs_err > 1e-3) {
+            std::printf("  (N=4 eps=%.0e i=%d j=%d abs=%.3e rel=%.3e)\n",
+                        eps, i, j, abs_err, rel_err);
+          }
+        }
+      }
+    }
+
+    // Negative mutations. Mutation 3 (skip permutation) is only meaningful
+    // when the permutation is non-identity.
+    for (int mutation = 1; mutation <= 4; ++mutation) {
+      if (mutation == 3 && !nontrivial_perm) continue;  // vacuous for P=I
+      const int i = 1, j = 2;
+      const double eps = 1e-6;
+      const Eigen::Vector4d fd = fd_pi(pts, N, i, j, eps);
+      const double e_i = pts[i].dot(fit.q) + 1.0;
+      Eigen::Matrix3d B =
+          -(pts[i] * fit.q.transpose() + e_i * Eigen::Matrix3d::Identity());
+      if (mutation == 1) B = -pts[i] * fit.q.transpose();  // omit e_i I
+      if (mutation == 2)
+        B = -e_i * Eigen::Matrix3d::Identity();  // omit p_i q^T
+      Eigen::Matrix3d Z =
+          R.transpose().template triangularView<Eigen::Lower>().solve(
+              (mutation == 3) ? B : P.transpose() * B);  // skip permutation
+      Eigen::Matrix3d Y = R.template triangularView<Eigen::Upper>().solve(Z);
+      Eigen::Matrix3d Jq = (mutation == 3) ? Y : P * Y;
+      Eigen::Vector4d analytic = G * Jq.col(j);
+      if (mutation == 4) {
+        analytic = G * Jq.col(j);
+        analytic(3) = -fit.q(j) / (s * s);  // wrong dd/dq
+      }
+      // Mutation detection threshold is tighter than the FD-agreement
+      // tolerance: a mutation must produce a MEASURABLE deviation.
+      const double mut_err = (fd - analytic).norm();
+      if (mut_err <= 1e-4) {
+        ++g_failures;
+        std::printf("FAIL: N=4 mutation %d not detected by FD (mut_err=%.3e)\n",
+                    mutation, mut_err);
+      }
+    }
+  }
+  ++g_checks;
+}
+
 // ---------------------------------------------------------------------------
 // G-P3.3 — QR factor / rank safety
 // ---------------------------------------------------------------------------
@@ -479,6 +581,7 @@ int main() {
   test_gp33_rank_safety();
   test_gp34_psd_propagation();
   test_gp35_hknn_qr_seam();
+  test_gp3c1_n4_fd();
   std::printf("checks=%d failures=%d\n", g_checks, g_failures);
   std::printf("G-P3.1..G-P3.5: %s\n", g_failures == 0 ? "PASS" : "FAIL");
   return g_failures == 0 ? 0 : 1;

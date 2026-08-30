@@ -5,9 +5,12 @@
 //
 // Semantics copied from the local FAST-LIVO2 reference (active code):
 //   ref/FAST-LIVO2/src/voxel_map.cpp:15-34  calcBodyCov()
-// The point passed in is the undistorted point in the sensor/body frame
-// (Super-LIO: the downsampled scan point in `points_body_v3_`, body frame at
-// scan end), exactly the frame FAST-LIVO2 feeds into calcBodyCov().
+// Frame contract (corrected in P1-2, G-P1.F):
+//   points_body_v3_[i] is the undistorted point in the scan-end IMU/body
+//   frame; the sensor model is evaluated in the LiDAR frame (recover
+//   p_L = R_LI^T (p_I - t_LI)), then the covariance is rotated back to the
+//   IMU/body frame (Sigma_I = R_LI Sigma_L R_LI^T) — the same frame owned by
+//   body_cov_list_ and points_body_v3_.
 //
 // Units (FAST-LIVO2 config semantics, voxel_map.cpp:44-45 and NTU_VIRAL.yaml):
 //   range_inc    : depth/range std, meters   ("dept_err", e.g. 0.02)
@@ -144,6 +147,14 @@ inline void ComputeBodyCovListWrongFrame(
 inline bool ResolveProbLioPipeline(bool master, bool legacy_point_cov,
                                    bool legacy_map_cov) {
   return master || legacy_point_cov || legacy_map_cov;
+}
+
+// P3-C2 (G-P3.C2): qr_plane_cov_enable=true requires the covariance pipeline
+// ON (S1 -> S3-S7 -> S9). The invalid state (cov OFF + qr ON) must not
+// silently execute on absent/default map covariance: the dependency is
+// normalized — a QR request turns the pipeline ON.
+inline bool ResolveQrCovDependency(bool qr_requested, bool pipeline_on) {
+  return pipeline_on || qr_requested;
 }
 
 // ---------------------------------------------------------------------------

@@ -154,10 +154,42 @@ static void test_c34_resolvers() {
   ++g_checks;
 }
 
+// ---------------------------------------------------------------------------
+// G-P3.C2 — P3 covariance-source dependency (qr ON implies pipeline ON)
+// ---------------------------------------------------------------------------
+static void test_c2_qr_dependency() {
+  std::printf("== G-P3.C2 qr->cov dependency ==\n");
+  // effective pipeline after dependency resolution:
+  //   cov OFF, qr OFF -> OFF
+  CHECK(!ResolveQrCovDependency(false, false));
+  //   cov ON,  qr OFF -> ON
+  CHECK(ResolveQrCovDependency(false, true));
+  //   cov ON,  qr ON  -> ON
+  CHECK(ResolveQrCovDependency(true, true));
+  //   cov OFF, qr ON  -> ON (normalized; invalid state is impossible)
+  CHECK(ResolveQrCovDependency(true, false));
+
+  // Negative mutation: bypass the dependency normalization (feed the raw
+  // pipeline flag to the QR consumer) -> the OFF/ON combination must be
+  // caught as invalid: effective pipeline stays OFF while qr is requested.
+  const bool pipeline_raw = false;             // cov_enable = false
+  const bool qr_requested = true;              // qr_plane_cov_enable = true
+  const bool normalized = ResolveQrCovDependency(qr_requested, pipeline_raw);
+  if (normalized == pipeline_raw) {
+    ++g_failures;
+    std::printf("FAIL: OFF/ON dependency bypass not caught\n");
+  }
+  // legacy keys flow through the same normalization.
+  const bool legacy_on = ResolveProbLioPipeline(false, true, false);
+  CHECK(ResolveQrCovDependency(true, legacy_on));
+  ++g_checks;
+}
+
 int main() {
   test_c1_coupled_pipeline();
   test_c2_atomic_counter();
   test_c34_resolvers();
+  test_c2_qr_dependency();
   std::printf("checks=%d failures=%d\n", g_checks, g_failures);
   std::printf("G-P2.C1/C2/C3-C/C4-resolvers: %s\n",
               g_failures == 0 ? "PASS" : "FAIL");
