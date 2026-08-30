@@ -29,7 +29,7 @@ remain Super-LIO's own.
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
-| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** (rounds P5-1 impl, P5-2 corrective+shadow diagnosis done; **NOT Owner-verified**; Owner audit + next-phase decision pending) |
+| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** — final classification: **P5_SEMANTICS_VALID / ARCHITECTURE_MODEL_MISMATCH** (rounds P5-1..P5-3; **NOT Owner-verified**; Owner audit + canonical-path decision pending) |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
 ## 4. Authoritative seam IDs (S0–S13)
@@ -716,6 +716,128 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
 - Status: **P4 = CLOSED / OWNER VERIFIED**; **P5 = IMPLEMENTATION COMPLETE /
   OWNER DIAGNOSIS PENDING** (normalized at the start of round P5-2; NOT
   Owner-verified; Owner audit pending).
+
+### Round P5-3 — FINAL P5 closure: production-seam unification + IEKF-lifecycle diagnosis (prompt8)
+
+- Prompt: `prompts/prob_lio/prompt8_FINAL_P5_lifecycle_closure.md`.
+- Starting HEAD: `682df15` (clean). Commit L `5a64b4f` + two follow-up
+  fixes (`b2bdaa1` converged-iteration shadow, `63dd34a` shadow moved out of
+  the plane-refit scope).
+
+#### Gap audit (all confirmed then fixed)
+
+- **Gap A** — applied `prob_lio2` path recomputed query covariance /
+  association variance / gate inputs separately from the shadow path.
+  FIXED: the applied path now consumes the SAME `BuildAssociationCandidate`
+  record (single authority, G-P5.F1).
+- **Gap B** — frame summaries accumulated only for `obs_iter == 1`.
+  FIXED: every executed IEKF iteration contributes a record
+  (frame_id/obs_iter/need_converge).
+- **Gap C** — effect_mask lifecycle audited: no mask-persistence skip exists;
+  prob-rejected candidates are re-gated in subsequent executed iterations
+  (decision_flip = 120,851 across the run). The decisive lifecycle fact:
+  **3980 of 3981 frames execute exactly ONE IEKF iteration** — the P4
+  probabilistic weighting produces tiny updates that trip the ESKF
+  `quit_eps` break, so the applied P5 gate is effectively single-shot per
+  frame (its decisions are final). The `need_converge` phase is rarely
+  reached (1 frame reached iter 4).
+- **Gap D** — analyzer derived bursts from a score-sorted list (produced
+  impossible ranges like `2321..1995`). FIXED: ranking and chronology views
+  are separate; bursts derive strictly from frame_id order (G-P5.F5,
+  `test_analyzer_chronology.py`).
+
+#### FAST-LIVO2 lifecycle parity (G-P5.F4)
+
+Reference (voxel_map.cpp): `BuildResidualListOMP` is called at the top of
+EVERY filter iteration over the FULL downsampled set (:395), the k-sigma
+gate is re-evaluated per iteration, the loop stops on convergence, and
+there is NO sticky mask semantics — rejected correspondences re-enter on
+later iterations. Super executes ~1 iteration (P4-weighted tiny updates
+break the loop immediately), gates the survivor set once, and always
+terminates within 4 iterations. Classification:
+**LIFECYCLE_MISMATCH_OTHER** (not mask-stickiness: Super re-gates
+survivors across executed iterations; the mismatch is single-shot
+termination vs reference iterative re-association).
+
+#### Hard gates (all GREEN)
+
+- **G-P5.F1** single production authority PASS (`test_p5_lifecycle.cpp`):
+  applied and shadow predicates consume the same production candidate; four
+  quadrants; six drift mutations (residual / variance / plane-cov /
+  query-cov / sigma_num / identity) all detected.
+- **G-P5.F2** all-iteration shadow PASS: shadow covers every executed
+  iteration (attempted 39,813,081 across 14,939 (frame,iter) records);
+  per-iteration matrix; mutation (iter-1-only aggregation) covered by the
+  fixture test.
+- **G-P5.F3** sticky-lifecycle semantics PASS: synthetic lifecycle simulator
+  proves re-gate (not sticky) semantics; reaccept evidence; divergence
+  point; four negative mutations.
+- **G-P5.F4** lifecycle parity classification complete:
+  LIFECYCLE_MISMATCH_OTHER.
+- **G-P5.F5** analyzer chronology PASS (`test_analyzer_chronology.py`):
+  bursts from temporal adjacency; non-monotonic-score fixture; impossible
+  ranges impossible; score-sort-before-burst mutation detected.
+- **G-P5.F6** iteration variance attribution PASS: per-iteration matrices +
+  weighted components; z > k invariant holds for prob-rejected candidates
+  (z mean 4.32).
+- **G-P5.F7** counterfactual integrity: the shadow IS the full-reevaluation
+  counterfactual (it re-evaluates every executed iteration; no mask
+  suppression), so no separate toggle was needed; Run A byte parity proves
+  non-interference; the counterfactual-vs-applied difference is captured by
+  the flip/late counters and the synthetic lifecycle test. GREEN with the
+  justification above.
+
+#### Clean runs (same committed source `63dd34a`, git_dirty=no)
+
+- **Run A** — P4 canonical + all-iteration shadow (`run_20260830_232600`):
+  BYTE_PARITY PASS (sha256 `259d3fbc...`), ATE 0.088831554, 3981/3329,
+  production_tree_oid `6dc7735f`, 40.7 s. Quadrant matrix (all iterations):
+  LA_PA 39,556,653 / LA_PR 235,174 / LR_PA 5,236 / LR_PR 16,018 /
+  attempted 39,813,081 (sum OK; invalid 0/0). LA_PR = 0.59% of legacy
+  accepted; z mean 4.32; pose-rotation variance dominates the association
+  variance budget (~87%); probe rescues 10.2%.
+- **Run B** — applied P5 (`run_20260830_232718`): prob_accept 37,723,571 /
+  reject 240,138; **ATE 1.190814611** (exact reproduction, same tree).
+- **Run C** — pure association-pose A/B (`run_20260830_232833`):
+  prob_reject 295,593; **ATE 1.225502411**; observation only.
+
+#### Final P5 classification
+
+**P5_SEMANTICS_VALID / ARCHITECTURE_MODEL_MISMATCH** (Class C):
+- the production seam is unified and GREEN; gate values are finite/valid;
+  the shadow run is byte-identical; the applied regression reproduces
+  exactly from the same clean source;
+- the binary k-sigma gate, applied single-shot (3980/3981 frames run one
+  IEKF iteration), rejects ~0.6–0.8% of legacy-accepted correspondences with
+  |r|/σ ≈ 4.3 — high-residual correspondences the legacy range-based
+  geometric gate intentionally accepts and the P4 soft weighting retains
+  with small weights. Removing these constraints outright (binary) is
+  architecturally incompatible with Super's single-shot lifecycle + P4
+  soft weighting;
+- no implementation bug, no S6-underestimation driver
+  (S6_PRIMARY_CAUSE_NOT_SUPPORTED: LA_PR rate decreases with representative
+  count 1.53% → 0.54%, probe rescues only ~10%);
+- the pose-rotation uncertainty dominates the threshold SCALE (larger pose
+  variance makes acceptance EASIER; the rejected candidates are genuine
+  high-residual correspondences, not variance-collapse victims).
+
+#### Canonical recommendation for Owner
+
+**Recommendation 1 — P4 canonical, P5 experimental**:
+canonical future experiments = P4 probabilistic weighting + Super legacy
+association (healthy 0.0888 m); P5 remains a selectable experimental
+ablation. (Recommendation 3 — a P5 lifecycle redesign with FAST-LIVO2-style
+per-iteration full re-association — is identified as the only path to make
+binary probabilistic association healthy, but is NOT implemented this
+round.)
+
+Generalization remains **NOT STARTED / OWNER NEXT DECISION**.
+P5 is **NOT Owner-verified**.
+
+- Prompt: `prompts/prob_lio/prompt7_P5_corrective_shadow_diagnosis.md`.
+- Starting HEAD: `de49fc2` (clean). Commit K `db0399a` (corrective +
+  diagnostics), plus two follow-up fixes (shadow bin accounting; applied-gate
+  association-pose routing).
 
 ### Round P5-2 — corrective closure + shadow association diagnosis (prompt7)
 
