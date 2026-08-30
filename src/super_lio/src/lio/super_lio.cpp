@@ -761,9 +761,17 @@ void SuperLIO::Observe(){
                 kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
             const V3d p_I = point_body.cast<double>();
             const V3d n(abcd[0], abcd[1], abcd[2]);
+            /// P5-C7: the ASSOCIATION pose model governs the query
+            /// covariance (inherit_map -> map_pose_cov_model); the map
+            /// insertion covariance always uses map_pose_cov_model_.
+            const MapPoseCovModel apose =
+                assoc_pose_cov_model_ == 2
+                    ? MapPoseCovModel::SuperRightConsistent
+                    : assoc_pose_cov_model_ == 1
+                          ? MapPoseCovModel::Livo2Compat
+                          : map_pose_cov_model_;
             const BASIC::M3d Sigma_query_W = ComputeQueryWorldCovariance(
-                p_I, body_cov_list_[idx], R_WI, P_RR, P_pp,
-                map_pose_cov_model_);
+                p_I, body_cov_list_[idx], R_WI, P_RR, P_pp, apose);
             const double sigma_assoc2 =
                 plane.status == ProbQrPlane::kValid
                     ? AssociationVariance(point_world.cast<double>(), n,
