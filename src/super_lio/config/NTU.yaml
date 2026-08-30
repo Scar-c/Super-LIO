@@ -55,6 +55,11 @@ lio:
     # w = 1 / (0.001 + sigma_plane^2 + sigma_point^2) (S12: no current pose
     # covariance in R_i). prob_livo2 implies the covariance pipeline ON.
     p2p_weight_mode: fixed_1000
+    # P4-C1: covariance validation mode. light (default) = cheap production
+    # checks (finite + symmetry) with NO per-covariance eigensolver in the
+    # hot path; full = strong PSD eigensolver validation (unit tests /
+    # diagnosis / explicit debug experiments only).
+    cov_validation_mode: light
 
   # Extrinsic Parameters
   extrinsic:

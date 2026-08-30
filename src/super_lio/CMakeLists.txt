@@ -186,3 +186,16 @@ target_link_libraries(test_p4_weight ${catkin_LIBRARIES})
 add_test(NAME prob_lio_p4_weight
          COMMAND test_p4_weight)
 
+# Prob-LIO P4-C1 tests (covariance validation modes light/full).
+add_executable(test_validation_mode
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_validation_mode.cpp
+)
+target_include_directories(test_validation_mode PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_validation_mode ${catkin_LIBRARIES})
+add_test(NAME prob_lio_validation_mode
+         COMMAND test_validation_mode)
+

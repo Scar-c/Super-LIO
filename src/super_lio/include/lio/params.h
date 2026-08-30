@@ -79,6 +79,11 @@ namespace LI2Sup{
   /// (P2pWeightMode; default Fixed1000 = legacy exact semantics).
   extern int    g_prob_lio_p2p_weight_mode;
 
+  /// Prob-LIO P4-C1: covariance validation mode
+  /// (CovValidationMode; default Light = cheap production checks, no
+  /// eigensolver in the hot path).
+  extern int    g_prob_lio_cov_validation_mode;
+
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame

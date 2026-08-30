@@ -199,7 +199,9 @@ bool SuperLIO::map_init(){
                           map_pose_cov_model_);
     map_cov_init_inserts_ += map_cov_list_.size();
     for(const auto& cov : map_cov_list_){
-      if(!CovarianceIsValid(cov)) map_cov_invalid_++;
+      if(!ValidateCovariance(cov, static_cast<CovValidationMode>(
+                                  g_prob_lio_cov_validation_mode)))
+        map_cov_invalid_++;
     }
     ivox_->insert(points_world_v3_, map_cov_list_);
   }else{
@@ -502,7 +504,9 @@ void SuperLIO::Observe(){
     body_cov_frames_++;
     body_cov_points_ += body_cov_list_.size();
     for(const auto& cov : body_cov_list_){
-      if(!CovarianceIsValid(cov)) body_cov_invalid_++;
+      if(!ValidateCovariance(cov, static_cast<CovValidationMode>(
+                                  g_prob_lio_cov_validation_mode)))
+        body_cov_invalid_++;
     }
   }
 
@@ -721,10 +725,11 @@ void SuperLIO::UpdateMap() {
 
   /// Prob-LIO S3/S5/S6 (P2): world covariance for the inserted map points.
   /// Authoritative posterior state: last_pose_ = kf_->GetSE3() and
-  /// kf_->GetCov() after UpdateObserve. Reuses the S1 body covariances
-  /// (recomputed on demand if the P1 flag is off, so map_cov_enable is
-  /// self-contained). Covariance is aggregated in OctVox but NOT consumed by
-  /// the estimator.
+  /// kf_->GetCov() after UpdateObserve. Consumes the S1 body covariances of
+  /// the SAME scan (freshness generation-guarded — the coupled pipeline
+  /// guarantees body_cov_list_ matches points_body_v3_; the guard below is
+  /// defensive only and never infers freshness from vector length).
+  /// Covariance is aggregated in OctVox but NOT consumed by the estimator.
   if(g_prob_lio_cov_enable){
     /// P2-C1: consume the covariance produced for THIS scan in Observe().
     /// body_cov_list_ is refreshed every scan (Observe runs before
@@ -748,7 +753,9 @@ void SuperLIO::UpdateMap() {
                       map_cov_list_, map_pose_cov_model_);
     map_cov_update_inserts_ += map_cov_list_.size();
     for(const auto& cov : map_cov_list_){
-      if(!CovarianceIsValid(cov)) map_cov_invalid_++;
+      if(!ValidateCovariance(cov, static_cast<CovValidationMode>(
+                                  g_prob_lio_cov_validation_mode)))
+        map_cov_invalid_++;
     }
     ivox_->insert(points_world_v3_, map_cov_list_);
   }else{

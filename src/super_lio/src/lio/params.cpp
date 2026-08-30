@@ -58,6 +58,9 @@ namespace LI2Sup{
   /// P4 (S11): fixed_1000 = 0 (canonical default), prob_livo2 = 1.
   int g_prob_lio_p2p_weight_mode = 0;
 
+  /// P4-C1: light = 0 (canonical default), full = 1.
+  int g_prob_lio_cov_validation_mode = 0;
+
 
   SE3 g_lidar_imu;
   SE3 g_odom_robo;

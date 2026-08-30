@@ -69,12 +69,41 @@ inline void CalcLidarPointCov(const BASIC::V3d& pb_in, double range_inc_in,
         A * direction_var * A.transpose();
 }
 
-// G-P1.2 guard: finite, symmetric, positive-semidefinite (within tol).
-inline bool CovarianceIsValid(const BASIC::M3d& cov, double tol = 1e-9) {
+// G-P1.2 guard / P4-C1 validation policy:
+//   light (canonical default): cheap production checks only —
+//     finite + symmetry tolerance (no eigensolver). Indefinite-but-finite
+//     matrices are NOT detected here; the P4 scalar residual-variance safety
+//     (ComputeP2pProbWeight) prevents materially negative variance from
+//     entering solver information.
+//   full: stronger PSD eigensolver validation — for unit tests, diagnosis
+//     and explicit debug experiments only (never the default hot path).
+enum class CovValidationMode { Light = 0, Full = 1 };
+
+inline CovValidationMode ResolveCovValidationMode(const std::string& value) {
+  if (value == "full") return CovValidationMode::Full;
+  return CovValidationMode::Light;  // canonical default; unknown -> default
+}
+
+// Light: finite + symmetric (no eigensolver).
+inline bool CovarianceIsFiniteSymmetric(const BASIC::M3d& cov,
+                                        double tol = 1e-9) {
   if (!cov.allFinite()) return false;
   if ((cov - cov.transpose()).norm() > tol) return false;
+  return true;
+}
+
+// Full: finite, symmetric, positive-semidefinite (eigensolver).
+inline bool CovarianceIsValid(const BASIC::M3d& cov, double tol = 1e-9) {
+  if (!CovarianceIsFiniteSymmetric(cov, tol)) return false;
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(cov);
   return solver.eigenvalues().minCoeff() >= -tol;
+}
+
+// Validation-mode dispatch (production uses this; P4-C1).
+inline bool ValidateCovariance(const BASIC::M3d& cov,
+                               CovValidationMode mode, double tol = 1e-9) {
+  if (mode == CovValidationMode::Full) return CovarianceIsValid(cov, tol);
+  return CovarianceIsFiniteSymmetric(cov, tol);
 }
 
 // Future-seam rotation of a covariance under the same rigid rotation used by

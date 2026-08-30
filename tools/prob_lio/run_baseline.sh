@@ -15,6 +15,10 @@
 #     [--rate <playback-rate>]      (default: 1.0, online mode only)
 #     [--set <key=value>]           (rosparam override, repeatable; e.g.
 #                                    --set /lio/prob_lio/point_cov_enable=true)
+#     [--canonical]                 (authoritative closure mode: REFUSES a
+#                                    dirty worktree, per the clean-source
+#                                    project rule; diagnostic runs may stay
+#                                    dirty without this flag)
 #     [--play-topics <t1,t2>]       (default: /os1_cloud_node1/points,/imu/imu)
 #     [--record-topics <t1,t2>]     (default: /lio/odom,/lio/path)
 #
@@ -34,6 +38,7 @@ OUT="$WS_ROOT/results/prob_lio"
 DURATION=""
 RATE="1.0"
 OFFLINE=0
+CANONICAL=0
 PARAM_OVERRIDES=()
 PLAY_TOPICS="/os1_cloud_node1/points,/imu/imu"
 RECORD_TOPICS="/lio/odom,/lio/path"
@@ -47,6 +52,7 @@ while [ $# -gt 0 ]; do
     --duration) DURATION="$2"; shift 2 ;;
     --rate) RATE="$2"; shift 2 ;;
     --set) PARAM_OVERRIDES+=("$2"); shift 2 ;;
+    --canonical) CANONICAL=1; shift ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -60,6 +66,15 @@ fi
 if [ ! -f "$CONFIG" ]; then
   echo "ERR: --config must point to an existing yaml: $CONFIG" >&2
   exit 2
+fi
+
+# Clean-source project rule (prompt6 §1): canonical closure runs require a
+# clean committed worktree; diagnostic runs may be dirty when explicitly
+# requested (no --canonical).
+GIT_STATUS_SHORT="$(git -C "$WS_ROOT" status --short | tr '\n' ';')"
+if [ "$CANONICAL" -eq 1 ] && [ -n "$GIT_STATUS_SHORT" ]; then
+  echo "ERR: --canonical requires a clean worktree; git status: $GIT_STATUS_SHORT" >&2
+  exit 3
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"

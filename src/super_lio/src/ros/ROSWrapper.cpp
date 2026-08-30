@@ -90,6 +90,12 @@ void LoadParamFromRos(ros::NodeHandle& nh){
         ResolveQrCovDependency(g_prob_lio_qr_plane_cov, g_prob_lio_cov_enable);
   }
 
+  // P4-C1: covariance validation mode (light default; full for diagnosis).
+  std::string cov_validation_mode = "light";
+  nh.getParam("/lio/prob_lio/cov_validation_mode", cov_validation_mode);
+  g_prob_lio_cov_validation_mode =
+      static_cast<int>(ResolveCovValidationMode(cov_validation_mode));
+
   // P4 (S11): P2P weight mode (fixed_1000 default; prob_livo2).
   std::string p2p_weight_mode = "fixed_1000";
   nh.getParam("/lio/prob_lio/p2p_weight_mode", p2p_weight_mode);
