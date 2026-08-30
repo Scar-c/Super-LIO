@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   visualization_msgs
   nav_msgs
+  rosbag
   message_generation
 )
 find_package(PythonLibs REQUIRED)
@@ -94,6 +95,25 @@ target_link_libraries(super_lio_node
 
 add_executable(relocation_node src/apps/relocation_node.cpp)
 target_link_libraries(relocation_node
+  lio
+  ${catkin_LIBRARIES}
+)
+
+
+# Offline baseline runner: reads a bag directly and feeds the unmodified
+# production ROSWrapper/estimator in-process (no playback pacing).
+add_executable(super_lio_offline_node
+  src/apps/super_lio_offline_node.cpp
+  offline/OfflineReader.cpp
+)
+target_include_directories(super_lio_offline_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  include
+  3rdparty
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
 )

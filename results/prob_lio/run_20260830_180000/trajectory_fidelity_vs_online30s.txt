@@ -1,0 +1,5 @@
+traj A: 294 poses  traj B: 3981 poses
+matched: 294  unmatched: 0  (tol=1e-06s)
+max position delta: 0.000e+00 m   mean: 0.000e+00 m
+max orientation delta: 2.980e-08 rad
+RESULT: IDENTICAL

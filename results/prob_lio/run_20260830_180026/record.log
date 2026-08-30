@@ -1,0 +1,3 @@
+[0m[INFO] [1788084033.070813500]: Subscribing to /lio/odom[0m
+[0m[INFO] [1788084033.072708263]: Subscribing to /lio/path[0m
+[0m[INFO] [1788084033.074162577]: Recording to '/home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_180026/result.bag'.[0m

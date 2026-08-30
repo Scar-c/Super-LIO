@@ -1,0 +1,11 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0830 18:00:31.313764 63082 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0830 18:00:31.319274 63082 ROSWrapper.cpp:201] [32m ---> Using Lidar type: UNKNOWN[0m
+I0830 18:00:31.321714 63082 super_lio.cpp:86] [32m ---> [SuperLIO]: initialized.[0m
+I0830 18:00:33.695856 63082 super_lio.cpp:94] [32m ---> [SuperLIO]: KF init done[0m
+I0830 18:00:34.086309 63082 super_lio.cpp:103] [32m ---> [SuperLIO]: Map init done[0m
+I0830 18:01:06.036393 63082 timer.h:40] >>> ===== Printing run time =====
+I0830 18:01:06.036420 63082 timer.h:46] > [ DownSample ] average time usage: 0.201427 ms , called times: 294
+I0830 18:01:06.036448 63082 timer.h:46] > [ Observe ] average time usage: 1.01653 ms , called times: 294
+I0830 18:01:06.036459 63082 timer.h:46] > [ Undistort ] average time usage: 0.355864 ms , called times: 294
+I0830 18:01:06.036468 63082 timer.h:46] > [ UpdateMap ] average time usage: 0.186353 ms , called times: 294
