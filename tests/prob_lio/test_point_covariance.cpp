@@ -49,8 +49,9 @@ namespace {
 // ref/FAST-LIVO2/src/voxel_map.cpp:15-34  (calcBodyCov). FL2_DEG2RAD is
 // defined by lio/point_covariance.h (PCL pcl_macros.h:150 constant, which is
 // what the FAST-LIVO2 build resolves).
-void ref_calc_body_cov(Eigen::Vector3d& pb, const float range_inc,
+void ref_calc_body_cov(const Eigen::Vector3d& pb_in, const float range_inc,
                        const float degree_inc, Eigen::Matrix3d& cov) {
+  Eigen::Vector3d pb = pb_in;
   if (pb[2] == 0) pb[2] = 0.0001;
   float range = sqrt(pb[0] * pb[0] + pb[1] * pb[1] + pb[2] * pb[2]);
   float range_var = range_inc * range_inc;
@@ -75,23 +76,27 @@ void ref_calc_body_cov(Eigen::Vector3d& pb, const float range_inc,
 }
 
 // Negative-mutation reference: dept_err scaled (wrong parameter).
-void ref_calc_body_cov_mutated_dept(Eigen::Vector3d& pb, const float range_inc,
+void ref_calc_body_cov_mutated_dept(const Eigen::Vector3d& pb,
+                                    const float range_inc,
                                     const float degree_inc,
                                     Eigen::Matrix3d& cov) {
   ref_calc_body_cov(pb, 1.1f * range_inc, degree_inc, cov);
 }
 
 // Negative-mutation reference: beam term replaced (wrong angular scale).
-void ref_calc_body_cov_mutated_beam(Eigen::Vector3d& pb, const float range_inc,
+void ref_calc_body_cov_mutated_beam(const Eigen::Vector3d& pb,
+                                    const float range_inc,
                                     const float degree_inc,
                                     Eigen::Matrix3d& cov) {
   ref_calc_body_cov(pb, range_inc, 2.0f * degree_inc, cov);
 }
 
 // Negative-mutation reference: missing A*var*A^T beam term.
-void ref_calc_body_cov_mutated_term(Eigen::Vector3d& pb, const float range_inc,
+void ref_calc_body_cov_mutated_term(const Eigen::Vector3d& pb_in,
+                                    const float range_inc,
                                     const float degree_inc,
                                     Eigen::Matrix3d& cov) {
+  Eigen::Vector3d pb = pb_in;
   if (pb[2] == 0) pb[2] = 0.0001;
   float range = sqrt(pb[0] * pb[0] + pb[1] * pb[1] + pb[2] * pb[2]);
   float range_var = range_inc * range_inc;
@@ -135,9 +140,8 @@ static void test_gp11_formula_parity() {
       {-18.0, -25.0, 60.0} // far, steep beam
   };
   for (const auto& p : points) {
-    Eigen::Vector3d p_ref = p;
     Eigen::Matrix3d cov_ref, cov_prod;
-    ref_calc_body_cov(p_ref, dept, beam, cov_ref);
+    ref_calc_body_cov(p, dept, beam, cov_ref);
     CalcLidarPointCov(p, dept, beam, cov_prod);
     CHECK_NEAR(max_abs_diff(cov_ref, cov_prod), 0.0, 1e-12,
                "calc parity (identical double expressions)");
@@ -146,23 +150,22 @@ static void test_gp11_formula_parity() {
 
   // Negative mutations must FAIL the parity comparison.
   for (const auto& p : points) {
-    Eigen::Vector3d p_ref = p;
     Eigen::Matrix3d cov_ref, cov_prod;
-    ref_calc_body_cov_mutated_dept(p_ref, dept, beam, cov_ref);
+    ref_calc_body_cov_mutated_dept(p, dept, beam, cov_ref);
     CalcLidarPointCov(p, dept, beam, cov_prod);
     if (max_abs_diff(cov_ref, cov_prod) <= 1e-12) {
       ++g_failures;
       std::printf("FAIL: mutated dept_err did not break parity at (%.1f,%.1f,%.1f)\n",
                   p.x(), p.y(), p.z());
     }
-    ref_calc_body_cov_mutated_beam(p_ref, dept, beam, cov_ref);
+    ref_calc_body_cov_mutated_beam(p, dept, beam, cov_ref);
     CalcLidarPointCov(p, dept, beam, cov_prod);
     if (max_abs_diff(cov_ref, cov_prod) <= 1e-12) {
       ++g_failures;
       std::printf("FAIL: mutated beam_err did not break parity at (%.1f,%.1f,%.1f)\n",
                   p.x(), p.y(), p.z());
     }
-    ref_calc_body_cov_mutated_term(p_ref, dept, beam, cov_ref);
+    ref_calc_body_cov_mutated_term(p, dept, beam, cov_ref);
     CalcLidarPointCov(p, dept, beam, cov_prod);
     if (max_abs_diff(cov_ref, cov_prod) <= 1e-12) {
       ++g_failures;
@@ -226,10 +229,142 @@ static void test_gp13_rotation() {
 }
 
 // ---------------------------------------------------------------------------
-// G-P1.4 — point/covariance identity (list seam)
+// G-P1.F1 — production-path semantic identity (frame-origin equivalence)
+//   correct:  p_L = R_LI^T (p_I - t_LI);  Sigma_I = R_LI Calc(p_L) R_LI^T
+//   wrong:    Sigma_wrong = Calc(p_I)   (Prompt-2 shortcut; must FAIL here)
 // ---------------------------------------------------------------------------
-static void test_gp14_identity() {
-  std::printf("== G-P1.4 point/covariance identity ==\n");
+static void test_gp1f1_production_identity() {
+  std::printf("== G-P1.F1 production-path semantic identity ==\n");
+  const double dept = 0.02, beam = 0.01;
+  // NTU-like: R_LI = I, t_LI = (-0.050, 0, 0.055) (config/NTU.yaml)
+  BASIC::M3d R_ntu = BASIC::M3d::Identity();
+  BASIC::V3d t_ntu(-0.050, 0.0, 0.055);
+  // synthetic rotated extrinsic
+  BASIC::M3d R_syn;
+  R_syn = Eigen::AngleAxisd(0.6, Eigen::Vector3d(0.2, 1.0, 0.3).normalized())
+              .toRotationMatrix();
+  BASIC::V3d t_syn(0.12, -0.05, 0.02);
+
+  const std::vector<Eigen::Vector3d> points = {
+      {1.2, 2.3, 0.8},   // near
+      {5.0, -2.0, 8.0},  // medium
+      {30.0, 40.0, 15.0},// far
+      {0.0, 0.0, 10.0},  // axis-aligned
+      {-8.0, 3.0, 12.0}  // oblique
+  };
+
+  for (const auto& p_I : points) {
+    for (const auto& ext : {std::make_pair(R_ntu, t_ntu), std::make_pair(R_syn, t_syn)}) {
+      const BASIC::M3d& R_LI = ext.first;
+      const BASIC::V3d& t_LI = ext.second;
+      // independent reference: R_LI * Calc(R_LI^T(p_I - t_LI)) * R_LI^T
+      const Eigen::Vector3d p_L = R_LI.transpose() * (p_I - t_LI);
+      Eigen::Matrix3d cov_L_ref;
+      ref_calc_body_cov(p_L, (float)dept, (float)beam, cov_L_ref);
+      Eigen::Matrix3d cov_I_ref = ref_rotate_cov(R_LI, cov_L_ref);
+
+      Eigen::Matrix3d cov_I_prod;
+      CalcLidarPointCovFromImuFrame(p_I, R_LI, t_LI, dept, beam, cov_I_prod);
+      CHECK_NEAR(max_abs_diff(cov_I_prod, cov_I_ref), 0.0, 1e-12,
+                 "corrected seam == R_LI Calc(p_L) R_LI^T");
+      CHECK(CovarianceIsValid(cov_I_prod));
+
+      // Negative mutation: old incorrect shortcut Calc(p_I) must FAIL
+      Eigen::Matrix3d cov_wrong;
+      CalcLidarPointCov(p_I, dept, beam, cov_wrong);
+      if (max_abs_diff(cov_wrong, cov_I_ref) <= 1e-9) {
+        ++g_failures;
+        std::printf("FAIL: wrong-frame shortcut Calc(p_I) not detected "
+                    "(t_LI=%.3f) at (%.1f,%.1f,%.1f)\n",
+                    t_LI.norm(), p_I.x(), p_I.y(), p_I.z());
+      }
+    }
+  }
+  ++g_checks;
+}
+
+// ---------------------------------------------------------------------------
+// G-P1.F2 — translation sensitivity (R_LI = I, t_LI != 0)
+//   two different nonzero translations must produce different corrected
+//   covariances, while the wrong shortcut Calc(p_I) collapses them.
+// ---------------------------------------------------------------------------
+static void test_gp1f2_translation_sensitivity() {
+  std::printf("== G-P1.F2 translation sensitivity ==\n");
+  const double dept = 0.02, beam = 0.01;
+  const BASIC::M3d R = BASIC::M3d::Identity();
+  const Eigen::Vector3d p_I(5.0, -2.0, 8.0);
+  const BASIC::V3d t1(-0.050, 0.0, 0.055);  // NTU
+  const BASIC::V3d t2(0.10, 0.02, -0.03);   // different nonzero translation
+
+  Eigen::Matrix3d s1, s2;
+  CalcLidarPointCovFromImuFrame(p_I, R, t1, dept, beam, s1);
+  CalcLidarPointCovFromImuFrame(p_I, R, t2, dept, beam, s2);
+  if (max_abs_diff(s1, s2) <= 1e-9) {
+    ++g_failures;
+    std::printf("FAIL: corrected seam is not translation-sensitive\n");
+  }
+
+  // The wrong shortcut ignores the lidar-origin shift entirely.
+  Eigen::Matrix3d w1, w2;
+  CalcLidarPointCov(p_I, dept, beam, w1);
+  CalcLidarPointCov(p_I, dept, beam, w2);
+  CHECK_NEAR(max_abs_diff(w1, w2), 0.0, 0.0,
+             "wrong shortcut collapses translations (demonstrates the bug)");
+
+  // Negative mutation: force t = 0 in the production-frame conversion.
+  // Then corrected(t1) == corrected(t2) == wrong -> sensitivity assertion
+  // (s1 != s2 above) fails. Recompute with t = 0 and prove collapse.
+  Eigen::Matrix3d s0;
+  CalcLidarPointCovFromImuFrame(p_I, R, BASIC::V3d::Zero(), dept, beam, s0);
+  if (max_abs_diff(s0, w1) > 1e-12) {
+    ++g_failures;
+    std::printf("FAIL: t=0 forced conversion differs from wrong shortcut\n");
+  }
+  ++g_checks;
+}
+
+// ---------------------------------------------------------------------------
+// G-P1.F3 — rotation covariance consistency (non-identity R_LI)
+// ---------------------------------------------------------------------------
+static void test_gp1f3_rotation_consistency() {
+  std::printf("== G-P1.F3 rotation covariance consistency ==\n");
+  const double dept = 0.02, beam = 0.01;
+  BASIC::M3d R;
+  R = Eigen::AngleAxisd(0.6, Eigen::Vector3d(0.2, 1.0, 0.3).normalized())
+          .toRotationMatrix();
+  const BASIC::V3d t(0.12, -0.05, 0.02);
+  const Eigen::Vector3d p_I(6.0, -3.0, 9.0);
+
+  const Eigen::Vector3d p_L = R.transpose() * (p_I - t);
+  Eigen::Matrix3d cov_L;
+  ref_calc_body_cov(p_L, (float)dept, (float)beam, cov_L);
+  Eigen::Matrix3d cov_I_ref = ref_rotate_cov(R, cov_L);
+
+  Eigen::Matrix3d cov_I;
+  CalcLidarPointCovFromImuFrame(p_I, R, t, dept, beam, cov_I);
+  CHECK_NEAR(max_abs_diff(cov_I, cov_I_ref), 0.0, 1e-12,
+             "R_LI Sigma_L R_LI^T vs independent reference");
+
+  // Negative mutations must fail.
+  Eigen::Matrix3d wrong_inv = ref_rotate_cov(R.transpose(), cov_L);
+  if (max_abs_diff(wrong_inv, cov_I_ref) <= 1e-6) {
+    ++g_failures;
+    std::printf("FAIL: R^T Sigma R (wrong direction) not detected\n");
+  }
+  if (max_abs_diff(cov_L, cov_I_ref) <= 1e-6) {
+    ++g_failures;
+    std::printf("FAIL: skipping covariance rotation not detected\n");
+  }
+  ++g_checks;
+}
+
+// ---------------------------------------------------------------------------
+// G-P1.F4 — production ownership / index identity (corrected seam)
+// ---------------------------------------------------------------------------
+static void test_gp1f4_identity() {
+  std::printf("== G-P1.F4 production ownership / index identity ==\n");
+  const BASIC::M3d R = BASIC::M3d::Identity();
+  const BASIC::V3d t(-0.050, 0.0, 0.055);  // NTU extrinsic
   std::vector<BASIC::M3d> covs;
   BASIC::VV3 pts;
 
@@ -237,33 +372,34 @@ static void test_gp14_identity() {
     CHECK(covs.size() == pts.size());
     for (size_t i = 0; i < pts.size(); ++i) {
       BASIC::M3d direct;
-      CalcLidarPointCov(pts[i].cast<double>(), 0.02, 0.01, direct);
+      CalcLidarPointCovFromImuFrame(pts[i].cast<double>(), R, t, 0.02, 0.01,
+                                    direct);
       CHECK_NEAR(max_abs_diff(covs[i], direct), 0.0, 1e-12,
-                 "entry i belongs to point i");
+                 "entry i belongs to point i (corrected seam)");
     }
   };
 
   // empty scan
   pts.clear();
-  ComputeBodyCovList(pts, 0.02, 0.01, covs);
+  ComputeBodyCovListWithExtrinsic(pts, R, t, 0.02, 0.01, covs);
   CHECK(covs.empty());
   expect_identity("empty");
 
   // small scan
   pts = BASIC::VV3{{1.0f, 2.0f, 3.0f}, {4.0f, -1.0f, 7.0f}, {0.0f, 0.0f, 5.0f}};
-  ComputeBodyCovList(pts, 0.02, 0.01, covs);
+  ComputeBodyCovListWithExtrinsic(pts, R, t, 0.02, 0.01, covs);
   expect_identity("small");
 
   // large scan
   pts.clear();
   for (int i = 0; i < 100; ++i)
     pts.emplace_back(0.5f * i, -0.3f * i + 1.0f, 2.0f + 0.1f * i);
-  ComputeBodyCovList(pts, 0.02, 0.01, covs);
+  ComputeBodyCovListWithExtrinsic(pts, R, t, 0.02, 0.01, covs);
   expect_identity("large");
 
   // shrink: no stale tail entries
   pts = BASIC::VV3{{1.0f, 2.0f, 3.0f}, {0.0f, 0.0f, 5.0f}};
-  ComputeBodyCovList(pts, 0.02, 0.01, covs);
+  ComputeBodyCovListWithExtrinsic(pts, R, t, 0.02, 0.01, covs);
   expect_identity("shrink");
 
   // negative mutation: reordered covariance fixture must fail identity
@@ -271,13 +407,14 @@ static void test_gp14_identity() {
   covs.resize(pts.size());
   for (size_t i = 0; i < pts.size(); ++i) {
     BASIC::M3d direct;
-    CalcLidarPointCov(pts[(i + 1) % pts.size()].cast<double>(), 0.02, 0.01,
-                      direct);
+    CalcLidarPointCovFromImuFrame(pts[(i + 1) % pts.size()].cast<double>(), R,
+                                  t, 0.02, 0.01, direct);
     covs[i] = direct;
   }
   for (size_t i = 0; i < pts.size(); ++i) {
     BASIC::M3d direct;
-    CalcLidarPointCov(pts[i].cast<double>(), 0.02, 0.01, direct);
+    CalcLidarPointCovFromImuFrame(pts[i].cast<double>(), R, t, 0.02, 0.01,
+                                  direct);
     if (max_abs_diff(covs[i], direct) <= 1e-12) {
       ++g_failures;
       std::printf("FAIL: reordered fixture was not detected\n");
@@ -290,8 +427,12 @@ int main() {
   test_gp11_formula_parity();
   test_gp12_validity();
   test_gp13_rotation();
-  test_gp14_identity();
+  test_gp1f1_production_identity();
+  test_gp1f2_translation_sensitivity();
+  test_gp1f3_rotation_consistency();
+  test_gp1f4_identity();
   std::printf("checks=%d failures=%d\n", g_checks, g_failures);
-  std::printf("G-P1.1..G-P1.4: %s\n", g_failures == 0 ? "PASS" : "FAIL");
+  std::printf("G-P1.1..G-P1.4 + G-P1.F1..F4: %s\n",
+              g_failures == 0 ? "PASS" : "FAIL");
   return g_failures == 0 ? 0 : 1;
 }

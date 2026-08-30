@@ -24,8 +24,8 @@ remain Super-LIO's own.
 
 | Stage | Name | Status |
 |---|---|---|
-| P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P0-1, P0-2) |
-| P1 | Current Point Probability | **CLOSED/PASS** (round P1-1) |
+| P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-VERIFIED** (rounds P0-1, P0-2) |
+| P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
 | P2 | Probabilistic Map Plumbing | NOT STARTED |
 | P3 | Super-native QR Plane Uncertainty | NOT STARTED |
 | P4 | Probabilistic P2P Weighting | NOT STARTED |
@@ -187,30 +187,37 @@ FAST-LIVO2-Dataset download link").
    incrementally per point insertion. Copied into each `PointToPlane`
    residual (`:748`). Reference semantics only — will NOT replace Super-LIO QR.
 
-### 7.3 P1 point/frame audit (prompt2 §11)
+### 7.3 P1 point/frame audit (prompt2 §11) — corrected in P1-2 (prompt3 Part A)
 
-- **FAST-LIVO2 active path**: raw lidar → undistortion →
-  `downSizeFilterSurf` (PCL VoxelGrid, `LIVMapper.cpp:351-352`) →
-  `feats_down_body_` (sensor/body frame) → `calcBodyCov(point_this, dept_err,
-  beam_err, var)` (`voxel_map.cpp:354`) with `point_this` the undistorted
-  body-frame point. `dept_err` (depth/range) and `beam_err` (beam angle, rad)
-  loaded from `lio/dept_err` / `lio/beam_err` (`loadVoxelConfig`,
-  `voxel_map.cpp:44-45`), defaults 0.05 m / 0.02 rad in
-  `config/NTU_VIRAL.yaml`-equivalent.
+- **FAST-LIVO2 active path**: raw lidar → undistortion → `downSizeFilterSurf`
+  (PCL VoxelGrid, `LIVMapper.cpp:351-352`) → `feats_down_body_` →
+  `calcBodyCov(point_this, dept_err, beam_err, var)` (`voxel_map.cpp:354`).
+  **The undistorted cloud is in the LIDAR frame at scan end**:
+  `UndistortPcl` computes
+  `P_comp = R_LI^T·[ R_end^T·( R_i·(R_LI·P_i + t_LI) + T_ei ) − t_LI ]`
+  (`IMU_Processing.cpp:506-518`), i.e. it deskews into the IMU frame and then
+  maps back to the lidar frame; downstream `TransformLidar` applies
+  `extR_·p + extT_` on top (`LIVMapper.cpp:520-529`). `calcBodyCov` is called
+  on the **lidar-frame point BEFORE the LiDAR→IMU extrinsic**
+  (`voxel_map.cpp:354-356`). `beam_err` is in **degrees** (converted by
+  DEG2RAD, which resolves to PCL's `pcl_macros.h:150` constant in the
+  FAST-LIVO2 build).
 - **Super-LIO path**: raw LiDAR → `Propagation_Undistort()` →
-  `DownSample()` (`VoxelGridClosest` over `scan_undistort_full_`) →
-  `ds_undistort_` → `points_body_v3_` (`super_lio.cpp:436-446`) → `Observe()`.
-  The selected points are undistorted points in the **body (IMU) frame at the
-  scan end** (`T_end` at `super_lio.cpp:362`); the production transform
-  semantics: `g_lidar_imu` maps lidar→IMU and undistortion uses
-  `R_inv * (R_i * (TLI_R * raw + TLI_t) + t_ei)` (`super_lio.cpp:410`).
-- **Frame contract chosen for S1 (P1)**: compute the sensor covariance with
-  FAST-LIVO2's spherical range/beam model on the undistorted body-frame
-  point (Super-LIO's `points_body_v3_`), matching FAST-LIVO2's use of the
-  undistorted body point in `calcBodyCov`. Super-LIO's `points_body_v3_`
-  retains full 3-D direction info (no range/beam metadata loss), so the
-  FAST-LIVO2 formula applies directly without inventing a different noise
-  model.
+  `DownSample()` (`VoxelGridClosest`) → `points_body_v3_` →
+  `Observe()`. Super-LIO's undistortion
+  (`super_lio.cpp:410`: `R_inv·( R_i·(R_LI·raw + t_LI) + t_ei )`) keeps the
+  points in the **IMU/body frame at scan end** (no final lidar-frame mapping).
+  So `points_body_v3_[i] = p_I` is an IMU-frame point.
+- **Corrected S1 frame contract (P1-2)**:
+  `p_L = R_LI^T·(p_I − t_LI)`, `Σ_L = CalcLidarPointCov(p_L, σ_r, σ_θ)`,
+  `Σ_I = R_LI·Σ_L·R_LI^T`, stored in `body_cov_list_[i]` (IMU frame, same as
+  `points_body_v3_[i]`). The Prompt-2 shortcut `CalcLidarPointCov(p_I)` is
+  wrong: it applies the beam-origin model at the IMU origin.
+- **NTU extrinsic** (`config/NTU.yaml`): `R_LI = I`,
+  `t_LI = (-0.050, 0, 0.055)` — identity rotation, **nonzero translation**
+  (the exact case the F-gate catches).
+- Config parameters: `dept_err` [m] (default 0.05, NTU 0.02),
+  `beam_err` [deg] (default 0.02, NTU 0.01).
 
 ## 8. Validation dataset
 
@@ -317,6 +324,31 @@ FAST-LIVO2-Dataset download link").
 - Default-OFF sanity run (`run_20260830_183810`): also byte-identical.
 - Wall time 17.7 s (22.5x) vs baseline 16.9 s (~5% overhead, no tuning).
 
+### Round P1-2 — frame-semantics corrective (prompt3 Part A, G-P1.F)
+
+- Prompt: `prompts/prob_lio/prompt3_P1_frame_corrective_P2_map_plumbing.md`.
+- Starting HEAD: `e3a1646` (clean worktree).
+- Why: P1-1 applied the FAST-LIVO2 sensor model directly to
+  `points_body_v3_[i]` (IMU frame). The active FAST-LIVO2 code applies
+  `calcBodyCov` to a **lidar-frame** point before the LiDAR→IMU extrinsic
+  (§7.3). For Super-LIO, `points_body_v3_` is the IMU frame, so the P1-1
+  shortcut silently moved the beam-origin to the IMU origin.
+- Correction: new production seam `ComputeBodyCovListWithExtrinsic` /
+  `CalcLidarPointCovFromImuFrame` (`include/lio/point_covariance.h`):
+  `p_L = R_LI^T(p_I − t_LI)`, `Σ_L = Calc(p_L)`, `Σ_I = R_LI Σ_L R_LI^T`;
+  `Observe()` now passes `g_lidar_imu` (R_LI, t_LI). `ComputeBodyCovList` was
+  renamed to `ComputeBodyCovListWrongFrame` and kept only for negative
+  mutations / evidence.
+- Gates: G-P1.F1..F5 PASS (171 C++ checks + config-aware python test
+  `tests/prob_lio/test_ntu_extrinsic_frame.py`); regression G-P1.1..G-P1.4
+  still PASS.
+- Runtime: full `eee_01` P1-ON (`run_20260830_185631`) — byte parity PASS
+  (sha256 `6a8cc65a...`), ATE 0.118875639 m, matched 3329, rows 3981,
+  cov 3981 frames / 13,787,537 points / 0 invalid, wall 19.6 s.
+- Commit: `fix(prob-lio): correct lidar covariance frame semantics` (SHA
+  recorded by the docs follow-up commit).
+- Status: P1 = CLOSED / OWNER-CORRECTIVE-GREEN.
+
 ## 10. Gate summary
 
 ### P0 gates (round P0-1)
@@ -350,6 +382,19 @@ FAST-LIVO2-Dataset download link").
 | G-P1.5 | no estimator influence | PASS | diff vs Commit A: only S1 plumbing files; zero changes to OctVoxMap/QR/gate/weight/ESKF (see §9 P1-1) |
 | G-P1.6 | trajectory parity | PASS | P1-ON full-run trajectory byte-identical to pre-P1 baseline (`cmp` + sha256 `6a8cc65a...`) |
 | G-P1.7 | accuracy parity | PASS | rows 3981==3981, matched 3329==3329, ATE 0.118875639 (|Δ|=0 ≤ 1e-6) |
+
+### P1 corrective gates (round P1-2)
+
+| Gate | Invariant | Status | Evidence |
+|---|---|---|---|
+| G-P1.F1 | production-path semantic identity | PASS | `test_point_covariance.cpp` `test_gp1f1_production_identity`: corrected seam == `R_LI·Calc(R_LI^T(p_I−t_LI))·R_LI^T` for NTU-like (R=I, t≠0) and synthetic (R≠I, t≠0) extrinics × near/medium/far/oblique; negative `Calc(p_I)` detected |
+| G-P1.F2 | translation sensitivity | PASS | `test_gp1f2_translation_sensitivity`: corrected seam differs for t1≠t2; wrong shortcut collapses them (demonstrated); forced t=0 detected |
+| G-P1.F3 | rotation covariance consistency | PASS | `test_gp1f3_rotation_consistency`: `R_LI Σ_L R_LI^T` vs independent reference; `R^T Σ R` and skipped rotation detected |
+| G-P1.F4 | production ownership / index identity | PASS | `test_gp1f4_identity`: corrected seam, empty/3/100/2 scans, entry i↔point i, no stale tail; reorder detected |
+| G-P1.F5 | real NTU extrinsic seam | PASS | `tests/prob_lio/test_ntu_extrinsic_frame.py`: NTU `R_LI=I`, `t_LI=(-0.05,0,0.055)` nonzero; wrong-vs-correct max diff 2.659e-06; evidence `results/prob_lio/gp1f5_ntu_extrinsic.yaml` |
+
+Regression: G-P1.1..G-P1.4 PASS (same binary, 171 checks / 0 failures);
+full `eee_01` P1-ON byte parity PASS + ATE/matched/rows baseline-equivalent.
 
 ## 11. Conventions
 

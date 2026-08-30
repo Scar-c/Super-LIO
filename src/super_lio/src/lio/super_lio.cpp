@@ -446,10 +446,17 @@ void SuperLIO::Observe(){
   }
 
   /// Prob-LIO S1 (P1): compute the FAST-LIVO2-parity sensor covariance for
-  /// each current downsampled scan point (body frame, scan end). Plumbing
-  /// only: not consumed by the estimator until later stages.
+  /// each current downsampled scan point. Corrected frame semantics
+  /// (G-P1.F): the sensor noise model is evaluated in the LiDAR frame
+  /// (p_L = R_LI^T (p_I - t_LI)), then rotated into the IMU frame owned by
+  /// body_cov_list_ (same frame as points_body_v3_). Plumbing only: not
+  /// consumed by the estimator until later stages.
   if(g_prob_lio_point_cov){
-    ComputeBodyCovList(points_body_v3_, g_lidar_dept_err, g_lidar_beam_err, body_cov_list_);
+    ComputeBodyCovListWithExtrinsic(points_body_v3_,
+                                    g_lidar_imu.R_.cast<double>(),
+                                    g_lidar_imu.t_.cast<double>(),
+                                    g_lidar_dept_err, g_lidar_beam_err,
+                                    body_cov_list_);
     body_cov_frames_++;
     body_cov_points_ += body_cov_list_.size();
     for(const auto& cov : body_cov_list_){

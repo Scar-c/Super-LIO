@@ -1,0 +1,49 @@
+gate: G-P1.F5
+config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+extrinsic_lidar_imu:
+- -0.05
+- 0
+- 0.055
+- 1.0
+- 0.0
+- 0.0
+- 0.0
+- 1.0
+- 0.0
+- 0.0
+- 0.0
+- 1.0
+R_LI:
+- - 1.0
+  - 0.0
+  - 0.0
+- - 0.0
+  - 1.0
+  - 0.0
+- - 0.0
+  - 0.0
+  - 1.0
+t_LI:
+- -0.05
+- 0.0
+- 0.055
+dept_err_m: 0.02
+beam_err_deg: 0.01
+representative_point_IMU:
+- 5.0
+- -2.0
+- 8.0
+representative_point_LIDAR:
+- 5.05
+- -2.0
+- 7.945
+checks:
+  R_LI_identity: true
+  t_LI_nonzero: true
+  t_LI:
+  - -0.05
+  - 0.0
+  - 0.055
+  wrong_vs_correct_max_abs_diff: 2.658995869174452e-06
+  paths_not_identical: true
+pass: true

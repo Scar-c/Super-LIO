@@ -80,14 +80,55 @@ inline BASIC::M3d RotateCovariance(const BASIC::M3d& R, const BASIC::M3d& cov) {
   return R * cov * R.transpose();
 }
 
+// S1 corrected production seam (G-P1.F frame semantics):
+//
+//   points_body_v3_[i] (p_I) is the undistorted point in the IMU/body frame
+//   at scan end. The FAST-LIVO2 sensor model is defined in the LiDAR
+//   measurement frame, so we first recover the lidar-frame point
+//       p_L = R_LI^T * (p_I - t_LI)
+//   compute the sensor covariance there
+//       Sigma_L = CalcLidarPointCov(p_L, dept_err, beam_err)
+//   then rotate it into the frame owned by body_cov_list_ (same as p_I):
+//       Sigma_I = R_LI * Sigma_L * R_LI^T
+//   where p_I = R_LI * p_L + t_LI (g_lidar_imu = "lidar in imu frame").
+//
+// Do NOT call CalcLidarPointCov(p_I) directly: that applies the beam-origin
+// model at the IMU origin, which is a different (wrong) measurement frame.
+inline void CalcLidarPointCovFromImuFrame(const BASIC::V3d& p_I,
+                                          const BASIC::M3d& R_LI,
+                                          const BASIC::V3d& t_LI,
+                                          double dept_err, double beam_err_deg,
+                                          BASIC::M3d& cov_I) {
+  const BASIC::V3d p_L = R_LI.transpose() * (p_I - t_LI);
+  BASIC::M3d cov_L;
+  CalcLidarPointCov(p_L, dept_err, beam_err_deg, cov_L);
+  cov_I = R_LI * cov_L * R_LI.transpose();
+}
+
 // S1 production seam: one-to-one covariance list for the current scan's
-// downsampled body-frame points. Entry i belongs to pts[i]; the list is
-// resized to pts.size() on every call (no stale tail).
-inline void ComputeBodyCovList(const BASIC::VV3& pts, double dept_err,
-                               double beam_err_deg, std::vector<BASIC::M3d>& covs) {
-  covs.resize(pts.size());
-  for (size_t i = 0; i < pts.size(); ++i) {
-    CalcLidarPointCov(pts[i].cast<double>(), dept_err, beam_err_deg, covs[i]);
+// downsampled IMU-frame points, using the corrected lidar-frame model.
+// Entry i belongs to pts[i]; the list is resized to pts.size() on every call
+// (no stale tail).
+inline void ComputeBodyCovListWithExtrinsic(
+    const BASIC::VV3& pts_imu, const BASIC::M3d& R_LI, const BASIC::V3d& t_LI,
+    double dept_err, double beam_err_deg, std::vector<BASIC::M3d>& covs_imu) {
+  covs_imu.resize(pts_imu.size());
+  for (size_t i = 0; i < pts_imu.size(); ++i) {
+    CalcLidarPointCovFromImuFrame(pts_imu[i].cast<double>(), R_LI, t_LI,
+                                  dept_err, beam_err_deg, covs_imu[i]);
+  }
+}
+
+// Test-only convenience: lidar-frame model applied directly to a body-frame
+// point (the INCORRECT Prompt-2 shortcut). Kept only for the G-P1.F negative
+// mutations and the config-aware NTU evidence test.
+inline void ComputeBodyCovListWrongFrame(
+    const BASIC::VV3& pts_imu, double dept_err, double beam_err_deg,
+    std::vector<BASIC::M3d>& covs) {
+  covs.resize(pts_imu.size());
+  for (size_t i = 0; i < pts_imu.size(); ++i) {
+    CalcLidarPointCov(pts_imu[i].cast<double>(), dept_err, beam_err_deg,
+                      covs[i]);
   }
 }
 
