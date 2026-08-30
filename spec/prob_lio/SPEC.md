@@ -29,7 +29,7 @@ remain Super-LIO's own.
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
-| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** (round P5-1 impl; P5-2 corrective+diagnosis in progress; Owner audit pending) |
+| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** (rounds P5-1 impl, P5-2 corrective+shadow diagnosis done; **NOT Owner-verified**; Owner audit + next-phase decision pending) |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
 ## 4. Authoritative seam IDs (S0–S13)
@@ -716,6 +716,114 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
 - Status: **P4 = CLOSED / OWNER VERIFIED**; **P5 = IMPLEMENTATION COMPLETE /
   OWNER DIAGNOSIS PENDING** (normalized at the start of round P5-2; NOT
   Owner-verified; Owner audit pending).
+
+### Round P5-2 — corrective closure + shadow association diagnosis (prompt7)
+
+- Prompt: `prompts/prob_lio/prompt7_P5_corrective_shadow_diagnosis.md`.
+- Starting HEAD: `de49fc2` (clean). Commit K `db0399a` (corrective +
+  diagnostics), plus two follow-up fixes (shadow bin accounting; applied-gate
+  association-pose routing).
+
+#### Provenance convention (source identity)
+
+Canonical runs record `run_git_head` / `run_git_dirty` /
+`run_git_status_short` / `production_tree_oid` (git tree OID of
+`src/super_lio` at the run HEAD) / `algorithm_commit` (focused algorithm
+implementation commit under test). Prompt-6 prose that conflated the
+algorithm commit with later evidence-only run HEADs is superseded: e.g.
+shadow Run A ran at run_git_head `dca1f1c` with `algorithm_commit db0399a`
+and `production_tree_oid da262fe8...` (same production tree as applied
+Run B/C).
+
+#### Corrective gates (all GREEN)
+
+- **G-P5.C1** real production association-seam gate PASS
+  (`test_p5_seam_shadow.cpp`): one immutable `AssociationCandidate` built
+  once from the same geometry; `LegacyAssocGate` and `ProbAssocGate` consume
+  the SAME candidate; all four decision quadrants reachable; different-
+  residual / different-plane / shifted-pairing / P4-input mutations
+  detected. The prior tautological `CHECK(x||!x)` assertions were deleted.
+- **G-P5.C2** legacy exact preservation PASS (Run A below is byte-identical
+  to the frozen clean P4 canonical `259d3fbc...`).
+- **G-P5.C3** shadow non-interference PASS: `prob_assoc_shadow_enable=true`
+  with `association_mode=super_legacy` produced BYTE_PARITY with the P4
+  canonical (ATE 0.118875639→shadow 0.088831554 — wait, P4 canonical ATE is
+  0.088831554; the shadow run ATE = 0.088831554, sha256 `259d3fbc...`);
+  counters > 0; negative (wiring shadow into effect_mask_) covered by test.
+- **G-P5.C4** disagreement-matrix correctness PASS (synthetic four-quadrant
+  fixtures; swap / double-count / omit-rejects / post-gate-counting
+  mutations detected); full shadow matrix: attempted 10,666,916 =
+  LA_PA 10,568,793 + LA_PR 88,494 + LR_PA 1,567 + LR_PR 8,062 (sum OK,
+  invalid 0/0).
+- **G-P5.C5** point/cov/count identity PASS (unique per-voxel counts through
+  HKNN; shifted-count / sort-without-count / parent-count mutations).
+- **G-P5.C6** shadow diagnostic integrity PASS (read-only ownership audit;
+  Run A byte parity; per-frame summaries deterministic; no state feeds later
+  frames).
+- **G-P5.C7** association-pose model isolation PASS
+  (`association_pose_cov_model`: inherit_map default / livo2_compat /
+  super_right_consistent; map covariance and P4 weight provably unaffected).
+  A decoupling defect was found and fixed: the APPLIED prob gate still used
+  `map_pose_cov_model_` for the query covariance (Run B == Run C byte-
+  identical); the applied path now routes through the association pose model.
+
+#### Shadow diagnosis on the P4-canonical trajectory (Run A)
+
+- Quadrant matrix: LA_PA 10,568,793 / LA_PR 88,494 / LR_PA 1,567 /
+  LR_PR 8,062 (attempted 10,666,916; invalid 0/0). LA_PR = 0.83% of legacy
+  accepted.
+- LA_PR components (weighted by frame LA_PR): |r| mean 0.186; sigma_assoc
+  mean 3.25e-3; z mean 4.38; plane_var 1.08e-4; query_sensor_var 2.07e-4;
+  **query_pose_rot_var 2.93e-3 (≈90% of association variance)**;
+  query_pose_pos_var 2.9e-6.
+- Count-bin analysis: LA_PR rate DECREASES with representative maturity —
+  bin 1: 1.80%, 2-4: 1.02%, 5-9: 0.91%, 10-14: 0.66%, 15-20: 0.57%
+  (plane_var shrinks with count 2.5e-4 → 5.9e-5 as expected).
+- **S6 classification: S6_HYPOTHESIS_NOT_SUPPORTED** — probability-only
+  rejections are NOT concentrated in mature/high-count tiny-plane-var
+  representatives; the opposite pattern holds. The dominant rejection driver
+  is the current-query pose-rotation covariance term (a P5 association-model
+  characteristic). Optional unshrink probe (`Σ_probe = N·Σ_rep`) rescues
+  only 10.2% of LA_PR.
+- Per-frame evidence: `assoc_shadow_frames.csv` (3981 frames) +
+  `assoc_shadow_report.txt` in `run_20260830_224229`; reusable analyzer
+  `eval/prob_lio/analyze_assoc_shadow.py` (CLI paths, no dataset hard-code).
+
+#### Clean runs
+
+- **Run A** (P4 canonical + shadow, `run_20260830_224229`): BYTE_PARITY PASS
+  (sha256 `259d3fbc...`), ATE 0.088831554, rows 3981, matched 3329,
+  git_dirty=no, algorithm_commit db0399a, production_tree_oid `da262fe8`.
+- **Run B** (applied P5, association livo2_compat, `run_20260830_224732`):
+  prob_accept 37,723,571 / reject 240,138 / invalid 0; **ATE 1.190814611**
+  (exact reproduction of the prompt-6 regression from the same clean source
+  used for shadow diagnosis); sha256 `46b0d626...`.
+- **Run C** (applied P5, association super_right_consistent,
+  `run_20260830_224827`): prob_accept 37,897,080 / reject 295,593;
+  **ATE 1.225502411** — first pure association-pose A/B (map model held
+  fixed at livo2_compat). Observation only; no tuning.
+- **Classification**: `P5_IMPLEMENTATION_SEMANTICS_VALID /
+  MODEL_MISMATCH_SUSPECTED` (corrected seam gates GREEN, shadow run byte-
+  identical, gate values finite/valid, applied regression persists, and
+  disagreements correlate with the pose-covariance term of the association
+  model rather than any plumbing defect). `P5_IMPLEMENTATION_BUG_FOUND` = NO.
+
+#### FAST-LIVO2 extrinsic-covariance labeling (Part E)
+
+Local FAST-LIVO2 active query covariance (voxel_map.cpp:385-388) rotates
+the LIDAR-frame body covariance with the IMU rotation only (missing
+R_LI); Prob-LIO's accepted P1 pipeline stores IMU-frame covariance
+(extrinsic-consistent). For NTU `eee_01`, R_LI = I, so the difference is
+immaterial to this dataset. The current implementation is therefore
+**NOT** "exact active-code compatibility" for non-identity-extrinsic
+sensors; this is recorded as a **pre-generalization semantic decision**
+(no `association_sensor_cov_model` dual mode implemented this round).
+
+#### Status
+
+- P5 remains `IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING` — NOT
+  Owner-verified; Owner audit pending.
+- Future generalization: **NOT STARTED / OWNER NEXT DECISION**.
 
 ## 10. Gate summary
 
