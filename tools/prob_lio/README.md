@@ -13,6 +13,20 @@ Reusable run helpers for the prob-lio project.
     emits `__P0_RUN_DONE_RC=<rc>` as the last stdout line.
   - All paths parameterizable via CLI args; defaults target this workspace.
 
+Prompt11 orchestration:
+
+- `run_ablation.py` — one registered dataset/sequence/variant transaction:
+  preflights bag topics and identities, applies the declared variant knobs,
+  delegates execution to `run_baseline.sh`, dispatches the registry evaluator,
+  and writes `preflight.yaml` plus `run_manifest.yaml`. Canonical runs require
+  a clean worktree and never edit the tracked matrix.
+- `compare_variant_configs.py` — compares the actual dumped
+  `effective_rosparams.yaml` files and fails unless exactly the declared
+  ablation key changed.
+- `merge_mcd.py` — audited bounded-memory record-time k-way merge for the
+  separate MCD lidar/IMU bags; it preserves message header stamps and writes
+  only after successful completion.
+
 Owned offline component (in `src/super_lio/offline/`):
 
 - `OfflineReader.{h,cpp}` — transport-only ROS1 bag reader (lidar+imu topics,

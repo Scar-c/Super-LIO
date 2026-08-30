@@ -98,6 +98,9 @@ namespace LI2Sup{
   /// P5-C7: association pose covariance model policy
   /// (0 = inherit_map (default), 1 = livo2_compat, 2 = super_right_consistent)
   extern int    g_prob_lio_assoc_pose_cov_model;
+  /// P5-only association sensor covariance policy. P1 storage and P4 final
+  /// weighting are unaffected.
+  extern int    g_prob_lio_assoc_sensor_cov_model;
 
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame

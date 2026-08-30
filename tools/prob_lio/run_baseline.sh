@@ -42,6 +42,7 @@ RATE="1.0"
 OFFLINE=0
 CANONICAL=0
 ALGORITHM_COMMIT=""
+RUN_ID=""
 PARAM_OVERRIDES=()
 PLAY_TOPICS="/os1_cloud_node1/points,/imu/imu"
 RECORD_TOPICS="/lio/odom,/lio/path"
@@ -57,6 +58,7 @@ while [ $# -gt 0 ]; do
     --set) PARAM_OVERRIDES+=("$2"); shift 2 ;;
     --canonical) CANONICAL=1; shift ;;
     --algorithm-commit) ALGORITHM_COMMIT="$2"; shift 2 ;;
+    --run-id) RUN_ID="$2"; shift 2 ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -71,6 +73,10 @@ if [ ! -f "$CONFIG" ]; then
   echo "ERR: --config must point to an existing yaml: $CONFIG" >&2
   exit 2
 fi
+if [ -n "$RUN_ID" ] && ! [[ "$RUN_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+  echo "ERR: --run-id may contain only letters, numbers, dot, underscore, hyphen" >&2
+  exit 2
+fi
 
 # Clean-source project rule (prompt6 §1): canonical closure runs require a
 # clean committed worktree; diagnostic runs may be dirty when explicitly
@@ -82,8 +88,17 @@ if [ "$CANONICAL" -eq 1 ] && [ -n "$GIT_STATUS_SHORT" ]; then
 fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
-RUN_DIR="$OUT/run_${STAMP}"
-mkdir -p "$RUN_DIR"
+if [ -n "$RUN_ID" ]; then
+  RUN_DIR="$OUT/$RUN_ID"
+else
+  RUN_DIR="$OUT/run_${STAMP}"
+fi
+mkdir -p "$OUT"
+if [ -e "$RUN_DIR" ]; then
+  echo "ERR: refusing to overwrite existing run directory: $RUN_DIR" >&2
+  exit 2
+fi
+mkdir "$RUN_DIR"
 NODE_LOG="$RUN_DIR/node.log"
 CORE_LOG="$RUN_DIR/roscore.log"
 PLAY_LOG="$RUN_DIR/play.log"
@@ -154,6 +169,17 @@ done
 if [ "$OFFLINE" -eq 1 ]; then
   rosparam set /lio/offline/out_dir "$RUN_DIR"
 fi
+
+# Capture the actual ROS parameter tree after config loading and all variant
+# overrides, before the estimator starts. The orchestration layer hashes
+# this file and uses it for exact variant-isolation checks.
+EFFECTIVE_CONFIG="$RUN_DIR/effective_rosparams.yaml"
+if ! rosparam dump "$EFFECTIVE_CONFIG" /lio; then
+  echo "ERR: unable to dump effective /lio parameters" >&2
+  exit 2
+fi
+echo "effective_config: $EFFECTIVE_CONFIG" | tee -a "$META_LOG"
+echo "effective_config_sha256: $(sha256sum "$EFFECTIVE_CONFIG" | cut -d' ' -f1)" | tee -a "$META_LOG"
 
 if [ "$OFFLINE" -eq 1 ]; then
   rosrun super_lio super_lio_offline_node __name:=lio_offline >"$NODE_LOG" 2>&1 &

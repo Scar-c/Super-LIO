@@ -186,6 +186,9 @@ public:
   /// P5-C7: association pose covariance model (0 inherit_map, 1 livo2_compat,
   /// 2 super_right_consistent); set in init().
   int assoc_pose_cov_model_ = 0;
+  /// P5-only association sensor covariance policy; no map/P4 effect.
+  AssociationSensorCovModel assoc_sensor_cov_model_ =
+      AssociationSensorCovModel::ExtrinsicConsistent;
 
   /// Prob-LIO P4: aggregated weight statistics (TLS-reduced on the main
   /// thread inside UpdateObserve after the parallel section).
@@ -226,5 +229,4 @@ public:
 } // namespace END.
 
 #endif
-
 

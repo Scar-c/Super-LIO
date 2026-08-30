@@ -64,3 +64,12 @@ from the `super-livo` branch, commit `17b493bc...`).
 `offline_runner_design.md` — old-project offline runner design notes
 (recovered for provenance; the current Prob-LIO offline runner is
 `tools/prob_lio/run_baseline.sh --offline`).
+
+## Prompt11 registry and adapters
+
+`evaluator_registry.yaml` is the machine-readable metric/GT/frame contract.
+`eval_tum_translation.py`, `prepare_mcd_gt.py`, and `eval_m3dgr_aruco.py` are
+ported only where the current branch lacked the audited old-branch tool; each
+contains a provenance header. Run `test_evaluator_semantics.py` for synthetic
+checks covering NTU interpolation, no-scale TUM alignment, MCD conversion, and
+M3DGR terminal-relative routing.

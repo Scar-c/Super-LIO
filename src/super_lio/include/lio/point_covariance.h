@@ -391,12 +391,69 @@ inline AssociationMode ResolveAssociationMode(const std::string& value) {
   return AssociationMode::SuperLegacy;  // canonical default; unknown -> default
 }
 
+// P5-only sensor covariance policy. P1 owns Sigma_I in the IMU/body frame;
+// the active FAST-LIVO2 association path instead consumes the original
+// LiDAR-frame Sigma_L before applying R_WI. The corrected policy consumes the
+// canonical Sigma_I directly. Neither policy is used by map insertion or the
+// P4 final measurement weight.
+enum class AssociationSensorCovModel {
+  Livo2ActiveCompat = 0,
+  ExtrinsicConsistent = 1,
+};
+
+inline AssociationSensorCovModel ResolveAssociationSensorCovModel(
+    const std::string& value) {
+  if (value == "livo2_active_compat") {
+    return AssociationSensorCovModel::Livo2ActiveCompat;
+  }
+  return AssociationSensorCovModel::ExtrinsicConsistent;
+}
+
+inline BASIC::M3d ComputeAssociationSensorWorldCovariance(
+    const BASIC::M3d& Sigma_I, const BASIC::M3d& R_WI,
+    const BASIC::M3d& R_LI,
+    AssociationSensorCovModel model =
+        AssociationSensorCovModel::ExtrinsicConsistent) {
+  if (model == AssociationSensorCovModel::Livo2ActiveCompat) {
+    // Active FAST-LIVO2 association semantics:
+    //   Sigma_W = R_WI Sigma_L R_WI^T,
+    // with Sigma_L recovered from the P1-owned Sigma_I. Preserve the exact
+    // corrected path at identity extrinsic so NTU active/corrected smoke is
+    // bit-identical, not merely mathematically equivalent.
+    if (R_LI.isApprox(BASIC::M3d::Identity(), 0.0)) {
+      return RotateCovariance(R_WI, Sigma_I);
+    }
+    const BASIC::M3d Sigma_L = R_LI.transpose() * Sigma_I * R_LI;
+    return RotateCovariance(R_WI, Sigma_L);
+  }
+  return RotateCovariance(R_WI, Sigma_I);
+}
+
 // G-P5.1: current-query world covariance (reuses the S3 formula).
 inline BASIC::M3d ComputeQueryWorldCovariance(
     const BASIC::V3d& p_I, const BASIC::M3d& Sigma_I, const BASIC::M3d& R_WI,
     const BASIC::M3d& P_RR, const BASIC::M3d& P_pp,
     MapPoseCovModel model = MapPoseCovModel::Livo2Compat) {
   return ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp, model);
+}
+
+// P5 association query covariance with an explicit sensor policy. The pose
+// terms intentionally retain the existing map/association pose-model split;
+// only the sensor term is selected by AssociationSensorCovModel.
+inline BASIC::M3d ComputeAssociationQueryWorldCovariance(
+    const BASIC::V3d& p_I, const BASIC::M3d& Sigma_I,
+    const BASIC::M3d& R_WI, const BASIC::M3d& R_LI,
+    const BASIC::M3d& P_RR, const BASIC::M3d& P_pp,
+    MapPoseCovModel pose_model,
+    AssociationSensorCovModel sensor_model) {
+  const BASIC::M3d skew = SkewSymmetric(p_I);
+  const BASIC::M3d rot_term =
+      (pose_model == MapPoseCovModel::SuperRightConsistent)
+          ? RotateCovariance(R_WI * skew, P_RR)
+          : skew * P_RR * skew.transpose();
+  return ComputeAssociationSensorWorldCovariance(Sigma_I, R_WI, R_LI,
+                                                 sensor_model) +
+         rot_term + P_pp;
 }
 
 // G-P5.1: association residual variance = plane + current-query.
@@ -486,6 +543,40 @@ inline AssociationCandidate BuildAssociationCandidate(
   const BASIC::M3d skew = SkewSymmetric(p_I);
   const BASIC::M3d rot_term =
       (model == MapPoseCovModel::SuperRightConsistent)
+          ? RotateCovariance(R_WI * skew, P_RR)
+          : skew * P_RR * skew.transpose();
+  c.query_pose_rot_var = n.dot(rot_term * n);
+  c.query_pose_pos_var = n.dot(P_pp * n);
+  c.sigma_assoc2 = c.plane_var + n.dot(Sigma_query * n);
+  return c;
+}
+
+// Explicit P5 sensor-policy variant. Keep the original overload above for
+// existing callers/tests; production P5 passes the real LiDAR-to-IMU
+// rotation and the selected association-only sensor policy through this seam.
+inline AssociationCandidate BuildAssociationCandidateWithSensorModel(
+    const BASIC::V3d& p_W, const BASIC::V3d& n, const BASIC::V3d& p_I,
+    const BASIC::M3d& Sigma_I, const BASIC::M3d& R_WI,
+    const BASIC::M3d& R_LI, const BASIC::M3d& P_RR, const BASIC::M3d& P_pp,
+    const Eigen::Matrix4d& Sigma_pi, double residual, double length,
+    double sigma_num, double neighbor_count_mean, uint8_t neighbor_count_max,
+    MapPoseCovModel pose_model,
+    AssociationSensorCovModel sensor_model) {
+  AssociationCandidate c;
+  c.residual = residual;
+  c.length = length;
+  c.sigma_num = sigma_num;
+  c.neighbor_count_mean = neighbor_count_mean;
+  c.neighbor_count_max = neighbor_count_max;
+  const BASIC::M3d sensor_world = ComputeAssociationSensorWorldCovariance(
+      Sigma_I, R_WI, R_LI, sensor_model);
+  const BASIC::M3d Sigma_query = ComputeAssociationQueryWorldCovariance(
+      p_I, Sigma_I, R_WI, R_LI, P_RR, P_pp, pose_model, sensor_model);
+  c.plane_var = PlaneResidualVariance(p_W, Sigma_pi);
+  c.query_sensor_var = n.dot(sensor_world * n);
+  const BASIC::M3d skew = SkewSymmetric(p_I);
+  const BASIC::M3d rot_term =
+      (pose_model == MapPoseCovModel::SuperRightConsistent)
           ? RotateCovariance(R_WI * skew, P_RR)
           : skew * P_RR * skew.transpose();
   c.query_pose_rot_var = n.dot(rot_term * n);

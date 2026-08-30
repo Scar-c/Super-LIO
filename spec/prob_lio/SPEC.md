@@ -157,6 +157,7 @@ association covariance (association-only; S12).
 | S11 | P4 probabilistic P2P soft weight | P4 | `ComputeP2pProbWeight` (`w = 1/R_i`) | floor 0.001; no current pose P |
 | S12 | current pose P excluded from final R_i | P4 | `super_lio.cpp` weight path | association-only usage |
 | S13 | Super IESKF update unchanged | P0 | `ESKF.cpp` information-form update | |
+| S14 | P5 association sensor covariance policy | P5 experimental | `point_covariance.h` + `super_lio.cpp` association seam | `extrinsic_consistent` default; active-compatible mode is P5-only |
 
 ### 5A.4 Canonical `eee_01` result ledger
 
@@ -236,6 +237,8 @@ acknowledged modeling approximation.
 | P2 map pose covariance — `super_right_consistent` | CORRECTED | corrected Super right-perturbation mode |
 | P4 final weight | PARITY | floor `0.001` + plane variance + sensor-point variance; no current pose P in the final weight |
 | P5 association | EXPERIMENTAL | adaptation; do not call its whole lifecycle exact FAST-LIVO2 parity |
+| P5 association sensor policy — `extrinsic_consistent` | CORRECTED | consumes P1 `Σ_I`: `R_WI Σ_I R_WIᵀ` |
+| P5 association sensor policy — `livo2_active_compat` | ACTIVE-COMPATIBLE | recovers `Σ_L = R_LIᵀ Σ_I R_LI`, then uses `R_WI Σ_L R_WIᵀ`; association-only |
 
 Canonical first generalization mode: **`livo2_compat`** (unless Owner later
 changes it).
@@ -251,7 +254,14 @@ qr_plane_cov_enable = ON
 p2p_weight_mode = prob_livo2
 association_mode = super_legacy
 prob_assoc_shadow_enable = OFF
+association_sensor_cov_model = extrinsic_consistent
 ```
+
+The sensor policy is a P5 association-only ablation. It does not route into
+P1 storage, map covariance/insertion, P3 QR covariance, or the P4 final
+measurement weight. The active-compatible and corrected modes are expected to
+be identical when `R_LI = I` (the NTU setup), while differing for a synthetic
+nonidentity extrinsic rotation exactly according to the two formulas above.
 
 Heavy/debug diagnostics OFF by default: full eigensolver covariance
 validation OFF; P5 shadow OFF; per-point dumps OFF; FD/profiling/heavy
@@ -375,7 +385,7 @@ FAST-LIVO2-Dataset download link").
    beam error (`sin^2(degree_inc)`), applied to each downsampled feature
    (`voxel_map.cpp:354`, after PCL `downSizeFilterSurf` at
    `LIVMapper.cpp:351-352`). The point passed to `calcBodyCov()` is in the
-   **sensor/body frame** (undistorted, before `extR_/extT_`).
+   **LiDAR frame** (undistorted, before `extR_/extT_`).
 2. **Current-query association covariance includes active pose contribution**
    — `StateEstimation` per-iteration (`voxel_map.cpp:385-389`):
    `cov = R_end * body_cov * R_end^T + (-cross)*rot_var*(-cross)^T + t_var`

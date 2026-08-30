@@ -111,6 +111,14 @@ void LoadParamFromRos(ros::NodeHandle& nh){
       (assoc_pose_model == "livo2_compat")
           ? 1
           : (assoc_pose_model == "super_right_consistent") ? 2 : 0;
+  // P5-only association sensor covariance policy. The default preserves the
+  // canonical P1 frame-corrected behavior; active-compatible mode is an
+  // explicit experimental ablation.
+  std::string assoc_sensor_model = "extrinsic_consistent";
+  nh.getParam("/lio/prob_lio/association_sensor_cov_model",
+              assoc_sensor_model);
+  g_prob_lio_assoc_sensor_cov_model = static_cast<int>(
+      ResolveAssociationSensorCovModel(assoc_sensor_model));
   // P5 dependency: probabilistic association requires the covariance
   // pipeline (query covariance). Normalize like the QR/P4 dependencies.
   if (g_prob_lio_association_mode ==

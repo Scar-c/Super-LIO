@@ -1,0 +1,149 @@
+schema_version: 1
+description: >
+  Prob-LIO Prompt11 evaluator registry. Metric names are profile-specific;
+  FINAL_RELATIVE_POSE profiles must never be routed through trajectory ATE.
+profiles:
+  ntu_viral_full_trajectory:
+    dataset_family: NTU VIRAL
+    sequences: [eee_01, nya_01]
+    ground_truth_type: FULL_TRAJECTORY
+    primary_metric: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+    unit: m
+    evaluator_kind: ntu_official
+    evaluator_path: eval/prob_lio/eval_ntu_viral_official.py
+    upstream_provenance:
+      repository: https://github.com/ntu-aris/viral_eval
+      revision: 194dd4595b1fb5e8ae2a5a0c01255f816ab4082f
+      tier: DATASET_AUTHOR_BENCHMARK
+    gt_adapter_path: eval/prob_lio/pose_bag_to_tum.py
+    gt_source: bag_topic
+    gt_topic: /leica/pose/relative
+    required_topics:
+      - /os1_cloud_node1/points
+      - /imu/imu
+      - /leica/pose/relative
+    frame_transform: >
+      Estimate is IMU/body W_T_B; compare Leica prism after
+      P_est += R_WB * [-0.293656,-0.012288,-0.273095] m.
+    timestamp_policy: >
+      Strictly increasing TUM; interpolate Leica GT at estimate stamps;
+      retain only strict <0.1 s bracketing intervals.
+    alignment_policy: SE3 Umeyama, no scale
+    config_provenance:
+      old_branch_config: configs/super_livo/reference_base/ntu_{sequence}.yaml
+      old_branch_lineage: configs/super_livo/reference_base/ntu_{sequence}.lineage.yaml
+      authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
+    calibration_source: DATASET_AUTHOR_SENSOR files beside each NTU bag
+
+  mcd_night08_full_trajectory:
+    dataset_family: MCD
+    sequences: [ntu_night_08]
+    ground_truth_type: FULL_TRAJECTORY
+    primary_metric: MCD_DATASET_TRANSLATION_ATE_RMSE_M
+    unit: m
+    evaluator_kind: tum_translation
+    evaluator_path: eval/prob_lio/eval_tum_translation.py
+    upstream_provenance:
+      source: origin/super-livo evaluator port
+      tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+    gt_adapter_path: eval/prob_lio/prepare_mcd_gt.py
+    gt_source: external_csv
+    gt_path: ../../bag/MCD/ntu_night_08/pose_inW.csv
+    required_topics:
+      - /livox/lidar
+      - /vn100/imu
+    frame_transform: >
+      Verified local pose_inW.csv is W_T_B with Body=VN100 IMU;
+      no prism or lever-arm compensation.
+    timestamp_policy: >
+      CSV t is seconds since epoch, strictly increasing; association
+      max_diff=0.05 s and one-to-one matching.
+    alignment_policy: SE3 Umeyama, no scale
+    config_provenance:
+      old_branch_config: configs/super_livo/reference_base/mcd_night08.yaml
+      old_branch_lineage: configs/super_livo/reference_base/mcd_night08.lineage.yaml
+      authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
+    calibration_source: bag/MCD/atv_calib.yaml dataset-author/reconciled calibration
+
+  oxford_quarter01_full_trajectory:
+    dataset_family: Oxford Spires
+    sequences: [Quarter_01]
+    ground_truth_type: FULL_TRAJECTORY
+    primary_metric: OXFORD_TUM_TRANSLATION_APE_RMSE_M
+    unit: m
+    evaluator_kind: tum_translation
+    evaluator_path: eval/prob_lio/eval_tum_translation.py
+    upstream_provenance:
+      source: origin/super-livo evaluator port
+      tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+    gt_source: external_tum
+    gt_path: ../../bag/OXFORD/Quarter_01/gt-tum.txt
+    required_topics:
+      - /hesai/pandar
+      - /alphasense_driver_ros/imu
+    status: CONFIG_PROVENANCE_BLOCKED
+    block_reason: >
+      Old lineage marks the LIO parameters OWNER_DECISION and explicitly
+      says SUPER_LIO_DATASET_CONFIG_NOT_PUBLISHED; current branch lacks the
+      audited src/super_lio/config/oxford_quarter01.yaml.
+    frame_transform: >
+      Not publishable until current config and Oxford calibration/frame
+      conversion are independently reconciled.
+    timestamp_policy: strict increasing TUM with explicit frame/time audit required
+    alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+    config_provenance:
+      old_branch_config: configs/super_livo/reference_base/oxford_quarter01.yaml
+      old_branch_lineage: configs/super_livo/reference_base/oxford_quarter01.lineage.yaml
+      authority: OWNER_DECISION
+      note: SUPER_LIO_DATASET_CONFIG_NOT_PUBLISHED
+    calibration_source: bag/OXFORD/Calibration dataset files; frame audit pending
+
+  m3dgr_aruco_final_relative:
+    dataset_family: M3DGR
+    sequences: [Corridor01]
+    ground_truth_type: FINAL_RELATIVE_POSE
+    primary_metric: M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M
+    unit: m
+    evaluator_kind: m3dgr_aruco
+    evaluator_path: eval/prob_lio/eval_m3dgr_aruco.py
+    upstream_provenance:
+      repository: https://github.com/sjtuyinjie/M3DGR
+      revision: e0cf7d59c9a5a3df515624034698d976abc26549
+      path: ArUco_evaluate.py
+      tier: DATASET_AUTHOR_BENCHMARK
+    gt_source: external_reference
+    gt_path: ../../bag/M3DGR/Corridor01/GTCorridor01.txt
+    required_topics:
+      - /livox/avia/lidar
+      - /livox/avia/imu
+    frame_transform: >
+      Reference is T_B0_Bend = inverse(T_W_B0) @ T_W_Bend in the
+      estimator body frame; no prism conversion.
+    timestamp_policy: >
+      Use first valid pose and the earliest pose in the allclose duplicate
+      tail according to the official wrapper; no arbitrary crop.
+    alignment_policy: no alignment; compare terminal relative transform directly
+    config_provenance:
+      old_branch_config: configs/super_livo/reference_base/m3dgr_corridor01.yaml
+      old_branch_lineage: configs/super_livo/reference_base/m3dgr_corridor01.lineage.yaml
+      authority: OWNER_DECISION plus DATASET_AUTHOR_SENSOR calibration
+    calibration_source: M3DGR dataset-author calibration.md at pinned revision
+    forbidden_evaluators:
+      - evo_ape
+      - eval_tum_translation.py
+
+  m3dgr_corridor02_unregistered:
+    dataset_family: M3DGR
+    sequences: [Corridor02]
+    ground_truth_type: FINAL_RELATIVE_POSE
+    primary_metric: M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M
+    unit: m
+    evaluator_kind: m3dgr_aruco
+    evaluator_path: eval/prob_lio/eval_m3dgr_aruco.py
+    gt_source: external_reference
+    gt_path: ../../bag/M3DGR/Corridor02/GTCorridor02.txt
+    required_topics:
+      - /livox/avia/lidar
+      - /livox/avia/imu
+    status: GT_SEMANTICS_BLOCKED
+    block_reason: Corridor02 frame-convention gate is not closed; not a Prompt11 run.

@@ -239,3 +239,15 @@ target_link_libraries(test_p5_lifecycle ${catkin_LIBRARIES})
 add_test(NAME prob_lio_p5_lifecycle
          COMMAND test_p5_lifecycle)
 
+# Prompt11 P5 association-sensor covariance dual-mode tests.
+add_executable(test_p5_sensor_covariance
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_p5_sensor_covariance.cpp
+)
+target_include_directories(test_p5_sensor_covariance PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_p5_sensor_covariance ${catkin_LIBRARIES})
+add_test(NAME prob_lio_p5_sensor_covariance
+         COMMAND test_p5_sensor_covariance)

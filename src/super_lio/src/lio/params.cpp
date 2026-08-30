@@ -70,6 +70,7 @@ namespace LI2Sup{
   double g_prob_lio_assoc_sigma_num = 3.0;  // FAST-LIVO2 sigma_num default
   bool   g_prob_lio_assoc_shadow_enable = false;
   int    g_prob_lio_assoc_pose_cov_model = 0;  // inherit_map
+  int    g_prob_lio_assoc_sensor_cov_model = 1;  // extrinsic_consistent
 
 
   SE3 g_lidar_imu;

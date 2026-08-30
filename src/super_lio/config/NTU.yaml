@@ -76,6 +76,9 @@ lio:
     # map_pose_cov_model; livo2_compat / super_right_consistent override it
     # for association only (map covariance unaffected).
     association_pose_cov_model: inherit_map
+    # P5-only sensor covariance policy. The corrected default consumes P1's
+    # Sigma_I; livo2_active_compat explicitly emulates active FAST-LIVO2.
+    association_sensor_cov_model: extrinsic_consistent
 
   # Extrinsic Parameters
   extrinsic:

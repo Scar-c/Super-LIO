@@ -80,6 +80,8 @@ void SuperLIO::init(){
   map_pose_cov_model_ =
       static_cast<MapPoseCovModel>(g_prob_lio_map_pose_cov_model);
   assoc_pose_cov_model_ = g_prob_lio_assoc_pose_cov_model;
+  assoc_sensor_cov_model_ = static_cast<AssociationSensorCovModel>(
+      g_prob_lio_assoc_sensor_cov_model);
   cov_storage_precision_ =
       static_cast<CovStoragePrecision>(g_prob_lio_cov_storage_precision);
   ivox_->SetCovStoragePrecision(cov_storage_precision_);
@@ -632,18 +634,20 @@ void SuperLIO::Observe(){
                     kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
                 const M3d P_pp_p =
                     kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
-                const AssociationCandidate cand_p = BuildAssociationCandidate(
+                const AssociationCandidate cand_p =
+                    BuildAssociationCandidateWithSensorModel(
                     point_world.cast<double>(),
                     V3d(abcd_vec_[idx][0], abcd_vec_[idx][1],
                         abcd_vec_[idx][2]),
                     point_body.cast<double>(), body_cov_list_[idx],
-                    pose.R_.cast<double>(), P_RR_p, P_pp_p,
+                    pose.R_.cast<double>(), g_lidar_imu.R_.cast<double>(),
+                    P_RR_p, P_pp_p,
                     plane_qr_vec_[idx].status == ProbQrPlane::kValid
                         ? plane_qr_vec_[idx].covariance
                         : Eigen::Matrix4d::Zero(),
                     r_p, _lengths[idx], g_prob_lio_assoc_sigma_num,
                     assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
-                    apose_p);
+                    apose_p, assoc_sensor_cov_model_);
                 if(legacy_p && !ProbAssocGate(cand_p).accept){
                   PlaneCovsArray probe_covs;
                   for(int kk = 0; kk < top_K.count; ++kk){
@@ -704,18 +708,20 @@ void SuperLIO::Observe(){
                 kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
             const M3d P_pp =
                 kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
-            const AssociationCandidate cand = BuildAssociationCandidate(
+            const AssociationCandidate cand =
+                BuildAssociationCandidateWithSensorModel(
                 point_world.cast<double>(),
                 V3d(abcd_vec_[idx][0], abcd_vec_[idx][1],
                     abcd_vec_[idx][2]),
                 point_body.cast<double>(), body_cov_list_[idx],
-                pose.R_.cast<double>(), P_RR, P_pp,
+                pose.R_.cast<double>(), g_lidar_imu.R_.cast<double>(), P_RR,
+                P_pp,
                 plane_qr_vec_[idx].status == ProbQrPlane::kValid
                     ? plane_qr_vec_[idx].covariance
                     : Eigen::Matrix4d::Zero(),
                 r, _lengths[idx], g_prob_lio_assoc_sigma_num,
-                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
-                apose);
+                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx], apose,
+                assoc_sensor_cov_model_);
             // P9-F1: ONE shared association-evaluation abstraction.
             const AssocEvaluation ev9 = EvaluateAssociationPredicates(cand);
             const AssocGateResult pg{ev9.prob_accept,
@@ -851,14 +857,17 @@ void SuperLIO::Observe(){
             /// The applied path consumes the same BuildAssociationCandidate
             /// record as the shadow path — no independent re-derivation of
             /// the query covariance, association variance or residual.
-            const AssociationCandidate cand = BuildAssociationCandidate(
+            const AssociationCandidate cand =
+                BuildAssociationCandidateWithSensorModel(
                 point_world.cast<double>(), n, p_I, body_cov_list_[idx],
-                pose.R_.cast<double>(), P_RR, P_pp,
+                pose.R_.cast<double>(), g_lidar_imu.R_.cast<double>(), P_RR,
+                P_pp,
                 plane.status == ProbQrPlane::kValid
                     ? plane.covariance
                     : Eigen::Matrix4d::Zero(),
                 double(error), _lengths[idx], g_prob_lio_assoc_sigma_num,
-                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx], apose);
+                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx], apose,
+                assoc_sensor_cov_model_);
             // P9-F1: ONE shared association-evaluation abstraction.
             const AssocEvaluation ev9 = EvaluateAssociationPredicates(cand);
             if(!ev9.prob_accept && ev9.invalid_nonfinite){
