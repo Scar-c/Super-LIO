@@ -1,0 +1,28 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0831 02:43:28.649035 311106 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0831 02:43:28.664561 311106 ROSWrapper.cpp:302] [32m ---> Using Lidar type: UNKNOWN[0m
+I0831 02:43:28.670877 311106 super_lio.cpp:89] [32m ---> [SuperLIO]: initialized.[0m
+I0831 02:43:28.918601 311106 super_lio.cpp:97] [32m ---> [SuperLIO]: KF init done[0m
+I0831 02:43:28.927644 311106 super_lio.cpp:106] [32m ---> [SuperLIO]: Map init done[0m
+I0831 02:44:37.283273 311106 timer.h:40] >>> ===== Printing run time =====
+I0831 02:44:37.283315 311106 timer.h:46] > [ DownSample ] average time usage: 0.471924 ms , called times: 3981
+I0831 02:44:37.283344 311106 timer.h:46] > [ Observe ] average time usage: 11.1075 ms , called times: 3981
+I0831 02:44:37.283362 311106 timer.h:46] > [ Undistort ] average time usage: 0.754288 ms , called times: 3981
+I0831 02:44:37.283380 311106 timer.h:46] > [ UpdateMap ] average time usage: 1.74826 ms , called times: 3981
+I0831 02:44:37.283391 311106 super_lio.cpp:1150] [32m ---> [Prob-LIO P3] QR plane cov shadow: attempted: 29378084, valid: 29378084, rank_invalid: 0, nonfinite: 0[0m
+I0831 02:44:37.283403 311106 super_lio.cpp:1211] [32m ---> [Prob-LIO P5] association attempted: 38192673, legacy_accept(shadow): 38168005, prob_accept: 37897080, prob_reject: 295593, invalid_nonfinite: 0, invalid_negative: 0[0m
+I0831 02:44:37.283413 311106 super_lio.cpp:1232] [32m ---> [Prob-LIO P4] weights attempted: 37897080, valid: 37897080, invalid_nonfinite: 0, invalid_negative: 0; valid w: count=37897080 min=4.18459e-11 max=999.614 mean=743.335 near_ceiling(>999)=244 bins=93776/123653/243307/605290/36831054; plane var min=8.55551e-08 max=2.38972e+10 mean=667.554; point var min=1.25279e-07 max=0.000675249 mean=0.000237693[0m
+I0831 02:44:37.283429 311106 super_lio.cpp:1251] [32m ---> [Prob-LIO] pipeline ON (pose model livo2_compat, storage double): cov frames: 3981, points: 13787462, invalid: 0; map cov init inserts: 13881, update inserts: 13787462, hknn cov returns: 198119439, invalid: 0[0m
+[offline_node] bag=/home/lc/super_livo/src/Super-LIO/../../bag/NTU/eee_01/eee_01.bag start_offset=-1.000 duration=-1.000
+[offline_node] wrapper subscribers connected
+[OfflineReader] view 1609059013.115s..1609059411.798s lidar=3987 imu=153347 other=0 wall=68.281s sensor=398.683s speed=5.839x
+
+=== Offline accounting ===
+bag_relevant_messages: 157334
+lidar read: 3987   imu read: 153347   other: 0
+first/last bag time: 1609059013.114720 / 1609059411.797588
+first/last sensor time: 1609059013.114590 / 1609059411.797436
+sensor_duration_s: 398.683
+wall_processing_s: 68.281
+speed_factor: 5.839x
+trajectory: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_p5_both_corr/trajectory.tum
