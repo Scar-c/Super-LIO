@@ -22,11 +22,17 @@ def load(path):
     if not isinstance(document, dict):
         raise ValueError(f"{path}: expected YAML mapping")
     flat = flatten(document)
-    return {
-        key.lstrip("/"): value
-        for key, value in flat.items()
-        if key.lstrip("/").startswith("lio/prob_lio/")
-    }
+    result = {}
+    for key, value in flat.items():
+        normalized = key.lstrip("/")
+        # `rosparam dump FILE /lio` serializes the namespace contents with
+        # `prob_lio/...` at the YAML root, whereas a full-tree dump retains
+        # `lio/prob_lio/...`. Normalize both forms before comparing.
+        if normalized.startswith("lio/prob_lio/"):
+            result[normalized] = value
+        elif normalized.startswith("prob_lio/"):
+            result["lio/" + normalized] = value
+    return result
 
 
 def main(argv=None):
@@ -78,5 +84,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
 
