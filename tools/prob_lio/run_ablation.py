@@ -433,7 +433,7 @@ def main(argv=None):
         classification = "EXECUTION_FAILED"
     elif adapter_rc != 0 or eval_rc != 0:
         classification = "EVALUATOR_BLOCKED"
-    elif args.canonical and post_git["dirty"]:
+    elif args.canonical and preflight["algorithm"]["dirty"]:
         classification = "EXECUTION_FAILED"
     manifest = {
         "schema_version": 1,
@@ -467,7 +467,12 @@ def main(argv=None):
         "config": identity(config),
         "effective_config": identity(run_dir / "effective_rosparams.yaml"),
         "config_provenance": preflight["config_provenance"],
-        "algorithm": post_git,
+        # `run_git_dirty` is the source cleanliness at transaction start.
+        # The output directory is intentionally created during the run and
+        # may itself be untracked until evidence is committed, so retain the
+        # post-run Git state only as a diagnostic field.
+        "algorithm": preflight["algorithm"],
+        "post_run_git": post_git,
         "run_id": run_id,
         "trajectory": identity(trajectory),
         "rows": parse_rows(trajectory) if trajectory.is_file() else 0,
