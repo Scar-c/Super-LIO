@@ -1,0 +1,19 @@
+base_config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+  exists: true
+  size_bytes: 4156
+  sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+dataset: NTU
+sequence: nya_01
+variant: P5-SENSOR-CORR
+rosparam_overrides:
+  /lio/prob_lio/cov_enable: 'true'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: livo2_compat
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'true'
+  /lio/prob_lio/p2p_weight_mode: prob_livo2
+  /lio/prob_lio/association_mode: prob_livo2
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: livo2_compat
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
