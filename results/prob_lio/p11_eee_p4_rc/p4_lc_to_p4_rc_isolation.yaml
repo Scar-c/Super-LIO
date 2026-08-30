@@ -1,0 +1,7 @@
+schema_version: 1
+left: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_smoke_eee_p4_lc/effective_rosparams.yaml
+right: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_p4_rc/effective_rosparams.yaml
+allowed_keys:
+- lio/prob_lio/map_pose_cov_model
+differences: []
+status: INVALID
