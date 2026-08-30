@@ -608,7 +608,8 @@ changes uncommitted) while meta.txt bound an earlier clean commit.
 - Performance: fixed_1000 + QR shadow wall 34.5 s; prob_livo2 wall 36.1 s
   (vs pipeline-only 31.7 s, baseline 16.9 s).
 - Status: P4 = CLOSED/PASS (semantics verdict separate from accuracy
-  outcome); P5 remains NOT STARTED.
+  outcome); P5 remains NOT STARTED. Commit H = `50f3e88` (recorded by
+  the docs follow-up commit).
 
 ## 10. Gate summary
 
