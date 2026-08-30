@@ -1,0 +1,14 @@
+window: 1609059013.763695717 .. 1609059043.055252075 s
+PARITY-BYTE: PASS
+  A bytes: 50967  B bytes: 50967
+  A sha256: 7a078e04f8ce5e0f4ec3adaec7c40e19f07e29d7b9c7e93f3e4049d3c57ea740
+  B sha256: 7a078e04f8ce5e0f4ec3adaec7c40e19f07e29d7b9c7e93f3e4049d3c57ea740
+  A md5: ff0046fd96a48456a18bbd64b66ce43a
+  B md5: ff0046fd96a48456a18bbd64b66ce43a
+PARITY-NUMERIC:
+  row count: A=294  B=294
+  timestamp sequence: A strictly increasing 1609059013.763695717..1609059043.055252075; B strictly increasing 1609059013.763695717..1609059043.055252075
+  stamp-matched poses: 294  unmatched: 0
+  max translation delta: 0.000e+00 m
+  RMS translation delta: 0.000e+00 m
+  max quaternion angle delta: 2.980e-08 rad (normalized; ~1e-8 rad diagnostics do NOT negate byte parity when hashes are equal)

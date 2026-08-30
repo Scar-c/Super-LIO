@@ -1,0 +1,15 @@
+workspace_root: /home/lc/super_livo/src/Super-LIO
+git_branch: prob-lio
+git_head: bb8596fddd1e3429a10cee90d20a1c02bb870fd4
+config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+bag: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag
+rate: 1.0
+duration: 30
+record_topics: /lio/odom,/lio/path
+start: 2026-08-30T10:24:12Z
+host: robot  cores: 32
+ROS_MASTER_URI=http://localhost:11489
+waiting for /lio/odom publisher ...
+play_rc=0 node_rc=0 record_rc=0
+fatal_marker_grep_rc=1 (1 = none found)
+node_log: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_182412/node.log

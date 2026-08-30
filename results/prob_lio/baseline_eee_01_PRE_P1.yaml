@@ -1,0 +1,76 @@
+# Prob-LIO frozen NTU eee_01 baseline — pre-P1 (P0 state)
+# Generated 2026-08-30 by round P0-2 (prompt2 Part A).
+
+dataset: NTU_VIRAL_eee_01
+bag:
+  path: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag
+  sha256: 7ea43946cffdd49c88d993ad3f192a4e90a8f6826eddc2ef1a9d4f5343ca6c17
+
+git:
+  branch: prob-lio
+  head: bb8596fddd1e3429a10cee90d20a1c02bb870fd4
+  production_sources_unchanged_since: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+
+config:
+  path: src/super_lio/config/NTU.yaml
+  sha256: e28ba0f4849689be60a7e3d979df87cd3dfa2e139fc90333068283d266566d3d
+  lidar_topic: /os1_cloud_node1/points
+  imu_topic: /imu/imu
+  lidar_type: 7 (OUSTER)
+  effective_params_snapshot: see run_20260830_182308/meta.txt (rosparam NTU.yaml)
+
+run:
+  runner: tools/prob_lio/run_baseline.sh --offline --bag <eee_01.bag>
+  sentinel: "__P0_RUN_DONE_RC=0"
+  return_code: 0
+  wall_processing_s: 16.9 (approx; see node.log "wall_processing_s")
+  speed_factor: ~23.6x
+
+trajectory:
+  path: results/prob_lio/run_20260830_182308/trajectory.tum
+  sha256: 6a8cc65adf3c90e07ddcfa86d7baae9eb53ce31214711636b15f0de909e06e13
+  md5: 4bd0543ec93c8306777a4ace7f558ed4
+  rows_estimate: 3981
+  serialization: "timestamp x y z qx qy qz qw, %.17g (offline node setprecision(17))"
+
+ground_truth:
+  topic: /leica/pose/relative
+  extractor: eval/prob_lio/pose_bag_to_tum.py
+  path: results/prob_lio/run_20260830_182308/gt/leica_gt.tum
+  sha256: 1829bbbd60da4e5ec3b94a51ee96431f443b6672f18c76ed24d060497040049e
+  rows_gt: 6616
+  values_untouched: true (raw bag PoseStamped, no transform)
+
+evaluation:
+  evaluator: eval/prob_lio/eval_ntu_viral_official.py
+  evaluator_sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
+  provenance: ntu-aris/viral_eval @ 194dd4595b1fb5e8ae2a5a0c01255f816ab4082f
+               (DATASET_AUTHOR_BENCHMARK), recovered from super-livo branch
+               commit 829b65b21dbe83cf73165096e581077b13b9c9df
+  result_yaml: results/prob_lio/run_20260830_182308/eval_official.yaml
+  matched_rows: 3329
+  ate_translation_rmse_m: 0.118875639
+  alignment: SE3_UMEYAMA_NO_SCALE
+  lever_arm: PRISM_B = [-0.293656, -0.012288, -0.273095] applied as R_WB * t_B_prism
+  association: LINEAR_GT_INTERPOLATION_AT_ESTIMATE_TIMESTAMPS, strict <0.1 s bracket
+
+historical_reference:
+  source: super-livo branch docs/super_livo/evidence/round12_pristine_super_lio_ntu_reproduction.md
+  reference_head: 60b57aaac8dc397f80c56364e7ccb008c300cc29 (pristine)
+  rows: 3981
+  matched: 3329
+  ate_translation_rmse_m: 0.118875639
+  trajectory_sha256_historical: 834200bc...c61e8 (file not preserved; recorded in round12 doc)
+
+parity:
+  # online (30 s window, run_20260830_182412/result.bag) vs offline full
+  # (run_20260830_182308/trajectory.tum), same production code + serialization:
+  tool: eval/prob_lio/extract_and_compare.py
+  byte_parity: PASS (sha256 both 7a078e04f8ce5e0f4ec3adaec7c40e19f07e29d7b9c7e93f3e4049d3c57ea740)
+  numeric_rows: 294/294 stamp-matched, 0 unmatched
+  max_translation_delta_m: 0.000e+00
+  rms_translation_delta_m: 0.000e+00
+  max_quaternion_angle_delta_rad: 2.980e-08 (normalization artifact; bytes identical)
+  report: results/prob_lio/run_20260830_182308/parity_online30s.report.txt
+
+gate: P0-EVAL = PASS (rows 3981==3981, matched 3329==3329, |ATE-ATE_ref| = 0 <= 1e-6)
