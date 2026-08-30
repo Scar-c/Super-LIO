@@ -270,6 +270,8 @@ FAST-LIVO2-Dataset download link").
 - Ending HEAD/commit: <see Commit A SHA in git log> (closure commit;
   follow-up docs commit records it in this file).
 - Gates: P0-EVAL PASS; HARD GATE A PASS.
+- P0 corrective closure commit: **`4040875`**
+  ("chore(prob-lio): close P0 eval and parity contracts").
 
 ### Round P1-1 — Current Point Probability (prompt2 Part B, seam S1)
 
@@ -298,7 +300,9 @@ FAST-LIVO2-Dataset download link").
   plane solve change (S8), no QR plane covariance (S9), no `compute_error()`
   change (S10), fixed `1000` unchanged (S11), no pose covariance in final
   `R_i` (S12), ESKF math unchanged (S13), no probabilistic association (S2).
-- Ending HEAD/commit: <Commit B SHA, recorded by the docs follow-up commit>.
+- Ending HEAD/commit: Commit B = `764488b` ("feat(prob-lio): add current
+  lidar point covariance"); Commit A (P0 closure) = `4040875` (recorded here
+  by the docs follow-up commit).
 - Gates: G-P1.1..G-P1.7 PASS (see §10).
 
 ### P1 runtime evidence
