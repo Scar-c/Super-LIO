@@ -99,6 +99,12 @@ if [ -e "$RUN_DIR" ]; then
   exit 2
 fi
 mkdir "$RUN_DIR"
+# The managed execution environment may have a read-only ~/.ros. Keep ROS
+# master/node logs inside the immutable run artifact instead of relying on a
+# host-global ROS log directory.
+ROS_LOG_DIR="$RUN_DIR/ros_log"
+mkdir "$ROS_LOG_DIR"
+export ROS_LOG_DIR
 NODE_LOG="$RUN_DIR/node.log"
 CORE_LOG="$RUN_DIR/roscore.log"
 PLAY_LOG="$RUN_DIR/play.log"
