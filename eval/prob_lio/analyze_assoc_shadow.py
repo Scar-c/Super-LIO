@@ -64,8 +64,38 @@ def main():
         f"{'OK' if abs(S('la_pa')+S('la_pr')+S('lr_pa')+S('lr_pr')-S('attempted'))<1 else 'MISMATCH'})")
     add(f"invalid: nonfinite={S('inv_nf'):.0f} negative={S('inv_neg'):.0f}")
     add(f"lifecycle: reject_from_active={S('rej_active'):.0f} "
-        f"late={S('rej_late'):.0f} sticky={S('sticky'):.0f} "
-        f"flip={S('flip'):.0f} counterfactual_reaccept={S('reaccept'):.0f}")
+        f"late(need_converge)={S('rej_late'):.0f} "
+        f"sticky(need_converge)={S('sticky'):.0f} "
+        f"flip={S('flip'):.0f} "
+        f"counterfactual_reaccept(need_converge)={S('reaccept'):.0f}")
+    add("  NOTE: the ESKF breaks on convergence (quit_eps), so the "
+        "need_converge iteration rarely executes;")
+    add("  'final-iteration' decisions (the ones that determine the state) "
+        "are analyzed per frame below.")
+
+    # Final-phase analysis: for each frame, the LAST executed iteration's
+    # decisions are final (loop-break semantics). The final iteration can be
+    # iter<4 with need_converge=0.
+    frames_final = {}
+    for r in rows:
+        fid = int(r["frame_id"])
+        cur = frames_final.get(fid)
+        if cur is None or int(r["obs_iter"]) > int(cur["obs_iter"]):
+            frames_final[fid] = r
+    fr = list(frames_final.values())
+    add("\nfinal-iteration-per-frame analysis "
+        f"(frames={len(fr)}):")
+    add(f"  attempted={sum(r['attempted'] for r in fr):.0f} "
+        f"LA_PR={sum(r['la_pr'] for r in fr):.0f} "
+        f"rej_active={sum(r['rej_active'] for r in fr):.0f} "
+        f"flip={sum(r['flip'] for r in fr):.0f}")
+    add("  iteration histogram of final decisions:")
+    hist = {}
+    for r in fr:
+        it = int(r["obs_iter"])
+        hist[it] = hist.get(it, 0) + 1
+    for it in sorted(hist):
+        add(f"    final iter {it}: {hist[it]} frames")
 
     add("\nper-iteration summary:")
     add("  iter need_converge attempted  LA_PA   LA_PR   LR_PA   LR_PR "

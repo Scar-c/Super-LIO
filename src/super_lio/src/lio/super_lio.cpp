@@ -675,119 +675,117 @@ void SuperLIO::Observe(){
               }
 
           if(!effect_mask_[idx]) continue;
+          }
 
-            /// P5-C1 shadow diagnostics (super_legacy authoritative +
-            /// shadow enabled): probability-gate decisions are COMPUTED
-            /// only; effect_mask_/HTVH/HTVr/map/state/P4/ESKF are never
-            /// touched.
-            if(g_prob_lio_assoc_shadow_enable &&
-               g_prob_lio_association_mode ==
-                   static_cast<int>(AssociationMode::SuperLegacy)){
-              const double r =
-                  abcd_vec_[idx][0] * point_world[0] +
-                  abcd_vec_[idx][1] * point_world[1] +
-                  abcd_vec_[idx][2] * point_world[2] + abcd_vec_[idx][3];
-              const bool legacy_accept =
-                  _lengths[idx] > 81.0 * r * r;
-              const MapPoseCovModel apose =
-                  assoc_pose_cov_model_ == 2
-                      ? MapPoseCovModel::SuperRightConsistent
-                      : assoc_pose_cov_model_ == 1
-                            ? MapPoseCovModel::Livo2Compat
-                            : map_pose_cov_model_;
-              const M3d P_RR =
-                  kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
-              const M3d P_pp =
-                  kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
-              const AssociationCandidate cand = BuildAssociationCandidate(
-                  point_world.cast<double>(),
-                  V3d(abcd_vec_[idx][0], abcd_vec_[idx][1],
-                      abcd_vec_[idx][2]),
-                  point_body.cast<double>(), body_cov_list_[idx],
-                  pose.R_.cast<double>(), P_RR, P_pp,
-                  plane_qr_vec_[idx].status == ProbQrPlane::kValid
-                      ? plane_qr_vec_[idx].covariance
-                      : Eigen::Matrix4d::Zero(),
-                  r, _lengths[idx], g_prob_lio_assoc_sigma_num,
-                  assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
-                  apose);
-              const AssocGateResult pg = ProbAssocGate(cand);
-              local_acc.a_attempted++;
-              {
+          /// P5-C1 shadow diagnostics (super_legacy authoritative +
+          /// shadow enabled): probability-gate decisions are COMPUTED
+          /// only; effect_mask_/HTVH/HTVr/map/state/P4/ESKF are never
+          /// touched.
+          if(g_prob_lio_assoc_shadow_enable &&
+             g_prob_lio_association_mode ==
+                 static_cast<int>(AssociationMode::SuperLegacy)){
+            const double r =
+                abcd_vec_[idx][0] * point_world[0] +
+                abcd_vec_[idx][1] * point_world[1] +
+                abcd_vec_[idx][2] * point_world[2] + abcd_vec_[idx][3];
+            const bool legacy_accept =
+                _lengths[idx] > 81.0 * r * r;
+            const MapPoseCovModel apose =
+                assoc_pose_cov_model_ == 2
+                    ? MapPoseCovModel::SuperRightConsistent
+                    : assoc_pose_cov_model_ == 1
+                          ? MapPoseCovModel::Livo2Compat
+                          : map_pose_cov_model_;
+            const M3d P_RR =
+                kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
+            const M3d P_pp =
+                kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
+            const AssociationCandidate cand = BuildAssociationCandidate(
+                point_world.cast<double>(),
+                V3d(abcd_vec_[idx][0], abcd_vec_[idx][1],
+                    abcd_vec_[idx][2]),
+                point_body.cast<double>(), body_cov_list_[idx],
+                pose.R_.cast<double>(), P_RR, P_pp,
+                plane_qr_vec_[idx].status == ProbQrPlane::kValid
+                    ? plane_qr_vec_[idx].covariance
+                    : Eigen::Matrix4d::Zero(),
+                r, _lengths[idx], g_prob_lio_assoc_sigma_num,
+                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
+                apose);
+            const AssocGateResult pg = ProbAssocGate(cand);
+            local_acc.a_attempted++;
+            {
+              const double cm = cand.neighbor_count_mean;
+              const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
+                             : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
+              local_acc.a_bin_n[bin]++;
+            }
+            {
+              const std::uint8_t prev = assoc_prev_decision_[idx];
+              assoc_prev_decision_[idx] = pg.accept ? 1 : 0;
+              if(prev != 255 && prev != (pg.accept ? 1u : 0u))
+                local_acc.a_flip++;
+              if(!pg.accept && !pg.invalid_nonfinite &&
+                 !pg.invalid_negative){
+                local_acc.a_rej_active++;
+                if(need_converge){
+                  local_acc.a_rej_late++;
+                  local_acc.a_sticky++;
+                  if(prev == 1) local_acc.a_reaccept++;
+                }
+              }
+            }
+            if(pg.accept){
+              if(legacy_accept) local_acc.a_la_pa++;
+              else local_acc.a_lr_pa++;
+            }else{
+              if(pg.invalid_nonfinite){
+                local_acc.a_inv_nf++;
+                local_acc.a_lr_pr++;
+              }else if(pg.invalid_negative){
+                local_acc.a_inv_neg++;
+                local_acc.a_lr_pr++;
+              }else if(legacy_accept){
+                local_acc.a_la_pr++;
+                const double z =
+                    cand.sigma_assoc2 > 0.0
+                        ? std::fabs(r) / std::sqrt(cand.sigma_assoc2)
+                        : 1e300;
+                local_acc.a_r_min = std::min(local_acc.a_r_min, std::fabs(r));
+                local_acc.a_r_sum += std::fabs(r);
+                local_acc.a_r_max = std::max(local_acc.a_r_max, std::fabs(r));
+                local_acc.a_s_min = std::min(local_acc.a_s_min, cand.sigma_assoc2);
+                local_acc.a_s_sum += cand.sigma_assoc2;
+                local_acc.a_s_max = std::max(local_acc.a_s_max, cand.sigma_assoc2);
+                local_acc.a_z_min = std::min(local_acc.a_z_min, z);
+                local_acc.a_z_sum += z;
+                local_acc.a_z_max = std::max(local_acc.a_z_max, z);
+                local_acc.a_pv_min = std::min(local_acc.a_pv_min, cand.plane_var);
+                local_acc.a_pv_sum += cand.plane_var;
+                local_acc.a_pv_max = std::max(local_acc.a_pv_max, cand.plane_var);
+                local_acc.a_sv_min = std::min(local_acc.a_sv_min, cand.query_sensor_var);
+                local_acc.a_sv_sum += cand.query_sensor_var;
+                local_acc.a_sv_max = std::max(local_acc.a_sv_max, cand.query_sensor_var);
+                local_acc.a_rv_min = std::min(local_acc.a_rv_min, cand.query_pose_rot_var);
+                local_acc.a_rv_sum += cand.query_pose_rot_var;
+                local_acc.a_rv_max = std::max(local_acc.a_rv_max, cand.query_pose_rot_var);
+                local_acc.a_tv_min = std::min(local_acc.a_tv_min, cand.query_pose_pos_var);
+                local_acc.a_tv_sum += cand.query_pose_pos_var;
+                local_acc.a_tv_max = std::max(local_acc.a_tv_max, cand.query_pose_pos_var);
+                local_acc.a_cnt_mean_sum += cand.neighbor_count_mean;
+                local_acc.a_cnt_max_sum += double(cand.neighbor_count_max);
                 const double cm = cand.neighbor_count_mean;
                 const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
                                : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
-                local_acc.a_bin_n[bin]++;
-              }
-              {
-                const std::uint8_t prev = assoc_prev_decision_[idx];
-                assoc_prev_decision_[idx] = pg.accept ? 1 : 0;
-                if(prev != 255 && prev != (pg.accept ? 1u : 0u))
-                  local_acc.a_flip++;
-                if(!pg.accept && !pg.invalid_nonfinite &&
-                   !pg.invalid_negative){
-                  local_acc.a_rej_active++;
-                  if(need_converge){
-                    local_acc.a_rej_late++;
-                    local_acc.a_sticky++;
-                    if(prev == 1) local_acc.a_reaccept++;
-                  }
-                }
-              }
-              if(pg.accept){
-                if(legacy_accept) local_acc.a_la_pa++;
-                else local_acc.a_lr_pa++;
+                local_acc.a_bin_lapr[bin]++;
+                local_acc.a_bin_pv[bin] += cand.plane_var;
+                local_acc.a_bin_z[bin] += z;
               }else{
-                if(pg.invalid_nonfinite){
-                  local_acc.a_inv_nf++;
-                  local_acc.a_lr_pr++;
-                }else if(pg.invalid_negative){
-                  local_acc.a_inv_neg++;
-                  local_acc.a_lr_pr++;
-                }else if(legacy_accept){
-                  local_acc.a_la_pr++;
-                  const double z =
-                      cand.sigma_assoc2 > 0.0
-                          ? std::fabs(r) / std::sqrt(cand.sigma_assoc2)
-                          : 1e300;
-                  local_acc.a_r_min = std::min(local_acc.a_r_min, std::fabs(r));
-                  local_acc.a_r_sum += std::fabs(r);
-                  local_acc.a_r_max = std::max(local_acc.a_r_max, std::fabs(r));
-                  local_acc.a_s_min = std::min(local_acc.a_s_min, cand.sigma_assoc2);
-                  local_acc.a_s_sum += cand.sigma_assoc2;
-                  local_acc.a_s_max = std::max(local_acc.a_s_max, cand.sigma_assoc2);
-                  local_acc.a_z_min = std::min(local_acc.a_z_min, z);
-                  local_acc.a_z_sum += z;
-                  local_acc.a_z_max = std::max(local_acc.a_z_max, z);
-                  local_acc.a_pv_min = std::min(local_acc.a_pv_min, cand.plane_var);
-                  local_acc.a_pv_sum += cand.plane_var;
-                  local_acc.a_pv_max = std::max(local_acc.a_pv_max, cand.plane_var);
-                  local_acc.a_sv_min = std::min(local_acc.a_sv_min, cand.query_sensor_var);
-                  local_acc.a_sv_sum += cand.query_sensor_var;
-                  local_acc.a_sv_max = std::max(local_acc.a_sv_max, cand.query_sensor_var);
-                  local_acc.a_rv_min = std::min(local_acc.a_rv_min, cand.query_pose_rot_var);
-                  local_acc.a_rv_sum += cand.query_pose_rot_var;
-                  local_acc.a_rv_max = std::max(local_acc.a_rv_max, cand.query_pose_rot_var);
-                  local_acc.a_tv_min = std::min(local_acc.a_tv_min, cand.query_pose_pos_var);
-                  local_acc.a_tv_sum += cand.query_pose_pos_var;
-                  local_acc.a_tv_max = std::max(local_acc.a_tv_max, cand.query_pose_pos_var);
-                  local_acc.a_cnt_mean_sum += cand.neighbor_count_mean;
-                  local_acc.a_cnt_max_sum += double(cand.neighbor_count_max);
-                  const double cm = cand.neighbor_count_mean;
-                  const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
-                                 : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
-                  local_acc.a_bin_lapr[bin]++;
-                  local_acc.a_bin_pv[bin] += cand.plane_var;
-                  local_acc.a_bin_z[bin] += z;
-                }else{
-                  local_acc.a_lr_pr++;
-                }
-              }
+                local_acc.a_lr_pr++;
               }
             }
+            }
           }
-
-
           if(!effect_mask_[idx]) continue;
 
           auto& abcd = abcd_vec_[idx];
