@@ -1,0 +1,24 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0830 18:35:55.174108 74426 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0830 18:35:55.180491 74426 ROSWrapper.cpp:206] [32m ---> Using Lidar type: UNKNOWN[0m
+I0830 18:35:55.182878 74426 super_lio.cpp:86] [32m ---> [SuperLIO]: initialized.[0m
+I0830 18:35:55.343233 74426 super_lio.cpp:94] [32m ---> [SuperLIO]: KF init done[0m
+I0830 18:35:55.350555 74426 super_lio.cpp:103] [32m ---> [SuperLIO]: Map init done[0m
+I0830 18:36:15.476532 74426 timer.h:40] >>> ===== Printing run time =====
+I0830 18:36:15.476563 74426 timer.h:46] > [ DownSample ] average time usage: 0.209743 ms , called times: 3981
+I0830 18:36:15.476586 74426 timer.h:46] > [ Observe ] average time usage: 2.23603 ms , called times: 3981
+I0830 18:36:15.476599 74426 timer.h:46] > [ Undistort ] average time usage: 0.316985 ms , called times: 3981
+I0830 18:36:15.476612 74426 timer.h:46] > [ UpdateMap ] average time usage: 0.437728 ms , called times: 3981
+[offline_node] bag=/home/lc/super_livo/bag/NTU/eee_01/eee_01.bag start_offset=-1.000 duration=-1.000
+[offline_node] wrapper subscribers connected
+[OfflineReader] view 1609059013.115s..1609059411.798s lidar=3987 imu=153347 other=0 wall=20.074s sensor=398.683s speed=19.860x
+
+=== Offline accounting ===
+bag_relevant_messages: 157334
+lidar read: 3987   imu read: 153347   other: 0
+first/last bag time: 1609059013.114720 / 1609059411.797588
+first/last sensor time: 1609059013.114590 / 1609059411.797436
+sensor_duration_s: 398.683
+wall_processing_s: 20.074
+speed_factor: 19.860x
+trajectory: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_183550/trajectory.tum

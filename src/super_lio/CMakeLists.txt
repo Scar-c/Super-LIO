@@ -117,3 +117,17 @@ target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
 )
+
+
+# Prob-LIO P1 tests (S1 point covariance; self-contained, no gtest needed).
+add_executable(test_point_covariance
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_point_covariance.cpp
+)
+target_include_directories(test_point_covariance PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_point_covariance ${catkin_LIBRARIES})
+add_test(NAME prob_lio_point_covariance
+         COMMAND test_point_covariance)

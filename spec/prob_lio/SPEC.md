@@ -25,7 +25,7 @@ remain Super-LIO's own.
 | Stage | Name | Status |
 |---|---|---|
 | P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P0-1, P0-2) |
-| P1 | Current Point Probability | NOT STARTED |
+| P1 | Current Point Probability | **CLOSED/PASS** (round P1-1) |
 | P2 | Probabilistic Map Plumbing | NOT STARTED |
 | P3 | Super-native QR Plane Uncertainty | NOT STARTED |
 | P4 | Probabilistic P2P Weighting | NOT STARTED |
@@ -271,6 +271,48 @@ FAST-LIVO2-Dataset download link").
   follow-up docs commit records it in this file).
 - Gates: P0-EVAL PASS; HARD GATE A PASS.
 
+### Round P1-1 — Current Point Probability (prompt2 Part B, seam S1)
+
+- Prompt: `prompts/prob_lio/prompt2_P0_eval_closure_P1_point_probability.md`.
+- Starting HEAD: Commit A SHA (P0 corrective closure; see git log).
+- What changed (S1 only; deliberate non-changes listed below):
+  - `src/super_lio/include/lio/point_covariance.h` (new): `CalcLidarPointCov`
+    (verbatim FAST-LIVO2 `calcBodyCov` semantics incl. float narrowing and
+    PCL `DEG2RAD` constant), `CovarianceIsValid`, `RotateCovariance`
+    (future-seam, tested), `ComputeBodyCovList` (S1 production seam);
+  - `params.h/cpp`: `g_prob_lio_point_cov` (default false),
+    `g_lidar_dept_err` (default 0.05 m), `g_lidar_beam_err` (default 0.02 deg)
+    — defaults = FAST-LIVO2 code defaults; NTU.yaml overrides with the
+    FAST-LIVO2 NTU_VIRAL.yaml values (0.02 m / 0.01 deg);
+  - `ROSWrapper.cpp`: param loading (`/lio/prob_lio/point_cov_enable`,
+    `/lio/sensor/dept_err`, `/lio/sensor/beam_err`);
+  - `super_lio.h/.cpp`: `body_cov_list_` (entry i <-> `points_body_v3_[i]`,
+    resized every scan), computed in `Observe()` guarded by the flag, plus a
+    bounded one-line summary in `printTimeRecord()` (P1-ON only);
+  - `config/NTU.yaml`: `prob_lio` block + sensor `dept_err`/`beam_err`;
+  - `CMakeLists.txt`: `test_point_covariance` target + `add_test`;
+  - `tests/prob_lio/test_point_covariance.cpp` (new): G-P1.1..G-P1.4;
+  - `tools/prob_lio/run_baseline.sh`: `--set key=value` param override.
+- Deliberately NOT changed (P2–P5): no map point covariance (S3), no
+  `OctVox`/`AddPoint`/`insert`/`getTopK` storage change (S5/S6/S7), no QR
+  plane solve change (S8), no QR plane covariance (S9), no `compute_error()`
+  change (S10), fixed `1000` unchanged (S11), no pose covariance in final
+  `R_i` (S12), ESKF math unchanged (S13), no probabilistic association (S2).
+- Ending HEAD/commit: <Commit B SHA, recorded by the docs follow-up commit>.
+- Gates: G-P1.1..G-P1.7 PASS (see §10).
+
+### P1 runtime evidence
+
+- Run: `run_baseline.sh --offline --set /lio/prob_lio/point_cov_enable=true`
+  on the full `eee_01` bag → `results/prob_lio/run_20260830_183734/`.
+- P1 seam executed: 3981 frames, 13,787,537 points, **0 invalid** covariance
+  (`node.log`: `[Prob-LIO P1] cov frames: 3981, points: 13787537, invalid: 0`).
+- Trajectory sha256 `6a8cc65a...` / md5 `4bd0543e...` — **byte-identical to
+  the pre-P1 baseline** (cmp PASS).
+- Official ATE: 0.118875639 m, matched 3329, rows 3981 (exact parity).
+- Default-OFF sanity run (`run_20260830_183810`): also byte-identical.
+- Wall time 17.7 s (22.5x) vs baseline 16.9 s (~5% overhead, no tuning).
+
 ## 10. Gate summary
 
 ### P0 gates (round P0-1)
@@ -293,12 +335,17 @@ FAST-LIVO2-Dataset download link").
 | P0-EVAL | pre-P1 baseline == historical `60b57aa` reference | PASS | rows 3981==3981, matched 3329==3329, ATE 0.118875639==0.118875639 (|Δ|=0 ≤ 1e-6); `baseline_eee_01_PRE_P1.yaml` |
 | HARD GATE A | authorization boundary before P1 | PASS | all 8 conditions: evaluator provenance, reusable evaluator, frozen consistent baseline, byte/numeric parity separated, seam vocabulary repaired, production semantics unchanged, closure committed, worktree clean |
 
-### P1 gates — pending (round P1-1)
+### P1 gates (round P1-1)
 
-G-P1.1 (formula parity), G-P1.2 (covariance validity), G-P1.3 (frame/rotation
-consistency), G-P1.4 (point/covariance identity), G-P1.5 (no estimator
-influence), G-P1.6 (trajectory byte parity), G-P1.7 (accuracy parity).
-Status recorded in §14 after the P1 round.
+| Gate | Invariant | Status | Evidence |
+|---|---|---|---|
+| G-P1.1 | FAST-LIVO2 formula parity | PASS | `tests/prob_lio/test_point_covariance.cpp` — bit-exact match vs verbatim reference (incl. float narrowing + PCL DEG2RAD constant) across near/medium/far, oblique, axis-aligned points; negative mutations (dept_err×1.1, beam_err×2, missing beam term) all detected; binary: `devel/lib/super_lio/test_point_covariance`, 146 checks / 0 failures |
+| G-P1.2 | covariance validity | PASS | finite/symmetric/PSD for all fixtures; non-symmetric-indefinite and NaN fixtures rejected by `CovarianceIsValid` |
+| G-P1.3 | frame/rotation consistency | PASS | `RotateCovariance` (S2/S3-ready seam) == independent triple-loop `R·Σ·Rᵀ`; wrong (inverse) rotation detected |
+| G-P1.4 | point/covariance identity | PASS | `ComputeBodyCovList` resized/cleared per scan (empty/3/100/2 points), entry i belongs to point i; reordered fixture detected |
+| G-P1.5 | no estimator influence | PASS | diff vs Commit A: only S1 plumbing files; zero changes to OctVoxMap/QR/gate/weight/ESKF (see §9 P1-1) |
+| G-P1.6 | trajectory parity | PASS | P1-ON full-run trajectory byte-identical to pre-P1 baseline (`cmp` + sha256 `6a8cc65a...`) |
+| G-P1.7 | accuracy parity | PASS | rows 3981==3981, matched 3329==3329, ATE 0.118875639 (|Δ|=0 ≤ 1e-6) |
 
 ## 11. Conventions
 

@@ -445,6 +445,18 @@ void SuperLIO::Observe(){
     _lengths[i] = points_body_v3_[i].norm();
   }
 
+  /// Prob-LIO S1 (P1): compute the FAST-LIVO2-parity sensor covariance for
+  /// each current downsampled scan point (body frame, scan end). Plumbing
+  /// only: not consumed by the estimator until later stages.
+  if(g_prob_lio_point_cov){
+    ComputeBodyCovList(points_body_v3_, g_lidar_dept_err, g_lidar_beam_err, body_cov_list_);
+    body_cov_frames_++;
+    body_cov_points_ += body_cov_list_.size();
+    for(const auto& cov : body_cov_list_){
+      if(!CovarianceIsValid(cov)) body_cov_invalid_++;
+    }
+  }
+
   ivox_->reset_max_group();
   int iter_num = 0;
 
@@ -577,6 +589,11 @@ void SuperLIO::Output(){
 void SuperLIO::printTimeRecord(){
   if(!g_time_eva) return;
   time_record_.PrintAll();
+  if(g_prob_lio_point_cov){
+    LOG(INFO) << GREEN << " ---> [Prob-LIO P1] cov frames: " << body_cov_frames_
+              << ", points: " << body_cov_points_
+              << ", invalid: " << body_cov_invalid_ << RESET;
+  }
 }
 
 } // namespace END.

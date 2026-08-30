@@ -13,6 +13,8 @@
 #     [--out <results-dir>]         (default: results/prob_lio)
 #     [--duration <seconds>]        (default: whole bag)
 #     [--rate <playback-rate>]      (default: 1.0, online mode only)
+#     [--set <key=value>]           (rosparam override, repeatable; e.g.
+#                                    --set /lio/prob_lio/point_cov_enable=true)
 #     [--play-topics <t1,t2>]       (default: /os1_cloud_node1/points,/imu/imu)
 #     [--record-topics <t1,t2>]     (default: /lio/odom,/lio/path)
 #
@@ -32,6 +34,7 @@ OUT="$WS_ROOT/results/prob_lio"
 DURATION=""
 RATE="1.0"
 OFFLINE=0
+PARAM_OVERRIDES=()
 PLAY_TOPICS="/os1_cloud_node1/points,/imu/imu"
 RECORD_TOPICS="/lio/odom,/lio/path"
 
@@ -43,6 +46,7 @@ while [ $# -gt 0 ]; do
     --out) OUT="$2"; shift 2 ;;
     --duration) DURATION="$2"; shift 2 ;;
     --rate) RATE="$2"; shift 2 ;;
+    --set) PARAM_OVERRIDES+=("$2"); shift 2 ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -109,6 +113,12 @@ rosparam delete /lio/offline 2>/dev/null || true
 rosparam load "$CONFIG"
 rosparam set /lio/offline/bag "$BAG"
 [ -n "$DURATION" ] && rosparam set /lio/offline/duration "$DURATION"
+
+for kv in "${PARAM_OVERRIDES[@]:-}"; do
+  [ -n "$kv" ] || continue
+  rosparam set "${kv%%=*}" "${kv#*=}"
+  echo "param override: $kv" | tee -a "$META_LOG"
+done
 
 if [ "$OFFLINE" -eq 1 ]; then
   rosparam set /lio/offline/out_dir "$RUN_DIR"

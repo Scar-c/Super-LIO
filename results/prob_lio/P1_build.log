@@ -1,0 +1,66 @@
+[  0%] Built target geometry_msgs_generate_messages_nodejs
+[  0%] Built target std_msgs_generate_messages_nodejs
+[  0%] Built target sensor_msgs_generate_messages_nodejs
+[ 10%] Built target basic
+[ 10%] Built target geometry_msgs_generate_messages_eus
+[ 10%] Built target sensor_msgs_generate_messages_eus
+[ 10%] Built target geometry_msgs_generate_messages_cpp
+[ 10%] Built target std_msgs_generate_messages_cpp
+[ 10%] Built target std_msgs_generate_messages_eus
+[ 10%] Built target std_msgs_generate_messages_py
+[ 10%] Built target sensor_msgs_generate_messages_cpp
+[ 10%] Built target sensor_msgs_generate_messages_py
+[ 10%] Built target geometry_msgs_generate_messages_py
+[ 10%] Built target geometry_msgs_generate_messages_lisp
+[ 10%] Built target sensor_msgs_generate_messages_lisp
+[ 10%] Built target std_msgs_generate_messages_lisp
+Scanning dependencies of target test_point_covariance
+[ 10%] Built target _super_lio_generate_messages_check_deps_CloudPose
+[ 10%] Built target _super_lio_generate_messages_check_deps_CloudPose2
+[ 13%] Building CXX object super_lio/CMakeFiles/test_point_covariance.dir/home/lc/super_livo/src/Super-LIO/tests/prob_lio/test_point_covariance.cpp.o
+Scanning dependencies of target lio
+[ 33%] Building CXX object super_lio/CMakeFiles/lio.dir/src/lio/super_lio_reloc.cpp.o
+[ 33%] Built target super_lio_generate_messages_nodejs
+[ 33%] Building CXX object super_lio/CMakeFiles/lio.dir/src/lio/super_lio.cpp.o
+[ 36%] Built target super_lio_generate_messages_eus
+[ 43%] Built target super_lio_generate_messages_cpp
+[ 60%] Built target super_lio_generate_messages_lisp
+[ 60%] Built target super_lio_generate_messages_py
+[ 60%] Built target super_lio_generate_messages
+/home/lc/super_livo/src/Super-LIO/tests/prob_lio/test_point_covariance.cpp:51: warning: "DEG2RAD" redefined
+   51 | #define DEG2RAD(x) ((x) * (M_PI / 180.0))
+      | 
+In file included from /usr/include/pcl-1.10/pcl/point_types.h:42,
+                 from /home/lc/super_livo/src/Super-LIO/src/basic/include/basic/alias.h:15,
+                 from /home/lc/super_livo/src/Super-LIO/src/super_lio/include/lio/point_covariance.h:26,
+                 from /home/lc/super_livo/src/Super-LIO/tests/prob_lio/test_point_covariance.cpp:18:
+/usr/include/pcl-1.10/pcl/pcl_macros.h:150: note: this is the location of the previous definition
+  150 | #define DEG2RAD(x) ((x)*0.017453293)
+      | 
+[ 63%] Linking CXX executable /home/lc/super_livo/src/Super-LIO/devel/lib/super_lio/test_point_covariance
+[ 63%] Built target test_point_covariance
+[ 66%] Linking CXX shared library /home/lc/super_livo/src/Super-LIO/devel/lib/liblio.so
+[ 76%] Built target lio
+Scanning dependencies of target super_lio_offline_node
+Scanning dependencies of target super_lio_node
+Scanning dependencies of target relocation_node
+[ 80%] Building CXX object super_lio/CMakeFiles/super_lio_node.dir/src/apps/super_lio_node.cpp.o
+[ 83%] Building CXX object super_lio/CMakeFiles/super_lio_offline_node.dir/src/apps/super_lio_offline_node.cpp.o
+[ 86%] Building CXX object super_lio/CMakeFiles/relocation_node.dir/src/apps/relocation_node.cpp.o
+[ 90%] Linking CXX executable /home/lc/super_livo/src/Super-LIO/devel/lib/super_lio/relocation_node
+[ 93%] Linking CXX executable /home/lc/super_livo/src/Super-LIO/devel/lib/super_lio/super_lio_offline_node
+[ 96%] Linking CXX executable /home/lc/super_livo/src/Super-LIO/devel/lib/super_lio/super_lio_node
+[ 96%] Built target relocation_node
+[ 96%] Built target super_lio_node
+[100%] Built target super_lio_offline_node
+Base path: /home/lc/super_livo/src/Super-LIO
+Source space: /home/lc/super_livo/src/Super-LIO/src
+Build space: /home/lc/super_livo/src/Super-LIO/build
+Devel space: /home/lc/super_livo/src/Super-LIO/devel
+Install space: /home/lc/super_livo/src/Super-LIO/install
+####
+#### Running command: "make cmake_check_build_system" in "/home/lc/super_livo/src/Super-LIO/build"
+####
+####
+#### Running command: "make -j32 -l32" in "/home/lc/super_livo/src/Super-LIO/build"
+####

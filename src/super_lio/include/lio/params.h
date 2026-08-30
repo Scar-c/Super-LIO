@@ -55,6 +55,13 @@ namespace LI2Sup{
   extern double g_imu_nba;
   extern double g_imu_nbg;
 
+  /// Prob-LIO (P1, S1): current lidar point covariance plumbing.
+  /// FAST-LIVO2-parity sensor noise model; computed but not consumed by the
+  /// estimator until later stages.
+  extern bool   g_prob_lio_point_cov;   // enable P1 covariance plumbing
+  extern double g_lidar_dept_err;       // [m]   depth/range std (FAST-LIVO2 "dept_err")
+  extern double g_lidar_beam_err;       // [deg] beam-angle std (FAST-LIVO2 "beam_err", DEG2RAD semantics)
+
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame
   extern BASIC::M3  g_lidar_robo_yaw; // lidar in robot frame rotation only yaw

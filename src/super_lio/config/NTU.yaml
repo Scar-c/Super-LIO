@@ -27,6 +27,17 @@ lio:
     imu_ng: 0.1
     imu_nba: 0.0001
     imu_nbg: 0.0001
+    # Prob-LIO P1 (S1): FAST-LIVO2-parity sensor noise model.
+    # Units: dept_err [m], beam_err [DEG] (FAST-LIVO2 DEG2RAD semantics).
+    # Values match the FAST-LIVO2 NTU_VIRAL.yaml reference (dept_err 0.02, beam_err 0.01).
+    dept_err: 0.02
+    beam_err: 0.01
+
+  # Prob-LIO plumbing switches
+  prob_lio:
+    # P1: compute per-point body covariance (S1). Default OFF (baseline);
+    # when ON the covariance is computed but NOT consumed by the estimator.
+    point_cov_enable: false
 
   # Extrinsic Parameters
   extrinsic:
