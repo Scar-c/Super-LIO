@@ -1,0 +1,10 @@
+schema_version: 1
+left: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_active/effective_rosparams.yaml
+right: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_sensor_corr/effective_rosparams.yaml
+allowed_keys:
+- lio/prob_lio/association_sensor_cov_model
+differences:
+- key: lio/prob_lio/association_sensor_cov_model
+  left: livo2_active_compat
+  right: extrinsic_consistent
+status: PASS
