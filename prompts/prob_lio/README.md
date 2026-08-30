@@ -15,6 +15,7 @@ Index of all prob-lio round prompts (historical; do not delete).
 | P9 (failed) | — (see `spec/prob_lio/HISTORY.md`) | terminal P5 lifecycle corrective | — | DISCARDED (compile-broken; backup `backup/p9-failed-20260831_003717`) |
 | P9-REDO | `prompt9_REDO_from_555d94a.md` | redo from `555d94a`; frame identity, iteration accounting, lifecycle state machine, true transitions, analyzer integrity | P5-4 | CLOSED; P5 EXPERIMENTAL / NON-CANONICAL |
 | P10 | `prompt10_documentation_consolidation.md` | documentation consolidation / canonicalization before generalization | docs | CLOSED |
+| P11 | `prompt11_generalization_ablation_pipeline.md` | generalization ablation matrix and reusable P4/P5 evaluation pipeline | P4/P5/generalization | ACTIVE / IN PROGRESS |
 
 Corrective/superseded relationships:
 - prompt3 corrects prompt2's P1 frame semantics;

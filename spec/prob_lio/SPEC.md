@@ -14,22 +14,25 @@ remain Super-LIO's own.
 1. FAST-LIVO2 probabilistic semantics are the **reference** (see §7.2 ledger).
 2. Super-LIO compact map / HKNN correspondence remains.
 3. Super-LIO QR plane estimator remains (`calc_plane_coeff`, `ColPivHouseholderQR`).
-4. QR uncertainty must later propagate through the **actual QR estimator**
-   (`calc_plane_coeff` in `src/lio/super_lio.cpp`), not through a parallel
-   eigen/PCA estimator.
-5. Super-LIO fixed `1000` P2P weighting and `compute_error()` gating remain
-   frozen until a probabilistic replacement is introduced in a later stage.
+4. P3 propagates plane uncertainty through Super-LIO's actual QR estimator
+   (`calc_plane_coeff` in `src/lio/super_lio.cpp`); no PCA/eigen substitute is
+   used.
+5. P4 probabilistic mode replaces the fixed-1000 measurement information with
+   the audited probabilistic soft weight.
+6. Canonical association remains Super legacy `compute_error()`.
+   P5 probabilistic association is experimental only.
 
 ## 3. Stage roadmap
 
 | Stage | Name | Status |
 |---|---|---|
-| P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-VERIFIED** (rounds P0-1, P0-2) |
-| P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
-| P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
-| P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
-| P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
-| P5 | Probabilistic Association (optional / second stage) | **EXPERIMENTAL / NON-CANONICAL** (rounds P5-1..P5-4; rejected as canonical on empirical performance; root cause unresolved; see §5A.1/§5A.5) |
+| P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER VERIFIED** |
+| P1 | Current Point Probability | **CLOSED / OWNER VERIFIED** |
+| P2 | Probabilistic Map Plumbing | **CLOSED / OWNER VERIFIED** |
+| P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** |
+| P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** |
+| P5 | Probabilistic Association (optional / second stage) | **EXPERIMENTAL / NON-CANONICAL** |
+| Generalization | Cross-dataset ablation | **READY / NOT STARTED** (becomes ACTIVE / IN PROGRESS when Prompt11 real runs begin) |
 
 ## 4. Authoritative seam IDs (S0–S13)
 
@@ -92,7 +95,7 @@ Round-history sections below are records and may quote superseded claims
 | P3 | CLOSED / OWNER VERIFIED |
 | P4 | CLOSED / OWNER VERIFIED |
 | P5 | EXPERIMENTAL / NON-CANONICAL |
-| Generalization | READY / NOT STARTED |
+| Generalization | READY / NOT STARTED (Prompt11 preflight; ACTIVE / IN PROGRESS after the first real run) |
 
 P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
 the recommended default.
@@ -144,7 +147,7 @@ association covariance (association-only; S12).
 | S1 | LiDAR sensor covariance, correct LiDAR→IMU frame chain | P1 | `point_covariance.h` (`ComputePointCovariance`/extrinsic chain) | extrinsic-consistent; `R_LI=I` on NTU so no `eee_01` effect |
 | S2 | canonical association = Super legacy; P5 association experimental | P4/P5 | `super_lio.cpp` Observe applied gate (`AssociationMode::SuperLegacy`) | P5 is ablation only |
 | S3 | map-point covariance | P2 | `OctVoxMap.hpp` cov accumulation (`map_cov_list_`) | `livo2_compat` mode active |
-| S4 | initial-map covariance | P2 | `super_lio.cpp` map_init (`g_map_cov_init_enable`) | |
+| S4 | initial-map covariance | P2 | `super_lio.cpp` `map_init()` (`g_prob_lio_cov_enable` master) | |
 | S5 | covariance storage, canonical precision `double` | P2 | `map_cov_storage_precision` | |
 | S6 | compact representative covariance approximation | P2 | `OctVoxMap.hpp` representative accumulation | modeling approximation (see 5A.6) |
 | S7 | Super HKNN unchanged | P0 | `KNNHeap<5>` / `OctVoxMap.hpp:307-381` | |
@@ -983,8 +986,11 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
   ATE 0.088831554; 3981/3329 contract.
 - Integrity: 14,939 (frame,iter) records, 3,981 frames, iterations
   [1,2,3,4]; sum(iterations_executed) == records (OK).
-- True iteration histogram (final iteration per frame): iter2 395 /
-  iter3 195 / iter4 3391. 3,586 frames reach the need_converge phase.
+- True iteration histogram (final iteration per frame): `obs_iter=2` 395 /
+  `obs_iter=3` 195 / `obs_iter=4` 3391. Because logging is 1-based,
+  `obs_iter=1` maps to ESKF `iter=0` and `obs_iter=4` maps to ESKF
+  `iter=3`; therefore the convergence callback (`need_converge=true`) count
+  is **3391**, not 3586. Separately, 3586 frames record `obs_iter > 2`.
 - Quadrants (geometry-valid candidates, corrected guard ordering):
   attempted 31,334,113; LA_PA 31,103,450 / LA_PR 213,731 / LR_PA 2,269 /
   LR_PR 14,663 (matrix sum == attempted OK); invalid 0/0.
@@ -1049,6 +1055,13 @@ bounded scope (no ESKF / HKNN / QR / P4 / gate changes).
 experimental ablation.** Generalization NOT STARTED / OWNER NEXT
 DECISION. P5 is NOT Owner-verified.
 
+> **SUPERSEDED / INVALIDATED — historical record only.** The detailed
+> prompt8/P5-3 subsection below contains earlier lifecycle wording retained
+> for traceability. In case of conflict, §5A.1/§5A.5 and the prompt9-REDO
+> correction are authoritative: clean P5 regression is reproducible, its exact
+> root cause is unresolved, and P5 is non-canonical because of empirical
+> performance rather than a proven sole lifecycle cause.
+
 ### Round P5-3 — FINAL P5 closure: production-seam unification + IEKF-lifecycle diagnosis (prompt8)
 
 - Prompt: `prompts/prob_lio/prompt8_FINAL_P5_lifecycle_closure.md`.
@@ -1080,8 +1093,9 @@ DECISION. P5 is NOT Owner-verified.
   > `reset()` destroying frame identity (iter2+ records collapsed onto a
   > fake frame 0). Corrected evidence (P5-4 round, Run A0): frames execute
   > 2–4 iterations — final-iteration histogram iter2: 395 / iter3: 195 /
-  > iter4: 3391 of 3981 frames — and 3586 frames record obs_iter > 2 (see
-  > 5A.5 note on exact semantics). The prob gate IS re-evaluated across
+  > iter4: 3391 of 3981 frames — and 3586 frames record obs_iter > 2. The
+  > 3391 obs_iter=4 records are the `need_converge` callback count (logging is
+  > 1-based; see §5A.5). The prob gate IS re-evaluated across
   > non-converged iterations (acc2rej 29,765 / rej2acc 61,994 / flip
   > 91,759). SUPERSEDED-framing note (prompt10): the convergence-phase
   > claim "performs NO probability re-evaluation" is SOURCE-VERIFIED only
