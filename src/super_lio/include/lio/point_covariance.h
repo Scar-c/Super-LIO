@@ -504,6 +504,86 @@ inline AssocGateResult ProbAssocGate(const AssociationCandidate& c) {
   return ProbAssocGate(c.residual, c.sigma_assoc2, c.sigma_num);
 }
 
+/// P9-F1: shared association-evaluation abstraction — the ONE production
+/// authority for the probability predicates (applied P5 path and shadow
+/// diagnostics consume the same evaluation record).
+struct AssocEvaluation {
+  bool legacy_accept = false;   // legacy range gate (length > 81 r^2)
+  bool prob_accept = false;     // ProbAssocGate accept
+  bool invalid_nonfinite = false;
+  bool invalid_negative = false;
+  int quadrant = 0;             // 0 LA_PA, 1 LA_PR, 2 LR_PA, 3 LR_PR
+};
+
+inline AssocEvaluation EvaluateAssociationPredicates(
+    const AssociationCandidate& c) {
+  AssocEvaluation ev;
+  ev.legacy_accept = LegacyAssocGate(c);
+  const AssocGateResult g = ProbAssocGate(c);
+  ev.prob_accept = g.accept;
+  ev.invalid_nonfinite = g.invalid_nonfinite;
+  ev.invalid_negative = g.invalid_negative;
+  ev.quadrant = (ev.prob_accept ? 0 : 1) + (ev.legacy_accept ? 0 : 2);
+  return ev;
+}
+
+/// P9-T3: per-candidate production lifecycle state machine, one-to-one with
+/// Observe()'s candidate ordering:
+///   if (!need_converge):  effect_mask = geometry_valid   (geometry refresh)
+///   if (!effect_mask):    skip BEFORE the probability gate (early guard)
+///   probability gate; if (overwrite_mask): effect_mask = prob_accept
+///
+/// overwrite_mask=true models the APPLIED P5 path (prob decision owns the
+/// mask, so a prior prob reject becomes sticky in the converged phase);
+/// overwrite_mask=false models the shadow path (mask untouched by prob).
+enum class AssocEvalState : std::uint8_t {
+  GeometryInvalid = 0,         // mask false for geometry reasons
+  SkippedPriorProbReject = 1,  // skip before the prob gate; prior prob reject
+  ProbRejected = 2,            // gate reached, rejected this iteration
+  Active = 3,                  // gate reached, accepted this iteration
+};
+
+struct P5Lifecycle {
+  bool effect_mask = false;    // persisted production mask
+  bool prev_prob_accept = false;
+  bool has_prev = false;
+  std::uint64_t accept_to_reject = 0;             // prev A -> current R
+  std::uint64_t reject_to_accept = 0;             // prev R -> current A
+  std::uint64_t decision_flip = 0;                // decision != prev iter
+  std::uint64_t sticky_skip_due_prior_prob_reject = 0;
+  std::uint64_t counterfactual_reaccept = 0;      // sticky skip whose
+                                                  // diagnostic evaluation
+                                                  // accepts (counted by the
+                                                  // caller)
+  void reset() { *this = P5Lifecycle(); }
+
+  AssocEvalState Step(bool need_converge, bool geometry_valid,
+                      bool prob_accept, bool overwrite_mask) {
+    if (!need_converge) {
+      effect_mask = geometry_valid;
+    }
+    if (!effect_mask) {
+      if (has_prev && !prev_prob_accept && overwrite_mask) {
+        sticky_skip_due_prior_prob_reject++;
+        return AssocEvalState::SkippedPriorProbReject;
+      }
+      return AssocEvalState::GeometryInvalid;
+    }
+    if (has_prev) {
+      if (prev_prob_accept && !prob_accept) accept_to_reject++;
+      if (!prev_prob_accept && prob_accept) reject_to_accept++;
+      if (prev_prob_accept != prob_accept) decision_flip++;
+    }
+    has_prev = true;
+    prev_prob_accept = prob_accept;
+    if (overwrite_mask) {
+      effect_mask = prob_accept;
+    }
+    return prob_accept ? AssocEvalState::Active
+                       : AssocEvalState::ProbRejected;
+  }
+};
+
 }  // namespace LI2Sup
 
 #endif  // POINT_COVARIANCE_HPP_

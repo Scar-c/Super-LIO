@@ -118,7 +118,10 @@ protected:
   std::atomic<std::uint64_t> assoc_invalid_negative_{0};
 
   /// Prob-LIO P5-C1 shadow diagnostics: four-way disagreement matrix and
-  /// per-frame bounded summaries (read-only wrt estimator state).
+  /// per-frame bounded summaries (read-only wrt estimator state). Public
+  /// (POD diagnostics) so the lifecycle test can exercise the exact
+  /// production record/identity contract.
+public:
   struct FrameAssocSummary {
     double timestamp = 0.0;
     int frame_id = 0;          // Observe scan index (0-based)
@@ -133,10 +136,16 @@ protected:
     std::uint64_t sticky_reject = 0;            // reject in the converged
                                                 // (final) phase
     std::uint64_t decision_flip = 0;            // decision != previous iter
-    std::uint64_t counterfactual_reaccept = 0;  // sticky reject whose
-                                                // previous-iter decision
-                                                // was accept (flip-to-reject
-                                                // in the final iteration)
+    // P9-T4: true transition semantics (P5Lifecycle helper, applied-P5
+    // synthetic ordering; definitions in SPEC):
+    std::uint64_t prob_accept_to_reject = 0;    // prev ACCEPT -> REJECT
+    std::uint64_t prob_reject_to_accept = 0;    // prev REJECT -> ACCEPT
+    std::uint64_t sticky_skip_due_prior_prob_reject = 0;  // converged-phase
+                                                // skip before the prob gate
+                                                // with a prior prob reject
+    std::uint64_t counterfactual_reaccept = 0;  // sticky skip whose
+                                                // diagnostic current
+                                                // evaluation accepts
     double r_min = 1e300, r_sum = 0.0, r_max = 0.0;      // LA_PR |r|
     double s_min = 1e300, s_sum = 0.0, s_max = 0.0;      // sigma_assoc
     double z_min = 1e300, z_sum = 0.0, z_max = 0.0;      // |r|/sqrt(var)
@@ -152,13 +161,22 @@ protected:
     };
     Bin bins[5];  // count bins: 1, 2-4, 5-9, 10-14, 15-20
     void reset() { *this = FrameAssocSummary(); }
+    // P9-T1: iteration-local stats reset preserving the immutable frame
+    // identity (frame_id / timestamp set once at scan start).
+    void resetIterationStats() {
+      const int fid = frame_id;
+      const double ts = timestamp;
+      *this = FrameAssocSummary();
+      frame_id = fid;
+      timestamp = ts;
+    }
   };
   FrameAssocSummary frame_assoc_acc_;          // current-(scan,iter) accumulator
   int assoc_frame_id_ = 0;                     // scan counter for records
   std::vector<FrameAssocSummary> frame_assoc_summaries_;
-  /// P8: previous-iteration prob decision per index (255 = unknown; reset
-  /// every scan) for flip/reaccept lifecycle accounting.
-  std::vector<std::uint8_t> assoc_prev_decision_;
+  /// P9-T3: per-candidate production lifecycle state (reset every scan);
+  /// carries the applied-P5 synthetic mask + transition counters.
+  std::vector<P5Lifecycle> p5_lifecycle_;
 
   /// Per-index neighbor representative-count identity (filled with the plane
   /// fit; index-aligned with plane_qr_vec_).

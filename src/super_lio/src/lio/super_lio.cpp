@@ -73,7 +73,7 @@ void SuperLIO::init(){
   plane_qr_vec_.resize(20000);
   assoc_count_mean_vec_.resize(20000);
   assoc_count_max_vec_.resize(20000);
-  assoc_prev_decision_.assign(20000, 255);
+  p5_lifecycle_.assign(20000, P5Lifecycle());
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
@@ -475,7 +475,9 @@ struct ThreadACC{
   std::uint64_t a_la_pa = 0, a_la_pr = 0, a_lr_pa = 0, a_lr_pr = 0;
   std::uint64_t a_inv_nf = 0, a_inv_neg = 0;
   std::uint64_t a_rej_active = 0, a_rej_late = 0, a_sticky = 0;
-  std::uint64_t a_flip = 0, a_reaccept = 0;
+  std::uint64_t a_flip = 0;
+  std::uint64_t a_acc2rej = 0, a_rej2acc = 0;
+  std::uint64_t a_sticky_skip = 0, a_counterfactual = 0;
   double a_r_min = 1e300, a_r_sum = 0.0, a_r_max = 0.0;
   double a_s_min = 1e300, a_s_sum = 0.0, a_s_max = 0.0;
   double a_z_min = 1e300, a_z_sum = 0.0, a_z_max = 0.0;
@@ -539,7 +541,7 @@ void SuperLIO::Observe(){
   frame_assoc_acc_.reset();
   frame_assoc_acc_.timestamp = measures_.lidar.end_time;
   frame_assoc_acc_.frame_id = assoc_frame_id_;
-  std::fill(assoc_prev_decision_.begin(), assoc_prev_decision_.end(), 255);
+  for(auto& lc : p5_lifecycle_) lc.reset();
 
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
     const SE3 pose = kf_state.pose;
@@ -712,7 +714,11 @@ void SuperLIO::Observe(){
                 r, _lengths[idx], g_prob_lio_assoc_sigma_num,
                 assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
                 apose);
-            const AssocGateResult pg = ProbAssocGate(cand);
+            // P9-F1: ONE shared association-evaluation abstraction.
+            const AssocEvaluation ev9 = EvaluateAssociationPredicates(cand);
+            const AssocGateResult pg{ev9.prob_accept,
+                                     ev9.invalid_nonfinite,
+                                     ev9.invalid_negative};
             local_acc.a_attempted++;
             {
               const double cm = cand.neighbor_count_mean;
@@ -721,17 +727,33 @@ void SuperLIO::Observe(){
               local_acc.a_bin_n[bin]++;
             }
             {
-              const std::uint8_t prev = assoc_prev_decision_[idx];
-              assoc_prev_decision_[idx] = pg.accept ? 1 : 0;
-              if(prev != 255 && prev != (pg.accept ? 1u : 0u))
-                local_acc.a_flip++;
+              // P9-T3/T4: production lifecycle state machine (applied-P5
+              // synthetic ordering — geometry refresh in non-converged
+              // iterations, persisted mask + early skip in the converged
+              // phase, prob decision overwriting the mask). The shadow
+              // still performs the full-reevaluation counterfactual
+              // (attempted above); the helper classifies what the APPLIED
+              // P5 lifecycle would do.
+              P5Lifecycle& lc = p5_lifecycle_[idx];
+              const std::uint64_t a2r0 = lc.accept_to_reject;
+              const std::uint64_t r2a0 = lc.reject_to_accept;
+              const std::uint64_t fl0 = lc.decision_flip;
+              const AssocEvalState st = lc.Step(
+                  need_converge, effect_mask_[idx], pg.accept,
+                  /*overwrite_mask=*/ true);
+              local_acc.a_acc2rej += lc.accept_to_reject - a2r0;
+              local_acc.a_rej2acc += lc.reject_to_accept - r2a0;
+              local_acc.a_flip += lc.decision_flip - fl0;
+              if(st == AssocEvalState::SkippedPriorProbReject){
+                local_acc.a_sticky_skip++;
+                if(pg.accept) local_acc.a_counterfactual++;
+              }
               if(!pg.accept && !pg.invalid_nonfinite &&
                  !pg.invalid_negative){
                 local_acc.a_rej_active++;
                 if(need_converge){
                   local_acc.a_rej_late++;
                   local_acc.a_sticky++;
-                  if(prev == 1) local_acc.a_reaccept++;
                 }
               }
             }
@@ -835,18 +857,19 @@ void SuperLIO::Observe(){
                     : Eigen::Matrix4d::Zero(),
                 double(error), _lengths[idx], g_prob_lio_assoc_sigma_num,
                 assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx], apose);
-            const AssocGateResult gate = ProbAssocGate(cand);
-            if(!gate.accept && gate.invalid_nonfinite){
+            // P9-F1: ONE shared association-evaluation abstraction.
+            const AssocEvaluation ev9 = EvaluateAssociationPredicates(cand);
+            if(!ev9.prob_accept && ev9.invalid_nonfinite){
               assoc_invalid_nonfinite_.fetch_add(1, std::memory_order_relaxed);
-            }else if(!gate.accept && gate.invalid_negative){
+            }else if(!ev9.prob_accept && ev9.invalid_negative){
               assoc_invalid_negative_.fetch_add(1, std::memory_order_relaxed);
             }
-            if(gate.accept){
+            if(ev9.prob_accept){
               assoc_prob_accept_.fetch_add(1, std::memory_order_relaxed);
             }else{
               assoc_prob_reject_.fetch_add(1, std::memory_order_relaxed);
             }
-            effect_mask_[idx] = gate.accept;
+            effect_mask_[idx] = ev9.prob_accept;
           }else{
             effect_mask_[idx] =
                 compute_error(abcd, point_world, _lengths[idx], error);
@@ -940,7 +963,10 @@ void SuperLIO::Observe(){
         f.prob_reject_late += local_acc.a_rej_late;
         f.sticky_reject += local_acc.a_sticky;
         f.decision_flip += local_acc.a_flip;
-        f.counterfactual_reaccept += local_acc.a_reaccept;
+        f.prob_accept_to_reject += local_acc.a_acc2rej;
+        f.prob_reject_to_accept += local_acc.a_rej2acc;
+        f.sticky_skip_due_prior_prob_reject += local_acc.a_sticky_skip;
+        f.counterfactual_reaccept += local_acc.a_counterfactual;
         if(local_acc.a_la_pr > 0){
           f.r_min = std::min(f.r_min, local_acc.a_r_min);
           f.r_sum += local_acc.a_r_sum;
@@ -1006,7 +1032,7 @@ void SuperLIO::Observe(){
       frame_assoc_acc_.obs_iter = obs_iter;
       frame_assoc_acc_.need_converge = need_converge ? 1 : 0;
       frame_assoc_summaries_.push_back(frame_assoc_acc_);
-      frame_assoc_acc_.reset();
+      frame_assoc_acc_.resetIterationStats();
     }
 
     if(need_converge) return;
@@ -1131,7 +1157,7 @@ void SuperLIO::printTimeRecord(){
     // persist per-frame bounded summaries (G-P5.C4/C6 evidence)
     std::ofstream fout(g_root_dir + "assoc_shadow_frames.csv");
     if(fout){
-      fout << "frame_id,timestamp,obs_iter,need_converge,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,rej_active,rej_late,sticky,flip,reaccept,"
+      fout << "frame_id,timestamp,obs_iter,need_converge,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,rej_active,rej_late,sticky,flip,acc2rej,rej2acc,sticky_skip,counterfactual,"
               "r_min,r_mean,r_max,s_min,s_mean,s_max,z_min,z_mean,z_max,"
               "pv_min,pv_mean,pv_max,sv_min,sv_mean,sv_max,"
               "rv_min,rv_mean,rv_max,tv_min,tv_mean,tv_max,"
@@ -1149,7 +1175,10 @@ void SuperLIO::printTimeRecord(){
              << f.lr_pr << "," << f.invalid_nonfinite << ","
              << f.invalid_negative << "," << f.prob_reject_from_active << ","
              << f.prob_reject_late << "," << f.sticky_reject << ","
-             << f.decision_flip << "," << f.counterfactual_reaccept << ","
+             << f.decision_flip << "," << f.prob_accept_to_reject << ","
+             << f.prob_reject_to_accept << ","
+             << f.sticky_skip_due_prior_prob_reject << ","
+             << f.counterfactual_reaccept << ","
              << f.r_min << "," << (f.r_sum / nlapr) << "," << f.r_max << ","
              << f.s_min << "," << (f.s_sum / nlapr) << "," << f.s_max << ","
              << f.z_min << "," << (f.z_sum / nlapr) << "," << f.z_max << ","

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Prob-LIO P5 shadow association diagnosis report (P8: iteration-resolved).
+"""Prob-LIO P5 shadow association diagnosis report (P9: iteration-resolved).
 
 Consumes the per-(frame,iteration) summary CSV produced by the shadow run
-(super_lio/assoc_shadow_frames.csv) and emits a compact report:
+(assoc_shadow_frames.csv under the run directory) and emits a compact report:
 
+  - input integrity validation (G-P9.T5): rejects corrupt lifecycle input
   - total four-way quadrant matrix (sum == attempted)
+  - exact iteration accounting (G-P9.T2): per-frame iterations_executed,
+    contiguous legal obs_iter, sum(iterations_executed) == records
   - per-iteration quadrant matrix and lifecycle counters
   - top N frames by LA_PR count / rate (RANKING view)
   - first spike / consecutive bursts (CHRONOLOGY view: sorted strictly by
@@ -20,6 +23,70 @@ Usage:
 """
 import argparse
 import csv
+import sys
+
+
+def validate(rows):
+    """G-P9.T5: reject corrupt lifecycle input before any conclusion.
+
+    Checks (each violation -> nonzero exit, no report):
+      1. frame_id / obs_iter parse as integers
+      2. no duplicate (frame_id, obs_iter)
+      3. legal contiguous iteration progression per frame (1..max)
+      4. stable timestamp inside one frame
+      5. frame identity does not reset to default mid-run (frame_id
+         non-decreasing, no backwards jumps)
+      6. timestamp does not reset unexpectedly (non-decreasing within frame)
+    """
+    errs = []
+    seen = set()
+    last_fid = -1
+    last_ts = None
+    prev_iter = 0
+    i = 0
+    while i < len(rows):
+        r = rows[i]
+        try:
+            fid = int(r["frame_id"])
+        except (ValueError, KeyError) as e:
+            errs.append(f"row {i}: frame_id not an integer ({e})")
+            i += 1
+            continue
+        try:
+            it = int(r["obs_iter"])
+        except (ValueError, KeyError) as e:
+            errs.append(f"row {i}: obs_iter not an integer ({e})")
+            i += 1
+            continue
+        try:
+            ts = float(r["timestamp"])
+        except (ValueError, KeyError) as e:
+            errs.append(f"row {i}: timestamp not a number ({e})")
+            i += 1
+            continue
+        if (fid, it) in seen:
+            errs.append(f"duplicate (frame_id, obs_iter) = ({fid}, {it})")
+        seen.add((fid, it))
+        if fid < last_fid:
+            errs.append(
+                f"frame identity went backwards: {last_fid} -> {fid} at row {i}")
+        if fid == last_fid and it != prev_iter + 1:
+            errs.append(
+                f"non-contiguous iteration for frame {fid}: expected "
+                f"{prev_iter + 1} got {it}")
+        if fid == last_fid and abs(ts - last_ts) > 1e-9:
+            errs.append(
+                f"timestamp changed inside frame {fid}: {last_ts} -> {ts}")
+        if fid == 0 and i > 0:
+            # frame_id reset to the default mid-run
+            errs.append(f"frame identity reset to default 0 at row {i}")
+        last_fid = fid
+        last_ts = ts
+        prev_iter = it
+        r["_frame_id"] = fid
+        r["_obs_iter"] = it
+        i += 1
+    return errs
 
 
 def main():
@@ -33,12 +100,35 @@ def main():
                     help="frame-id gap that separates bursts")
     args = ap.parse_args()
 
-    rows = []
+    raw = []
     with open(args.csv) as f:
         for r in csv.DictReader(f):
-            rows.append({k: float(v) for k, v in r.items()})
-    if not rows:
+            raw.append({k: v for k, v in r.items()})
+    if not raw:
         raise SystemExit("no rows")
+
+    errs = validate(raw)
+    if errs:
+        print("INTEGRITY FAILURE (G-P9.T5): refusing to publish lifecycle "
+              "conclusions", file=sys.stderr)
+        for e in errs[:20]:
+            print(f"  - {e}", file=sys.stderr)
+        if len(errs) > 20:
+            print(f"  ... ({len(errs)} violations total)", file=sys.stderr)
+        raise SystemExit(2)
+
+    # Rows passed validation; convert to numeric where the report needs it.
+    rows = []
+    for r in raw:
+        num = {}
+        for k, v in r.items():
+            if k in ("_frame_id", "_obs_iter"):
+                continue
+            try:
+                num[k] = float(v)
+            except ValueError:
+                num[k] = v
+        rows.append(num)
 
     # Chronology: rows are already in (frame_id, obs_iter) order in the CSV;
     # enforce it defensively.
@@ -53,8 +143,21 @@ def main():
 
     add("=== P5 shadow association diagnosis (iteration-resolved) ===")
     add(f"records={(len(rows))} (frame,iteration) rows; "
-        f"frames={len(set(r['frame_id'] for r in rows))}; "
+        f"frames={len(set(int(r['frame_id']) for r in rows))}; "
         f"iterations={sorted(set(int(r['obs_iter']) for r in rows))}")
+
+    # G-P9.T2 exact iteration accounting.
+    frames_iter = {}
+    for r in rows:
+        fid = int(r["frame_id"])
+        frames_iter[fid] = max(frames_iter.get(fid, 0), int(r["obs_iter"]))
+    sum_exec = sum(frames_iter.values())
+    add(f"iteration accounting: sum(iterations_executed)="
+        f"{sum_exec} == records={len(rows)} "
+        f"({'OK' if sum_exec == len(rows) else 'MISMATCH'})")
+    need_cv = sum(1 for fid, n in frames_iter.items() if n > 2)
+    add(f"frames reaching need_converge (iter>2): {need_cv}")
+
     add(f"attempted={S('attempted'):.0f}")
     add(f"quadrant matrix: LA_PA={S('la_pa'):.0f} "
         f"LA_PR={S('la_pr'):.0f} LR_PA={S('lr_pa'):.0f} "
@@ -67,7 +170,10 @@ def main():
         f"late(need_converge)={S('rej_late'):.0f} "
         f"sticky(need_converge)={S('sticky'):.0f} "
         f"flip={S('flip'):.0f} "
-        f"counterfactual_reaccept(need_converge)={S('reaccept'):.0f}")
+        f"accept_to_reject={S('acc2rej'):.0f} "
+        f"reject_to_accept={S('rej2acc'):.0f} "
+        f"sticky_skip(prior prob reject)={S('sticky_skip'):.0f} "
+        f"counterfactual_reaccept={S('counterfactual'):.0f}")
     add("  NOTE: the ESKF breaks on convergence (quit_eps), so the "
         "need_converge iteration rarely executes;")
     add("  'final-iteration' decisions (the ones that determine the state) "
@@ -99,7 +205,7 @@ def main():
 
     add("\nper-iteration summary:")
     add("  iter need_converge attempted  LA_PA   LA_PR   LR_PA   LR_PR "
-        " sticky  flip  reaccept")
+        " sticky  flip  acc2rej  rej2acc  sticky_skip  counterfactual")
     for it in sorted(set(int(r["obs_iter"]) for r in rows)):
         itr = [r for r in rows if int(r["obs_iter"]) == it]
         nc = itr[0]["need_converge"]
@@ -110,7 +216,10 @@ def main():
             f" {sum(r['lr_pr'] for r in itr):7.0f}"
             f" {sum(r['sticky'] for r in itr):7.0f}"
             f" {sum(r['flip'] for r in itr):6.0f}"
-            f" {sum(r['reaccept'] for r in itr):9.0f}")
+            f" {sum(r['acc2rej'] for r in itr):8.0f}"
+            f" {sum(r['rej2acc'] for r in itr):8.0f}"
+            f" {sum(r['sticky_skip'] for r in itr):11.0f}"
+            f" {sum(r['counterfactual'] for r in itr):14.0f}")
 
     def wmean(col):
         return sum(r[col] * r["la_pr"] for r in rows) / nlapr
