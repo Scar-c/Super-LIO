@@ -45,6 +45,9 @@ namespace LI2Sup{
   double g_lidar_dept_err = 0.05;   // [m]
   double g_lidar_beam_err = 0.02;   // [deg]
 
+  /// Prob-LIO (P2, S3-S7): map covariance plumbing, default OFF (baseline).
+  bool   g_prob_lio_map_cov = false;
+
   SE3 g_lidar_imu;
   SE3 g_odom_robo;
   M3  g_lidar_robo_yaw;

@@ -179,7 +179,32 @@ bool SuperLIO::map_init(){
     }
   );
 
-  ivox_->insert(points_world_v3_);
+  /// Prob-LIO S4 (P2): initial map covariance under the same ownership
+  /// contract as normal UpdateMap() insertion. Authoritative production
+  /// state: sys_init_pose_ (kf_->GetSE3() at init) and kf_->GetCov() at
+  /// map_init time. The inserted points are raw LiDAR-frame points.
+  if(g_prob_lio_map_cov){
+    VV3 points_lidar_raw;
+    points_lidar_raw.resize(ptsize);
+    for(size_t idx = 0; idx < ptsize; ++idx){
+      points_lidar_raw[idx] = V3(measures_.lidar.pc->points[idx].x,
+                                 measures_.lidar.pc->points[idx].y,
+                                 measures_.lidar.pc->points[idx].z);
+    }
+    const M3d R_WI = sys_init_pose_.R_.cast<double>();
+    const M3d P_RR = kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
+    const M3d P_pp = kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
+    ComputeInitMapCovList(points_lidar_raw, g_lidar_imu.R_.cast<double>(),
+                          g_lidar_imu.t_.cast<double>(), g_lidar_dept_err,
+                          g_lidar_beam_err, R_WI, P_RR, P_pp, map_cov_list_);
+    map_cov_init_inserts_ += map_cov_list_.size();
+    for(const auto& cov : map_cov_list_){
+      if(!CovarianceIsValid(cov)) map_cov_invalid_++;
+    }
+    ivox_->insert(points_world_v3_, map_cov_list_);
+  }else{
+    ivox_->insert(points_world_v3_);
+  }
   kf_->SetLastObsTime(measures_.lidar.end_time);
 
   if(frame_num_ > 3){
@@ -492,6 +517,9 @@ void SuperLIO::Observe(){
               effect_knn_mask_[idx] = false;
               continue;
             }
+            /// Prob-LIO S7 (P2): bounded counter of cov-bearing neighbor
+            /// returns (HKNN now carries each representative's covariance).
+            if(g_prob_lio_map_cov) map_cov_hknn_returns_ += top_K.count;
             effect_knn_mask_[idx] = true;
             effect_mask_[idx] = calc_plane_coeff(top_K.count, top_K.points_, abcd_vec_[idx]);
           }
@@ -560,8 +588,34 @@ void SuperLIO::UpdateMap() {
     const auto& pt = points_body_v3_[i];
     points_world_v3_[i] = R * pt + t;
   }
-  
-  ivox_->insert(points_world_v3_);
+
+  /// Prob-LIO S3/S5/S6 (P2): world covariance for the inserted map points.
+  /// Authoritative posterior state: last_pose_ = kf_->GetSE3() and
+  /// kf_->GetCov() after UpdateObserve. Reuses the S1 body covariances
+  /// (recomputed on demand if the P1 flag is off, so map_cov_enable is
+  /// self-contained). Covariance is aggregated in OctVox but NOT consumed by
+  /// the estimator.
+  if(g_prob_lio_map_cov){
+    if(body_cov_list_.size() != ptsize){
+      ComputeBodyCovListWithExtrinsic(points_body_v3_,
+                                      g_lidar_imu.R_.cast<double>(),
+                                      g_lidar_imu.t_.cast<double>(),
+                                      g_lidar_dept_err, g_lidar_beam_err,
+                                      body_cov_list_);
+    }
+    const M3d R_WI = last_pose_.R_.cast<double>();
+    const M3d P_RR = kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
+    const M3d P_pp = kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
+    ComputeMapCovList(points_body_v3_, body_cov_list_, R_WI, P_RR, P_pp,
+                      map_cov_list_);
+    map_cov_update_inserts_ += map_cov_list_.size();
+    for(const auto& cov : map_cov_list_){
+      if(!CovarianceIsValid(cov)) map_cov_invalid_++;
+    }
+    ivox_->insert(points_world_v3_, map_cov_list_);
+  }else{
+    ivox_->insert(points_world_v3_);
+  }
 
 }
 
@@ -600,6 +654,13 @@ void SuperLIO::printTimeRecord(){
     LOG(INFO) << GREEN << " ---> [Prob-LIO P1] cov frames: " << body_cov_frames_
               << ", points: " << body_cov_points_
               << ", invalid: " << body_cov_invalid_ << RESET;
+  }
+  if(g_prob_lio_map_cov){
+    LOG(INFO) << GREEN << " ---> [Prob-LIO P2] map cov init inserts: "
+              << map_cov_init_inserts_
+              << ", update inserts: " << map_cov_update_inserts_
+              << ", hknn cov returns: " << map_cov_hknn_returns_
+              << ", invalid: " << map_cov_invalid_ << RESET;
   }
 }
 

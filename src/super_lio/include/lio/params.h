@@ -62,6 +62,12 @@ namespace LI2Sup{
   extern double g_lidar_dept_err;       // [m]   depth/range std (FAST-LIVO2 "dept_err")
   extern double g_lidar_beam_err;       // [deg] beam-angle std (FAST-LIVO2 "beam_err", DEG2RAD semantics)
 
+  /// Prob-LIO (P2, S3-S7): probabilistic map plumbing.
+  /// Map points carry world-frame covariance (S3/S4/S5), compact-map
+  /// aggregation (S6) and HKNN covariance returns (S7). Not consumed by the
+  /// estimator until later stages.
+  extern bool   g_prob_lio_map_cov;     // enable P2 map covariance plumbing
+
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame
   extern BASIC::M3  g_lidar_robo_yaw; // lidar in robot frame rotation only yaw

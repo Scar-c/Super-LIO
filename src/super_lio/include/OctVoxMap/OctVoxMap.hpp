@@ -27,6 +27,7 @@ class KNNHeap {
 public:
   KNNHeap() : count(0), worst_(0), max_dist2_(0.0f) {
     memset(dist2_, 0, sizeof(dist2_));
+    for(auto& c : covs_) c.setZero();
   }
 
   void reset() {
@@ -34,6 +35,7 @@ public:
     worst_ = 0;
     max_dist2_ = 0.0f;
     memset(dist2_, 0, sizeof(dist2_));
+    for(auto& c : covs_) c.setZero();
   }
 
   uint8_t count;
@@ -41,8 +43,12 @@ public:
   float max_dist2_;
   float dist2_[K];
   std::array<Point, K> points_;
+  /// Prob-LIO S7 (P2): covariance of the representative point in the same
+  /// slot. Zero when map covariance plumbing is disabled.
+  std::array<Eigen::Matrix3d, K> covs_;
 
-  inline void try_insert(float dist2, const Point& pt) {
+  inline void try_insert(float dist2, const Point& pt,
+                         const Eigen::Matrix3d& cov = Eigen::Matrix3d::Zero()) {
     const bool not_full = (count < K);
     const bool should_insert = not_full || (dist2 < max_dist2_);
     
@@ -51,6 +57,7 @@ public:
       
       dist2_[insert_idx] = dist2;
       points_[insert_idx] = pt;
+      covs_[insert_idx] = cov;
       
       if (not_full) {
         count++;
@@ -94,6 +101,7 @@ public:
     counts_.fill(UNINIT_MASK);
     points_[local_idx] = pt;
     counts_[local_idx] = 1;
+    cov6_.fill(0.0);
   }
 
   ~OctVox() {}
@@ -114,10 +122,49 @@ public:
     ++count;
   }
 
+  /// Prob-LIO S6 (P2): accepted-point update with covariance aggregation.
+  /// Independent-point approximation for the stored representative mean:
+  ///   Sigma_{mu_N} = (1/N^2) * sum_i Sigma_i
+  /// recursive update on accept (same acceptance rule as AddPoint):
+  ///   Sigma_new = (N^2 * Sigma_old + Sigma_point) / (N+1)^2
+  void AddPoint(const Point& pt, uint8_t local_idx, const Eigen::Matrix3d& cov) {
+    uint8_t& count = counts_[local_idx];
+    Point& stored_point = points_[local_idx];
+    if(count == UNINIT_MASK) {
+      stored_point = pt;
+      count = 1;
+      packCov6(local_idx, cov);
+      return;
+    }
+
+    if(count >= MAX_POINTS_PER_SUBVOXEL) return;
+    if ((pt - stored_point).squaredNorm() > DISTANCE_THRESHOLD_SQ) return;
+
+    const uint8_t n = count;
+    stored_point = (stored_point * count + pt) / (count + 1);
+    ++count;
+
+    Eigen::Matrix3d c = unpackCov6(local_idx);
+    c = (double(n) * double(n) * c + cov) / double((n + 1) * (n + 1));
+    packCov6(local_idx, c);
+  }
+
   bool getPoint(const uint8_t local_idx, Point& pt) const {
     if (counts_[local_idx] == UNINIT_MASK) return false;
     pt = points_[local_idx];
     return true;
+  }
+
+  /// Prob-LIO S7 (P2): covariance of the stored representative point.
+  bool getPointCov(const uint8_t local_idx, Eigen::Matrix3d& cov) const {
+    if (counts_[local_idx] == UNINIT_MASK) return false;
+    cov = unpackCov6(local_idx);
+    return true;
+  }
+
+  /// Prob-LIO S5 (P2): set the covariance of a slot (first-insert case).
+  void setCov(const uint8_t local_idx, const Eigen::Matrix3d& cov) {
+    packCov6(local_idx, cov);
   }
 
   static constexpr uint8_t UNINIT_MASK = 0x00;
@@ -126,6 +173,30 @@ public:
 
   std::array<uint8_t, 8> counts_;
   std::array<Point, 8> points_;
+  /// Prob-LIO S5 (P2): packed symmetric 3x3 covariance per subvoxel slot
+  /// (6 doubles: xx xy xz yy yz zz). Describes the representative point.
+  std::array<double, 6 * 8> cov6_;
+
+private:
+  void packCov6(uint8_t slot, const Eigen::Matrix3d& cov) {
+    double* d = cov6_.data() + size_t(slot) * 6;
+    d[0] = cov(0, 0); d[1] = cov(0, 1); d[2] = cov(0, 2);
+    d[3] = cov(1, 1); d[4] = cov(1, 2); d[5] = cov(2, 2);
+  }
+
+  static Eigen::Matrix3d unpackCov6(const std::array<double, 6 * 8>& store,
+                                    uint8_t slot) {
+    const double* d = store.data() + size_t(slot) * 6;
+    Eigen::Matrix3d cov;
+    cov << d[0], d[1], d[2],
+           d[1], d[3], d[4],
+           d[2], d[4], d[5];
+    return cov;
+  }
+
+  Eigen::Matrix3d unpackCov6(uint8_t slot) const {
+    return unpackCov6(cov6_, slot);
+  }
 };
 
 
@@ -187,6 +258,10 @@ public:
   }
 
   void insert(const Points& cloud_world);
+  /// Prob-LIO S3/S5 (P2): insert with per-point map covariance
+  /// (covs.size() must equal cloud_world.size()).
+  void insert(const Points& cloud_world,
+              const std::vector<Eigen::Matrix3d>& covs);
   void printInfo() const;
   void getMap(std::vector<float>&) const;
   void saveMap() const;    // TODO:
@@ -304,6 +379,59 @@ void OctVoxMap<Point, Scalar>::insert(const Points& cloud_world){
 
 
 template<typename Point, typename Scalar>
+void OctVoxMap<Point, Scalar>::insert(const Points& cloud_world,
+                                      const std::vector<Eigen::Matrix3d>& covs){
+  if(reset_map_){
+    reset_map_count_--;
+    if(reset_map_count_ > 0){
+      std::cout << "OctVoxMap::insert skip: reset_map_count_ = " << reset_map_count_ << std::endl;
+      return;
+    } 
+    reset_map_ = false;
+  }
+
+  const bool use_cov = (covs.size() == cloud_world.size());
+  for(size_t i = 0; i < cloud_world.size(); ++i){
+    const auto& pt = cloud_world[i];
+    KEY fine_key = (pt * sub_inv_resolution_).array().floor().template cast<int>();
+    KEY key;
+    key[0] = fine_key[0] >> 1;
+    key[1] = fine_key[1] >> 1;
+    key[2] = fine_key[2] >> 1;
+
+    uint8_t dx = fine_key[0] & 1;
+    uint8_t dy = fine_key[1] & 1;
+    uint8_t dz = fine_key[2] & 1;
+    uint8_t local_idx = (dz << 2) | (dy << 1) | dx;
+
+    auto iter = grids_.find(key);
+    if (iter == grids_.end()) {
+      data_.emplace_front(std::piecewise_construct,
+        std::forward_as_tuple(key),
+        std::forward_as_tuple(pt, local_idx));
+      grids_.insert(std::make_pair(key, data_.begin()));
+      // first point: store its covariance directly
+      if(use_cov){
+        data_.front().second.setCov(local_idx, covs[i]);
+      }
+      
+      if (data_.size() >= capacity_) {
+        grids_.erase(data_.back().first);
+        data_.pop_back();
+      }
+    } else {
+      if(use_cov){
+        iter->second->second.AddPoint(pt, local_idx, covs[i]);
+      }else{
+        iter->second->second.AddPoint(pt, local_idx);
+      }
+      data_.splice(data_.begin(), data_, iter->second);
+    }
+  }
+}
+
+
+template<typename Point, typename Scalar>
 void OctVoxMap<Point, Scalar>::getTopK(const Point& point, KNNHeapType& top_K) const {
   const KEY fine_key = (point * sub_inv_resolution_).array().floor().template cast<int>();
   KEY key;
@@ -346,9 +474,11 @@ void OctVoxMap<Point, Scalar>::getTopK(const Point& point, KNNHeapType& top_K) c
         if (voxel_ptr) {
           while (data_size--) {
             uint8_t _local_idx = (*group_it++)^local_idx;
+            Eigen::Matrix3d cov;
             if (voxel_ptr->getPoint(_local_idx, __sub_point)) {
               const float dist2 = (__sub_point - point).squaredNorm();
-              top_K.try_insert(dist2, __sub_point);
+              voxel_ptr->getPointCov(_local_idx, cov);
+              top_K.try_insert(dist2, __sub_point, cov);
             }
           }
         }
@@ -363,9 +493,11 @@ void OctVoxMap<Point, Scalar>::getTopK(const Point& point, KNNHeapType& top_K) c
         OctVoxType* voxel_ptr = &iter->second->second;
         while (data_size--){
           const uint8_t _local_idx = (*group_it++)^local_idx;
+          Eigen::Matrix3d cov;
           if (voxel_ptr->getPoint(_local_idx, __sub_point)) {
             float dist2 = (__sub_point - point).squaredNorm();
-            top_K.try_insert(dist2, __sub_point);
+            voxel_ptr->getPointCov(_local_idx, cov);
+            top_K.try_insert(dist2, __sub_point, cov);
           }
         }
       }
@@ -397,9 +529,11 @@ void OctVoxMap<Point, Scalar>::getTopK_VN(const Point& point, KNNHeapType& top_K
   Point pt;
   for(auto& voxel : voxels_2_search) {
     for(uint8_t _i = 0; _i < 8; ++_i) {
+      Eigen::Matrix3d cov;
       if(!voxel->getPoint(_i, pt)) continue;
+      voxel->getPointCov(_i, cov);
       float dist2 = (pt - point).squaredNorm();
-      top_K.try_insert(dist2, pt);
+      top_K.try_insert(dist2, pt, cov);
     }
   }
 }

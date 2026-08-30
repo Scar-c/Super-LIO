@@ -38,6 +38,10 @@ lio:
     # P1: compute per-point body covariance (S1). Default OFF (baseline);
     # when ON the covariance is computed but NOT consumed by the estimator.
     point_cov_enable: false
+    # P2: map covariance plumbing (S3-S7). Default OFF (baseline); when ON
+    # map points carry world covariance, aggregated per subvoxel, returned by
+    # HKNN — still NOT consumed by the estimator.
+    map_cov_enable: false
 
   # Extrinsic Parameters
   extrinsic:

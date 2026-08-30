@@ -80,6 +80,13 @@ protected:
   std::size_t body_cov_frames_ = 0;      // scans with covariance computed
   std::size_t body_cov_points_ = 0;      // total points processed (P1-ON)
   std::size_t body_cov_invalid_ = 0;     // non-finite/non-PSD results (P1-ON)
+
+  /// Prob-LIO S3-S7 (P2): map covariance plumbing counters (bounded).
+  std::vector<BASIC::M3d> map_cov_list_;       // world covs for current scan insert
+  std::size_t map_cov_init_inserts_ = 0;       // cov-bearing points in map_init
+  std::size_t map_cov_update_inserts_ = 0;     // cov-bearing points in UpdateMap
+  std::size_t map_cov_hknn_returns_ = 0;       // cov-bearing neighbor returns
+  std::size_t map_cov_invalid_ = 0;            // invalid world covs (P2-ON)
   alignas(64) bool effect_mask_[20000] = {false};
   alignas(64) bool effect_knn_mask_[20000] = {false};
   std::vector<int> effect_knn_idxs_;

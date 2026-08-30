@@ -26,7 +26,7 @@ remain Super-LIO's own.
 |---|---|---|
 | P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-VERIFIED** (rounds P0-1, P0-2) |
 | P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
-| P2 | Probabilistic Map Plumbing | NOT STARTED |
+| P2 | Probabilistic Map Plumbing | **CLOSED/PASS** (round P2-1) |
 | P3 | Super-native QR Plane Uncertainty | NOT STARTED |
 | P4 | Probabilistic P2P Weighting | NOT STARTED |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
@@ -349,6 +349,48 @@ FAST-LIVO2-Dataset download link").
   recorded by the docs follow-up commit).
 - Status: P1 = CLOSED / OWNER-CORRECTIVE-GREEN.
 
+### Round P2-1 — Probabilistic Map Plumbing (prompt3 Part B, S3–S7)
+
+- Prompt: `prompts/prob_lio/prompt3_P1_frame_corrective_P2_map_plumbing.md`.
+- Starting HEAD: P1 corrective commit `760ba20` (clean worktree, after HARD
+  GATE B = PASS).
+- FAST-LIVO2 active insertion semantics audited (ref `voxel_map.cpp:547-553`,
+  `LIVMapper.cpp:417-424`): `Σ_W = R_WI Σ_I R_WI^T + [p_I]× P_RR [p_I]×ᵀ + P_pp`
+  (equivalently `(R_WI·R_LI) Σ_L (R_WI·R_LI)ᵀ + ...`), posterior state after
+  the LIO update; rotation-position cross term NOT used by the active code.
+- What changed (S3–S7 only):
+  - `point_covariance.h`: `ComputeMapPointCov`, `ComputeMapCovList` (S3,
+    IMU-frame points, for `UpdateMap`), `ComputeInitMapCovList` (S4, raw
+    LiDAR-frame points, for `map_init` — the init scan is not downsampled and
+    stays in the LiDAR frame);
+  - `OctVoxMap.hpp`: `OctVox` packed symmetric 3×3 covariance storage
+    (6 doubles per subvoxel slot, S5), `AddPoint(pt, idx, cov)` aggregation
+    (S6, independent-point approximation `Σ_{μ_N} = (1/N²)ΣΣ_i`, recursive),
+    `getPointCov`, `setCov`, `KNNHeap` covariance slots + `insert(Points,
+    covs)`; `getTopK`/`getTopK_VN` return each representative's covariance
+    (S7). Search topology/K/distance/acceptance unchanged;
+  - `super_lio.cpp`: `map_init` (S4) and `UpdateMap` (S3) compute world
+    covariances with the posterior state (`sys_init_pose_` + `kf_->GetCov()`
+    at init; `last_pose_` + `kf_->GetCov()` after `UpdateObserve`) and insert
+    with covariances; `Observe` counts HKNN cov returns; bounded P2 summary;
+  - `params`/`config`: `g_prob_lio_map_cov` (`/lio/prob_lio/map_cov_enable`,
+    default OFF), P2 needs no new algorithm parameters;
+  - tests: `tests/prob_lio/test_map_covariance.cpp` (G-P2.1..G-P2.4).
+- Aggregation approximation (declared limitation): the stored representative
+  is the running mean of accepted points; its covariance uses the
+  independent-point approximation `Σ_{μ_N} = (1/N²)ΣΣ_i`. Historical
+  insertion-pose errors can be correlated across points of the same scan;
+  this first version follows the declared independent approximation, recorded
+  here as a limitation for later stages.
+- Runtime: full `eee_01` P2-ON (`run_20260830_191305`): init inserts 13881,
+  update inserts 13787537, HKNN cov returns 191110053, invalid 0; trajectory
+  byte-identical (sha256 `6a8cc65a...`); ATE 0.118875639 m, matched 3329,
+  rows 3981; wall 25.6 s. Default-OFF run (`run_20260830_191348`):
+  byte-identical, wall 18.4 s.
+- Commit: `feat(prob-lio): add probabilistic map covariance plumbing` (SHA
+  recorded by the docs follow-up commit).
+- Status: P2 = CLOSED/PASS.
+
 ## 10. Gate summary
 
 ### P0 gates (round P0-1)
@@ -395,6 +437,18 @@ FAST-LIVO2-Dataset download link").
 
 Regression: G-P1.1..G-P1.4 PASS (same binary, 171 checks / 0 failures);
 full `eee_01` P1-ON byte parity PASS + ATE/matched/rows baseline-equivalent.
+
+### P2 gates (round P2-1)
+
+| Gate | Invariant | Status | Evidence |
+|---|---|---|---|
+| G-P2.1 | map insertion covariance formula | PASS | `test_map_covariance.cpp` `test_gp21_map_cov_formula`: `ComputeMapPointCov` == independent `R_WI Σ_I R_WI^T + [p_I]× P_RR [p_I]×ᵀ + P_pp` for nonidentity R_WI, nonzero P_RR/P_pp, 4 points; omitting sensor/rotation/translation terms each detected |
+| G-P2.2 | initialization parity | PASS | `test_gp22_initialization_parity`: `ComputeInitMapCovList` (the `map_init` seam) == the same world-insertion contract computed independently; zero/default-cov insertion detected |
+| G-P2.3 | representative covariance aggregation | PASS | `test_gp23_aggregation`: N=1/2/20, count+radius rejection; `/N`-instead-of-`/N²`, point-without-cov, cov-without-point mutations detected |
+| G-P2.4 | HKNN point/cov identity | PASS | `test_gp24_hknn_identity`: adversarial fingerprints; slot pairing verified; neighbor-slot and shifted-index cov mutations detected |
+| G-P2.5 | no estimator consumption | PASS | diff audit vs `760ba20`: only S3–S7 files; QR solve (S8), `compute_error()` (S10), fixed `1000` (S11), ESKF (S13), `ROSWrapper.h` untouched |
+| G-P2.6 | initial + mature map runtime coverage | PASS | full `eee_01` P2-ON counters: init inserts 13881, update inserts 13787537, HKNN cov returns 191110053, invalid 0 (`run_20260830_191305/node.log`) |
+| G-P2.7 | trajectory / accuracy parity | PASS | byte parity (sha256 `6a8cc65a...`), rows 3981, matched 3329, ATE 0.118875639 (|Δ|=0) |
 
 ## 11. Conventions
 

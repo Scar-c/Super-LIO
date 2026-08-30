@@ -132,6 +132,72 @@ inline void ComputeBodyCovListWrongFrame(
   }
 }
 
+// ---------------------------------------------------------------------------
+// P2 (S3): world/map-frame covariance for an inserted map point.
+//
+// Active FAST-LIVO2 insertion semantics (ref voxel_map.cpp:547-553,
+// LIVMapper.cpp:417-424, posterior state after the LIO update):
+//   point_this = R_LI*p_L + t_LI   (IMU frame)
+//   Sigma_W = (R_WI*R_LI) Sigma_L (R_WI*R_LI)^T
+//           + (-[p_I]x) P_RR (-[p_I]x)^T + P_pp
+// With Sigma_I = R_LI Sigma_L R_LI^T this equals
+//   Sigma_W = R_WI Sigma_I R_WI^T + [p_I]x P_RR [p_I]x^T + P_pp
+// (skew-symmetric sign cancels). No rotation-position cross term is used by
+// the active FAST-LIVO2 code.
+// ---------------------------------------------------------------------------
+inline BASIC::M3d SkewSymmetric(const BASIC::V3d& v) {
+  BASIC::M3d m;
+  m << 0.0, -v(2), v(1), v(2), 0.0, -v(0), -v(1), v(0), 0.0;
+  return m;
+}
+
+inline BASIC::M3d ComputeMapPointCov(const BASIC::V3d& p_I,
+                                     const BASIC::M3d& Sigma_I,
+                                     const BASIC::M3d& R_WI,
+                                     const BASIC::M3d& P_RR,
+                                     const BASIC::M3d& P_pp) {
+  const BASIC::M3d skew = SkewSymmetric(p_I);
+  return RotateCovariance(R_WI, Sigma_I) + skew * P_RR * skew.transpose() +
+         P_pp;
+}
+
+// S3 production seam: one-to-one world covariance list for a scan of
+// IMU-frame points with their (S1) body covariances.
+inline void ComputeMapCovList(const BASIC::VV3& pts_imu,
+                              const std::vector<BASIC::M3d>& covs_imu,
+                              const BASIC::M3d& R_WI, const BASIC::M3d& P_RR,
+                              const BASIC::M3d& P_pp,
+                              std::vector<BASIC::M3d>& covs_world) {
+  covs_world.resize(pts_imu.size());
+  for (size_t i = 0; i < pts_imu.size(); ++i) {
+    covs_world[i] =
+        ComputeMapPointCov(pts_imu[i].cast<double>(), covs_imu[i], R_WI, P_RR,
+                           P_pp);
+  }
+}
+
+// S4 initial-map seam: map_init() inserts the RAW scan expressed in the
+// LiDAR frame (transform = T_WI * T_LI applied to raw points). Compute the
+// sensor covariance in the LiDAR frame (FAST-LIVO2 calcBodyCov semantics),
+// rotate to the IMU frame, then apply the same world insertion formula.
+inline void ComputeInitMapCovList(const BASIC::VV3& pts_lidar,
+                                  const BASIC::M3d& R_LI,
+                                  const BASIC::V3d& t_LI, double dept_err,
+                                  double beam_err_deg, const BASIC::M3d& R_WI,
+                                  const BASIC::M3d& P_RR,
+                                  const BASIC::M3d& P_pp,
+                                  std::vector<BASIC::M3d>& covs_world) {
+  covs_world.resize(pts_lidar.size());
+  for (size_t i = 0; i < pts_lidar.size(); ++i) {
+    const BASIC::V3d p_L = pts_lidar[i].cast<double>();
+    BASIC::M3d cov_L;
+    CalcLidarPointCov(p_L, dept_err, beam_err_deg, cov_L);
+    const BASIC::V3d p_I = R_LI * p_L + t_LI;
+    covs_world[i] = ComputeMapPointCov(p_I, RotateCovariance(R_LI, cov_L),
+                                       R_WI, P_RR, P_pp);
+  }
+}
+
 }  // namespace LI2Sup
 
 #endif  // POINT_COVARIANCE_HPP_

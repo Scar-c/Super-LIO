@@ -131,3 +131,17 @@ target_include_directories(test_point_covariance PRIVATE
 target_link_libraries(test_point_covariance ${catkin_LIBRARIES})
 add_test(NAME prob_lio_point_covariance
          COMMAND test_point_covariance)
+
+# Prob-LIO P2 tests (S3..S7 map covariance plumbing).
+add_executable(test_map_covariance
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_map_covariance.cpp
+)
+target_include_directories(test_map_covariance PRIVATE
+  include
+  3rdparty
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_map_covariance ${catkin_LIBRARIES})
+add_test(NAME prob_lio_map_covariance
+         COMMAND test_map_covariance)

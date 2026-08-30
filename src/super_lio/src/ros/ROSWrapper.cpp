@@ -48,6 +48,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/sensor/dept_err", g_lidar_dept_err);
   nh.getParam("/lio/sensor/beam_err", g_lidar_beam_err);
 
+  // Prob-LIO (P2, S3-S7): map covariance plumbing.
+  nh.getParam("/lio/prob_lio/map_cov_enable", g_prob_lio_map_cov);
+
   // extrinsic
   std::vector<scalar> extrinsic_lidar_imu, extrinsic_odom_robo;
   nh.getParam("/lio/extrinsic/lidar_imu", extrinsic_lidar_imu);      // 3 + 9
