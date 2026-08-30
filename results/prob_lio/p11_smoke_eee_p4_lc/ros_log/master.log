@@ -1,0 +1,200 @@
+[rosmaster.main][INFO] 2026-08-31 02:34:53,182: initialization complete, waiting for shutdown
+[rosmaster.main][INFO] 2026-08-31 02:34:53,182: Starting ROS Master Node
+[xmlrpc][INFO] 2026-08-31 02:34:53,184: XML-RPC server binding to 0.0.0.0:11411
+[xmlrpc][INFO] 2026-08-31 02:34:53,184: Started XML-RPC server [http://robot:11411/]
+[rosmaster.master][INFO] 2026-08-31 02:34:53,184: Master initialized: port[11411], uri[http://robot:11411/]
+[xmlrpc][INFO] 2026-08-31 02:34:53,184: xml rpc node: starting XML-RPC server
+[rosmaster.master][INFO] 2026-08-31 02:34:56,455: +PARAM [/lio/map/save_map] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,456: +PARAM [/lio/map/if_filter] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,458: +PARAM [/lio/map/save_map_dir] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,459: +PARAM [/lio/map/map_name] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,460: +PARAM [/lio/map/ds_size] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,461: +PARAM [/lio/map/save_interval] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,463: +PARAM [/lio/ros/lidar_topic] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,464: +PARAM [/lio/ros/imu_topic] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,464: +PARAM [/lio/sensor/lidar_type] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,465: +PARAM [/lio/sensor/blind] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,467: +PARAM [/lio/sensor/maxrange] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,468: +PARAM [/lio/sensor/filter_rate] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,469: +PARAM [/lio/sensor/enable_downsample] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,470: +PARAM [/lio/sensor/voxel_fliter_size] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,470: +PARAM [/lio/sensor/gravity_norm] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,471: +PARAM [/lio/sensor/imu_type] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,472: +PARAM [/lio/sensor/imu_na] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,473: +PARAM [/lio/sensor/imu_ng] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,474: +PARAM [/lio/sensor/imu_nba] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,474: +PARAM [/lio/sensor/imu_nbg] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,475: +PARAM [/lio/sensor/dept_err] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,476: +PARAM [/lio/sensor/beam_err] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,477: +PARAM [/lio/prob_lio/cov_enable] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,478: +PARAM [/lio/prob_lio/map_pose_cov_model] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,478: +PARAM [/lio/prob_lio/map_cov_storage_precision] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,479: +PARAM [/lio/prob_lio/qr_plane_cov_enable] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,480: +PARAM [/lio/prob_lio/p2p_weight_mode] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,481: +PARAM [/lio/prob_lio/cov_validation_mode] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,481: +PARAM [/lio/prob_lio/association_mode] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,482: +PARAM [/lio/prob_lio/assoc_sigma_num] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,483: +PARAM [/lio/prob_lio/prob_assoc_shadow_enable] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,484: +PARAM [/lio/prob_lio/association_pose_cov_model] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,484: +PARAM [/lio/prob_lio/association_sensor_cov_model] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,485: +PARAM [/lio/extrinsic/lidar_imu] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,486: +PARAM [/lio/extrinsic/odom_robo] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,487: +PARAM [/lio/hash_map/hash_capacity] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,488: +PARAM [/lio/hash_map/vox_resolution] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,489: +PARAM [/lio/kf/kf_type] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,490: +PARAM [/lio/kf/kf_max_iterations] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,491: +PARAM [/lio/kf/kf_align_gravity] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,492: +PARAM [/lio/kf/kf_quit_eps] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,493: +PARAM [/lio/output/robot] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,494: +PARAM [/lio/output/plan_env_world] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,495: +PARAM [/lio/output/plan_env_body] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,496: +PARAM [/lio/output/planner] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,497: +PARAM [/lio/output/map] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,498: +PARAM [/lio/output/dense] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,500: +PARAM [/lio/output/pub_step] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,501: +PARAM [/lio/eva/timer] by /rosparam-308080
+[rosmaster.master][INFO] 2026-08-31 02:34:56,579: +PARAM [/lio/offline/bag] by /rosparam-308131
+[rosmaster.master][INFO] 2026-08-31 02:34:56,657: +PARAM [/lio/prob_lio/cov_enable] by /rosparam-308134
+[rosmaster.master][INFO] 2026-08-31 02:34:56,742: +PARAM [/lio/prob_lio/cov_validation_mode] by /rosparam-308139
+[rosmaster.master][INFO] 2026-08-31 02:34:56,815: +PARAM [/lio/prob_lio/map_pose_cov_model] by /rosparam-308144
+[rosmaster.master][INFO] 2026-08-31 02:34:56,898: +PARAM [/lio/prob_lio/map_cov_storage_precision] by /rosparam-308149
+[rosmaster.master][INFO] 2026-08-31 02:34:56,968: +PARAM [/lio/prob_lio/qr_plane_cov_enable] by /rosparam-308154
+[rosmaster.master][INFO] 2026-08-31 02:34:57,045: +PARAM [/lio/prob_lio/p2p_weight_mode] by /rosparam-308159
+[rosmaster.master][INFO] 2026-08-31 02:34:57,125: +PARAM [/lio/prob_lio/association_mode] by /rosparam-308164
+[rosmaster.master][INFO] 2026-08-31 02:34:57,202: +PARAM [/lio/prob_lio/prob_assoc_shadow_enable] by /rosparam-308169
+[rosmaster.master][INFO] 2026-08-31 02:34:57,280: +PARAM [/lio/prob_lio/association_pose_cov_model] by /rosparam-308174
+[rosmaster.master][INFO] 2026-08-31 02:34:57,354: +PARAM [/lio/prob_lio/association_sensor_cov_model] by /rosparam-308179
+[rosmaster.master][INFO] 2026-08-31 02:34:57,441: +PARAM [/lio/offline/out_dir] by /rosparam-308184
+[rosmaster.master][INFO] 2026-08-31 02:34:57,787: +PUB [/rosout] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,787: +SERVICE [/lio_offline/get_loggers] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,788: +SERVICE [/lio_offline/set_logger_level] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,806: +PUB [/tf] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,807: +SUB [/os1_cloud_node1/points] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,808: +SUB [/imu/imu] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,808: +PUB [/lio/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,809: +PUB [/lio/path] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,809: +PUB [/lio/path_robot] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,812: +PUB [/os1_cloud_node1/points] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,812: +PUB [/imu/imu] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,813: +SUB [/lio/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:57,891: publisherUpdate[/os1_cloud_node1/points] -> http://robot:45179/ ['http://robot:45179/']
+[rosmaster.master][INFO] 2026-08-31 02:34:57,893: publisherUpdate[/os1_cloud_node1/points] -> http://robot:45179/ ['http://robot:45179/']: sec=0.00, result=[1, '', 0]
+[rosmaster.master][INFO] 2026-08-31 02:34:57,893: publisherUpdate[/imu/imu] -> http://robot:45179/ ['http://robot:45179/']
+[rosmaster.master][INFO] 2026-08-31 02:34:57,894: publisherUpdate[/imu/imu] -> http://robot:45179/ ['http://robot:45179/']: sec=0.00, result=[1, '', 0]
+[rosmaster.master][INFO] 2026-08-31 02:34:58,009: +PUB [/lio/imu/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:58,010: +PUB [/lio/robo/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:34:58,031: +PUB [/lio/cloud_world] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,953: -PUB [/rosout] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,953: -PUB [/tf] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,954: -PUB [/lio/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,954: -PUB [/lio/path] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,954: -PUB [/lio/path_robot] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,955: -PUB [/os1_cloud_node1/points] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,955: -PUB [/imu/imu] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,955: -PUB [/lio/imu/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,955: -PUB [/lio/robo/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,956: -PUB [/lio/cloud_world] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,956: -SUB [/os1_cloud_node1/points] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,956: -SUB [/imu/imu] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,956: -SUB [/lio/odom] /lio_offline http://robot:45179/
+[rosmaster.master][INFO] 2026-08-31 02:36:01,957: -SERVICE [/lio_offline/get_loggers] /lio_offline rosrpc://robot:52039
+[rosmaster.master][INFO] 2026-08-31 02:36:01,957: -SERVICE [/lio_offline/set_logger_level] /lio_offline rosrpc://robot:52039
+[rosmaster.master][INFO] 2026-08-31 02:36:02,047: publisherUpdate[/lio/odom] -> http://robot:45179/ []
+[rosmaster.master][INFO] 2026-08-31 02:36:02,047: publisherUpdate[/lio/odom] -> http://robot:45179/ []: sec=0.00, exception=[Errno 111] Connection refused
+[rosmaster.master][INFO] 2026-08-31 02:36:02,049: publisherUpdate[/os1_cloud_node1/points] -> http://robot:45179/ []
+[rosmaster.threadpool][ERROR] 2026-08-31 02:36:02,050: Traceback (most recent call last):
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/threadpool.py", line 218, in run
+    result = cmd(*args)
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/master_api.py", line 210, in publisher_update_task
+    ret = xmlrpcapi(api).publisherUpdate('/master', topic, pub_uris)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1109, in __call__
+    return self.__send(self.__name, args)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1450, in __request
+    response = self.__transport.request(
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1153, in request
+    return self.single_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1165, in single_request
+    http_conn = self.send_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1278, in send_request
+    self.send_content(connection, request_body)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1308, in send_content
+    connection.endheaders(request_body)
+  File "/usr/lib/python3.8/http/client.py", line 1251, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/lib/python3.8/http/client.py", line 1011, in _send_output
+    self.send(msg)
+  File "/usr/lib/python3.8/http/client.py", line 951, in send
+    self.connect()
+  File "/usr/lib/python3.8/http/client.py", line 922, in connect
+    self.sock = self._create_connection(
+  File "/usr/lib/python3.8/socket.py", line 808, in create_connection
+    raise err
+  File "/usr/lib/python3.8/socket.py", line 796, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+[rosmaster.master][INFO] 2026-08-31 02:36:02,050: publisherUpdate[/os1_cloud_node1/points] -> http://robot:45179/ []: sec=0.00, exception=[Errno 111] Connection refused
+[rosmaster.threadpool][ERROR] 2026-08-31 02:36:02,051: Traceback (most recent call last):
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/threadpool.py", line 218, in run
+    result = cmd(*args)
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/master_api.py", line 210, in publisher_update_task
+    ret = xmlrpcapi(api).publisherUpdate('/master', topic, pub_uris)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1109, in __call__
+    return self.__send(self.__name, args)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1450, in __request
+    response = self.__transport.request(
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1153, in request
+    return self.single_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1165, in single_request
+    http_conn = self.send_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1278, in send_request
+    self.send_content(connection, request_body)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1308, in send_content
+    connection.endheaders(request_body)
+  File "/usr/lib/python3.8/http/client.py", line 1251, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/lib/python3.8/http/client.py", line 1011, in _send_output
+    self.send(msg)
+  File "/usr/lib/python3.8/http/client.py", line 951, in send
+    self.connect()
+  File "/usr/lib/python3.8/http/client.py", line 922, in connect
+    self.sock = self._create_connection(
+  File "/usr/lib/python3.8/socket.py", line 808, in create_connection
+    raise err
+  File "/usr/lib/python3.8/socket.py", line 796, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 111] Connection refused
+
+[rosmaster.master][INFO] 2026-08-31 02:36:02,051: publisherUpdate[/imu/imu] -> http://robot:45179/ []
+[rosmaster.master][INFO] 2026-08-31 02:36:02,051: publisherUpdate[/imu/imu] -> http://robot:45179/ []: sec=0.00, exception=[Errno 111] Connection refused
+[rosmaster.threadpool][ERROR] 2026-08-31 02:36:02,051: Traceback (most recent call last):
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/threadpool.py", line 218, in run
+    result = cmd(*args)
+  File "/opt/ros/noetic/lib/python3/dist-packages/rosmaster/master_api.py", line 210, in publisher_update_task
+    ret = xmlrpcapi(api).publisherUpdate('/master', topic, pub_uris)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1109, in __call__
+    return self.__send(self.__name, args)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1450, in __request
+    response = self.__transport.request(
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1153, in request
+    return self.single_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1165, in single_request
+    http_conn = self.send_request(host, handler, request_body, verbose)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1278, in send_request
+    self.send_content(connection, request_body)
+  File "/usr/lib/python3.8/xmlrpc/client.py", line 1308, in send_content
+    connection.endheaders(request_body)
+  File "/usr/lib/python3.8/http/client.py", line 1251, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/lib/python3.8/http/client.py", line 1011, in _send_output
+    self.send(msg)
+  File "/usr/lib/python3.8/http/client.py", line 951, in send
+    self.connect()
+  File "/usr/lib/python3.8/http/client.py", line 922, in connect
+    self.sock = self._create_connection(
+  File "/usr/lib/python3.8/socket.py", line 808, in create_connection
+    raise err
+  File "/usr/lib/python3.8/socket.py", line 796, in create_connection
+    sock.connect(sa)
+ConnectionRefusedError: [Errno 111] Connection refused
+
