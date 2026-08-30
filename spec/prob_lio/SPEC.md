@@ -345,8 +345,8 @@ FAST-LIVO2-Dataset download link").
 - Runtime: full `eee_01` P1-ON (`run_20260830_185631`) — byte parity PASS
   (sha256 `6a8cc65a...`), ATE 0.118875639 m, matched 3329, rows 3981,
   cov 3981 frames / 13,787,537 points / 0 invalid, wall 19.6 s.
-- Commit: `fix(prob-lio): correct lidar covariance frame semantics` (SHA
-  recorded by the docs follow-up commit).
+- Commit: `fix(prob-lio): correct lidar covariance frame semantics`
+  (**`760ba20`**, recorded by the docs follow-up commit).
 - Status: P1 = CLOSED / OWNER-CORRECTIVE-GREEN.
 
 ### Round P2-1 — Probabilistic Map Plumbing (prompt3 Part B, S3–S7)
@@ -387,8 +387,8 @@ FAST-LIVO2-Dataset download link").
   byte-identical (sha256 `6a8cc65a...`); ATE 0.118875639 m, matched 3329,
   rows 3981; wall 25.6 s. Default-OFF run (`run_20260830_191348`):
   byte-identical, wall 18.4 s.
-- Commit: `feat(prob-lio): add probabilistic map covariance plumbing` (SHA
-  recorded by the docs follow-up commit).
+- Commit: `feat(prob-lio): add probabilistic map covariance plumbing`
+  (**`96c9d38`**, recorded by the docs follow-up commit).
 - Status: P2 = CLOSED/PASS.
 
 ## 10. Gate summary
