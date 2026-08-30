@@ -55,18 +55,23 @@ namespace LI2Sup{
   extern double g_imu_nba;
   extern double g_imu_nbg;
 
-  /// Prob-LIO (P1, S1): current lidar point covariance plumbing.
-  /// FAST-LIVO2-parity sensor noise model; computed but not consumed by the
-  /// estimator until later stages.
-  extern bool   g_prob_lio_point_cov;   // enable P1 covariance plumbing
+  /// Prob-LIO pipeline (P1 S1 + P2 S3-S7 are one coupled chain; D-P2.1).
+  /// When ON: current sensor covariance is freshly computed every scan and
+  /// map covariance is derived from it. Partial point/map states are
+  /// impossible (legacy keys normalize into this master flag).
+  extern bool   g_prob_lio_cov_enable;
   extern double g_lidar_dept_err;       // [m]   depth/range std (FAST-LIVO2 "dept_err")
   extern double g_lidar_beam_err;       // [deg] beam-angle std (FAST-LIVO2 "beam_err", DEG2RAD semantics)
 
-  /// Prob-LIO (P2, S3-S7): probabilistic map plumbing.
-  /// Map points carry world-frame covariance (S3/S4/S5), compact-map
-  /// aggregation (S6) and HKNN covariance returns (S7). Not consumed by the
-  /// estimator until later stages.
-  extern bool   g_prob_lio_map_cov;     // enable P2 map covariance plumbing
+  /// Prob-LIO P2-C3 (D-P2.3): map-pose covariance model
+  /// (MapPoseCovModel; default Livo2Compat = active FAST-LIVO2 code).
+  extern int g_prob_lio_map_pose_cov_model;
+
+  /// Prob-LIO P2-C4 (D-P2.4): map covariance storage precision
+  /// (CovStoragePrecision; default Double. float_quantized = precision
+  /// switch only, memory saving NO).
+  extern int g_prob_lio_cov_storage_precision;
+
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame

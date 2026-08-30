@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <atomic>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
@@ -75,18 +76,25 @@ protected:
   std::size_t effect_knn_num_ = 0;
   BASIC::VV3 points_world_v3_, points_body_v3_;
   /// Prob-LIO S1 (P1): per-scan body-frame point covariance list.
-  /// entry i <-> points_body_v3_[i]; cleared/resized every scan.
+  /// entry i <-> points_body_v3_[i]; FRESH every scan (P2-C1): the list is
+  /// regenerated in Observe() and generation-guarded; UpdateMap consumes the
+  /// SAME scan's list (never inferred from vector length).
   std::vector<BASIC::M3d> body_cov_list_;
+  std::size_t body_cov_generation_ = 0;  // bumped on every Observe refresh
   std::size_t body_cov_frames_ = 0;      // scans with covariance computed
-  std::size_t body_cov_points_ = 0;      // total points processed (P1-ON)
-  std::size_t body_cov_invalid_ = 0;     // non-finite/non-PSD results (P1-ON)
+  std::size_t body_cov_points_ = 0;      // total points processed (pipeline ON)
+  std::size_t body_cov_invalid_ = 0;     // non-finite/non-PSD results
 
   /// Prob-LIO S3-S7 (P2): map covariance plumbing counters (bounded).
   std::vector<BASIC::M3d> map_cov_list_;       // world covs for current scan insert
   std::size_t map_cov_init_inserts_ = 0;       // cov-bearing points in map_init
   std::size_t map_cov_update_inserts_ = 0;     // cov-bearing points in UpdateMap
-  std::size_t map_cov_hknn_returns_ = 0;       // cov-bearing neighbor returns
-  std::size_t map_cov_invalid_ = 0;            // invalid world covs (P2-ON)
+  std::atomic<std::uint64_t> map_cov_hknn_returns_{0};  // race-free (P2-C2)
+  std::size_t map_cov_invalid_ = 0;            // invalid world covs
+
+  /// Prob-LIO P2-C3/C4 (D-P2.3/D-P2.4): resolved policy (set in init()).
+  MapPoseCovModel map_pose_cov_model_ = MapPoseCovModel::Livo2Compat;
+  CovStoragePrecision cov_storage_precision_ = CovStoragePrecision::Double;
   alignas(64) bool effect_mask_[20000] = {false};
   alignas(64) bool effect_knn_mask_[20000] = {false};
   std::vector<int> effect_knn_idxs_;

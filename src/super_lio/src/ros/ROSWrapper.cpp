@@ -43,13 +43,38 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/sensor/imu_nba",  g_imu_nba);
   nh.getParam("/lio/sensor/imu_nbg",  g_imu_nbg);
 
-  // Prob-LIO (P1, S1): current point covariance plumbing parameters.
-  nh.getParam("/lio/prob_lio/point_cov_enable", g_prob_lio_point_cov);
+  // Prob-LIO coupled pipeline (D-P2.1): one master switch. Legacy partial
+  // keys are normalized (any legacy ON turns the pipeline ON; conflicting
+  // partial states are explicitly normalized, never silently stale).
+  bool master_cov = false;
+  bool legacy_point = false;
+  bool legacy_map = false;
+  nh.getParam("/lio/prob_lio/cov_enable", master_cov);
+  nh.getParam("/lio/prob_lio/point_cov_enable", legacy_point);
+  nh.getParam("/lio/prob_lio/map_cov_enable", legacy_map);
+  if (legacy_point != legacy_map) {
+    LOG(WARNING) << YELLOW << " ---> [Prob-LIO] legacy point_cov_enable("
+                 << legacy_point << ") != map_cov_enable(" << legacy_map
+                 << "): partial states are invalid; normalizing pipeline=ON"
+                 << RESET;
+  }
+  g_prob_lio_cov_enable =
+      ResolveProbLioPipeline(master_cov, legacy_point, legacy_map);
   nh.getParam("/lio/sensor/dept_err", g_lidar_dept_err);
   nh.getParam("/lio/sensor/beam_err", g_lidar_beam_err);
 
-  // Prob-LIO (P2, S3-S7): map covariance plumbing.
-  nh.getParam("/lio/prob_lio/map_cov_enable", g_prob_lio_map_cov);
+  // P2-C3: map-pose covariance model (livo2_compat default).
+  std::string pose_model = "livo2_compat";
+  nh.getParam("/lio/prob_lio/map_pose_cov_model", pose_model);
+  g_prob_lio_map_pose_cov_model =
+      static_cast<int>(ResolveMapPoseCovModel(pose_model));
+
+  // P2-C4: covariance storage precision (double default).
+  std::string storage_precision = "double";
+  nh.getParam("/lio/prob_lio/map_cov_storage_precision", storage_precision);
+  g_prob_lio_cov_storage_precision =
+      static_cast<int>(ResolveCovStoragePrecision(storage_precision));
+
 
   // extrinsic
   std::vector<scalar> extrinsic_lidar_imu, extrinsic_odom_robo;

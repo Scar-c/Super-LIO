@@ -18,6 +18,7 @@
 
 #include "tsl/robin_map.h"
 #include "HKNN_list60_gem.h"
+#include "lio/point_covariance.h"
 
 
 namespace LI2Sup{
@@ -96,7 +97,9 @@ public:
 template<typename Point>
 class OctVox{
 public:
-  OctVox(const Point& pt, uint8_t local_idx)
+  OctVox(const Point& pt, uint8_t local_idx,
+         CovStoragePrecision precision = CovStoragePrecision::Double)
+      : precision_(precision)
   {
     counts_.fill(UNINIT_MASK);
     points_[local_idx] = pt;
@@ -105,6 +108,8 @@ public:
   }
 
   ~OctVox() {}
+
+  CovStoragePrecision precision() const { return precision_; }
 
   void AddPoint(const Point& pt, uint8_t local_idx) {
     uint8_t& count = counts_[local_idx];
@@ -175,13 +180,22 @@ public:
   std::array<Point, 8> points_;
   /// Prob-LIO S5 (P2): packed symmetric 3x3 covariance per subvoxel slot
   /// (6 doubles: xx xy xz yy yz zz). Describes the representative point.
+  /// Backing storage is ALWAYS double (48 bytes/slot-group per voxel);
+  /// FloatQuantized only quantizes components on write (precision switch,
+  /// memory saving NO — D-P2.4).
   std::array<double, 6 * 8> cov6_;
+  CovStoragePrecision precision_ = CovStoragePrecision::Double;
 
 private:
   void packCov6(uint8_t slot, const Eigen::Matrix3d& cov) {
     double* d = cov6_.data() + size_t(slot) * 6;
-    d[0] = cov(0, 0); d[1] = cov(0, 1); d[2] = cov(0, 2);
-    d[3] = cov(1, 1); d[4] = cov(1, 2); d[5] = cov(2, 2);
+    const double v[6] = {cov(0, 0), cov(0, 1), cov(0, 2),
+                         cov(1, 1), cov(1, 2), cov(2, 2)};
+    for (int k = 0; k < 6; ++k) {
+      d[k] = (precision_ == CovStoragePrecision::FloatQuantized)
+                 ? static_cast<double>(static_cast<float>(v[k]))
+                 : v[k];
+    }
   }
 
   static Eigen::Matrix3d unpackCov6(const std::array<double, 6 * 8>& store,
@@ -263,6 +277,13 @@ public:
   void insert(const Points& cloud_world,
               const std::vector<Eigen::Matrix3d>& covs);
   void printInfo() const;
+
+  /// Prob-LIO P2-C4 (D-P2.4): storage precision policy for the packed
+  /// covariance (canonical Double; FloatQuantized quantizes on write).
+  void SetCovStoragePrecision(CovStoragePrecision precision) {
+    cov_precision_ = precision;
+  }
+  CovStoragePrecision covStoragePrecision() const { return cov_precision_; }
   void getMap(std::vector<float>&) const;
   void saveMap() const;    // TODO:
   void resetMap(const std::vector<float>&);
@@ -302,6 +323,7 @@ private:
 
   bool reset_map_ = false;
   int reset_map_count_ = 0;
+  CovStoragePrecision cov_precision_ = CovStoragePrecision::Double;
 
   const KEY nearby_grids_[19] = {
     KEY(0, 0, 0),
@@ -363,7 +385,7 @@ void OctVoxMap<Point, Scalar>::insert(const Points& cloud_world){
     if (iter == grids_.end()) {
       data_.emplace_front(std::piecewise_construct,
         std::forward_as_tuple(key),
-        std::forward_as_tuple(pt, local_idx));
+        std::forward_as_tuple(pt, local_idx, cov_precision_));
       grids_.insert(std::make_pair(key, data_.begin()));
       
       if (data_.size() >= capacity_) {
@@ -408,7 +430,7 @@ void OctVoxMap<Point, Scalar>::insert(const Points& cloud_world,
     if (iter == grids_.end()) {
       data_.emplace_front(std::piecewise_construct,
         std::forward_as_tuple(key),
-        std::forward_as_tuple(pt, local_idx));
+        std::forward_as_tuple(pt, local_idx, cov_precision_));
       grids_.insert(std::make_pair(key, data_.begin()));
       // first point: store its covariance directly
       if(use_cov){

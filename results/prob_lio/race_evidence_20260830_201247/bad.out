@@ -1,0 +1,52 @@
+==================
+WARNING: ThreadSanitizer: data race (pid=105368)
+  Write of size 8 at 0x7f14d619bc80 by thread T6:
+    #0 memset ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:795 (libtsan.so.0+0x3790f)
+    #1 memset ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:793 (libtsan.so.0+0x3790f)
+    #2 <null> <null> (libtbbmalloc.so.2+0x13fc0)
+
+  Previous write of size 8 at 0x7f14d619bc80 by thread T1:
+    #0 memset ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:795 (libtsan.so.0+0x3790f)
+    #1 memset ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:793 (libtsan.so.0+0x3790f)
+    #2 <null> <null> (libtbbmalloc.so.2+0x13fc0)
+
+  Thread T6 (tid=105375, running) created by thread T3 at:
+    #0 pthread_create ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:962 (libtsan.so.0+0x5ea79)
+    #1 <null> <null> (libtbb.so.2+0x20750)
+
+  Thread T1 (tid=105370, finished) created by main thread at:
+    #0 pthread_create ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:962 (libtsan.so.0+0x5ea79)
+    #1 <null> <null> (libtbb.so.2+0x20750)
+    #2 <null> <null> (libtbb.so.2+0x2c544)
+    #3 parallel_for<tbb::blocked_range<int>, main()::<lambda(const tbb::blocked_range<int>&)> > /usr/include/tbb/parallel_for.h:201 (race_bad+0x2ffc)
+    #4 main /home/lc/super_livo/src/Super-LIO/tests/prob_lio/race_evidence.cpp:23 (race_bad+0x2ffc)
+
+SUMMARY: ThreadSanitizer: data race (/lib/x86_64-linux-gnu/libtbbmalloc.so.2+0x13fc0) 
+==================
+==================
+WARNING: ThreadSanitizer: data race (pid=105368)
+  Write of size 8 at 0x7b2000000000 by thread T9:
+    #0 operator delete[](void*) ../../../../src/libsanitizer/tsan/tsan_new_delete.cpp:132 (libtsan.so.0+0x8b028)
+    #1 <null> <null> (libtbb.so.2+0x23248)
+
+  Previous read of size 8 at 0x7b2000000000 by thread T2:
+    #0 memcmp ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:887 (libtsan.so.0+0x6518f)
+    #1 memcmp ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:883 (libtsan.so.0+0x6518f)
+    #2 <null> <null> (libtbb.so.2+0x214e0)
+
+  Thread T9 (tid=105378, running) created by thread T5 at:
+    #0 pthread_create ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:962 (libtsan.so.0+0x5ea79)
+    #1 <null> <null> (libtbb.so.2+0x20750)
+
+  Thread T2 (tid=105371, finished) created by main thread at:
+    #0 pthread_create ../../../../src/libsanitizer/tsan/tsan_interceptors_posix.cpp:962 (libtsan.so.0+0x5ea79)
+    #1 <null> <null> (libtbb.so.2+0x20750)
+    #2 <null> <null> (libtbb.so.2+0x2c544)
+    #3 parallel_for<tbb::blocked_range<int>, main()::<lambda(const tbb::blocked_range<int>&)> > /usr/include/tbb/parallel_for.h:201 (race_bad+0x2ffc)
+    #4 main /home/lc/super_livo/src/Super-LIO/tests/prob_lio/race_evidence.cpp:23 (race_bad+0x2ffc)
+
+SUMMARY: ThreadSanitizer: data race ../../../../src/libsanitizer/tsan/tsan_new_delete.cpp:132 in operator delete[](void*)
+==================
+ThreadSanitizer: reported 2 warnings
+counter=400000 expected=400000
+MODE=BAD(legacy)

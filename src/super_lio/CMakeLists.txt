@@ -145,3 +145,17 @@ target_include_directories(test_map_covariance PRIVATE
 target_link_libraries(test_map_covariance ${catkin_LIBRARIES})
 add_test(NAME prob_lio_map_covariance
          COMMAND test_map_covariance)
+
+# Prob-LIO P2 corrective tests (coupled pipeline policy / concurrency).
+add_executable(test_pipeline_policy
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_pipeline_policy.cpp
+)
+target_include_directories(test_pipeline_policy PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_pipeline_policy ${catkin_LIBRARIES})
+add_test(NAME prob_lio_pipeline_policy
+         COMMAND test_pipeline_policy)
+

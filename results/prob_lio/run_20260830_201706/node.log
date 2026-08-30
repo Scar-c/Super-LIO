@@ -1,0 +1,26 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0830 20:17:11.798763 109407 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0830 20:17:11.808403 109407 ROSWrapper.cpp:236] [32m ---> Using Lidar type: UNKNOWN[0m
+I0830 20:17:11.811144 109407 super_lio.cpp:82] [32m ---> [SuperLIO]: initialized.[0m
+I0830 20:17:12.005226 109407 super_lio.cpp:90] [32m ---> [SuperLIO]: KF init done[0m
+I0830 20:17:12.020179 109407 super_lio.cpp:99] [32m ---> [SuperLIO]: Map init done[0m
+I0830 20:17:43.775151 109407 timer.h:40] >>> ===== Printing run time =====
+I0830 20:17:43.775180 109407 timer.h:46] > [ DownSample ] average time usage: 0.200116 ms , called times: 3981
+I0830 20:17:43.775204 109407 timer.h:46] > [ Observe ] average time usage: 3.47663 ms , called times: 3981
+I0830 20:17:43.775218 109407 timer.h:46] > [ Undistort ] average time usage: 0.273268 ms , called times: 3981
+I0830 20:17:43.775229 109407 timer.h:46] > [ UpdateMap ] average time usage: 2.72459 ms , called times: 3981
+I0830 20:17:43.775236 109407 super_lio.cpp:690] [32m ---> [Prob-LIO] pipeline ON (pose model super_right_consistent, storage double): cov frames: 3981, points: 13787537, invalid: 0; map cov init inserts: 13881, update inserts: 13787537, hknn cov returns: 198829172, invalid: 0[0m
+I0830 20:17:43.775246 109407 super_lio.cpp:708] [32m ---> [Prob-LIO P3] QR plane cov shadow: attempted: 30998017, valid: 30998017, rank_invalid: 0, nonfinite: 0[0m
+[offline_node] bag=/home/lc/super_livo/bag/NTU/eee_01/eee_01.bag start_offset=-1.000 duration=-1.000
+[offline_node] wrapper subscribers connected
+[OfflineReader] view 1609059013.115s..1609059411.798s lidar=3987 imu=153347 other=0 wall=31.716s sensor=398.683s speed=12.570x
+
+=== Offline accounting ===
+bag_relevant_messages: 157334
+lidar read: 3987   imu read: 153347   other: 0
+first/last bag time: 1609059013.114720 / 1609059411.797588
+first/last sensor time: 1609059013.114590 / 1609059411.797436
+sensor_duration_s: 398.683
+wall_processing_s: 31.716
+speed_factor: 12.570x
+trajectory: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_201706/trajectory.tum

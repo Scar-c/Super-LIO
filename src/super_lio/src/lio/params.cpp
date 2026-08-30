@@ -38,15 +38,20 @@ namespace LI2Sup{
   double g_imu_nba;
   double g_imu_nbg;
 
-  /// Prob-LIO (P1, S1): defaults match the local FAST-LIVO2 reference code
-  /// defaults (loadVoxelConfig, ref voxel_map.cpp:44-45); NTU.yaml overrides
-  /// them with the FAST-LIVO2 NTU_VIRAL.yaml values.
-  bool   g_prob_lio_point_cov = false;
+  /// Prob-LIO (P1 S1 + P2 S3-S7 coupled pipeline): defaults match the local
+  /// FAST-LIVO2 reference code defaults (loadVoxelConfig, ref
+  /// voxel_map.cpp:44-45); NTU.yaml overrides with the FAST-LIVO2
+  /// NTU_VIRAL.yaml values.
+  bool   g_prob_lio_cov_enable = false;   // master pipeline switch (D-P2.1)
   double g_lidar_dept_err = 0.05;   // [m]
   double g_lidar_beam_err = 0.02;   // [deg]
 
-  /// Prob-LIO (P2, S3-S7): map covariance plumbing, default OFF (baseline).
-  bool   g_prob_lio_map_cov = false;
+  /// P2-C3: livo2_compat = 0 (canonical default), super_right_consistent = 1.
+  int g_prob_lio_map_pose_cov_model = 0;
+
+  /// P2-C4: double = 0 (canonical default), float_quantized = 1.
+  int g_prob_lio_cov_storage_precision = 0;
+
 
   SE3 g_lidar_imu;
   SE3 g_odom_robo;

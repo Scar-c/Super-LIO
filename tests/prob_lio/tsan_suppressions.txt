@@ -1,0 +1,15 @@
+# Prob-LIO G-P2.C2 TSAN suppressions.
+#
+# TBB 2020.1 (Ubuntu 20.04) has known TSAN false positives inside its own
+# library internals: the auto_partitioner's work-stealing bookkeeping
+# (tbb::interface9::internal::dynamic_grainsize_mode::check_being_stolen and
+# the adaptive_partition copy) intentionally shares state between the task
+# and the stealing thread without user-visible synchronization. These are
+# NOT races in user code. The counter pattern under test (g_counter++) lives
+# in our lambda and is NOT suppressed, so TSAN still detects the legacy
+# shared-RMW race and stays clean for the atomic fix.
+race:tbb::interface9::internal
+race:tbb::blocked_range
+# TBB's own task-scheduler memory management (module-level).
+race:libtbb.so.2
+race:libtbb.so

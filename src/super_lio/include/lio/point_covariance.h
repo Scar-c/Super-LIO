@@ -133,17 +133,59 @@ inline void ComputeBodyCovListWrongFrame(
 }
 
 // ---------------------------------------------------------------------------
+// P2-C1 (D-P2.1): the probability pipeline is ONE coupled chain.
+// FAST-LIVO2 exposes no independent point-cov/map-cov switches (only noise
+// model params dept_err/beam_err; audited ref loadVoxelConfig
+// voxel_map.cpp:36-53). S1 (current sensor covariance) is the source of
+// S3-S7 (map covariance). Resolve the master switch, normalizing legacy
+// partial keys: point-OFF/map-ON partial states are impossible; any legacy
+// key that is ON turns the pipeline ON (explicitly, never silently stale).
+// ---------------------------------------------------------------------------
+inline bool ResolveProbLioPipeline(bool master, bool legacy_point_cov,
+                                   bool legacy_map_cov) {
+  return master || legacy_point_cov || legacy_map_cov;
+}
+
+// ---------------------------------------------------------------------------
+// P2-C3 (D-P2.3): dual map-pose covariance models.
+// Provenance: FAST-LIVO2 author acknowledged the world-frame lidar-point
+// covariance bug (issues #89, #189): variances underestimated; noise
+// settings may partly compensate. Two modes:
+//   Livo2Compat            : active FAST-LIVO2 code (voxel_map.cpp:551-552):
+//                            Sigma_W = R_WI Si R_WI^T + [p_I]x P_RR [p_I]x^T
+//                                      + P_pp   (default; preserves known
+//                                      behavior for parity/validation)
+//   SuperRightConsistent   : right perturbation R' = R Exp(dtheta),
+//                            J_R = -R_WI [p_I]x:
+//                            Sigma_W = R_WI Si R_WI^T
+//                                      + R_WI [p_I]x P_RR [p_I]x^T R_WI^T
+//                                      + P_pp
+// No rotation-position cross term in either mode.
+// ---------------------------------------------------------------------------
+enum class MapPoseCovModel { Livo2Compat = 0, SuperRightConsistent = 1 };
+
+inline MapPoseCovModel ResolveMapPoseCovModel(const std::string& value) {
+  if (value == "super_right_consistent") return MapPoseCovModel::SuperRightConsistent;
+  return MapPoseCovModel::Livo2Compat;  // canonical default; unknown -> default
+}
+
+// ---------------------------------------------------------------------------
+// P2-C4 (D-P2.4): covariance storage precision policy.
+//   double         : canonical; full double-precision packed storage.
+//   float_quantized: quantizes each symmetric component to float on write and
+//                    restores to double on read. Backing storage REMAINS
+//                    double (8 bytes/component): numerical precision switch
+//                    YES, memory saving NO.
+// ---------------------------------------------------------------------------
+enum class CovStoragePrecision { Double = 0, FloatQuantized = 1 };
+
+inline CovStoragePrecision ResolveCovStoragePrecision(const std::string& value) {
+  if (value == "float_quantized") return CovStoragePrecision::FloatQuantized;
+  return CovStoragePrecision::Double;  // canonical default; unknown -> default
+}
+
+// ---------------------------------------------------------------------------
 // P2 (S3): world/map-frame covariance for an inserted map point.
-//
-// Active FAST-LIVO2 insertion semantics (ref voxel_map.cpp:547-553,
-// LIVMapper.cpp:417-424, posterior state after the LIO update):
-//   point_this = R_LI*p_L + t_LI   (IMU frame)
-//   Sigma_W = (R_WI*R_LI) Sigma_L (R_WI*R_LI)^T
-//           + (-[p_I]x) P_RR (-[p_I]x)^T + P_pp
-// With Sigma_I = R_LI Sigma_L R_LI^T this equals
-//   Sigma_W = R_WI Sigma_I R_WI^T + [p_I]x P_RR [p_I]x^T + P_pp
-// (skew-symmetric sign cancels). No rotation-position cross term is used by
-// the active FAST-LIVO2 code.
 // ---------------------------------------------------------------------------
 inline BASIC::M3d SkewSymmetric(const BASIC::V3d& v) {
   BASIC::M3d m;
@@ -155,10 +197,15 @@ inline BASIC::M3d ComputeMapPointCov(const BASIC::V3d& p_I,
                                      const BASIC::M3d& Sigma_I,
                                      const BASIC::M3d& R_WI,
                                      const BASIC::M3d& P_RR,
-                                     const BASIC::M3d& P_pp) {
+                                     const BASIC::M3d& P_pp,
+                                     MapPoseCovModel model =
+                                         MapPoseCovModel::Livo2Compat) {
   const BASIC::M3d skew = SkewSymmetric(p_I);
-  return RotateCovariance(R_WI, Sigma_I) + skew * P_RR * skew.transpose() +
-         P_pp;
+  const BASIC::M3d rot_term =
+      (model == MapPoseCovModel::SuperRightConsistent)
+          ? RotateCovariance(R_WI * skew, P_RR)   // (R_WI [p_I]x) P_RR (..)^T
+          : skew * P_RR * skew.transpose();       // active FAST-LIVO2 code
+  return RotateCovariance(R_WI, Sigma_I) + rot_term + P_pp;
 }
 
 // S3 production seam: one-to-one world covariance list for a scan of
@@ -167,12 +214,14 @@ inline void ComputeMapCovList(const BASIC::VV3& pts_imu,
                               const std::vector<BASIC::M3d>& covs_imu,
                               const BASIC::M3d& R_WI, const BASIC::M3d& P_RR,
                               const BASIC::M3d& P_pp,
-                              std::vector<BASIC::M3d>& covs_world) {
+                              std::vector<BASIC::M3d>& covs_world,
+                              MapPoseCovModel model =
+                                  MapPoseCovModel::Livo2Compat) {
   covs_world.resize(pts_imu.size());
   for (size_t i = 0; i < pts_imu.size(); ++i) {
     covs_world[i] =
         ComputeMapPointCov(pts_imu[i].cast<double>(), covs_imu[i], R_WI, P_RR,
-                           P_pp);
+                           P_pp, model);
   }
 }
 
@@ -186,7 +235,9 @@ inline void ComputeInitMapCovList(const BASIC::VV3& pts_lidar,
                                   double beam_err_deg, const BASIC::M3d& R_WI,
                                   const BASIC::M3d& P_RR,
                                   const BASIC::M3d& P_pp,
-                                  std::vector<BASIC::M3d>& covs_world) {
+                                  std::vector<BASIC::M3d>& covs_world,
+                                  MapPoseCovModel model =
+                                      MapPoseCovModel::Livo2Compat) {
   covs_world.resize(pts_lidar.size());
   for (size_t i = 0; i < pts_lidar.size(); ++i) {
     const BASIC::V3d p_L = pts_lidar[i].cast<double>();
@@ -194,7 +245,7 @@ inline void ComputeInitMapCovList(const BASIC::VV3& pts_lidar,
     CalcLidarPointCov(p_L, dept_err, beam_err_deg, cov_L);
     const BASIC::V3d p_I = R_LI * p_L + t_LI;
     covs_world[i] = ComputeMapPointCov(p_I, RotateCovariance(R_LI, cov_L),
-                                       R_WI, P_RR, P_pp);
+                                       R_WI, P_RR, P_pp, model);
   }
 }
 

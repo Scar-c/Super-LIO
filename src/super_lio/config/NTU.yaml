@@ -33,15 +33,21 @@ lio:
     dept_err: 0.02
     beam_err: 0.01
 
-  # Prob-LIO plumbing switches
+  # Prob-LIO plumbing switches (D-P2.1: one coupled pipeline)
   prob_lio:
-    # P1: compute per-point body covariance (S1). Default OFF (baseline);
-    # when ON the covariance is computed but NOT consumed by the estimator.
-    point_cov_enable: false
-    # P2: map covariance plumbing (S3-S7). Default OFF (baseline); when ON
-    # map points carry world covariance, aggregated per subvoxel, returned by
-    # HKNN — still NOT consumed by the estimator.
-    map_cov_enable: false
+    # Master switch: current sensor covariance (S1) AND map covariance
+    # (S3-S7) are one coupled chain. Legacy point_cov_enable /
+    # map_cov_enable keys are normalized into this flag (partial states are
+    # invalid and are explicitly normalized). Default OFF (baseline); when ON
+    # the covariances are computed but NOT consumed by the estimator.
+    cov_enable: false
+    # D-P2.3: map-pose covariance model. livo2_compat (default) matches the
+    # active FAST-LIVO2 code (author-acknowledged bug, issues #89/#189);
+    # super_right_consistent uses J_R = -R_WI [p_I]x.
+    map_pose_cov_model: livo2_compat
+    # D-P2.4: map covariance storage precision. double (default) canonical;
+    # float_quantized = precision switch only (memory saving NO).
+    map_cov_storage_precision: double
 
   # Extrinsic Parameters
   extrinsic:

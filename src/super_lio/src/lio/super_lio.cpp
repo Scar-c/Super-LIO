@@ -81,6 +81,12 @@ void SuperLIO::init(){
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
+  map_pose_cov_model_ =
+      static_cast<MapPoseCovModel>(g_prob_lio_map_pose_cov_model);
+  cov_storage_precision_ =
+      static_cast<CovStoragePrecision>(g_prob_lio_cov_storage_precision);
+  ivox_->SetCovStoragePrecision(cov_storage_precision_);
+
   state_fn_ = &SuperLIO::stateWaitKFInit;
 
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
@@ -183,7 +189,7 @@ bool SuperLIO::map_init(){
   /// contract as normal UpdateMap() insertion. Authoritative production
   /// state: sys_init_pose_ (kf_->GetSE3() at init) and kf_->GetCov() at
   /// map_init time. The inserted points are raw LiDAR-frame points.
-  if(g_prob_lio_map_cov){
+  if(g_prob_lio_cov_enable){
     VV3 points_lidar_raw;
     points_lidar_raw.resize(ptsize);
     for(size_t idx = 0; idx < ptsize; ++idx){
@@ -196,7 +202,8 @@ bool SuperLIO::map_init(){
     const M3d P_pp = kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
     ComputeInitMapCovList(points_lidar_raw, g_lidar_imu.R_.cast<double>(),
                           g_lidar_imu.t_.cast<double>(), g_lidar_dept_err,
-                          g_lidar_beam_err, R_WI, P_RR, P_pp, map_cov_list_);
+                          g_lidar_beam_err, R_WI, P_RR, P_pp, map_cov_list_,
+                          map_pose_cov_model_);
     map_cov_init_inserts_ += map_cov_list_.size();
     for(const auto& cov : map_cov_list_){
       if(!CovarianceIsValid(cov)) map_cov_invalid_++;
@@ -476,12 +483,15 @@ void SuperLIO::Observe(){
   /// (p_L = R_LI^T (p_I - t_LI)), then rotated into the IMU frame owned by
   /// body_cov_list_ (same frame as points_body_v3_). Plumbing only: not
   /// consumed by the estimator until later stages.
-  if(g_prob_lio_point_cov){
+  if(g_prob_lio_cov_enable){
+    /// P2-C1: covariance is freshly produced every scan (generation guard).
+    /// Vector length is never used to infer freshness.
     ComputeBodyCovListWithExtrinsic(points_body_v3_,
                                     g_lidar_imu.R_.cast<double>(),
                                     g_lidar_imu.t_.cast<double>(),
                                     g_lidar_dept_err, g_lidar_beam_err,
                                     body_cov_list_);
+    body_cov_generation_++;
     body_cov_frames_++;
     body_cov_points_ += body_cov_list_.size();
     for(const auto& cov : body_cov_list_){
@@ -517,9 +527,13 @@ void SuperLIO::Observe(){
               effect_knn_mask_[idx] = false;
               continue;
             }
-            /// Prob-LIO S7 (P2): bounded counter of cov-bearing neighbor
-            /// returns (HKNN now carries each representative's covariance).
-            if(g_prob_lio_map_cov) map_cov_hknn_returns_ += top_K.count;
+            /// Prob-LIO S7 (P2): bounded race-free counter of cov-bearing
+            /// neighbor returns (HKNN now carries each representative's
+            /// covariance).
+            if(g_prob_lio_cov_enable){
+              map_cov_hknn_returns_.fetch_add(top_K.count,
+                                              std::memory_order_relaxed);
+            }
             effect_knn_mask_[idx] = true;
             effect_mask_[idx] = calc_plane_coeff(top_K.count, top_K.points_, abcd_vec_[idx]);
           }
@@ -595,8 +609,16 @@ void SuperLIO::UpdateMap() {
   /// (recomputed on demand if the P1 flag is off, so map_cov_enable is
   /// self-contained). Covariance is aggregated in OctVox but NOT consumed by
   /// the estimator.
-  if(g_prob_lio_map_cov){
-    if(body_cov_list_.size() != ptsize){
+  if(g_prob_lio_cov_enable){
+    /// P2-C1: consume the covariance produced for THIS scan in Observe().
+    /// body_cov_list_ is refreshed every scan (Observe runs before
+    /// UpdateMap); the generation guard is a defensive check — vector
+    /// length is never used to infer freshness.
+    if(body_cov_generation_ == 0 || body_cov_list_.size() != ptsize){
+      LOG(WARNING) << YELLOW << " ---> [Prob-LIO] body cov not fresh for "
+                   << "UpdateMap; recomputing (generation "
+                   << body_cov_generation_ << ", pts " << ptsize << ")"
+                   << RESET;
       ComputeBodyCovListWithExtrinsic(points_body_v3_,
                                       g_lidar_imu.R_.cast<double>(),
                                       g_lidar_imu.t_.cast<double>(),
@@ -607,7 +629,7 @@ void SuperLIO::UpdateMap() {
     const M3d P_RR = kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
     const M3d P_pp = kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
     ComputeMapCovList(points_body_v3_, body_cov_list_, R_WI, P_RR, P_pp,
-                      map_cov_list_);
+                      map_cov_list_, map_pose_cov_model_);
     map_cov_update_inserts_ += map_cov_list_.size();
     for(const auto& cov : map_cov_list_){
       if(!CovarianceIsValid(cov)) map_cov_invalid_++;
@@ -650,18 +672,25 @@ void SuperLIO::Output(){
 void SuperLIO::printTimeRecord(){
   if(!g_time_eva) return;
   time_record_.PrintAll();
-  if(g_prob_lio_point_cov){
-    LOG(INFO) << GREEN << " ---> [Prob-LIO P1] cov frames: " << body_cov_frames_
+  if(g_prob_lio_cov_enable){
+    LOG(INFO) << GREEN << " ---> [Prob-LIO] pipeline ON (pose model "
+              << (map_pose_cov_model_ == MapPoseCovModel::SuperRightConsistent
+                      ? "super_right_consistent"
+                      : "livo2_compat")
+              << ", storage "
+              << (cov_storage_precision_ == CovStoragePrecision::FloatQuantized
+                      ? "float_quantized"
+                      : "double")
+              << "): cov frames: " << body_cov_frames_
               << ", points: " << body_cov_points_
-              << ", invalid: " << body_cov_invalid_ << RESET;
-  }
-  if(g_prob_lio_map_cov){
-    LOG(INFO) << GREEN << " ---> [Prob-LIO P2] map cov init inserts: "
-              << map_cov_init_inserts_
+              << ", invalid: " << body_cov_invalid_
+              << "; map cov init inserts: " << map_cov_init_inserts_
               << ", update inserts: " << map_cov_update_inserts_
-              << ", hknn cov returns: " << map_cov_hknn_returns_
+              << ", hknn cov returns: "
+              << map_cov_hknn_returns_.load(std::memory_order_relaxed)
               << ", invalid: " << map_cov_invalid_ << RESET;
   }
+
 }
 
 } // namespace END.

@@ -379,12 +379,214 @@ static void test_gp24_hknn_identity() {
   ++g_checks;
 }
 
+
+// ---------------------------------------------------------------------------
+// G-P2.C3 — dual map-pose covariance models (D-P2.3)
+// ---------------------------------------------------------------------------
+static void test_gp2c3_dual_pose_models() {
+  std::printf("== G-P2.C3 dual map-pose covariance models ==\n");
+  BASIC::M3d R_WI;
+  R_WI = Eigen::AngleAxisd(0.8, Eigen::Vector3d(0.5, -0.2, 0.9).normalized())
+             .toRotationMatrix();
+  BASIC::M3d P_RR = 1e-3 * BASIC::M3d::Identity();
+  P_RR(0, 1) = P_RR(1, 0) = 2e-4;  // anisotropic
+  P_RR(1, 2) = P_RR(2, 1) = -1e-4;
+  BASIC::M3d P_pp = 1e-2 * BASIC::M3d::Identity();
+  BASIC::M3d Sigma_I = 0.1 * BASIC::M3d::Identity();
+  Sigma_I(0, 2) = Sigma_I(2, 0) = 0.02;
+  const BASIC::V3d p_I(5.0, -2.0, 8.0);
+
+  // C3-A: livo2_compat == active FAST-LIVO2 expression (no R_WI on the
+  // rotation-state term): R_WI Si R_WI^T + [p_I]x P_RR [p_I]x^T + P_pp.
+  {
+    Eigen::Matrix3d prod = ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp,
+                                              MapPoseCovModel::Livo2Compat);
+    Eigen::Matrix3d ref = ref_sandwich(R_WI, Sigma_I) +
+                          ref_sandwich(SkewSymmetric(p_I), P_RR) + P_pp;
+    CHECK_NEAR(max_abs_diff(prod, ref), 0.0, 1e-12,
+               "livo2_compat == active FAST-LIVO2 expression");
+    // Negative: adding R_WI around the rotation-state term must differ.
+    Eigen::Matrix3d mutated = ref_sandwich(R_WI, Sigma_I) +
+                              ref_sandwich(R_WI * SkewSymmetric(p_I), P_RR) +
+                              P_pp;
+    if (max_abs_diff(mutated, ref) <= 1e-9) {
+      ++g_failures;
+      std::printf("FAIL: R_WI-wrapped rotation term not detected\n");
+    }
+    // Negative: omitting a term must differ.
+    Eigen::Matrix3d no_sensor =
+        ComputeMapPointCov(p_I, Eigen::Matrix3d::Zero(), R_WI, P_RR, P_pp,
+                           MapPoseCovModel::Livo2Compat);
+    if (max_abs_diff(no_sensor, ref) <= 1e-9) {
+      ++g_failures;
+      std::printf("FAIL: omitted sensor term not detected\n");
+    }
+  }
+
+  // C3-B: super_right_consistent, J_R = -R_WI [p_I]x via finite difference.
+  {
+    const double eps = 1e-6;
+    Eigen::Matrix3d J_fd;
+    for (int j = 0; j < 3; ++j) {
+      Eigen::Vector3d ej = Eigen::Vector3d::Zero();
+      ej(j) = 1.0;
+      const Eigen::Vector3d p_plus =
+          R_WI * (Eigen::AngleAxisd(eps, ej).toRotationMatrix()) * p_I;
+      const Eigen::Vector3d p_minus =
+          R_WI * (Eigen::AngleAxisd(-eps, ej).toRotationMatrix()) * p_I;
+      J_fd.col(j) = (p_plus - p_minus) / (2.0 * eps);
+    }
+    Eigen::Matrix3d J_analytic = -R_WI * SkewSymmetric(p_I);
+    CHECK_NEAR(max_abs_diff(J_fd, J_analytic), 0.0, 1e-5,
+               "finite-difference J_R == -R_WI [p_I]x");
+
+    Eigen::Matrix3d prod =
+        ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp,
+                           MapPoseCovModel::SuperRightConsistent);
+    Eigen::Matrix3d ref = ref_sandwich(R_WI, Sigma_I) +
+                          ref_sandwich(J_analytic, P_RR) + P_pp;
+    CHECK_NEAR(max_abs_diff(prod, ref), 0.0, 1e-12,
+               "super_right_consistent == J_R P_RR J_R^T");
+    // Negative: removing R_WI from the Jacobian must fail (nonidentity R +
+    // anisotropic P_RR).
+    Eigen::Matrix3d wrong = ref_sandwich(R_WI, Sigma_I) +
+                            ref_sandwich(-SkewSymmetric(p_I), P_RR) + P_pp;
+    if (max_abs_diff(wrong, ref) <= 1e-6) {
+      ++g_failures;
+      std::printf("FAIL: R_WI-removed Jacobian not detected\n");
+    }
+  }
+
+  // C3-C: modes differ on the adversarial fixture; equal when R_WI = I.
+  {
+    Eigen::Matrix3d m_compat =
+        ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp,
+                           MapPoseCovModel::Livo2Compat);
+    Eigen::Matrix3d m_right =
+        ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp,
+                           MapPoseCovModel::SuperRightConsistent);
+    if (max_abs_diff(m_compat, m_right) <= 1e-9) {
+      ++g_failures;
+      std::printf("FAIL: modes did not differ on adversarial fixture\n");
+    }
+    Eigen::Matrix3d c_ident =
+        ComputeMapPointCov(p_I, Sigma_I, BASIC::M3d::Identity(), P_RR, P_pp,
+                           MapPoseCovModel::Livo2Compat);
+    Eigen::Matrix3d r_ident =
+        ComputeMapPointCov(p_I, Sigma_I, BASIC::M3d::Identity(), P_RR, P_pp,
+                           MapPoseCovModel::SuperRightConsistent);
+    CHECK_NEAR(max_abs_diff(c_ident, r_ident), 0.0, 1e-15,
+               "modes equivalent when R_WI = I");
+  }
+  ++g_checks;
+}
+
+// ---------------------------------------------------------------------------
+// G-P2.C4 — storage precision policy (D-P2.4)
+// ---------------------------------------------------------------------------
+static void test_gp2c4_storage_precision() {
+  std::printf("== G-P2.C4 storage precision policy ==\n");
+  const uint8_t slot = 0;
+
+  // Values with components not representable in float.
+  Eigen::Matrix3d cov;
+  cov << 1.0 / 3.0, 0.123456789, 1e-20, 0.123456789, 2.0 / 7.0, -0.987654321,
+      1e-20, -0.987654321, 4.0;
+  const auto quant = [](double v) {
+    return static_cast<double>(static_cast<float>(v));
+  };
+
+  // double policy: exact round-trip.
+  {
+    OctVox<BASIC::V3> vox(BASIC::V3(0.5f, 0, 0), slot,
+                          CovStoragePrecision::Double);
+    vox.setCov(slot, cov);
+    Eigen::Matrix3d got;
+    CHECK(vox.getPointCov(slot, got));
+    CHECK_NEAR(max_abs_diff(got, cov), 0.0, 0.0, "double exact round-trip");
+    CHECK_NEAR((got - got.transpose()).norm(), 0.0, 0.0, "double symmetric");
+  }
+
+  // float_quantized policy: IEEE float quantization on write/read.
+  {
+    OctVox<BASIC::V3> vox(BASIC::V3(0.5f, 0, 0), slot,
+                          CovStoragePrecision::FloatQuantized);
+    vox.setCov(slot, cov);
+    Eigen::Matrix3d got;
+    CHECK(vox.getPointCov(slot, got));
+    Eigen::Matrix3d expect;
+    expect << quant(cov(0, 0)), quant(cov(0, 1)), quant(cov(0, 2)),
+        quant(cov(1, 0)), quant(cov(1, 1)), quant(cov(1, 2)),
+        quant(cov(2, 0)), quant(cov(2, 1)), quant(cov(2, 2));
+    CHECK_NEAR(max_abs_diff(got, expect), 0.0, 0.0,
+               "float mode == IEEE float quantization");
+    CHECK_NEAR((got - got.transpose()).norm(), 0.0, 0.0,
+               "float mode stays symmetric");
+    // Negative: float mode must NOT bypass quantization.
+    if (max_abs_diff(got, cov) <= 1e-12) {
+      ++g_failures;
+      std::printf("FAIL: float mode bypassed quantization\n");
+    }
+  }
+
+  // Six symmetric components stay in the correct slot (per-component probe).
+  {
+    OctVox<BASIC::V3> vox(BASIC::V3(0.5f, 0, 0), slot,
+                          CovStoragePrecision::Double);
+    Eigen::Matrix3d probe;
+    probe << 0.11, 0.12, 0.13, 0.12, 0.22, 0.23, 0.13, 0.23, 0.33;
+    vox.setCov(slot, probe);
+    Eigen::Matrix3d got;
+    vox.getPointCov(slot, got);
+    CHECK_NEAR(max_abs_diff(got, probe), 0.0, 0.0, "six-component slot");
+    // Negative: wrong triangular mapping (off-diagonal read as diagonal).
+    if (std::fabs(got(0, 0) - probe(0, 1)) <= 1e-12) {
+      ++g_failures;
+      std::printf("FAIL: wrong triangular component mapping not detected\n");
+    }
+    // Negative: wrong slot (write slot 0, read slot 1).
+    OctVox<BASIC::V3> vox2(BASIC::V3(0.5f, 0, 0), slot,
+                           CovStoragePrecision::Double);
+    vox2.setCov(slot, probe);
+    Eigen::Matrix3d other;
+    vox2.getPointCov(1, other);
+    if (max_abs_diff(other, probe) <= 1e-12) {
+      ++g_failures;
+      std::printf("FAIL: wrong-slot readback not detected\n");
+    }
+  }
+
+  // Aggregation works in both policies (N=2).
+  for (auto prec : {CovStoragePrecision::Double,
+                    CovStoragePrecision::FloatQuantized}) {
+    OctVox<BASIC::V3> vox(BASIC::V3(0.5f, 0, 0), slot, prec);
+    Eigen::Matrix3d c1 = 0.02 * Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d c2 = 0.03 * Eigen::Matrix3d::Identity();
+    vox.setCov(slot, c1);
+    vox.AddPoint(BASIC::V3(0.51f, 0, 0), slot, c2);
+    Eigen::Matrix3d got;
+    vox.getPointCov(slot, got);
+    Eigen::Matrix3d expect = (c1 + c2) / 4.0;
+    const double tol = prec == CovStoragePrecision::Double ? 1e-15 : 1e-6;
+    CHECK_NEAR(max_abs_diff(got, expect), 0.0, tol,
+               prec == CovStoragePrecision::Double
+                   ? "double aggregation"
+                   : "float_quantized aggregation");
+    CHECK(CovarianceIsValid(got));
+  }
+  ++g_checks;
+}
+
+
 int main() {
   test_gp21_map_cov_formula();
   test_gp22_initialization_parity();
   test_gp23_aggregation();
   test_gp24_hknn_identity();
+  test_gp2c3_dual_pose_models();
+  test_gp2c4_storage_precision();
   std::printf("checks=%d failures=%d\n", g_checks, g_failures);
-  std::printf("G-P2.1..G-P2.4: %s\n", g_failures == 0 ? "PASS" : "FAIL");
+  std::printf("G-P2.1..G-P2.4 + G-P2.C3/C4: %s\n",
+              g_failures == 0 ? "PASS" : "FAIL");
   return g_failures == 0 ? 0 : 1;
 }

@@ -1,0 +1,3 @@
+good(atomic) rc=0 tsan_clean=yes
+bad(legacy)  rc=66 tsan_data_race_lines=4
+RESULT: PASS (legacy pattern detected by TSAN; fixed pattern clean)
