@@ -116,6 +116,12 @@ profiles:
     required_topics:
       - /livox/avia/lidar
       - /livox/avia/imu
+    status: CONFIG_PROVENANCE_BLOCKED
+    block_reason: >
+      The old lineage identifies an OWNER_DECISION/current committed M3DGR
+      runner config, but this prob-lio checkout contains no audited
+      Super-LIO Corridor01 config. Existing livox_360.yaml and M2DGR.yaml are
+      different sensor/config authorities and cannot be substituted or tuned.
     frame_transform: >
       Reference is T_B0_Bend = inverse(T_W_B0) @ T_W_Bend in the
       estimator body frame; no prism conversion.
