@@ -239,9 +239,12 @@ else
 fi
 
 sleep 2
-kill -INT "$RECORD_PID" 2>/dev/null
-wait "$RECORD_PID" 2>/dev/null
-RECORD_RC=$?
+RECORD_RC=0
+if [ -n "$RECORD_PID" ]; then
+  kill -INT "$RECORD_PID" 2>/dev/null
+  wait "$RECORD_PID" 2>/dev/null
+  RECORD_RC=$?
+fi
 
 echo "play_rc=$PLAY_RC node_rc=$NODE_RC record_rc=$RECORD_RC" | tee -a "$META_LOG"
 
