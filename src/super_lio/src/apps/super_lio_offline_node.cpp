@@ -71,8 +71,9 @@ int main(int argc, char** argv) {
 
   // In-process publishers feeding the production wrapper's subscribers.
   // The wrapper uses its own callback queue; spinOnce() drains it.
-  std::printf("[offline_node] lidar_type=%d (LIVOX=%d)\n", g_lidar_type,
-              static_cast<int>(LID_TYPE::LIVOX));
+  std::fprintf(stderr, "[offline_node] lidar_type=%d (LIVOX=%d)\n",
+               g_lidar_type, static_cast<int>(LID_TYPE::LIVOX));
+  std::fflush(stderr);
   ros::Publisher pub_lidar;
   ros::Publisher pub_lidar_custom;
   if (g_lidar_type == LID_TYPE::LIVOX) {
