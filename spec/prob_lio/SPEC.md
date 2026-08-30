@@ -29,8 +29,7 @@ remain Super-LIO's own.
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
-| P5 | Probabilistic Association (optional / second stage) | **IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING** — final classification: **P5_SEMANTICS_VALID / ARCHITECTURE_MODEL_MISMATCH** (rounds P5-1..P5-3; **NOT Owner-verified**; Owner audit + canonical-path decision pending) |
-| P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
+| P5 | Probabilistic Association (optional / second stage) | **EXPERIMENTAL / NON-CANONICAL** (rounds P5-1..P5-4; rejected as canonical on empirical performance; root cause unresolved; see §5A.1/§5A.5) |
 
 ## 4. Authoritative seam IDs (S0–S13)
 
@@ -76,6 +75,220 @@ Prob-LIO seam vocabulary above.
 | B11 | P2P weight | fixed `1000` factor in `HTVH` / `HTVr` accumulation | `super_lio.cpp:495-496` |
 | B12 | Robot output | `pub_odom` etc. | `ROSWrapper.cpp:457+` |
 | B13 | IESKF | information form `A = Pk^-1 + H^T R^-1 H`, `dx = Qk*b + (Kx-I)*dx_prior` | `src/lio/ESKF.cpp:251-336` |
+
+## 5A. CURRENT PROJECT STATE — canonical truth (normalized in prompt10)
+
+**This section is the single current-authority statement of project state.**
+Round-history sections below are records and may quote superseded claims
+(always marked SUPERSEDED/INVALIDATED); this section is the current truth.
+
+### 5A.1 Stage status authority
+
+| Stage | Status |
+|---|---|
+| P0 | CLOSED / OWNER VERIFIED |
+| P1 | CLOSED / OWNER VERIFIED |
+| P2 | CLOSED / OWNER VERIFIED |
+| P3 | CLOSED / OWNER VERIFIED |
+| P4 | CLOSED / OWNER VERIFIED |
+| P5 | EXPERIMENTAL / NON-CANONICAL |
+| Generalization | READY / NOT STARTED |
+
+P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
+the recommended default.
+
+**Required P5 wording (semantically):** P5 probability-association
+mathematics and the S2/S12 separation were audited, and the clean applied
+P5 regression is reproducible. However, its final lifecycle/root-cause
+diagnosis remained incomplete. On `eee_01`, applied P5 is substantially
+worse than canonical P4, so P5 is retained only as an experimental ablation
+and excluded from the canonical Prob-LIO path.
+
+No single lifecycle mechanism has been conclusively proven as the sole
+cause of the P5 regression.
+
+### 5A.2 Canonical Prob-LIO architecture
+
+```text
+Super-LIO native frontend
+  ├─ native downsampling
+  ├─ native compact OctVox map
+  ├─ native HKNN
+  ├─ native QR plane estimator
+  ├─ P1 LiDAR point covariance
+  ├─ P2 probabilistic compact-map covariance
+  ├─ P3 QR-plane uncertainty propagation
+  └─ P4 probabilistic P2P soft weighting
+
+Canonical association:
+  Super legacy association gate
+
+P5 probabilistic association:
+  experimental only
+```
+
+Canonical final measurement:
+
+    R_i = 0.001 + σ²_QR-plane,i + σ²_sensor-point,i
+    w_i = 1 / R_i
+
+**Explicit: current pose covariance P is NOT in final P4 R_i.** Current
+pose covariance may appear in map covariance and in the experimental P5
+association covariance (association-only; S12).
+
+### 5A.3 Canonical seam ledger (S0–S13)
+
+| Seam | Canonical state | Owner stage | Production location | Caveat |
+|---|---|---|---|---|
+| S0 | Super native downsample unchanged | P0 | `VoxelGridClosest` (`OctVoxMap/VoxelGridFilter.h`) | not PCL VoxelGrid |
+| S1 | LiDAR sensor covariance, correct LiDAR→IMU frame chain | P1 | `point_covariance.h` (`ComputePointCovariance`/extrinsic chain) | extrinsic-consistent; `R_LI=I` on NTU so no `eee_01` effect |
+| S2 | canonical association = Super legacy; P5 association experimental | P4/P5 | `super_lio.cpp` Observe applied gate (`AssociationMode::SuperLegacy`) | P5 is ablation only |
+| S3 | map-point covariance | P2 | `OctVoxMap.hpp` cov accumulation (`map_cov_list_`) | `livo2_compat` mode active |
+| S4 | initial-map covariance | P2 | `super_lio.cpp` map_init (`g_map_cov_init_enable`) | |
+| S5 | covariance storage, canonical precision `double` | P2 | `map_cov_storage_precision` | |
+| S6 | compact representative covariance approximation | P2 | `OctVoxMap.hpp` representative accumulation | modeling approximation (see 5A.6) |
+| S7 | Super HKNN unchanged | P0 | `KNNHeap<5>` / `OctVoxMap.hpp:307-381` | |
+| S8 | Super QR plane estimator unchanged | P0 | `super_lio.cpp` `calc_plane_coeff` (QR solve) | |
+| S9 | QR plane covariance active for P4 | P3 | `plane_qr_vec_` / `ComputeProbQrPlane` | `qr_plane_cov_enable` |
+| S10 | canonical correspondence gate = Super legacy | P4 | `compute_error()` (`length > 81 e²`) | P5 gate experimental |
+| S11 | P4 probabilistic P2P soft weight | P4 | `ComputeP2pProbWeight` (`w = 1/R_i`) | floor 0.001; no current pose P |
+| S12 | current pose P excluded from final R_i | P4 | `super_lio.cpp` weight path | association-only usage |
+| S13 | Super IESKF update unchanged | P0 | `ESKF.cpp` information-form update | |
+
+### 5A.4 Canonical `eee_01` result ledger
+
+Clean committed evidence only (dirty provisional runs are never promoted):
+
+| Configuration | ATE | Status | Run dir | Trajectory hash (sha256 prefix) |
+|---|---:|---|---|---|
+| fixed `1000` baseline (pre-P1) | 0.118875639 m | frozen baseline | `run_20260830_182308` | `6a8cc65a` |
+| P4 `prob_livo2 + livo2_compat` | 0.088831554 m | canonical Prob-LIO | `run_20260830_215616` | `259d3fbc` |
+| P4 `prob_livo2 + super_right_consistent` | 0.089745655 m | clean A/B observation | `run_20260830_215722` | `6aab2846` |
+| P5 applied probabilistic association | 1.190814611 m | experimental regression | `run_20260830_232718` | `46b0d626` |
+| P5 applied (redo reproduction, prompt9) | 1.190814611 m | experimental regression | `run_20260831_012108` | `46b0d626` |
+
+All rows: 3981 estimated rows / 3329 matched (NTU official-compatible
+evaluator, see 5A.10). Evaluator outputs: `eval_official.yaml` in each run
+dir. See `EVIDENCE_INDEX.md` for full metadata and hashes.
+
+### 5A.5 P5 final evidence interpretation
+
+**Verified:**
+- probability-association formula (`|r| < k·σ` gate with
+  `σ² = σ²_plane + σ²_sensor + σ²_pose(association-only)`);
+- S2/S12 separation (pose covariance never enters final P4 R_i);
+- single candidate/candidate-builder math (`BuildAssociationCandidate` +
+  `EvaluateAssociationPredicates` shared authority);
+- association pose-model separation (`livo2_compat` vs
+  `super_right_consistent` A/B);
+- clean applied regression (reproducible: 1.190814611 m twice);
+- P4 shadow non-interference (byte parity `259d3fbc...`).
+
+**Not fully verified:**
+- complete convergence-phase shadow parity with applied P5 (the shadow
+  observed no evaluations in the convergence callback — the applied
+  convergence-phase control flow is source-verified but was not covered by
+  shadow instrumentation end-to-end);
+- final sticky/reentry attribution;
+- sole/root cause of the 1.190814611 m regression.
+
+**Empirical conclusion:**
+
+    P4 canonical = 0.088831554 m
+    P5 applied   = 1.190814611 m
+
+P5 is rejected as canonical for the current Prob-LIO version. The rejection
+reason is the empirical performance gap, NOT a conclusively proven
+root-cause hypothesis.
+
+**Future status:** P5 remains selectable as an experimental ablation only.
+Any future P5 lifecycle redesign requires explicit Owner authorization and
+is outside the current canonical roadmap.
+
+### 5A.6 S6 final documentation
+
+`S6_PRIMARY_CAUSE_NOT_SUPPORTED` on current `eee_01` evidence:
+- LA_PR rate decreases with representative maturity/count
+  (1.53% → 0.49% across count bins);
+- unshrink sensitivity rescued only a minority (~10–11% of LA_PR);
+- no S6 estimator modification was made.
+
+Modeling limitation preserved:
+
+    Σ_{μ_N} = (1/N²) Σ_i Σ_i
+
+is an approximation treating contributions as independent and does not
+explicitly model same-scan shared pose-error correlation.
+
+**Required wording:** S6 is not identified as the primary cause of the
+current P5 regression, but compact-map covariance aggregation remains an
+acknowledged modeling approximation.
+
+### 5A.7 FAST-LIVO2 compatibility ledger
+
+| Prob-LIO stage | Label | Semantics |
+|---|---|---|
+| P1 sensor covariance | CORRECTED | correct LiDAR→IMU covariance frame chain. If active FAST-LIVO2 omits nonidentity extrinsic rotation in an association path, Prob-LIO is extrinsic-consistent, not exact bug-compatible parity. For NTU `R_LI=I`, so no `eee_01` effect |
+| P2 map pose covariance — `livo2_compat` | BUG-COMPATIBLE | active-reference-style / bug-compatible mode |
+| P2 map pose covariance — `super_right_consistent` | CORRECTED | corrected Super right-perturbation mode |
+| P4 final weight | PARITY | floor `0.001` + plane variance + sensor-point variance; no current pose P in the final weight |
+| P5 association | EXPERIMENTAL | adaptation; do not call its whole lifecycle exact FAST-LIVO2 parity |
+
+Canonical first generalization mode: **`livo2_compat`** (unless Owner later
+changes it).
+
+### 5A.8 Canonical configuration for generalization
+
+```text
+cov_enable = ON
+cov_validation_mode = light
+map_pose_cov_model = livo2_compat
+map_cov_storage_precision = double
+qr_plane_cov_enable = ON
+p2p_weight_mode = prob_livo2
+association_mode = super_legacy
+prob_assoc_shadow_enable = OFF
+```
+
+Heavy/debug diagnostics OFF by default: full eigensolver covariance
+validation OFF; P5 shadow OFF; per-point dumps OFF; FD/profiling/heavy
+intrinsic instrumentation OFF. (Values documented as they exist in the
+config; no values changed in prompt10.)
+
+### 5A.9 Config provenance for future datasets
+
+Priority: (1) dataset/algorithm official config if available;
+(2) frozen Super-LIO dataset-specific config; (3) FAST-LIVO2 official
+config where relevant; (4) default only if no dataset-specific
+authoritative value exists.
+
+No sweeps by default. Preserve dataset-specific authoritative values:
+blind/max range; beam/depth noise; IESKF iterations; plane/HKNN settings;
+extrinsics; IMU noise. Prob-LIO mode switches remain fixed unless an
+explicit semantic adapter is required.
+
+### 5A.10 Evaluator ledger
+
+`eee_01` canonical official-compatible evaluator contract
+(`eval/prob_lio/eval_ntu_viral_official.py`):
+- Leica prism lever-arm handling per dataset-author config;
+- strict timestamp interpolation;
+- SE(3) Umeyama alignment, no scale;
+- 3981 estimated rows / 3329 matched in the canonical run.
+
+For future dataset families, document only choices already audited; do not
+invent evaluator semantics.
+
+### 5A.11 Run/evidence hygiene (permanent rule)
+
+```text
+modify → test → commit → clean → canonical run → evaluate
+```
+
+Canonical run metadata must include: `algorithm_commit`, `run_git_head`,
+`run_git_dirty=false`, `run_git_status_short=""`, `production_code_tree_oid`,
+bag hash, effective config snapshot. Generated runtime artifacts belong
+under `results/prob_lio/run_xxx/`, never under `src/super_lio/`.
 
 ## 6. Baseline (frozen)
 
@@ -609,7 +822,8 @@ changes uncommitted) while meta.txt bound an earlier clean commit.
 - Performance: fixed_1000 + QR shadow wall 34.5 s; prob_livo2 wall 36.1 s
   (vs pipeline-only 31.7 s, baseline 16.9 s).
 - Status: P4 = CLOSED/PASS (semantics verdict separate from accuracy
-  outcome); P5 remains NOT STARTED. Commit H = `50f3e88` (recorded by
+  outcome); P5 remains NOT STARTED (historical round-state record as of
+  P5-1; current status §5A.1). Commit H = `50f3e88` (recorded by
   the docs follow-up commit).
 
 ### Round P4-2 / P5-1 — P4 clean-source closure + P5 probabilistic association (prompt6)
@@ -778,10 +992,15 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
   flip 91,759; **acc2rej 29,765 / rej2acc 61,994** (per-iteration re-gating
   across non-converged iterations: iter2 acc2rej 18,459 rej2acc 42,039;
   iter3 acc2rej 11,306 rej2acc 19,955); **sticky_skip 0 / counterfactual
-  reaccept 0** (the converged phase structurally performs no probability
-  re-evaluation — production ordering verified: the association machinery
-  lives inside `if(!need_converge)`; the persisted mask decides
-  measurement activity in the converged iteration).
+  reaccept 0**.
+  > NOTE (prompt10 §7/§9 framing): the shadow observed NO evaluations in
+  > the convergence callback, so `sticky_skip=0` and
+  > `counterfactual_reaccept=0` are NOT evidence that no sticky/reentry
+  > lifecycle exists in the applied convergence phase — the shadow did not
+  > cover it. The source ordering (association machinery inside
+  > `if(!need_converge)`) is source-verified, but complete
+  > convergence-phase shadow parity with applied P5 remains NOT fully
+  > verified, and the exact root cause of the P5 regression is UNRESOLVED.
 - LA_PR components: |r| 0.1667, sigma_assoc 2.6049e-3, z 4.342, plane_var
   9.57e-5, sensor 2.05e-4, pose_rot 2.30e-3, pose_pos 2.90e-6;
   probe_rescued 23,954 (11.2% of LA_PR).
@@ -798,25 +1017,33 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
 
 **NOT AUTHORIZED.** §15 gate: corrected evidence shows
 `sticky_skip_due_prior_prob_reject = 0` and `counterfactual_reaccept = 0`
-(the converged phase performs no association re-evaluation at all; the
-sticky-reject hypothesis is not evidenced). No Commit N; A0/B0 are final.
+in the shadow observations (the shadow observed no convergence-phase
+evaluations; the sticky-reject hypothesis was not evidenced by the shadow
+instrumentation). No Commit N; A0/B0 are final.
 The lifecycle mismatch that remains (converged-phase persistence vs
 FAST-LIVO2 full per-iteration re-association) is out of the authorized
 bounded scope (no ESKF / HKNN / QR / P4 / gate changes).
+
+> NOTE (prompt10): the shadow's convergence-phase silence does NOT prove
+> the absence of a sticky lifecycle in the applied path — convergence-phase
+> P5 control-flow parity was not fully covered by the diagnostic. The
+> rejection of P5 as canonical rests on the empirical performance gap
+> (1.190814611 m vs 0.088831554 m), not on a proven root cause.
 
 #### Final P5 classification
 
 **P5_LIFECYCLE_MISMATCH_NOT_FIXED_BY_BOUNDED_SCOPE**:
 - the probability-gate semantics are valid and deterministic (shared
   authority, byte parity, exact regression reproduction);
-- the verified lifecycle: per-iteration re-gating across non-converged
-  iterations (acc2rej/rej2acc substantial) + converged-phase persistence
-  (no re-evaluation); FAST-LIVO2 re-associates every iteration — the
-  mismatch is not fixable within the authorized bounded scope and is not
-  evidenced as the divergence driver;
+- the verified lifecycle (source ordering): per-iteration re-gating across
+  non-converged iterations (acc2rej/rej2acc substantial) + a convergence
+  phase whose P5 control flow was source-verified but not fully covered by
+  shadow parity; FAST-LIVO2 re-associates every iteration — the mismatch
+  is not fixable within the authorized bounded scope and is not evidenced
+  as the sole divergence driver;
 - P5 remains materially worse than P4 (1.1908 vs 0.0888): the binary gate
   removes ~0.6% of legacy-accepted correspondences (|r|/σ ≈ 4.3) that P4
-  soft weighting retains.
+  soft weighting retains. Root cause UNRESOLVED (prompt10 framing).
 
 **Canonical Prob-LIO = P0–P4; Association = Super legacy; P5 =
 experimental ablation.** Generalization NOT STARTED / OWNER NEXT
@@ -853,12 +1080,14 @@ DECISION. P5 is NOT Owner-verified.
   > `reset()` destroying frame identity (iter2+ records collapsed onto a
   > fake frame 0). Corrected evidence (P5-4 round, Run A0): frames execute
   > 2–4 iterations — final-iteration histogram iter2: 395 / iter3: 195 /
-  > iter4: 3391 of 3981 frames — and 3586 frames reach the need_converge
-  > phase. The prob gate IS re-evaluated across non-converged iterations
-  > (acc2rej 29,765 / rej2acc 61,994 / flip 91,759), and the converged
-  > iteration performs NO probability re-evaluation (production ordering:
-  > the whole association machinery lives inside `if(!need_converge)`; the
-  > persisted mask decides measurement activity).
+  > iter4: 3391 of 3981 frames — and 3586 frames record obs_iter > 2 (see
+  > 5A.5 note on exact semantics). The prob gate IS re-evaluated across
+  > non-converged iterations (acc2rej 29,765 / rej2acc 61,994 / flip
+  > 91,759). SUPERSEDED-framing note (prompt10): the convergence-phase
+  > claim "performs NO probability re-evaluation" is SOURCE-VERIFIED only
+  > (association machinery inside `if(!need_converge)`); complete
+  > convergence-phase shadow parity with applied P5 was not covered, so it
+  > is not promoted to a proven-lifecycle conclusion.
 - **Gap D** — analyzer derived bursts from a score-sorted list (produced
   impossible ranges like `2321..1995`). FIXED: ranking and chronology views
   are separate; bursts derive strictly from frame_id order (G-P5.F5,
@@ -884,11 +1113,18 @@ termination vs reference iterative re-association).
 > probability re-evaluation there (persisted-mask measurement only), while
 > FAST-LIVO2 re-associates every iteration including the final one.
 > Classification remains **LIFECYCLE_MISMATCH_OTHER** (converged-phase
-> persistence vs reference full re-association; NOT the sticky-reject
-> subtype — sticky_skip_due_prior_prob_reject = 0 in the corrected
-> shadow evidence).
+> persistence vs reference full re-association). NOTE (prompt10): the
+> corrected shadow observed no convergence-phase evaluations, so the
+> sticky-reject subtype cannot be confirmed nor refuted by that evidence;
+> it is NOT promoted as a proven-lifecycle conclusion.
 
-#### Hard gates (all GREEN)
+#### Hard gates (all GREEN) — P5-3 round record
+
+> Round-state record. G-P5.F3/F7 conclusions below are SUPERSEDED by the
+> prompt9-REDO corrected lifecycle evidence (the shadow does NOT evaluate
+> every executed iteration — the convergence callback is not covered; see
+> §5A.5 and `HISTORY.md`). The G-P5.F1/F2/F5/F6 gate PASSes remain valid
+> in substance (later re-verified by G-P9.T1–T5/F1).
 
 - **G-P5.F1** single production authority PASS (`test_p5_lifecycle.cpp`):
   applied and shadow predicates consume the same production candidate; four
@@ -900,7 +1136,9 @@ termination vs reference iterative re-association).
   fixture test.
 - **G-P5.F3** sticky-lifecycle semantics PASS: synthetic lifecycle simulator
   proves re-gate (not sticky) semantics; reaccept evidence; divergence
-  point; four negative mutations.
+  point; four negative mutations. — [SUPERSEDED semantics claim: the
+  simulator was detached from production ordering; the production
+  lifecycle state machine (G-P9.T3/T4) replaces it]
 - **G-P5.F4** lifecycle parity classification complete:
   LIFECYCLE_MISMATCH_OTHER.
 - **G-P5.F5** analyzer chronology PASS (`test_analyzer_chronology.py`):
@@ -914,7 +1152,9 @@ termination vs reference iterative re-association).
   suppression), so no separate toggle was needed; Run A byte parity proves
   non-interference; the counterfactual-vs-applied difference is captured by
   the flip/late counters and the synthetic lifecycle test. GREEN with the
-  justification above.
+  justification above. — [SUPERSEDED "evaluates every executed iteration":
+  the corrected shadow observed no convergence-callback evaluations;
+  convergence-phase parity is NOT fully verified (see §5A.5)]
 
 #### Clean runs (same committed source `63dd34a`, git_dirty=no)
 
@@ -932,12 +1172,16 @@ termination vs reference iterative re-association).
 
 #### Final P5 classification
 
-**P5_SEMANTICS_VALID / ARCHITECTURE_MODEL_MISMATCH** (Class C):
+**P5_SEMANTICS_VALID / ARCHITECTURE_MODEL_MISMATCH** (Class C) —
+SUPERSEDED CLASSIFICATION, see the P9 REDO CORRECTION below and §5A.5:
 - the production seam is unified and GREEN; gate values are finite/valid;
   the shadow run is byte-identical; the applied regression reproduces
   exactly from the same clean source;
-- the binary k-sigma gate, applied single-shot (3980/3981 frames run one
-  IEKF iteration), rejects ~0.6–0.8% of legacy-accepted correspondences with
+- the binary k-sigma gate, applied single-shot — [SUPERSEDED/INVALIDATED
+  claim: "3980/3981 frames run one IEKF iteration"; corrected accounting
+  in the P9 REDO CORRECTION below and §5A.5] —
+  rejects ~0.6–0.8% of
+  legacy-accepted correspondences with
   |r|/σ ≈ 4.3 — high-residual correspondences the legacy range-based
   geometric gate intentionally accepts and the P4 soft weighting retains
   with small weights. Removing these constraints outright (binary) is
