@@ -1,0 +1,87 @@
+[rosmaster.main][INFO] 2026-08-31 02:51:22,434: initialization complete, waiting for shutdown
+[rosmaster.main][INFO] 2026-08-31 02:51:22,435: Starting ROS Master Node
+[xmlrpc][INFO] 2026-08-31 02:51:22,436: XML-RPC server binding to 0.0.0.0:11381
+[xmlrpc][INFO] 2026-08-31 02:51:22,437: Started XML-RPC server [http://robot:11381/]
+[rosmaster.master][INFO] 2026-08-31 02:51:22,437: Master initialized: port[11381], uri[http://robot:11381/]
+[xmlrpc][INFO] 2026-08-31 02:51:22,438: xml rpc node: starting XML-RPC server
+[rosmaster.master][INFO] 2026-08-31 02:51:25,730: +PARAM [/lio/map/save_map] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,731: +PARAM [/lio/map/if_filter] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,732: +PARAM [/lio/map/save_map_dir] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,734: +PARAM [/lio/map/map_name] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,735: +PARAM [/lio/map/ds_size] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,736: +PARAM [/lio/map/save_interval] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,737: +PARAM [/lio/ros/lidar_topic] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,738: +PARAM [/lio/ros/imu_topic] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,739: +PARAM [/lio/sensor/lidar_type] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,740: +PARAM [/lio/sensor/blind] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,741: +PARAM [/lio/sensor/maxrange] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,742: +PARAM [/lio/sensor/filter_rate] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,743: +PARAM [/lio/sensor/enable_downsample] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,744: +PARAM [/lio/sensor/voxel_fliter_size] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,745: +PARAM [/lio/sensor/gravity_norm] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,746: +PARAM [/lio/sensor/imu_type] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,747: +PARAM [/lio/sensor/imu_na] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,748: +PARAM [/lio/sensor/imu_ng] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,750: +PARAM [/lio/sensor/imu_nba] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,751: +PARAM [/lio/sensor/imu_nbg] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,752: +PARAM [/lio/extrinsic/lidar_imu] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,753: +PARAM [/lio/extrinsic/odom_robo] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,753: +PARAM [/lio/hash_map/hash_capacity] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,754: +PARAM [/lio/hash_map/vox_resolution] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,755: +PARAM [/lio/kf/kf_type] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,755: +PARAM [/lio/kf/kf_max_iterations] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,756: +PARAM [/lio/kf/kf_align_gravity] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,757: +PARAM [/lio/kf/kf_quit_eps] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,757: +PARAM [/lio/output/robot] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,758: +PARAM [/lio/output/plan_env_world] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,758: +PARAM [/lio/output/plan_env_body] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,759: +PARAM [/lio/output/ml_map] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,760: +PARAM [/lio/output/planner] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,761: +PARAM [/lio/output/map] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,762: +PARAM [/lio/output/dense] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,763: +PARAM [/lio/output/pub_step] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,763: +PARAM [/lio/eva/timer] by /rosparam-312616
+[rosmaster.master][INFO] 2026-08-31 02:51:25,842: +PARAM [/lio/offline/bag] by /rosparam-312655
+[rosmaster.master][INFO] 2026-08-31 02:51:25,923: +PARAM [/lio/prob_lio/cov_enable] by /rosparam-312658
+[rosmaster.master][INFO] 2026-08-31 02:51:26,006: +PARAM [/lio/prob_lio/cov_validation_mode] by /rosparam-312663
+[rosmaster.master][INFO] 2026-08-31 02:51:26,087: +PARAM [/lio/prob_lio/map_pose_cov_model] by /rosparam-312668
+[rosmaster.master][INFO] 2026-08-31 02:51:26,157: +PARAM [/lio/prob_lio/map_cov_storage_precision] by /rosparam-312673
+[rosmaster.master][INFO] 2026-08-31 02:51:26,237: +PARAM [/lio/prob_lio/qr_plane_cov_enable] by /rosparam-312678
+[rosmaster.master][INFO] 2026-08-31 02:51:26,308: +PARAM [/lio/prob_lio/p2p_weight_mode] by /rosparam-312683
+[rosmaster.master][INFO] 2026-08-31 02:51:26,385: +PARAM [/lio/prob_lio/association_mode] by /rosparam-312688
+[rosmaster.master][INFO] 2026-08-31 02:51:26,455: +PARAM [/lio/prob_lio/prob_assoc_shadow_enable] by /rosparam-312693
+[rosmaster.master][INFO] 2026-08-31 02:51:26,531: +PARAM [/lio/prob_lio/association_pose_cov_model] by /rosparam-312698
+[rosmaster.master][INFO] 2026-08-31 02:51:26,602: +PARAM [/lio/prob_lio/association_sensor_cov_model] by /rosparam-312703
+[rosmaster.master][INFO] 2026-08-31 02:51:26,686: +PARAM [/lio/offline/out_dir] by /rosparam-312708
+[rosmaster.master][INFO] 2026-08-31 02:51:27,029: +PUB [/rosout] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,029: +SERVICE [/lio_offline/get_loggers] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,029: +SERVICE [/lio_offline/set_logger_level] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,040: +PUB [/tf] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,042: +SUB [/livox/lidar] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,043: +SUB [/vn100/imu] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,043: +PUB [/lio/odom] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,043: +PUB [/lio/path] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,044: +PUB [/lio/path_robot] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,047: +PUB [/livox/lidar] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,048: +CACHEDPARAM [/rosout_disable_topics_generation] by /lio_offline
+[rosmaster.master][INFO] 2026-08-31 02:51:27,049: +PUB [/vn100/imu] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:27,143: publisherUpdate[/livox/lidar] -> http://robot:41229/ ['http://robot:41229/']
+[rosmaster.master][INFO] 2026-08-31 02:51:27,147: publisherUpdate[/livox/lidar] -> http://robot:41229/ ['http://robot:41229/']: sec=0.00, result=[1, '', 0]
+[rosmaster.master][INFO] 2026-08-31 02:51:27,147: publisherUpdate[/vn100/imu] -> http://robot:41229/ ['http://robot:41229/']
+[rosmaster.master][INFO] 2026-08-31 02:51:27,147: publisherUpdate[/vn100/imu] -> http://robot:41229/ ['http://robot:41229/']: sec=0.00, result=[1, '', 0]
+[rosmaster.master][INFO] 2026-08-31 02:51:57,055: -PUB [/vn100/imu] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,055: -PUB [/livox/lidar] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,056: -PUB [/tf] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,057: -PUB [/lio/path_robot] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,058: -PUB [/lio/path] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,058: -PUB [/lio/odom] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,058: -SUB [/vn100/imu] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,059: -SUB [/livox/lidar] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,090: publisherUpdate[/vn100/imu] -> http://robot:41229/ []
+[rosmaster.master][INFO] 2026-08-31 02:51:57,091: publisherUpdate[/vn100/imu] -> http://robot:41229/ []: sec=0.00, result=[0, 'Tried to advertise on topic [/livox/lidar] with md5sum [e4d6829bdfe657cb6c21a746c86b21a6] and datatype [livox_ros_driver/CustomMsg], but the topic is already advertised as md5sum [1158d486dd51d683ce2f1be655c3c181] and datatype [sensor_msgs/PointCloud2]', 0]
+[rosmaster.master][INFO] 2026-08-31 02:51:57,091: publisherUpdate[/livox/lidar] -> http://robot:41229/ []
+[rosmaster.master][INFO] 2026-08-31 02:51:57,092: publisherUpdate[/livox/lidar] -> http://robot:41229/ []: sec=0.00, result=[0, 'Tried to advertise on topic [/livox/lidar] with md5sum [e4d6829bdfe657cb6c21a746c86b21a6] and datatype [livox_ros_driver/CustomMsg], but the topic is already advertised as md5sum [1158d486dd51d683ce2f1be655c3c181] and datatype [sensor_msgs/PointCloud2]', 0]
+[rosmaster.master][INFO] 2026-08-31 02:51:57,192: -PUB [/rosout] /lio_offline http://robot:41229/
+[rosmaster.master][INFO] 2026-08-31 02:51:57,193: -SERVICE [/lio_offline/get_loggers] /lio_offline rosrpc://robot:46107
+[rosmaster.master][INFO] 2026-08-31 02:51:57,193: -SERVICE [/lio_offline/set_logger_level] /lio_offline rosrpc://robot:46107
+[rosmaster.master][INFO] 2026-08-31 02:51:57,193: -CACHEDPARAM [/rosout_disable_topics_generation] by /lio_offline

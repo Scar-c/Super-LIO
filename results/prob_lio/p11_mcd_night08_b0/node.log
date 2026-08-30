@@ -1,0 +1,7 @@
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0831 02:51:27.030668 312721 ROSWrapper.cpp:14] [32m ---> [Param] map/save_map: false[0m
+I0831 02:51:27.040938 312721 ROSWrapper.cpp:302] [32m ---> Using Lidar type: LIVOX[0m
+I0831 02:51:27.047715 312721 super_lio.cpp:89] [32m ---> [SuperLIO]: initialized.[0m
+[ERROR] [1788115887.048252771]: Tried to advertise on topic [/livox/lidar] with md5sum [e4d6829bdfe657cb6c21a746c86b21a6] and datatype [livox_ros_driver/CustomMsg], but the topic is already advertised as md5sum [1158d486dd51d683ce2f1be655c3c181] and datatype [sensor_msgs/PointCloud2]
+[offline_node] bag=/home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_input/ntu_night_08_lio_filtered.bag start_offset=-1.000 duration=-1.000
+[offline_node] ERROR: timeout waiting for wrapper subscribers on /livox/lidar / /vn100/imu
