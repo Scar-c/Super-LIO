@@ -747,8 +747,7 @@ Run B/C).
   to the frozen clean P4 canonical `259d3fbc...`).
 - **G-P5.C3** shadow non-interference PASS: `prob_assoc_shadow_enable=true`
   with `association_mode=super_legacy` produced BYTE_PARITY with the P4
-  canonical (ATE 0.118875639→shadow 0.088831554 — wait, P4 canonical ATE is
-  0.088831554; the shadow run ATE = 0.088831554, sha256 `259d3fbc...`);
+  canonical trajectory (sha256 `259d3fbc...`, ATE 0.088831554);
   counters > 0; negative (wiring shadow into effect_mask_) covered by test.
 - **G-P5.C4** disagreement-matrix correctness PASS (synthetic four-quadrant
   fixtures; swap / double-count / omit-rejects / post-gate-counting
