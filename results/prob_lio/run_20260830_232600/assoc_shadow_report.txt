@@ -1,0 +1,80 @@
+=== P5 shadow association diagnosis (iteration-resolved) ===
+records=14939 (frame,iteration) rows; frames=3981; iterations=[1, 2, 3, 4]
+attempted=39813081
+quadrant matrix: LA_PA=39556653 LA_PR=235174 LR_PA=5236 LR_PR=16018
+matrix sum=39813081 (== attempted: OK)
+invalid: nonfinite=0 negative=0
+lifecycle: reject_from_active=251192 late(need_converge)=0 sticky(need_converge)=0 flip=120851 counterfactual_reaccept(need_converge)=0
+  NOTE: the ESKF breaks on convergence (quit_eps), so the need_converge iteration rarely executes;
+  'final-iteration' decisions (the ones that determine the state) are analyzed per frame below.
+
+final-iteration-per-frame analysis (frames=3981):
+  attempted=13546131 LA_PR=92742 rej_active=101314 flip=0
+  iteration histogram of final decisions:
+    final iter 1: 3980 frames
+    final iter 4: 1 frames
+
+per-iteration summary:
+  iter need_converge attempted  LA_PA   LA_PR   LR_PA   LR_PR  sticky  flip  reaccept
+    1            0  13547465 13442985   92742    3166    8572       0      0         0
+    2            0  13544939 13464687   74582    1215    4455       0  80421         0
+    3            0  12720677 12648981   67850     855    2991       0  40430         0
+    4            1         0       0       0       0       0       0      0         0
+
+LA_PR component summaries (weighted by frame LA_PR):
+  |r| mean=0.1666
+  sigma_assoc mean=2.6174e-03
+  z=|r|/sqrt(var) mean=4.320
+  plane_var mean=1.3043e-04
+  query_sensor_var mean=2.0769e-04
+  query_pose_rot_var mean=2.2763e-03
+  query_pose_pos_var mean=2.9188e-06
+  neighbor_count mean=7.27 max=12.48 (weighted)
+  probe_rescued=23954 (10.2% of LA_PR)
+
+count-bin table (LA_PR candidates):
+  bin        n      LA_PR  LA_PR_rate  plane_var_mean  z_mean
+      1  1264879    16279       1.29%     3.1168e-04   4.541
+    2-4  10996996    74382       0.68%     1.8426e-04   4.405
+    5-9  9969168    62028       0.62%     1.0222e-04   4.251
+  10-14  10011218    49153       0.49%     7.5229e-05   4.252
+  15-20  7570820    33332       0.44%     5.5722e-05   4.254
+
+top 10 frames by LA_PR count (ranking):
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+      0  1609059013.770000  142432      0.005
+   1996  1609059213.350000     462      0.148
+   2321  1609059245.870000     445      0.137
+   2000  1609059213.760000     421      0.136
+   1995  1609059213.250000     358      0.103
+   2325  1609059246.250000     353      0.098
+   1999  1609059213.650000     318      0.097
+   2322  1609059245.970000     309      0.086
+   2320  1609059245.760000     300      0.086
+   1236  1609059137.340000     274      0.073
+
+top 10 frames by LA_PR/legacy fraction (ranking):
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+   1996  1609059213.350000     462      0.148
+   2321  1609059245.870000     445      0.137
+   2000  1609059213.760000     421      0.136
+   1995  1609059213.250000     358      0.103
+   2325  1609059246.250000     353      0.098
+   1999  1609059213.650000     318      0.097
+    518  1609059065.580000     181      0.093
+   2322  1609059245.970000     309      0.086
+   2320  1609059245.760000     300      0.086
+    517  1609059065.470000     164      0.084
+
+first spike frame (LA_PR>=100): 0 (LA_PR=142432)
+disagreement bursts (5-gap, chronology): 45
+  frames 0..0 (n=1, total LA_PR=142432)
+  frames 517..533 (n=17, total LA_PR=2357)
+  frames 543..543 (n=1, total LA_PR=105)
+  frames 682..682 (n=1, total LA_PR=115)
+  frames 719..719 (n=1, total LA_PR=120)
+  frames 752..753 (n=2, total LA_PR=331)
+  frames 759..759 (n=1, total LA_PR=147)
+  frames 853..853 (n=1, total LA_PR=118)
+  frames 865..865 (n=1, total LA_PR=108)
+  frames 1079..1079 (n=1, total LA_PR=133)
