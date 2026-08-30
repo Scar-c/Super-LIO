@@ -173,3 +173,16 @@ target_link_libraries(test_qr_plane_covariance ${catkin_LIBRARIES})
 add_test(NAME prob_lio_qr_plane_covariance
          COMMAND test_qr_plane_covariance)
 
+# Prob-LIO P4 tests (S11 probabilistic P2P weighting).
+add_executable(test_p4_weight
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_p4_weight.cpp
+)
+target_include_directories(test_p4_weight PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_p4_weight ${catkin_LIBRARIES})
+add_test(NAME prob_lio_p4_weight
+         COMMAND test_p4_weight)
+

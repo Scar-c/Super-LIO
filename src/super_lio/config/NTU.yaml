@@ -50,6 +50,11 @@ lio:
     map_cov_storage_precision: double
     # P3 (S9): QR plane covariance shadow (not consumed by the estimator).
     qr_plane_cov_enable: false
+    # P4 (S11): P2P measurement weight mode. fixed_1000 (default) preserves
+    # the exact legacy weighting; prob_livo2 uses
+    # w = 1 / (0.001 + sigma_plane^2 + sigma_point^2) (S12: no current pose
+    # covariance in R_i). prob_livo2 implies the covariance pipeline ON.
+    p2p_weight_mode: fixed_1000
 
   # Extrinsic Parameters
   extrinsic:

@@ -70,6 +70,7 @@ void SuperLIO::init(){
   
   points_world_v3_.reserve(21000);
   abcd_vec_.resize(20000);
+  plane_qr_vec_.resize(20000);
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
@@ -449,6 +450,20 @@ void SuperLIO::DownSample(){
 struct ThreadACC{
   M6d HTVH = M6d::Zero();
   V6d HTVr = V6d::Zero();
+  /// Prob-LIO P4 (S11): bounded weight statistics (thread-local; reduced
+  /// after the parallel section — race-free).
+  std::uint64_t w_count = 0;
+  double w_sum = 0.0;
+  double w_min = 1e300;
+  double w_max = 0.0;
+  std::uint64_t w_bins[5] = {0, 0, 0, 0, 0};  // (0,0.1],(0.1,1],(1,10],(10,100],(100,1000]
+  std::uint64_t near_ceiling = 0;             // w > 999
+  double plane_var_sum = 0.0;
+  double point_var_sum = 0.0;
+  double plane_var_min = 1e300;
+  double plane_var_max = 0.0;
+  double point_var_min = 1e300;
+  double point_var_max = 0.0;
   ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()) {}
 };
 
@@ -534,7 +549,11 @@ void SuperLIO::Observe(){
             /// getTopK() result. Shadow only: plane coefficients / acceptance
             /// are unchanged (legacy calc_plane_coeff above remains
             /// authority).
-            if(effect_mask_[idx] && g_prob_lio_qr_plane_cov){
+            const bool p4_needs_plane =
+                g_prob_lio_p2p_weight_mode ==
+                static_cast<int>(P2pWeightMode::ProbLivo2);
+            if(effect_mask_[idx] &&
+               (g_prob_lio_qr_plane_cov || p4_needs_plane)){
               qr_cov_attempted_.fetch_add(1, std::memory_order_relaxed);
               PlanePointsArray plane_pts;
               PlaneCovsArray plane_covs;
@@ -542,13 +561,15 @@ void SuperLIO::Observe(){
                 plane_pts[k] = top_K.points_[k].cast<double>();
                 plane_covs[k] = top_K.covs_[k];
               }
-              const ProbQrPlane plane =
+              plane_qr_vec_[idx] =
                   ComputeProbQrPlane(plane_pts, plane_covs, top_K.count);
-              if(plane.status == ProbQrPlane::kValid){
+              if(plane_qr_vec_[idx].status == ProbQrPlane::kValid){
                 qr_cov_valid_.fetch_add(1, std::memory_order_relaxed);
-              }else if(plane.status == ProbQrPlane::kRankDeficient){
+              }else if(plane_qr_vec_[idx].status ==
+                       ProbQrPlane::kRankDeficient){
                 qr_cov_rank_invalid_.fetch_add(1, std::memory_order_relaxed);
-              }else if(plane.status == ProbQrPlane::kNonFinite){
+              }else if(plane_qr_vec_[idx].status ==
+                       ProbQrPlane::kNonFinite){
                 qr_cov_nonfinite_.fetch_add(1, std::memory_order_relaxed);
               }
             }
@@ -568,9 +589,64 @@ void SuperLIO::Observe(){
             V6d J;
             J.head<3>() = point_body_d.cross(nb);
             J.tail<3>() = normvec;
-      
-            local_acc.HTVH += J * 1000 * J.transpose();
-            local_acc.HTVr -= J * 1000 * error;
+
+            double w = 1000.0;
+            if(g_prob_lio_p2p_weight_mode ==
+               static_cast<int>(P2pWeightMode::ProbLivo2)){
+              /// Prob-LIO P4 (S11): w = 1/(0.001 + sigma_plane^2 +
+              /// sigma_point^2). S12: current pose covariance P is NOT part
+              /// of R_i. Invalid variance -> conservative skip (no
+              /// misleading high-confidence residual, no fallback to 1000).
+              prob_weight_attempted_.fetch_add(1, std::memory_order_relaxed);
+              const ProbQrPlane& plane = plane_qr_vec_[idx];
+              if(plane.status != ProbQrPlane::kValid){
+                prob_weight_invalid_nonfinite_.fetch_add(
+                    1, std::memory_order_relaxed);
+                continue;
+              }
+              const V3d p_W = point_world.cast<double>();
+              const M3d R_WI = pose.R_.cast<double>();
+              const M3d& Sigma_I = body_cov_list_[idx];
+              const double sigma_plane2 =
+                  PlaneResidualVariance(p_W, plane.covariance);
+              const double sigma_point2 =
+                  PointResidualVariance(normvec, R_WI, Sigma_I);
+              const ProbWeight pw =
+                  ComputeP2pProbWeight(sigma_plane2, sigma_point2, 0.001);
+              if(!pw.valid){
+                if(pw.invalid_nonfinite){
+                  prob_weight_invalid_nonfinite_.fetch_add(
+                      1, std::memory_order_relaxed);
+                }else{
+                  prob_weight_invalid_negative_.fetch_add(
+                      1, std::memory_order_relaxed);
+                }
+                continue;
+              }
+              prob_weight_valid_.fetch_add(1, std::memory_order_relaxed);
+              w = pw.weight;
+              local_acc.w_count++;
+              local_acc.w_sum += w;
+              if(w < local_acc.w_min) local_acc.w_min = w;
+              if(w > local_acc.w_max) local_acc.w_max = w;
+              const int bin = (w <= 0.1) ? 0 : (w <= 1.0) ? 1
+                              : (w <= 10.0) ? 2 : (w <= 100.0) ? 3 : 4;
+              local_acc.w_bins[bin]++;
+              if(w > 999.0) local_acc.near_ceiling++;
+              local_acc.plane_var_sum += sigma_plane2;
+              if(sigma_plane2 < local_acc.plane_var_min)
+                local_acc.plane_var_min = sigma_plane2;
+              if(sigma_plane2 > local_acc.plane_var_max)
+                local_acc.plane_var_max = sigma_plane2;
+              local_acc.point_var_sum += sigma_point2;
+              if(sigma_point2 < local_acc.point_var_min)
+                local_acc.point_var_min = sigma_point2;
+              if(sigma_point2 > local_acc.point_var_max)
+                local_acc.point_var_max = sigma_point2;
+            }
+
+            local_acc.HTVH += J * w * J.transpose();
+            local_acc.HTVr -= J * w * error;
           }
         }
     });
@@ -580,6 +656,30 @@ void SuperLIO::Observe(){
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
+      if(g_prob_lio_p2p_weight_mode ==
+         static_cast<int>(P2pWeightMode::ProbLivo2)){
+        weight_stats_.count += local_acc.w_count;
+        weight_stats_.w_sum += local_acc.w_sum;
+        if(local_acc.w_count > 0){
+          if(local_acc.w_min < weight_stats_.w_min)
+            weight_stats_.w_min = local_acc.w_min;
+          if(local_acc.w_max > weight_stats_.w_max)
+            weight_stats_.w_max = local_acc.w_max;
+        }
+        for(int k = 0; k < 5; ++k)
+          weight_stats_.w_bins[k] += local_acc.w_bins[k];
+        weight_stats_.near_ceiling += local_acc.near_ceiling;
+        weight_stats_.plane_var_sum += local_acc.plane_var_sum;
+        if(local_acc.plane_var_min < weight_stats_.plane_var_min)
+          weight_stats_.plane_var_min = local_acc.plane_var_min;
+        if(local_acc.plane_var_max > weight_stats_.plane_var_max)
+          weight_stats_.plane_var_max = local_acc.plane_var_max;
+        weight_stats_.point_var_sum += local_acc.point_var_sum;
+        if(local_acc.point_var_min < weight_stats_.point_var_min)
+          weight_stats_.point_var_min = local_acc.point_var_min;
+        if(local_acc.point_var_max > weight_stats_.point_var_max)
+          weight_stats_.point_var_max = local_acc.point_var_max;
+      }
     }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
@@ -688,7 +788,8 @@ void SuperLIO::Output(){
 void SuperLIO::printTimeRecord(){
   if(!g_time_eva) return;
   time_record_.PrintAll();
-  if(g_prob_lio_qr_plane_cov){
+  if(g_prob_lio_qr_plane_cov ||
+     g_prob_lio_p2p_weight_mode == static_cast<int>(P2pWeightMode::ProbLivo2)){
     LOG(INFO) << GREEN << " ---> [Prob-LIO P3] QR plane cov shadow: attempted: "
               << qr_cov_attempted_.load(std::memory_order_relaxed)
               << ", valid: " << qr_cov_valid_.load(std::memory_order_relaxed)
@@ -696,6 +797,31 @@ void SuperLIO::printTimeRecord(){
               << qr_cov_rank_invalid_.load(std::memory_order_relaxed)
               << ", nonfinite: "
               << qr_cov_nonfinite_.load(std::memory_order_relaxed) << RESET;
+  }
+  if(g_prob_lio_p2p_weight_mode == static_cast<int>(P2pWeightMode::ProbLivo2)){
+    const auto& ws = weight_stats_;
+    const double mean_w = ws.count > 0 ? ws.w_sum / double(ws.count) : 0.0;
+    const double mean_pv =
+        ws.count > 0 ? ws.plane_var_sum / double(ws.count) : 0.0;
+    const double mean_pt =
+        ws.count > 0 ? ws.point_var_sum / double(ws.count) : 0.0;
+    LOG(INFO) << GREEN << " ---> [Prob-LIO P4] weights attempted: "
+              << prob_weight_attempted_.load(std::memory_order_relaxed)
+              << ", valid: " << prob_weight_valid_.load(std::memory_order_relaxed)
+              << ", invalid_nonfinite: "
+              << prob_weight_invalid_nonfinite_.load(std::memory_order_relaxed)
+              << ", invalid_negative: "
+              << prob_weight_invalid_negative_.load(std::memory_order_relaxed)
+              << "; valid w: count=" << ws.count
+              << " min=" << (ws.count ? ws.w_min : 0.0)
+              << " max=" << ws.w_max << " mean=" << mean_w
+              << " near_ceiling(>999)=" << ws.near_ceiling
+              << " bins=" << ws.w_bins[0] << "/" << ws.w_bins[1] << "/"
+              << ws.w_bins[2] << "/" << ws.w_bins[3] << "/" << ws.w_bins[4]
+              << "; plane var min=" << (ws.count ? ws.plane_var_min : 0.0)
+              << " max=" << ws.plane_var_max << " mean=" << mean_pv
+              << "; point var min=" << (ws.count ? ws.point_var_min : 0.0)
+              << " max=" << ws.point_var_max << " mean=" << mean_pt << RESET;
   }
   if(g_prob_lio_cov_enable){
     LOG(INFO) << GREEN << " ---> [Prob-LIO] pipeline ON (pose model "

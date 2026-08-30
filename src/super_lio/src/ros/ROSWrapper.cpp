@@ -90,6 +90,26 @@ void LoadParamFromRos(ros::NodeHandle& nh){
         ResolveQrCovDependency(g_prob_lio_qr_plane_cov, g_prob_lio_cov_enable);
   }
 
+  // P4 (S11): P2P weight mode (fixed_1000 default; prob_livo2).
+  std::string p2p_weight_mode = "fixed_1000";
+  nh.getParam("/lio/prob_lio/p2p_weight_mode", p2p_weight_mode);
+  g_prob_lio_p2p_weight_mode =
+      static_cast<int>(ResolveP2pWeightMode(p2p_weight_mode));
+
+  // P4 dependency (S11 -> S1/S9): prob_livo2 weighting requires the
+  // covariance pipeline (current point covariance + map/plane covariance).
+  // Normalize like the QR dependency — never run probabilistic weighting on
+  // absent covariance.
+  if (g_prob_lio_p2p_weight_mode ==
+          static_cast<int>(P2pWeightMode::ProbLivo2) &&
+      !g_prob_lio_cov_enable) {
+    LOG(WARNING) << YELLOW
+                 << " ---> [Prob-LIO] p2p_weight_mode=prob_livo2 with "
+                    "covariance pipeline OFF: normalizing pipeline=ON"
+                 << RESET;
+    g_prob_lio_cov_enable = true;
+  }
+
 
   // extrinsic
   std::vector<scalar> extrinsic_lidar_imu, extrinsic_odom_robo;

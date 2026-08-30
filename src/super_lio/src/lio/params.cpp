@@ -55,6 +55,9 @@ namespace LI2Sup{
   /// P3 (S9): QR plane covariance shadow, default OFF.
   bool g_prob_lio_qr_plane_cov = false;
 
+  /// P4 (S11): fixed_1000 = 0 (canonical default), prob_livo2 = 1.
+  int g_prob_lio_p2p_weight_mode = 0;
+
 
   SE3 g_lidar_imu;
   SE3 g_odom_robo;

@@ -23,6 +23,7 @@
 #include "OctVoxMap/VoxelGridFilter.h"
 #include "ros/ROSWrapper.h"
 #include "lio/point_covariance.h"
+#include "lio/prob_qr_plane.h"
 
 namespace LI2Sup{
 
@@ -96,6 +97,39 @@ protected:
   std::atomic<std::uint64_t> qr_cov_valid_{0};
   std::atomic<std::uint64_t> qr_cov_rank_invalid_{0};
   std::atomic<std::uint64_t> qr_cov_nonfinite_{0};
+
+  /// Prob-LIO P3/P4 (S9/S11): per-index QR plane result for the current
+  /// scan (index-aligned with abcd_vec_/points_body_v3_). Filled once per
+  /// scan in the plane-fit block; consumed by the P4 weighting path.
+  std::vector<ProbQrPlane> plane_qr_vec_;
+
+  /// Prob-LIO P4 (S11): probabilistic weight counters (race-free).
+  std::atomic<std::uint64_t> prob_weight_attempted_{0};
+  std::atomic<std::uint64_t> prob_weight_valid_{0};
+  std::atomic<std::uint64_t> prob_weight_invalid_nonfinite_{0};
+  std::atomic<std::uint64_t> prob_weight_invalid_negative_{0};
+
+  /// Prob-LIO P4: aggregated weight statistics (TLS-reduced on the main
+  /// thread inside UpdateObserve after the parallel section).
+  struct WeightStats {
+    std::uint64_t count = 0;
+    double w_sum = 0.0;
+    double w_min = 1e300, w_max = 0.0;
+    std::uint64_t w_bins[5] = {0, 0, 0, 0, 0};
+    std::uint64_t near_ceiling = 0;
+    double plane_var_sum = 0.0, point_var_sum = 0.0;
+    double plane_var_min = 1e300, plane_var_max = 0.0;
+    double point_var_min = 1e300, point_var_max = 0.0;
+    void reset() {
+      count = 0; w_sum = 0.0; w_min = 1e300; w_max = 0.0;
+      for (auto& b : w_bins) b = 0;
+      near_ceiling = 0;
+      plane_var_sum = point_var_sum = 0.0;
+      plane_var_min = point_var_min = 1e300;
+      plane_var_max = point_var_max = 0.0;
+    }
+  };
+  WeightStats weight_stats_;
   std::size_t map_cov_invalid_ = 0;            // invalid world covs
 
   /// Prob-LIO P2-C3/C4 (D-P2.3/D-P2.4): resolved policy (set in init()).

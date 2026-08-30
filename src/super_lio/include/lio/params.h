@@ -75,6 +75,10 @@ namespace LI2Sup{
   /// Prob-LIO P3 (S9): QR plane covariance shadow (not consumed).
   extern bool   g_prob_lio_qr_plane_cov;
 
+  /// Prob-LIO P4 (S11): P2P weight mode
+  /// (P2pWeightMode; default Fixed1000 = legacy exact semantics).
+  extern int    g_prob_lio_p2p_weight_mode;
+
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame

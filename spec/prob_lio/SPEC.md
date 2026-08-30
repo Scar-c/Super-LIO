@@ -27,8 +27,8 @@ remain Super-LIO's own.
 | P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-VERIFIED** (rounds P0-1, P0-2) |
 | P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
-| P3 | Super-native QR Plane Uncertainty | **CLOSED/PASS** (round P3-1) |
-| P4 | Probabilistic P2P Weighting | NOT STARTED |
+| P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
+| P4 | Probabilistic P2P Weighting | **CLOSED/PASS** (round P4-1) |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
 ## 4. Authoritative seam IDs (S0–S13)
@@ -518,6 +518,97 @@ P2 corrective gates:
 - Commits: E `1d5dce4` (P2 corrective), F `db34c60` (P3; SHA corrected by
   the post-filter docs fix-up, see git log).
 - Status: P3 = CLOSED/PASS; P4 remains NOT STARTED.
+
+### Round P3-2 / P4-1 — P3 owner closure + P4 probabilistic weighting (prompt5)
+
+- Prompt: `prompts/prob_lio/prompt5_P3_owner_closure_P4_prob_weighting.md`.
+- Starting HEAD: `f7a9c46` (clean worktree).
+
+#### P3 owner closure (Part A) — Commit G `ff00051`
+
+Gaps confirmed by independent audit: (1) analytic-vs-FD QR sensitivity only
+covered N=5; (2) `qr_plane_cov_enable=true` could run with the covariance
+pipeline OFF; (3) prior canonical P3 evidence ran in a dirty worktree (F
+changes uncommitted) while meta.txt bound an earlier clean commit.
+
+- **G-P3.C1** N=4 full-rank QR-sensitivity FD closure PASS
+  (`test_qr_plane_covariance.cpp` `test_gp3c1_n4_fd`): ordinary / translated-
+  oblique / non-trivial-pivot (permutations (1,0,2) and (2,0,1), rank 3,
+  cond 0.90/0.49/1.9e-3) fixtures × eps 1e-4/1e-5/1e-6; rank/permutation/cond
+  reported; omit-e_i·I / omit-p_i·qᵀ / skip-permutation / wrong-normalization
+  mutations all detected (tighter 1e-4 detection threshold).
+- **G-P3.C2** covariance-source dependency PASS: `ResolveQrCovDependency`
+  (qr ON ⇒ pipeline ON); OFF/OFF→OFF, ON/OFF→ON, ON/ON→ON, OFF/ON→ON
+  (normalized with warning); negative bypass detected
+  (`test_pipeline_policy.cpp`).
+- **G-P3.C3** clean committed-source evidence: runner meta.txt now records
+  `git_status_short` / `git_dirty` / `git_diff_sha256`; authoritative full
+  `eee_01` run `run_20260830_211339` bound to clean HEAD `ff00051`
+  (git_dirty=no): BYTE_PARITY PASS (sha256 `6a8cc65a...`), ATE 0.118875639,
+  matched 3329, rows 3981, QR shadow 30,998,017 valid / 0 invalid.
+- Frame documentation corrected (point_covariance.h header): IMU/body frame
+  → LiDAR-frame sensor model → rotate back.
+- HARD GATE D: GREEN (C1–C3 GREEN, legacy QR parity GREEN via G-P3.1 +
+  byte parity, P3 shadow-only, clean worktree).
+- **P3 = CLOSED / OWNER VERIFIED.**
+
+#### P4 probabilistic P2P weighting (Part B) — Commit H
+
+- Formula (FAST-LIVO2-compatible; provenance voxel_map.cpp:445-450):
+  `R_i = 0.001 + sigma_plane² + sigma_point²`, `w_i = 1/R_i`,
+  `sigma_plane² = [p_Wᵀ,1] Σ_π [p_Wᵀ,1]ᵀ`,
+  `sigma_point² = nᵀ R_WI Σ_I R_WIᵀ n`
+  (= `nᵀ (R_WI R_LI) Σ_L (R_WI R_LI)ᵀ n` sensor-frame form).
+- Config `p2p_weight_mode`: `fixed_1000` (default, exact legacy) |
+  `prob_livo2`. `prob_livo2` implies the covariance pipeline ON (normalized).
+  No alpha/tuning knobs. S12 freeze: current pose covariance P is NOT part
+  of final R_i (helper inputs are exactly {p_W, n, Σ_π, R_WI, Σ_I, floor}).
+- Invalid-variance policy (G-P4.5): tiny negative roundoff ∈ [−1e-9,0)
+  clamps to 0; materially negative / nonfinite → invalid weight and the
+  measurement contribution is conservatively skipped (no fallback to 1000,
+  no misleading high-confidence residual). Counters (race-free atomics):
+  `prob_weight_attempted/valid/invalid_nonfinite/invalid_negative`; bounded
+  TLS weight statistics (min/max/mean, 5-bin histogram, near-ceiling,
+  plane/point variance min/max/mean) reduced on the main thread.
+- One-QR integration: DEFERRED (two-QR proven path kept; documented).
+- Gates:
+  - G-P4.1 PASS (plane residual variance vs independent reference;
+    omitted-d / body-point / reordered-components mutations detected);
+  - G-P4.2 PASS (point residual variance vs independent reference AND
+    sensor-frame form equivalence; skipped-R_WI / R_WIᵀ / wrong-frame
+    mutations detected);
+  - G-P4.3 PASS (w = 1/(0.001+…): zero→1000, plane-only, point-only, both,
+    small/medium/large; 0 < w ≤ 1000; omit-0.001 / 0.01-floor / omit-plane /
+    omit-point / alpha mutations detected);
+  - G-P4.4 PASS (no current pose covariance: arbitrary current-P fixtures do
+    not change R_i; pose-injected FAST-LIVO2-commented-variant detected);
+  - G-P4.5 PASS (NaN/Inf/large-negative/denominator≤0 all invalid; roundoff
+    clamp; no invalid fixture produces a weight);
+  - G-P4.6 PASS (fixed_1000 full `eee_01` `run_20260830_212127`: BYTE_PARITY
+    PASS sha256 `6a8cc65a...`, ATE 0.118875639, matched 3329, rows 3981);
+  - G-P4.7 PASS (accumulation seam: only the scalar weight changes — HTVH/
+    HTVr scale by w/1000 exactly; weight-H-only / weight-b-only / mismatched
+    / sign-flip mutations detected);
+  - G-P4.8 PASS (diff audit: compute_error / HKNN / QR geometry / map
+    insertion / ESKF untouched; no k-sigma association);
+  - G-P4.9 PASS (canonical probabilistic run `run_20260830_212425`:
+    attempted 40,829,587, valid 40,829,587, invalid_nonfinite 0,
+    invalid_negative 0; valid w min 4.18e-11, max 999.594 (≤1000), mean
+    741.27, near-ceiling(>999) 244; bins 101k/116k/242k/628k/39.7M; plane
+    var min 8.8e-08 / max 2.39e10 / mean 653.9; point var min 1.5e-07 /
+    max 6.7e-04 / mean 2.4e-04; no NaN/Inf, no negative weights, path
+    executed extensively, no crash);
+  - G-P4.10 PASS (canonical P4 outcome: rows 3981, matched 3329, ATE
+    0.088831554 m, trajectory sha256 `259d3fbc...`, wall 36.1 s;
+    P4_SEMANTICS_VALID = YES; ACCURACY_OUTCOME = improved vs frozen
+    baseline 0.118875639; no tuning).
+- Optional A/B (`super_right_consistent` + prob_livo2, `run_20260830_212525`):
+  ATE 0.089745655 m, weights 40,779,808 all valid — observation only, no
+  tuning from one sequence.
+- Performance: fixed_1000 + QR shadow wall 34.5 s; prob_livo2 wall 36.1 s
+  (vs pipeline-only 31.7 s, baseline 16.9 s).
+- Status: P4 = CLOSED/PASS (semantics verdict separate from accuracy
+  outcome); P5 remains NOT STARTED.
 
 ## 10. Gate summary
 

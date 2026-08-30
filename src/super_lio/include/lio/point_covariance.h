@@ -260,6 +260,82 @@ inline void ComputeInitMapCovList(const BASIC::VV3& pts_lidar,
   }
 }
 
+// ---------------------------------------------------------------------------
+// P4 (S11): probabilistic P2P measurement weight (FAST-LIVO2-compatible).
+//
+//   R_i = 0.001 + sigma_plane^2 + sigma_point^2,   w_i = 1 / R_i
+//   sigma_plane^2 = [p_W^T,1] Sigma_pi [p_W^T,1]^T        (G-P4.1)
+//   sigma_point^2 = n^T R_WI Sigma_I R_WI^T n              (G-P4.2)
+//
+// S12 freeze: the current pose covariance P is NOT part of final R_i
+// (historical pose uncertainty already lives in the map/plane covariance;
+// current P is reserved for P5 association). The helpers below accept only
+// {p_W, n, Sigma_pi, R_WI, Sigma_I, floor} — no current-P input.
+// ---------------------------------------------------------------------------
+enum class P2pWeightMode { Fixed1000 = 0, ProbLivo2 = 1 };
+
+inline P2pWeightMode ResolveP2pWeightMode(const std::string& value) {
+  if (value == "prob_livo2") return P2pWeightMode::ProbLivo2;
+  return P2pWeightMode::Fixed1000;  // canonical default; unknown -> default
+}
+
+// G-P4.1: plane residual variance, sigma_plane^2 = J_pi Sigma_pi J_pi^T.
+inline double PlaneResidualVariance(const BASIC::V3d& p_W,
+                                    const Eigen::Matrix4d& Sigma_pi) {
+  Eigen::Vector4d J;
+  J << p_W, 1.0;
+  return J.dot(Sigma_pi * J);
+}
+
+// G-P4.2: current sensor-point residual variance,
+// sigma_point^2 = n^T R_WI Sigma_I R_WI^T n = (R_WI^T n)^T Sigma_I (R_WI^T n).
+// Equivalent to the FAST-LIVO2 sensor-frame form
+// n^T (R_WI R_LI) Sigma_L (R_WI R_LI)^T n  (Sigma_I = R_LI Sigma_L R_LI^T).
+inline double PointResidualVariance(const BASIC::V3d& n,
+                                    const BASIC::M3d& R_WI,
+                                    const BASIC::M3d& Sigma_I) {
+  const BASIC::V3d Rn = R_WI.transpose() * n;
+  return Rn.dot(Sigma_I * Rn);
+}
+
+// G-P4.5: scalar variance safety. Each contribution must be finite and
+// nonnegative within tolerance; tiny negative roundoff in [-eps,0) is clamped
+// to 0; materially negative or nonfinite variances produce an INVALID weight
+// (caller must conservatively skip the measurement — never inject a
+// misleading high-confidence residual, never silently fall back to 1000).
+struct ProbWeight {
+  bool valid = false;
+  bool invalid_nonfinite = false;
+  bool invalid_negative = false;
+  double weight = 0.0;  // meaningful only when valid
+};
+
+inline ProbWeight ComputeP2pProbWeight(double sigma_plane2, double sigma_point2,
+                                       double floor = 0.001) {
+  ProbWeight out;
+  if (!std::isfinite(sigma_plane2) || !std::isfinite(sigma_point2) ||
+      !std::isfinite(floor)) {
+    out.invalid_nonfinite = true;
+    return out;
+  }
+  constexpr double kNegEps = 1e-9;
+  auto clamp_neg = [](double v) { return (v < 0.0 && v > -kNegEps) ? 0.0 : v; };
+  sigma_plane2 = clamp_neg(sigma_plane2);
+  sigma_point2 = clamp_neg(sigma_point2);
+  if (sigma_plane2 < 0.0 || sigma_point2 < 0.0) {
+    out.invalid_negative = true;
+    return out;
+  }
+  const double R = floor + sigma_plane2 + sigma_point2;
+  if (!std::isfinite(R) || R <= 0.0) {
+    out.invalid_negative = true;
+    return out;
+  }
+  out.weight = 1.0 / R;  // 0 < w <= 1/floor = 1000 for nonnegative variances
+  out.valid = true;
+  return out;
+}
+
 }  // namespace LI2Sup
 
 #endif  // POINT_COVARIANCE_HPP_

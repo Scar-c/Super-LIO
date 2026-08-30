@@ -1,0 +1,23 @@
+workspace_root: /home/lc/super_livo/src/Super-LIO
+git_branch: prob-lio
+git_head: ff000513f93151cc1bc5fcb335fe7a479bfeb4a9
+git_status_short:  M src/super_lio/CMakeLists.txt; M src/super_lio/config/NTU.yaml; M src/super_lio/include/lio/params.h; M src/super_lio/include/lio/point_covariance.h; M src/super_lio/include/lio/super_lio.h; M src/super_lio/src/lio/params.cpp; M src/super_lio/src/lio/super_lio.cpp; M src/super_lio/src/ros/ROSWrapper.cpp;?? results/prob_lio/run_20260830_211339/;?? results/prob_lio/run_20260830_212127/;?? results/prob_lio/run_20260830_212220/;?? results/prob_lio/run_20260830_212425/;?? tests/prob_lio/test_p4_weight.cpp;
+git_dirty: yes
+git_diff_sha256: fec9b2b2473ab5a7ebcc0972ca3d9292860d270ce7c9a31e6bfbb80cb8b379c3
+config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+bag: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag
+rate: 1.0
+duration: whole-bag
+record_topics: /lio/odom,/lio/path
+start: 2026-08-30T13:25:25Z
+host: robot  cores: 32
+ROS_MASTER_URI=http://localhost:11453
+param override: /lio/prob_lio/cov_enable=true
+param override: /lio/prob_lio/qr_plane_cov_enable=true
+param override: /lio/prob_lio/map_pose_cov_model=super_right_consistent
+param override: /lio/prob_lio/map_cov_storage_precision=double
+param override: /lio/prob_lio/p2p_weight_mode=prob_livo2
+waiting for /lio/odom publisher ...
+play_rc=0 node_rc=0 record_rc=1
+fatal_marker_grep_rc=1 (1 = none found)
+node_log: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_212525/node.log
