@@ -1,2 +1,0 @@
-/usr/bin/ld: 找不到 libtsan_preinit.o: 没有那个文件或目录
-collect2: error: ld returned 1 exit status

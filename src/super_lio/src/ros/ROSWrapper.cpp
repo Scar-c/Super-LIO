@@ -75,6 +75,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   g_prob_lio_cov_storage_precision =
       static_cast<int>(ResolveCovStoragePrecision(storage_precision));
 
+  // P3 (S9): QR plane covariance shadow.
+  nh.getParam("/lio/prob_lio/qr_plane_cov_enable", g_prob_lio_qr_plane_cov);
+
 
   // extrinsic
   std::vector<scalar> extrinsic_lidar_imu, extrinsic_odom_robo;

@@ -159,3 +159,17 @@ target_link_libraries(test_pipeline_policy ${catkin_LIBRARIES})
 add_test(NAME prob_lio_pipeline_policy
          COMMAND test_pipeline_policy)
 
+# Prob-LIO P3 tests (S9 QR plane uncertainty).
+add_executable(test_qr_plane_covariance
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_qr_plane_covariance.cpp
+)
+target_include_directories(test_qr_plane_covariance PRIVATE
+  include
+  3rdparty
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_qr_plane_covariance ${catkin_LIBRARIES})
+add_test(NAME prob_lio_qr_plane_covariance
+         COMMAND test_qr_plane_covariance)
+

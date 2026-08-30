@@ -15,20 +15,20 @@ evaluator:
   wrapper_sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
 inputs:
   estimate:
-    path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_201316/trajectory.tum
-    size_bytes: 648793
-    sha256: cb27ac85631e805d07b4d98a8336734dbc4ac883bf76f203587a6fe8572cb1ca
+    path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_203803/trajectory.tum
+    size_bytes: 648427
+    sha256: 6a8cc65adf3c90e07ddcfa86d7baae9eb53ce31214711636b15f0de909e06e13
   leica:
     path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/run_20260830_182308/gt/leica_gt.tum
     size_bytes: 478932
     sha256: 1829bbbd60da4e5ec3b94a51ee96431f443b6672f18c76ed24d060497040049e
 result:
   primary_metric: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
-  translation_ate_rmse_m: 0.11911232307582174
+  translation_ate_rmse_m: 0.11887563928223766
   component_rmse_m:
-  - 0.03772446919499059
-  - 0.05030562290604235
-  - 0.10116300824169976
+  - 0.0369644325299099
+  - 0.05006408927729747
+  - 0.10128492142139033
   matched: 3329
   lever_arm_applied: true
   prism_translation_B_m:

@@ -72,6 +72,9 @@ namespace LI2Sup{
   /// switch only, memory saving NO).
   extern int g_prob_lio_cov_storage_precision;
 
+  /// Prob-LIO P3 (S9): QR plane covariance shadow (not consumed).
+  extern bool   g_prob_lio_qr_plane_cov;
+
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame

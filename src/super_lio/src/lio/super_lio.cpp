@@ -1,5 +1,6 @@
 
 #include "lio/super_lio.h"
+#include "lio/prob_qr_plane.h"
 
 #include <sys/resource.h>
 #include <tbb/parallel_for.h>
@@ -14,28 +15,19 @@ namespace LI2Sup{
 
 inline bool calc_plane_coeff(const int N, const std::array<V3, 5>& points, std::array<double, 4>& abcd)
 {
-  Eigen::Vector3d normvec;
-  if (N == 5) {
-    Eigen::Matrix<double, 5, 3> A;
-    Eigen::Matrix<double, 5, 1> b;
-    for (int j = 0; j < 5; j++) {
-      A.row(j) = points[j].cast<double>();
-      b(j) = -1.0;
-    }
-    normvec = A.colPivHouseholderQr().solve(b);
+  // Shared exact production QR solve (P3: the QR plane covariance shadow
+  // uses the SAME fixed-size solve — no duplicated subtly-different solver).
+  // Fixed-size Eigen matrices keep the legacy coefficients bit-identical
+  // (proven by trajectory byte parity).
+  std::array<V3d, 5> points_d;
+  for (int j = 0; j < N; j++) {
+    points_d[j] = points[j].cast<double>();
   }
-  else {
-    Eigen::Matrix<double, 4, 3> A;
-    Eigen::Matrix<double, 4, 1> b;
+  const PlaneFitQr fit = SolvePlaneFitQr(points_d, N);
+  if (!fit.solved) return false;
 
-    for (int j = 0; j < N; j++) {
-      A.row(j) = points[j].cast<double>();
-      b(j) = -1.0;
-    }
-    normvec = A.colPivHouseholderQr().solve(b);
-  }
-
-  double n = normvec.norm();
+  V3d normvec = fit.q;
+  const double n = normvec.norm();
   if (n < 1e-6f) return false;
 
   abcd[3] = 1.0 / n;
@@ -536,6 +528,30 @@ void SuperLIO::Observe(){
             }
             effect_knn_mask_[idx] = true;
             effect_mask_[idx] = calc_plane_coeff(top_K.count, top_K.points_, abcd_vec_[idx]);
+
+            /// Prob-LIO P3 (S9): QR plane covariance shadow. Consumes the
+            /// world-frame neighbor pairs {p_i, Sigma_i} from the SAME
+            /// getTopK() result. Shadow only: plane coefficients / acceptance
+            /// are unchanged (legacy calc_plane_coeff above remains
+            /// authority).
+            if(effect_mask_[idx] && g_prob_lio_qr_plane_cov){
+              qr_cov_attempted_.fetch_add(1, std::memory_order_relaxed);
+              PlanePointsArray plane_pts;
+              PlaneCovsArray plane_covs;
+              for(int k = 0; k < top_K.count; ++k){
+                plane_pts[k] = top_K.points_[k].cast<double>();
+                plane_covs[k] = top_K.covs_[k];
+              }
+              const ProbQrPlane plane =
+                  ComputeProbQrPlane(plane_pts, plane_covs, top_K.count);
+              if(plane.status == ProbQrPlane::kValid){
+                qr_cov_valid_.fetch_add(1, std::memory_order_relaxed);
+              }else if(plane.status == ProbQrPlane::kRankDeficient){
+                qr_cov_rank_invalid_.fetch_add(1, std::memory_order_relaxed);
+              }else if(plane.status == ProbQrPlane::kNonFinite){
+                qr_cov_nonfinite_.fetch_add(1, std::memory_order_relaxed);
+              }
+            }
           }
 
           if(!effect_mask_[idx]) continue;
@@ -672,6 +688,15 @@ void SuperLIO::Output(){
 void SuperLIO::printTimeRecord(){
   if(!g_time_eva) return;
   time_record_.PrintAll();
+  if(g_prob_lio_qr_plane_cov){
+    LOG(INFO) << GREEN << " ---> [Prob-LIO P3] QR plane cov shadow: attempted: "
+              << qr_cov_attempted_.load(std::memory_order_relaxed)
+              << ", valid: " << qr_cov_valid_.load(std::memory_order_relaxed)
+              << ", rank_invalid: "
+              << qr_cov_rank_invalid_.load(std::memory_order_relaxed)
+              << ", nonfinite: "
+              << qr_cov_nonfinite_.load(std::memory_order_relaxed) << RESET;
+  }
   if(g_prob_lio_cov_enable){
     LOG(INFO) << GREEN << " ---> [Prob-LIO] pipeline ON (pose model "
               << (map_pose_cov_model_ == MapPoseCovModel::SuperRightConsistent

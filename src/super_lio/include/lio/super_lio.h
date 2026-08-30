@@ -90,6 +90,12 @@ protected:
   std::size_t map_cov_init_inserts_ = 0;       // cov-bearing points in map_init
   std::size_t map_cov_update_inserts_ = 0;     // cov-bearing points in UpdateMap
   std::atomic<std::uint64_t> map_cov_hknn_returns_{0};  // race-free (P2-C2)
+
+  /// Prob-LIO P3 (S9): QR plane covariance shadow counters (race-free).
+  std::atomic<std::uint64_t> qr_cov_attempted_{0};
+  std::atomic<std::uint64_t> qr_cov_valid_{0};
+  std::atomic<std::uint64_t> qr_cov_rank_invalid_{0};
+  std::atomic<std::uint64_t> qr_cov_nonfinite_{0};
   std::size_t map_cov_invalid_ = 0;            // invalid world covs
 
   /// Prob-LIO P2-C3/C4 (D-P2.3/D-P2.4): resolved policy (set in init()).

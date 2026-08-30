@@ -52,6 +52,9 @@ namespace LI2Sup{
   /// P2-C4: double = 0 (canonical default), float_quantized = 1.
   int g_prob_lio_cov_storage_precision = 0;
 
+  /// P3 (S9): QR plane covariance shadow, default OFF.
+  bool g_prob_lio_qr_plane_cov = false;
+
 
   SE3 g_lidar_imu;
   SE3 g_odom_robo;

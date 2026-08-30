@@ -26,8 +26,8 @@ remain Super-LIO's own.
 |---|---|---|
 | P0 | Baseline freeze / project bootstrap | **CLOSED / OWNER-VERIFIED** (rounds P0-1, P0-2) |
 | P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
-| P2 | Probabilistic Map Plumbing | **CLOSED/PASS** (round P2-1) |
-| P3 | Super-native QR Plane Uncertainty | NOT STARTED |
+| P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
+| P3 | Super-native QR Plane Uncertainty | **CLOSED/PASS** (round P3-1) |
 | P4 | Probabilistic P2P Weighting | NOT STARTED |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
@@ -390,6 +390,134 @@ FAST-LIVO2-Dataset download link").
 - Commit: `feat(prob-lio): add probabilistic map covariance plumbing`
   (**`96c9d38`**, recorded by the docs follow-up commit).
 - Status: P2 = CLOSED/PASS.
+
+### Round P2-2 / P3-1 — P2 corrective closure + P3 QR plane uncertainty (prompt4)
+
+- Prompt: `prompts/prob_lio/prompt4_P2_corrective_P3_qr_plane_uncertainty.md`.
+- Starting HEAD: `dd1e7c9` (clean worktree).
+
+#### P2 corrective (Part A) — Commit E `1d5dce4`
+
+Owner decisions frozen:
+- **D-P2.1 coupled pipeline**: FAST-LIVO2 exposes NO independent point-cov /
+  map-cov switches (audited `loadVoxelConfig` voxel_map.cpp:36-53; only noise
+  params). Prob-LIO now has one master `/lio/prob_lio/cov_enable`; legacy
+  `point_cov_enable`/`map_cov_enable` keys are normalized
+  (`ResolveProbLioPipeline`: any legacy ON → pipeline ON; conflicting partial
+  states are explicitly normalized with a warning — never silently stale).
+- **D-P2.3 dual map-pose covariance models**:
+  - `livo2_compat` (default): active FAST-LIVO2 code
+    `Σ_W = R_WI Σ_I R_WIᵀ + [p_I]× P_RR [p_I]×ᵀ + P_pp` (preserves the known
+    behavior; variances can be underestimated per the author).
+  - `super_right_consistent`: right perturbation `R' = R Exp(δθ)`,
+    `J_R = −R_WI[p_I]×` → `Σ_W = R_WI Σ_I R_WIᵀ + R_WI[p_I]× P_RR [p_I]×ᵀ
+    R_WIᵀ + P_pp`. No rotation-position cross term in either mode.
+  - **Issue provenance (verified verbatim)**:
+    - FAST-LIVO2 **issue #89** ("BuildVoxelMap 中激光点测量误差协方差与论文
+      公式(3)不一致", opened `fjz0911fang123` 2025-02-13). Author
+      **`xuankuzcr` (Chunran Zheng) 2025-03-06T12:34:09Z**: "确实存在bug，
+      这几个函数里用到的世界系激光点的方差都有问题，这会导致计算出的方差偏小。
+      但目前整体的噪声参数设置可能偏大 (整体效果'负负得正')，直接改过来的话，
+      效果可能会变差。" ("There is indeed a bug — the world-frame lidar-point
+      variances used in these functions are problematic, causing
+      underestimated variances; the overall noise settings may be on the
+      large side ('negative × negative = positive'), so fixing it directly
+      may worsen results.") — references voxel_map.cpp:445/387/551-552 and
+      LIVMapper.cpp:413-414.
+    - FAST-LIVO2 **issue #189** ("关于voxelmap 的协方差问题", opened
+      `ouguangjun` 2025-03-27): `ouguangjun` 2025-03-27T06:51:31Z confirms
+      the world covariance is "确实没有严格按照" (not strictly followed);
+      author `xuankuzcr` 2025-04-02T09:41:29Z links issue #89.
+- **D-P2.4 storage precision**: `map_cov_storage_precision` ∈ {`double`
+  (default), `float_quantized`}. `float_quantized` quantizes each symmetric
+  component to float on write and restores to double on read. Backing storage
+  is ALWAYS double (6×8 doubles per voxel): **numerical precision switch YES,
+  memory saving NO** (SPEConly, recorded truthfully).
+
+P2 corrective gates:
+- **G-P2.C1** coupled freshness PASS (`test_pipeline_policy.cpp`): master
+  resolution OFF/ON/legacy normalization; same-size different-point scans
+  produce fresh covariances (size-only reuse detected as wrong); generation
+  guard in production (`body_cov_generation_`); size is never used to infer
+  freshness.
+- **G-P2.C2** concurrency PASS: `map_cov_hknn_returns_` is
+  `std::atomic<uint64_t>` relaxed; stress test exact over repeated runs;
+  TSAN evidence (`tools/prob_lio/run_race_evidence.sh`,
+  `results/prob_lio/race_evidence_20260830_201305/`): legacy shared-RMW
+  pattern detected (4 data-race reports), fixed atomic pattern clean. TBB
+  2020.1 internal false positives suppressed (documented in
+  `tests/prob_lio/tsan_suppressions.txt`).
+- **G-P2.C3** dual pose models PASS (`test_map_covariance.cpp`
+  `test_gp2c3_dual_pose_models`): livo2_compat == active FAST-LIVO2
+  expression (R_WI-wrapped rotation term detected; omitted term detected);
+  super_right_consistent J_R == central finite difference of
+  `p_W(δθ)=R_WI Exp(δθ) p_I + t` (tolerance 1e-5); production term ==
+  `J_R P_RR J_Rᵀ` (R_WI-removed mutation detected); modes differ on
+  adversarial nonidentity/aniso fixture; equivalent when R_WI = I.
+- **G-P2.C4** precision policy PASS (`test_gp2c4_storage_precision`): double
+  exact round-trip; float mode == IEEE float quantization (bypass detected);
+  six-component slot mapping (wrong-slot / wrong-triangular detected);
+  HKNN readback symmetric; aggregation works in both policies; resolvers
+  default correctly for invalid config.
+- P2 corrective runtime: canonical full `eee_01`
+  (pipeline ON / livo2_compat / double / P3 ON) `run_20260830_201615`:
+  BYTE_PARITY PASS (sha256 `6a8cc65a...`), ATE 0.118875639, matched 3329,
+  rows 3981, 0 invalid cov, wall 31.7 s. `super_right_consistent` full run
+  `run_20260830_201706`: BYTE_PARITY PASS, ATE 0.118875639.
+  `float_quantized` 60 s window `run_20260830_201757`: windowed BYTE_PARITY
+  PASS.
+- HARD GATE C: PASS (all C1–C4 GREEN, canonical + right-consistent parity,
+  no P4/P5 diff, committed clean worktree).
+
+#### P3 QR plane uncertainty (Part B) — Commit F
+
+- Legacy QR re-audited: `calc_plane_coeff` (`A q = −1`,
+  `A.colPivHouseholderQr().solve(b)`, then `s=|q|, n=q/s, d=1/s`, post-solve
+  0.1 m residual gate). Refactored to the shared fixed-size core
+  `SolvePlaneFitQr` (`prob_qr_plane.h`) used by BOTH the legacy path and the
+  P3 shadow — coefficients bit-identical (proven by G-P3.1 machine-level
+  parity AND full-bag trajectory byte parity).
+- Sensitivity (no explicit `(AᵀA)⁻¹`): with `AP=QR`,
+  `RᵀZ = PᵀB_i`, `R Y = Z`, `J_{q,i} = P Y`,
+  `B_i = −(p_i qᵀ + e_i I)`, `e_i = p_iᵀq + 1`; normalization
+  `G = [(I−nnᵀ)/s; −qᵀ/s³]`, `J_{π,i} = G J_{q,i}`,
+  `Σ_π = Σ_i J_{π,i} Σ_pi_i J_{π,i}ᵀ` (4×4). Rank gate: `rank() < 3` →
+  `kRankDeficient`; non-finite → `kNonFinite`.
+- Production: shadow block in `Observe()` consuming the SAME `getTopK()`
+  world-frame pairs `{p_i, Σ_i}`; race-free atomic counters
+  `qr_cov_attempted/valid/rank_invalid/nonfinite`; config
+  `/lio/prob_lio/qr_plane_cov_enable` (default OFF).
+- Gates: G-P3.1..G-P3.7 PASS (`tests/prob_lio/test_qr_plane_covariance.cpp`,
+  90 checks / 0 failures):
+  - G-P3.1 plane-result parity: shared core == verbatim legacy solve
+    (machine-level, N=4/5, well/mildly-ill-conditioned, rejected); RHS-sign
+    and omit-point mutations detected.
+  - G-P3.2 FD equivalence: central FD of the production estimator vs
+    analytic J_{π,i} (eps 1e-4/1e-5/1e-6, nonzero-residual fixture); omit
+    e_i·I / omit p_i·qᵀ / skip permutation / wrong normalization Jacobian
+    all detected.
+  - G-P3.3 rank safety: full rank valid; collinear fixture →
+    kRankDeficient, finite zero covariance, unrestricted-solve rejected;
+    near-degenerate not high-confidence.
+  - G-P3.4 PSD propagation: isotropic/anisotropic/fingerprints → finite,
+    symmetric, PSD; shifted pairing / omitted / indefinite injections
+    detected.
+  - G-P3.5 production HKNN→QR seam: OctVox fingerprints through getTopK into
+    ComputeProbQrPlane; fingerprint change → predictable change; shifted
+    association detected.
+  - G-P3.6 runtime coverage (`run_20260830_203803`): attempted 30,998,017,
+    valid 30,998,017, rank_invalid 0, nonfinite 0.
+  - G-P3.7 no estimator influence: diff audit (no compute_error / 1000 /
+    HTRH/HTVr / ESKF / HKNN-search changes); canonical run BYTE_PARITY PASS
+    (sha256 `6a8cc65a...`), ATE 0.118875639, matched 3329, rows 3981.
+- Performance/memory: OctVox covariance storage = 8 slots × 6 doubles ×
+  8 bytes = **384 bytes per voxel** (double-backed in both modes).
+  Full-bag wall times: baseline 16.9 s, pipeline-ON 25.6 s (P2-1) / 31.7 s
+  (P2-2 double), +QR shadow 46.0 s (P3; machine-load dependent — the same
+  code measured 31.7 s with QR in run 201615). No premature optimization.
+- Commits: E `1d5dce4` (P2 corrective), F (P3; SHA recorded by the docs
+  follow-up commit).
+- Status: P3 = CLOSED/PASS; P4 remains NOT STARTED.
 
 ## 10. Gate summary
 

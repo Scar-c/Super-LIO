@@ -1,3 +1,0 @@
-good(atomic) rc=66 tsan_clean=no
-bad(legacy)  rc=66 tsan_data_race_lines=2
-RESULT: FAIL

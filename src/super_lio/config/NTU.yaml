@@ -48,6 +48,8 @@ lio:
     # D-P2.4: map covariance storage precision. double (default) canonical;
     # float_quantized = precision switch only (memory saving NO).
     map_cov_storage_precision: double
+    # P3 (S9): QR plane covariance shadow (not consumed by the estimator).
+    qr_plane_cov_enable: false
 
   # Extrinsic Parameters
   extrinsic:
