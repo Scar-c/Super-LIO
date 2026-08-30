@@ -64,6 +64,8 @@ namespace LI2Sup{
   /// P5: super_legacy = 0 (canonical default), prob_livo2 = 1.
   int    g_prob_lio_association_mode = 0;
   double g_prob_lio_assoc_sigma_num = 3.0;  // FAST-LIVO2 sigma_num default
+  bool   g_prob_lio_assoc_shadow_enable = false;
+  int    g_prob_lio_assoc_pose_cov_model = 0;  // inherit_map
 
 
   SE3 g_lidar_imu;

@@ -91,6 +91,12 @@ namespace LI2Sup{
   /// P5: k-sigma threshold for the probabilistic association gate
   /// (FAST-LIVO2 "sigma_num" semantics, voxel_map.cpp:43, default 3).
   extern double g_prob_lio_assoc_sigma_num;
+  /// P5 shadow diagnostics: compute the probability gate decision while the
+  /// legacy gate remains authoritative (never alters estimator output).
+  extern bool   g_prob_lio_assoc_shadow_enable;
+  /// P5-C7: association pose covariance model policy
+  /// (0 = inherit_map (default), 1 = livo2_compat, 2 = super_right_consistent)
+  extern int    g_prob_lio_assoc_pose_cov_model;
 
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame

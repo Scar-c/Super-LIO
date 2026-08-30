@@ -71,11 +71,14 @@ void SuperLIO::init(){
   points_world_v3_.reserve(21000);
   abcd_vec_.resize(20000);
   plane_qr_vec_.resize(20000);
+  assoc_count_mean_vec_.resize(20000);
+  assoc_count_max_vec_.resize(20000);
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
   map_pose_cov_model_ =
       static_cast<MapPoseCovModel>(g_prob_lio_map_pose_cov_model);
+  assoc_pose_cov_model_ = g_prob_lio_assoc_pose_cov_model;
   cov_storage_precision_ =
       static_cast<CovStoragePrecision>(g_prob_lio_cov_storage_precision);
   ivox_->SetCovStoragePrecision(cov_storage_precision_);
@@ -466,6 +469,23 @@ struct ThreadACC{
   double plane_var_max = 0.0;
   double point_var_min = 1e300;
   double point_var_max = 0.0;
+  /// P5-C1 shadow diagnostics (per-frame TLS accumulation).
+  std::uint64_t a_attempted = 0;
+  std::uint64_t a_la_pa = 0, a_la_pr = 0, a_lr_pa = 0, a_lr_pr = 0;
+  std::uint64_t a_inv_nf = 0, a_inv_neg = 0;
+  double a_r_min = 1e300, a_r_sum = 0.0, a_r_max = 0.0;
+  double a_s_min = 1e300, a_s_sum = 0.0, a_s_max = 0.0;
+  double a_z_min = 1e300, a_z_sum = 0.0, a_z_max = 0.0;
+  double a_pv_min = 1e300, a_pv_sum = 0.0, a_pv_max = 0.0;
+  double a_sv_min = 1e300, a_sv_sum = 0.0, a_sv_max = 0.0;
+  double a_rv_min = 1e300, a_rv_sum = 0.0, a_rv_max = 0.0;
+  double a_tv_min = 1e300, a_tv_sum = 0.0, a_tv_max = 0.0;
+  double a_cnt_mean_sum = 0.0, a_cnt_max_sum = 0.0;
+  std::uint64_t a_probe_rescued = 0;
+  std::uint64_t a_bin_n[5] = {0, 0, 0, 0, 0};
+  std::uint64_t a_bin_lapr[5] = {0, 0, 0, 0, 0};
+  double a_bin_pv[5] = {0, 0, 0, 0, 0};
+  double a_bin_z[5] = {0, 0, 0, 0, 0};
   ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()) {}
 };
 
@@ -512,10 +532,14 @@ void SuperLIO::Observe(){
 
   ivox_->reset_max_group();
   int iter_num = 0;
+  int obs_iter = 0;
+  frame_assoc_acc_.reset();
+  frame_assoc_acc_.timestamp = measures_.lidar.end_time;
 
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
     const SE3 pose = kf_state.pose;
     const bool need_converge = kf_state.need_converge;
+    obs_iter++;
     const M3d R_transpose = (pose.R_.transpose()).cast<double>();
 
     tbb::enumerable_thread_specific<ThreadACC> tls_acc;
@@ -567,6 +591,18 @@ void SuperLIO::Observe(){
               }
               plane_qr_vec_[idx] =
                   ComputeProbQrPlane(plane_pts, plane_covs, top_K.count);
+              // P5-C1: representative-count identity for the plane neighbors
+              {
+                double cm = 0.0;
+                uint8_t cmax = 0;
+                for(int kk = 0; kk < top_K.count; ++kk){
+                  cm += double(top_K.counts_[kk]);
+                  if(top_K.counts_[kk] > cmax) cmax = top_K.counts_[kk];
+                }
+                if(top_K.count > 0) cm /= double(top_K.count);
+                assoc_count_mean_vec_[idx] = float(cm);
+                assoc_count_max_vec_[idx] = cmax;
+              }
               if(plane_qr_vec_[idx].status == ProbQrPlane::kValid){
                 qr_cov_valid_.fetch_add(1, std::memory_order_relaxed);
               }else if(plane_qr_vec_[idx].status ==
@@ -575,6 +611,119 @@ void SuperLIO::Observe(){
               }else if(plane_qr_vec_[idx].status ==
                        ProbQrPlane::kNonFinite){
                 qr_cov_nonfinite_.fetch_add(1, std::memory_order_relaxed);
+              }
+
+              /// P5-C1 shadow diagnostics (super_legacy authoritative +
+              /// shadow enabled): probability-gate decisions are COMPUTED
+              /// only; effect_mask_/HTVH/HTVr/map/state/P4/ESKF are never
+              /// touched.
+              if(g_prob_lio_assoc_shadow_enable &&
+                 g_prob_lio_association_mode ==
+                     static_cast<int>(AssociationMode::SuperLegacy)){
+                const double r =
+                    abcd_vec_[idx][0] * point_world[0] +
+                    abcd_vec_[idx][1] * point_world[1] +
+                    abcd_vec_[idx][2] * point_world[2] + abcd_vec_[idx][3];
+                const bool legacy_accept =
+                    _lengths[idx] > 81.0 * r * r;
+                const MapPoseCovModel apose =
+                    assoc_pose_cov_model_ == 2
+                        ? MapPoseCovModel::SuperRightConsistent
+                        : assoc_pose_cov_model_ == 1
+                              ? MapPoseCovModel::Livo2Compat
+                              : map_pose_cov_model_;
+                const M3d P_RR =
+                    kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
+                const M3d P_pp =
+                    kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
+                const AssociationCandidate cand = BuildAssociationCandidate(
+                    point_world.cast<double>(),
+                    V3d(abcd_vec_[idx][0], abcd_vec_[idx][1],
+                        abcd_vec_[idx][2]),
+                    point_body.cast<double>(), body_cov_list_[idx],
+                    pose.R_.cast<double>(), P_RR, P_pp,
+                    plane_qr_vec_[idx].status == ProbQrPlane::kValid
+                        ? plane_qr_vec_[idx].covariance
+                        : Eigen::Matrix4d::Zero(),
+                    r, _lengths[idx], g_prob_lio_assoc_sigma_num,
+                    assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx],
+                    apose);
+                const AssocGateResult pg = ProbAssocGate(cand);
+                local_acc.a_attempted++;
+                if(pg.accept){
+                  if(legacy_accept) local_acc.a_la_pa++;
+                  else local_acc.a_lr_pa++;
+                }else{
+                  if(pg.invalid_nonfinite){
+                    local_acc.a_inv_nf++;
+                    local_acc.a_lr_pr++;
+                  }else if(pg.invalid_negative){
+                    local_acc.a_inv_neg++;
+                    local_acc.a_lr_pr++;
+                  }else if(legacy_accept){
+                    local_acc.a_la_pr++;
+                    const double z =
+                        cand.sigma_assoc2 > 0.0
+                            ? std::fabs(r) / std::sqrt(cand.sigma_assoc2)
+                            : 1e300;
+                    local_acc.a_r_min = std::min(local_acc.a_r_min, std::fabs(r));
+                    local_acc.a_r_sum += std::fabs(r);
+                    local_acc.a_r_max = std::max(local_acc.a_r_max, std::fabs(r));
+                    local_acc.a_s_min = std::min(local_acc.a_s_min, cand.sigma_assoc2);
+                    local_acc.a_s_sum += cand.sigma_assoc2;
+                    local_acc.a_s_max = std::max(local_acc.a_s_max, cand.sigma_assoc2);
+                    local_acc.a_z_min = std::min(local_acc.a_z_min, z);
+                    local_acc.a_z_sum += z;
+                    local_acc.a_z_max = std::max(local_acc.a_z_max, z);
+                    local_acc.a_pv_min = std::min(local_acc.a_pv_min, cand.plane_var);
+                    local_acc.a_pv_sum += cand.plane_var;
+                    local_acc.a_pv_max = std::max(local_acc.a_pv_max, cand.plane_var);
+                    local_acc.a_sv_min = std::min(local_acc.a_sv_min, cand.query_sensor_var);
+                    local_acc.a_sv_sum += cand.query_sensor_var;
+                    local_acc.a_sv_max = std::max(local_acc.a_sv_max, cand.query_sensor_var);
+                    local_acc.a_rv_min = std::min(local_acc.a_rv_min, cand.query_pose_rot_var);
+                    local_acc.a_rv_sum += cand.query_pose_rot_var;
+                    local_acc.a_rv_max = std::max(local_acc.a_rv_max, cand.query_pose_rot_var);
+                    local_acc.a_tv_min = std::min(local_acc.a_tv_min, cand.query_pose_pos_var);
+                    local_acc.a_tv_sum += cand.query_pose_pos_var;
+                    local_acc.a_tv_max = std::max(local_acc.a_tv_max, cand.query_pose_pos_var);
+                    local_acc.a_cnt_mean_sum += cand.neighbor_count_mean;
+                    local_acc.a_cnt_max_sum += double(cand.neighbor_count_max);
+                    const double cm = cand.neighbor_count_mean;
+                    const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
+                                   : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
+                    local_acc.a_bin_n[bin]++;
+                    local_acc.a_bin_lapr[bin]++;
+                    local_acc.a_bin_pv[bin] += cand.plane_var;
+                    local_acc.a_bin_z[bin] += z;
+                    // optional S6 unshrink sensitivity probe (shadow only):
+                    // recompute the shadow plane covariance with
+                    // Sigma_probe_i = N_i * Sigma_i, re-gate.
+                    {
+                      PlaneCovsArray probe_covs;
+                      for(int kk = 0; kk < top_K.count; ++kk){
+                        probe_covs[kk] =
+                            double(top_K.counts_[kk]) * top_K.covs_[kk];
+                      }
+                      const ProbQrPlane probe_plane = ComputeProbQrPlane(
+                          plane_pts, probe_covs, top_K.count);
+                      if(probe_plane.status == ProbQrPlane::kValid){
+                        const double qpart =
+                            cand.sigma_assoc2 - cand.plane_var;
+                        const double probe_sigma2 =
+                            PlaneResidualVariance(point_world.cast<double>(),
+                                                  probe_plane.covariance) +
+                            qpart;
+                        const AssocGateResult pg_probe =
+                            ProbAssocGate(cand.residual, probe_sigma2,
+                                          cand.sigma_num);
+                        if(pg_probe.accept) local_acc.a_probe_rescued++;
+                      }
+                    }
+                  }else{
+                    local_acc.a_lr_pr++;
+                  }
+                }
               }
             }
           }
@@ -708,6 +857,48 @@ void SuperLIO::Observe(){
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
+      if(g_prob_lio_assoc_shadow_enable && obs_iter == 1){
+        FrameAssocSummary& f = frame_assoc_acc_;
+        f.attempted += local_acc.a_attempted;
+        f.la_pa += local_acc.a_la_pa;
+        f.la_pr += local_acc.a_la_pr;
+        f.lr_pa += local_acc.a_lr_pa;
+        f.lr_pr += local_acc.a_lr_pr;
+        f.invalid_nonfinite += local_acc.a_inv_nf;
+        f.invalid_negative += local_acc.a_inv_neg;
+        if(local_acc.a_la_pr > 0){
+          f.r_min = std::min(f.r_min, local_acc.a_r_min);
+          f.r_sum += local_acc.a_r_sum;
+          f.r_max = std::max(f.r_max, local_acc.a_r_max);
+          f.s_min = std::min(f.s_min, local_acc.a_s_min);
+          f.s_sum += local_acc.a_s_sum;
+          f.s_max = std::max(f.s_max, local_acc.a_s_max);
+          f.z_min = std::min(f.z_min, local_acc.a_z_min);
+          f.z_sum += local_acc.a_z_sum;
+          f.z_max = std::max(f.z_max, local_acc.a_z_max);
+          f.pv_min = std::min(f.pv_min, local_acc.a_pv_min);
+          f.pv_sum += local_acc.a_pv_sum;
+          f.pv_max = std::max(f.pv_max, local_acc.a_pv_max);
+          f.sv_min = std::min(f.sv_min, local_acc.a_sv_min);
+          f.sv_sum += local_acc.a_sv_sum;
+          f.sv_max = std::max(f.sv_max, local_acc.a_sv_max);
+          f.rv_min = std::min(f.rv_min, local_acc.a_rv_min);
+          f.rv_sum += local_acc.a_rv_sum;
+          f.rv_max = std::max(f.rv_max, local_acc.a_rv_max);
+          f.tv_min = std::min(f.tv_min, local_acc.a_tv_min);
+          f.tv_sum += local_acc.a_tv_sum;
+          f.tv_max = std::max(f.tv_max, local_acc.a_tv_max);
+          f.cnt_mean_sum += local_acc.a_cnt_mean_sum;
+          f.cnt_max_sum += local_acc.a_cnt_max_sum;
+          f.probe_rescued += local_acc.a_probe_rescued;
+        }
+        for(int b = 0; b < 5; ++b){
+          f.bins[b].n += local_acc.a_bin_n[b];
+          f.bins[b].lapr += local_acc.a_bin_lapr[b];
+          f.bins[b].pv_sum += local_acc.a_bin_pv[b];
+          f.bins[b].z_sum += local_acc.a_bin_z[b];
+        }
+      }
       if(g_prob_lio_p2p_weight_mode ==
          static_cast<int>(P2pWeightMode::ProbLivo2)){
         weight_stats_.count += local_acc.w_count;
@@ -753,6 +944,10 @@ void SuperLIO::Observe(){
   });
 
   frame_num_++;
+
+  if(g_prob_lio_assoc_shadow_enable){
+    frame_assoc_summaries_.push_back(frame_assoc_acc_);
+  }
 }
 
 
@@ -853,6 +1048,51 @@ void SuperLIO::printTimeRecord(){
               << ", nonfinite: "
               << qr_cov_nonfinite_.load(std::memory_order_relaxed) << RESET;
   }
+  if(g_prob_lio_assoc_shadow_enable){
+    // persist per-frame bounded summaries (G-P5.C4/C6 evidence)
+    std::ofstream fout(g_root_dir + "assoc_shadow_frames.csv");
+    if(fout){
+      fout << "timestamp,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,"
+              "r_min,r_mean,r_max,s_min,s_mean,s_max,z_min,z_mean,z_max,"
+              "pv_min,pv_mean,pv_max,sv_min,sv_mean,sv_max,"
+              "rv_min,rv_mean,rv_max,tv_min,tv_mean,tv_max,"
+              "cnt_mean_mean,cnt_max_mean,probe_rescued,"
+              "bin1_n,bin1_lapr,bin2_n,bin2_lapr,bin3_n,bin3_lapr,"
+              "bin4_n,bin4_lapr,bin5_n,bin5_lapr,"
+              "bin1_pv,bin1_z,bin2_pv,bin2_z,bin3_pv,bin3_z,"
+              "bin4_pv,bin4_z,bin5_pv,bin5_z\n";
+      for(const auto& f : frame_assoc_summaries_){
+        const double nlapr = f.la_pr > 0 ? double(f.la_pr) : 1.0;
+        fout << std::setprecision(12)
+             << f.timestamp << "," << f.attempted << ","
+             << f.la_pa << "," << f.la_pr << "," << f.lr_pa << ","
+             << f.lr_pr << "," << f.invalid_nonfinite << ","
+             << f.invalid_negative << ","
+             << f.r_min << "," << (f.r_sum / nlapr) << "," << f.r_max << ","
+             << f.s_min << "," << (f.s_sum / nlapr) << "," << f.s_max << ","
+             << f.z_min << "," << (f.z_sum / nlapr) << "," << f.z_max << ","
+             << f.pv_min << "," << (f.pv_sum / nlapr) << "," << f.pv_max << ","
+             << f.sv_min << "," << (f.sv_sum / nlapr) << "," << f.sv_max << ","
+             << f.rv_min << "," << (f.rv_sum / nlapr) << "," << f.rv_max << ","
+             << f.tv_min << "," << (f.tv_sum / nlapr) << "," << f.tv_max << ","
+             << (f.cnt_mean_sum / nlapr) << "," << (f.cnt_max_sum / nlapr)
+             << "," << f.probe_rescued;
+        for(int b = 0; b < 5; ++b){
+          fout << "," << f.bins[b].n << "," << f.bins[b].lapr;
+        }
+        for(int b = 0; b < 5; ++b){
+          const double bn = f.bins[b].lapr > 0 ? double(f.bins[b].lapr) : 1.0;
+          fout << "," << (f.bins[b].pv_sum / bn) << ","
+               << (f.bins[b].z_sum / bn);
+        }
+        fout << "\n";
+      }
+      LOG(INFO) << GREEN << " ---> [Prob-LIO P5] shadow frame summaries: "
+                << frame_assoc_summaries_.size()
+                << " frames -> assoc_shadow_frames.csv" << RESET;
+    }
+  }
+
   if(g_prob_lio_association_mode ==
      static_cast<int>(AssociationMode::ProbLivo2)){
     LOG(INFO) << GREEN << " ---> [Prob-LIO P5] association attempted: "

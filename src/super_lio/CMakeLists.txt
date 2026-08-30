@@ -212,3 +212,17 @@ target_link_libraries(test_p5_association ${catkin_LIBRARIES})
 add_test(NAME prob_lio_p5_association
          COMMAND test_p5_association)
 
+# Prob-LIO P5 corrective tests (real seam, shadow matrix, identity, isolation).
+add_executable(test_p5_seam_shadow
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_p5_seam_shadow.cpp
+)
+target_include_directories(test_p5_seam_shadow PRIVATE
+  include
+  3rdparty
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_p5_seam_shadow ${catkin_LIBRARIES})
+add_test(NAME prob_lio_p5_seam_shadow
+         COMMAND test_p5_seam_shadow)
+

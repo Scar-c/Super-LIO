@@ -29,6 +29,7 @@ public:
   KNNHeap() : count(0), worst_(0), max_dist2_(0.0f) {
     memset(dist2_, 0, sizeof(dist2_));
     for(auto& c : covs_) c.setZero();
+    counts_.fill(0);
   }
 
   void reset() {
@@ -37,6 +38,7 @@ public:
     max_dist2_ = 0.0f;
     memset(dist2_, 0, sizeof(dist2_));
     for(auto& c : covs_) c.setZero();
+    counts_.fill(0);
   }
 
   uint8_t count;
@@ -47,9 +49,13 @@ public:
   /// Prob-LIO S7 (P2): covariance of the representative point in the same
   /// slot. Zero when map covariance plumbing is disabled.
   std::array<Eigen::Matrix3d, K> covs_;
+  /// Prob-LIO P5 (S2/S10): accepted representative count N of the point in
+  /// the same slot (S6 identity; zero when plumbing disabled).
+  std::array<uint8_t, K> counts_;
 
   inline void try_insert(float dist2, const Point& pt,
-                         const Eigen::Matrix3d& cov = Eigen::Matrix3d::Zero()) {
+                         const Eigen::Matrix3d& cov = Eigen::Matrix3d::Zero(),
+                         uint8_t rep_count = 0) {
     const bool not_full = (count < K);
     const bool should_insert = not_full || (dist2 < max_dist2_);
     
@@ -59,6 +65,7 @@ public:
       dist2_[insert_idx] = dist2;
       points_[insert_idx] = pt;
       covs_[insert_idx] = cov;
+      counts_[insert_idx] = rep_count;
       
       if (not_full) {
         count++;
@@ -164,6 +171,13 @@ public:
   bool getPointCov(const uint8_t local_idx, Eigen::Matrix3d& cov) const {
     if (counts_[local_idx] == UNINIT_MASK) return false;
     cov = unpackCov6(local_idx);
+    return true;
+  }
+
+  /// Prob-LIO P5: accepted representative count N of the stored point.
+  bool getPointCount(const uint8_t local_idx, uint8_t& n) const {
+    if (counts_[local_idx] == UNINIT_MASK) return false;
+    n = counts_[local_idx];
     return true;
   }
 
@@ -497,10 +511,12 @@ void OctVoxMap<Point, Scalar>::getTopK(const Point& point, KNNHeapType& top_K) c
           while (data_size--) {
             uint8_t _local_idx = (*group_it++)^local_idx;
             Eigen::Matrix3d cov;
+            uint8_t rep_n = 0;
             if (voxel_ptr->getPoint(_local_idx, __sub_point)) {
               const float dist2 = (__sub_point - point).squaredNorm();
               voxel_ptr->getPointCov(_local_idx, cov);
-              top_K.try_insert(dist2, __sub_point, cov);
+              voxel_ptr->getPointCount(_local_idx, rep_n);
+              top_K.try_insert(dist2, __sub_point, cov, rep_n);
             }
           }
         }
@@ -516,10 +532,12 @@ void OctVoxMap<Point, Scalar>::getTopK(const Point& point, KNNHeapType& top_K) c
         while (data_size--){
           const uint8_t _local_idx = (*group_it++)^local_idx;
           Eigen::Matrix3d cov;
+          uint8_t rep_n = 0;
           if (voxel_ptr->getPoint(_local_idx, __sub_point)) {
             float dist2 = (__sub_point - point).squaredNorm();
             voxel_ptr->getPointCov(_local_idx, cov);
-            top_K.try_insert(dist2, __sub_point, cov);
+            voxel_ptr->getPointCount(_local_idx, rep_n);
+            top_K.try_insert(dist2, __sub_point, cov, rep_n);
           }
         }
       }
@@ -552,10 +570,12 @@ void OctVoxMap<Point, Scalar>::getTopK_VN(const Point& point, KNNHeapType& top_K
   for(auto& voxel : voxels_2_search) {
     for(uint8_t _i = 0; _i < 8; ++_i) {
       Eigen::Matrix3d cov;
+      uint8_t rep_n = 0;
       if(!voxel->getPoint(_i, pt)) continue;
       voxel->getPointCov(_i, cov);
+      voxel->getPointCount(_i, rep_n);
       float dist2 = (pt - point).squaredNorm();
-      top_K.try_insert(dist2, pt, cov);
+      top_K.try_insert(dist2, pt, cov, rep_n);
     }
   }
 }

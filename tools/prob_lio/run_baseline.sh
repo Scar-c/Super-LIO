@@ -19,6 +19,8 @@
 #                                    dirty worktree, per the clean-source
 #                                    project rule; diagnostic runs may stay
 #                                    dirty without this flag)
+#     [--algorithm-commit <sha>]    (focused algorithm implementation commit
+#                                    under test; recorded in meta.txt)
 #     [--play-topics <t1,t2>]       (default: /os1_cloud_node1/points,/imu/imu)
 #     [--record-topics <t1,t2>]     (default: /lio/odom,/lio/path)
 #
@@ -39,6 +41,7 @@ DURATION=""
 RATE="1.0"
 OFFLINE=0
 CANONICAL=0
+ALGORITHM_COMMIT=""
 PARAM_OVERRIDES=()
 PLAY_TOPICS="/os1_cloud_node1/points,/imu/imu"
 RECORD_TOPICS="/lio/odom,/lio/path"
@@ -53,6 +56,7 @@ while [ $# -gt 0 ]; do
     --rate) RATE="$2"; shift 2 ;;
     --set) PARAM_OVERRIDES+=("$2"); shift 2 ;;
     --canonical) CANONICAL=1; shift ;;
+    --algorithm-commit) ALGORITHM_COMMIT="$2"; shift 2 ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -96,9 +100,11 @@ fi
 {
   echo "workspace_root: $WS_ROOT"
   echo "git_branch: $(git -C "$WS_ROOT" branch --show-current)"
-  echo "git_head: $(git -C "$WS_ROOT" rev-parse HEAD)"
-  echo "git_status_short: $GIT_STATUS_SHORT"
-  echo "git_dirty: $GIT_DIRTY"
+  echo "run_git_head: $(git -C "$WS_ROOT" rev-parse HEAD)"
+  echo "run_git_dirty: $GIT_DIRTY"
+  echo "run_git_status_short: $GIT_STATUS_SHORT"
+  echo "production_tree_oid: $(git -C "$WS_ROOT" rev-parse HEAD:src/super_lio)"
+  echo "algorithm_commit: ${ALGORITHM_COMMIT:-<unset>}"
   echo "git_diff_sha256: ${GIT_DIFF_SHA256:-clean}"
   echo "config: $CONFIG"
   echo "bag: $BAG"

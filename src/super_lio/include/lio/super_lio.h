@@ -117,6 +117,41 @@ protected:
   std::atomic<std::uint64_t> assoc_invalid_nonfinite_{0};
   std::atomic<std::uint64_t> assoc_invalid_negative_{0};
 
+  /// Prob-LIO P5-C1 shadow diagnostics: four-way disagreement matrix and
+  /// per-frame bounded summaries (read-only wrt estimator state).
+  struct FrameAssocSummary {
+    double timestamp = 0.0;
+    std::uint64_t attempted = 0;
+    std::uint64_t la_pa = 0, la_pr = 0, lr_pa = 0, lr_pr = 0;
+    std::uint64_t invalid_nonfinite = 0, invalid_negative = 0;
+    double r_min = 1e300, r_sum = 0.0, r_max = 0.0;      // LA_PR |r|
+    double s_min = 1e300, s_sum = 0.0, s_max = 0.0;      // sigma_assoc
+    double z_min = 1e300, z_sum = 0.0, z_max = 0.0;      // |r|/sqrt(var)
+    double pv_min = 1e300, pv_sum = 0.0, pv_max = 0.0;   // plane var
+    double sv_min = 1e300, sv_sum = 0.0, sv_max = 0.0;   // query sensor var
+    double rv_min = 1e300, rv_sum = 0.0, rv_max = 0.0;   // pose rot var
+    double tv_min = 1e300, tv_sum = 0.0, tv_max = 0.0;   // pose pos var
+    double cnt_mean_sum = 0.0, cnt_max_sum = 0.0;        // neighbor counts
+    std::uint64_t probe_rescued = 0;                     // optional probe
+    struct Bin {
+      std::uint64_t n = 0, lapr = 0;
+      double pv_sum = 0.0, z_sum = 0.0;
+    };
+    Bin bins[5];  // count bins: 1, 2-4, 5-9, 10-14, 15-20
+    void reset() { *this = FrameAssocSummary(); }
+  };
+  FrameAssocSummary frame_assoc_acc_;          // current-scan accumulator
+  std::vector<FrameAssocSummary> frame_assoc_summaries_;
+
+  /// Per-index neighbor representative-count identity (filled with the plane
+  /// fit; index-aligned with plane_qr_vec_).
+  std::vector<float> assoc_count_mean_vec_;
+  std::vector<std::uint8_t> assoc_count_max_vec_;
+
+  /// P5-C7: association pose covariance model (0 inherit_map, 1 livo2_compat,
+  /// 2 super_right_consistent); set in init().
+  int assoc_pose_cov_model_ = 0;
+
   /// Prob-LIO P4: aggregated weight statistics (TLS-reduced on the main
   /// thread inside UpdateObserve after the parallel section).
   struct WeightStats {

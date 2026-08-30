@@ -378,59 +378,10 @@ static void test_gp55_legacy_preservation() {
 }
 
 // ---------------------------------------------------------------------------
-// G-P5.6 — probabilistic gate production seam (only gate policy changes)
+// G-P5.6 → replaced by G-P5.C1 (real production association-seam gate, see
+// test_p5_seam_shadow.cpp). This stub is removed; the seam gate lives in
+// the dedicated corrective test suite.
 // ---------------------------------------------------------------------------
-static void test_gp56_production_seam() {
-  std::printf("== G-P5.6 probabilistic gate production seam ==\n");
-  // Same synthetic candidates: legacy predicate vs prob predicate; any
-  // acceptance difference must be attributable to the gate predicate alone
-  // (same residual, same plane, same geometry).
-  BASIC::M3d R_WI;
-  R_WI = Eigen::AngleAxisd(0.3, Eigen::Vector3d(0.0, 1.0, 0.0).normalized())
-             .toRotationMatrix();
-  BASIC::M3d Sigma_I = 1e-3 * BASIC::M3d::Identity();
-  BASIC::M3d P_RR = 1e-3 * BASIC::M3d::Identity();
-  BASIC::M3d P_pp = 1e-2 * BASIC::M3d::Identity();
-  Eigen::Matrix4d Spi = 1e-4 * Eigen::Matrix4d::Identity();
-  const BASIC::V3d n(0.0, 1.0, 0.0);
-  const double k = 3.0;
-
-  for (const double length : {5.0, 20.0, 100.0}) {
-    const BASIC::V3d p_I(0.5, 0.6, 0.7);
-    const BASIC::V3d p_W = R_WI * p_I;
-    // residual from a small error
-    const double error = 0.01;
-    // legacy predicate (identical expression to compute_error)
-    const bool legacy = length > 81.0 * error * error;
-    // prob predicate
-    const BASIC::M3d Sq = ComputeQueryWorldCovariance(
-        p_I, Sigma_I, R_WI, P_RR, P_pp, MapPoseCovModel::Livo2Compat);
-    const double sigma_assoc2 = AssociationVariance(p_W, n, Spi, Sq);
-    const bool prob = ProbAssocGate(error, sigma_assoc2, k).accept;
-    // The predicates use the SAME residual and geometry; a difference is
-    // purely gate-policy. Both are well-defined for any fixture.
-    CHECK(legacy || !legacy);  // legacy defined
-    CHECK(prob || !prob);      // prob defined
-  }
-
-  // Negative mutations: apply prob gate after accumulation (wrong ordering)
-  // — simulate by gating with an outdated residual (e.g., residual doubled).
-  {
-    const BASIC::V3d p_I(0.5, 0.6, 0.7);
-    const BASIC::V3d p_W = R_WI * p_I;
-    const BASIC::M3d Sq = ComputeQueryWorldCovariance(
-        p_I, Sigma_I, R_WI, P_RR, P_pp, MapPoseCovModel::Livo2Compat);
-    const double sigma_assoc2 = AssociationVariance(p_W, n, Spi, Sq);
-    const bool correct = ProbAssocGate(0.1, sigma_assoc2, k).accept;
-    const bool wrong_residual = ProbAssocGate(0.4, sigma_assoc2, k).accept;
-    if (correct == wrong_residual) {
-      ++g_failures;
-      std::printf("FAIL: different-residual mutation not detected\n");
-    }
-  }
-  ++g_checks;
-}
-
 // ---------------------------------------------------------------------------
 // G-P5.7 — invalid association variance safety
 // ---------------------------------------------------------------------------
@@ -474,7 +425,6 @@ int main() {
   test_gp53_gate_threshold();
   test_gp54_separation();
   test_gp55_legacy_preservation();
-  test_gp56_production_seam();
   test_gp57_invalid_safety();
   std::printf("checks=%d failures=%d\n", g_checks, g_failures);
   std::printf("G-P5.1..G-P5.7: %s\n", g_failures == 0 ? "PASS" : "FAIL");

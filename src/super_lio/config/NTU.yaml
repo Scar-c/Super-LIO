@@ -69,6 +69,13 @@ lio:
     # covariance pipeline ON.
     association_mode: super_legacy
     assoc_sigma_num: 3.0
+    # P5 shadow diagnostics: compute the probability gate decision while the
+    # legacy gate stays authoritative. Read-only w.r.t. estimator state.
+    prob_assoc_shadow_enable: false
+    # P5-C7: association pose covariance model. inherit_map (default) reuses
+    # map_pose_cov_model; livo2_compat / super_right_consistent override it
+    # for association only (map covariance unaffected).
+    association_pose_cov_model: inherit_map
 
   # Extrinsic Parameters
   extrinsic:

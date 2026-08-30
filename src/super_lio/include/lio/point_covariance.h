@@ -434,6 +434,76 @@ inline AssocGateResult ProbAssocGate(double residual, double sigma_assoc2,
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// P5-C1 (G-P5.C1): common production association-candidate seam.
+//
+// One immutable candidate record is constructed ONCE per correspondence from
+// the same production geometry (plane [n,d], plane covariance, query point,
+// residual, legacy geometry score inputs, association variance components).
+// Both gate predicates (legacy and probability) consume the SAME candidate;
+// the two modes may differ only in the decision predicate. The probability
+// mode must never recompute the plane, use a different residual/query point,
+// or alter P4 final-weight inputs.
+// ---------------------------------------------------------------------------
+struct AssociationCandidate {
+  // geometry / residual (shared by both predicates)
+  double residual = 0.0;   // r = n^T p_W + d
+  double length = 0.0;     // legacy geometry score input (range)
+  // probability association variance (total and components; components are
+  // diagnostics, the gate uses only sigma_assoc2)
+  double sigma_assoc2 = 0.0;
+  double plane_var = 0.0;
+  double query_sensor_var = 0.0;     // n^T (R_WI Sigma_I R_WI^T) n
+  double query_pose_rot_var = 0.0;   // n^T (pose rotation term) n
+  double query_pose_pos_var = 0.0;   // n^T P_pp n
+  double sigma_num = 3.0;
+  // representative-count identity (S6 attribution): mean/max accepted count
+  // among the plane neighbors
+  double neighbor_count_mean = 0.0;
+  uint8_t neighbor_count_max = 0;
+};
+
+// Association variance components (production helper; the gate consumes the
+// total). model selects the pose-term convention.
+inline AssociationCandidate BuildAssociationCandidate(
+    const BASIC::V3d& p_W, const BASIC::V3d& n, const BASIC::V3d& p_I,
+    const BASIC::M3d& Sigma_I, const BASIC::M3d& R_WI,
+    const BASIC::M3d& P_RR, const BASIC::M3d& P_pp,
+    const Eigen::Matrix4d& Sigma_pi, double residual, double length,
+    double sigma_num, double neighbor_count_mean, uint8_t neighbor_count_max,
+    MapPoseCovModel model = MapPoseCovModel::Livo2Compat) {
+  AssociationCandidate c;
+  c.residual = residual;
+  c.length = length;
+  c.sigma_num = sigma_num;
+  c.neighbor_count_mean = neighbor_count_mean;
+  c.neighbor_count_max = neighbor_count_max;
+  const BASIC::M3d Sigma_query = ComputeQueryWorldCovariance(
+      p_I, Sigma_I, R_WI, P_RR, P_pp, model);
+  c.plane_var = PlaneResidualVariance(p_W, Sigma_pi);
+  c.query_sensor_var =
+      n.dot(R_WI * Sigma_I * R_WI.transpose() * n);
+  const BASIC::M3d skew = SkewSymmetric(p_I);
+  const BASIC::M3d rot_term =
+      (model == MapPoseCovModel::SuperRightConsistent)
+          ? RotateCovariance(R_WI * skew, P_RR)
+          : skew * P_RR * skew.transpose();
+  c.query_pose_rot_var = n.dot(rot_term * n);
+  c.query_pose_pos_var = n.dot(P_pp * n);
+  c.sigma_assoc2 = c.plane_var + n.dot(Sigma_query * n);
+  return c;
+}
+
+// Legacy predicate (identical expression to production compute_error).
+inline bool LegacyAssocGate(const AssociationCandidate& c) {
+  return c.length > 81.0 * c.residual * c.residual;
+}
+
+// Probability predicate (audited FAST-LIVO2 form).
+inline AssocGateResult ProbAssocGate(const AssociationCandidate& c) {
+  return ProbAssocGate(c.residual, c.sigma_assoc2, c.sigma_num);
+}
+
 }  // namespace LI2Sup
 
 #endif  // POINT_COVARIANCE_HPP_

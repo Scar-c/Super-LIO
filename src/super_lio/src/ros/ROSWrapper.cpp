@@ -102,6 +102,14 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   g_prob_lio_association_mode =
       static_cast<int>(ResolveAssociationMode(association_mode));
   nh.getParam("/lio/prob_lio/assoc_sigma_num", g_prob_lio_assoc_sigma_num);
+  nh.getParam("/lio/prob_lio/prob_assoc_shadow_enable",
+              g_prob_lio_assoc_shadow_enable);
+  std::string assoc_pose_model = "inherit_map";
+  nh.getParam("/lio/prob_lio/association_pose_cov_model", assoc_pose_model);
+  g_prob_lio_assoc_pose_cov_model =
+      (assoc_pose_model == "livo2_compat")
+          ? 1
+          : (assoc_pose_model == "super_right_consistent") ? 2 : 0;
   // P5 dependency: probabilistic association requires the covariance
   // pipeline (query covariance). Normalize like the QR/P4 dependencies.
   if (g_prob_lio_association_mode ==
