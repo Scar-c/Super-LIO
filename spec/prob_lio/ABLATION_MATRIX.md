@@ -57,9 +57,9 @@ The compact values above are backed by the following committed manifests:
   `p11_ntu_nya01_p4_rc`, `p11_ntu_nya01_p5_active`,
   `p11_ntu_nya01_p5_sensor_corr`, `p11_ntu_nya01_p5_both_corr`.
 - Oxford preflight: `p11_preflight_oxford_final`.
-- M3DGR Corridor01 has no numeric run because the registry is now explicitly
-  `CONFIG_PROVENANCE_BLOCKED`; its preflight is pending the same clean-source
-  config decision.
+- M3DGR Corridor01 has no numeric run because the registry is explicitly
+  `CONFIG_PROVENANCE_BLOCKED`; see
+  `results/prob_lio/p11_preflight_m3dgr_corridor01/preflight.yaml`.
 
 ## Historical clean evidence eligible for traceability
 

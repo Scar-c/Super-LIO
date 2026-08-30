@@ -1,8 +1,8 @@
 # Prompt11 audit and preflight record
 
 Status: source/config audit complete; numeric generalization runs are recorded
-under `results/prob_lio/` and must reference the machine-readable manifests
-created by `tools/prob_lio/run_ablation.py`.
+under `results/prob_lio/` and reference the machine-readable manifests created
+by `tools/prob_lio/run_ablation.py`.
 
 ## Source state and old-branch audit
 
@@ -95,4 +95,35 @@ policies in `point_covariance.h`.
 - Canonical runs require a clean committed worktree and are never allowed to
   edit the tracked matrix automatically.
 
+## Prompt11 execution outcome
+
+- MCD `ntu_night_08`: all six required variants are `CANONICAL_VALID` under
+  the merged LiDAR+VN100 input. Primary full-trajectory translation ATE RMSE
+  values are B0 `1.021000`, P4-LC `1.302700`, P4-RC `1.260700`, P5-ACTIVE
+  `1.324500`, P5-SENSOR-CORR `1.151800`, and P5-BOTH-CORR `1.148600` m.
+- NTU `nya_01`: all six required variants are `CANONICAL_VALID` under the
+  dataset-author-compatible official evaluator. Values are B0 `0.062926634`,
+  P4-LC `0.060714509`, P4-RC `0.060846956`, P5-ACTIVE `0.064154094`,
+  P5-SENSOR-CORR `0.064154094`, and P5-BOTH-CORR `0.064981117` m. The two
+  P5 sensor-policy trajectories are byte-identical as required by the
+  identity NTU LiDAR-to-IMU rotation.
+- NTU `eee_01`: the required post-change smoke and registered six-variant
+  evidence are present; P4-LC byte parity and all three exact effective-config
+  isolation comparisons are PASS.
+- Oxford `Quarter_01`: preflight is preserved at
+  `results/prob_lio/p11_preflight_oxford_final/preflight.yaml` and remains
+  `CONFIG_PROVENANCE_BLOCKED`; the current branch has no audited
+  `oxford_quarter01.yaml` authority.
+- M3DGR `Corridor01`: preflight is preserved at
+  `results/prob_lio/p11_preflight_m3dgr_corridor01/preflight.yaml` and is
+  `CONFIG_PROVENANCE_BLOCKED`. The local bag, Avia topics, final-relative GT,
+  and dataset-author ArUco evaluator are auditable, but the old lineage's
+  `current_committed_m3dgr_runner_config` is not present as a concrete
+  current Super-LIO config. Existing generic Livox/M2DGR configs were not
+  substituted and no ungrounded terminal metric was emitted.
+
+The first failed MCD attempt was an infrastructure finding, not an algorithm
+result: the runner sourced a stale nested catkin `devel` tree. The runner now
+separates the Git repository root from the active catkin workspace and records
+both paths in `meta.txt`; a clean rerun produced the canonical MCD ledger above.
 
