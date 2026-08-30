@@ -717,6 +717,111 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
   OWNER DIAGNOSIS PENDING** (normalized at the start of round P5-2; NOT
   Owner-verified; Owner audit pending).
 
+### Round P5-4 — TERMINAL P5 redo from the P9 anchor (prompt9)
+
+- Prompt: `prompts/prob_lio/prompt9_REDO_from_555d94a.md`.
+- P9_BASE: `555d94a` (clean). The failed Prompt-9 attempt (HEAD `e53340b`)
+  was preserved on `backup/p9-failed-20260831_003717`; `origin/prob-lio`
+  had no divergence. Rollback: `git reset --hard 555d94a && git clean -fd`.
+- Baseline build gate G-P9.R0 PASS: 555d94a builds clean; the full test
+  suite passes at the anchor.
+- Commit M `9ec5be3` (diagnostic correctness, T1–T5) + follow-ups
+  `6473ab0` (evidence CSV routed to the run dir, §11 source hygiene) and
+  `f56c376` (lifecycle state-machine correction + §5 guard ordering).
+
+#### Owner test audit (TEST BUG 1–8)
+
+- **TB1** (LifecycleSim assumed the conclusion): CONFIRMED and FIXED. The
+  detached simulator is gone; the production lifecycle is modeled by
+  `P5Lifecycle` (one-to-one with the VERIFIED Observe() ordering) and used
+  by Observe() itself. G-P9.T3.
+- **TB2** (F1 tautological): CONFIRMED and FIXED. New shared abstraction
+  `EvaluateAssociationPredicates` (BuildAssociationCandidate ->
+  EvaluateAssociationPredicates) is consumed by BOTH the applied P5 path
+  and the shadow path; G-P9.F1 exercises exactly that abstraction.
+- **TB3** (identity mutation meaningless): CONFIRMED and FIXED.
+  neighbor_count fields are diagnostics; the identity mutations now act on
+  the point-driven residual/plane pairing (G-P9.F1 #6).
+- **TB4** (mutations only decision flips): CONFIRMED and FIXED. Mutations
+  assert the authoritative field/formula is wrong and the evaluation
+  responds semantically (G-P9.F1 #1–#5).
+- **TB5** (`std::vector<bool>`): CONFIRMED and FIXED. `AssocEvalState`
+  (uint8_t enum) distinguishes GeometryInvalid / SkippedPriorProbReject /
+  ProbRejected / Active / PersistedActive.
+- **TB6** (`reset()` destroys frame identity): CONFIRMED and FIXED.
+  `FrameAssocSummary::resetIterationStats()` preserves frame_id/timestamp;
+  G-P9.T1 (fixture frame100/101/102; negative full-reset mutation).
+- **TB7** (reversed counterfactual reaccept): CONFIRMED and FIXED. True
+  transitions `prob_accept_to_reject` / `prob_reject_to_accept` /
+  `sticky_skip_due_prior_prob_reject` / `counterfactual_reaccept`; G-P9.T4
+  (negative mutation: prev-ACCEPT->REJECT labeled reaccept fails).
+- **TB8** (analyzer accepts corrupt input): CONFIRMED and FIXED. The
+  analyzer validates (duplicate frame/iter, non-contiguous iteration,
+  timestamp drift, identity reset, backwards ids) and exits nonzero
+  without publishing conclusions (G-P9.T5; 6 corrupt fixtures + reverse
+  burst + impossible range all rejected).
+
+#### Corrected evidence — Run A0 (P4 canonical + corrected P5 shadow)
+
+- `run_20260831_011924`, HEAD `f56c376` (clean), production_tree_oid
+  `48abc2c7`, git_dirty=no.
+- **BYTE_PARITY PASS** (sha256 `259d3fbc...` == frozen P4 canonical);
+  ATE 0.088831554; 3981/3329 contract.
+- Integrity: 14,939 (frame,iter) records, 3,981 frames, iterations
+  [1,2,3,4]; sum(iterations_executed) == records (OK).
+- True iteration histogram (final iteration per frame): iter2 395 /
+  iter3 195 / iter4 3391. 3,586 frames reach the need_converge phase.
+- Quadrants (geometry-valid candidates, corrected guard ordering):
+  attempted 31,334,113; LA_PA 31,103,450 / LA_PR 213,731 / LR_PA 2,269 /
+  LR_PR 14,663 (matrix sum == attempted OK); invalid 0/0.
+- Lifecycle: rej_from_active 228,394; late 0; sticky(need_converge) 0;
+  flip 91,759; **acc2rej 29,765 / rej2acc 61,994** (per-iteration re-gating
+  across non-converged iterations: iter2 acc2rej 18,459 rej2acc 42,039;
+  iter3 acc2rej 11,306 rej2acc 19,955); **sticky_skip 0 / counterfactual
+  reaccept 0** (the converged phase structurally performs no probability
+  re-evaluation — production ordering verified: the association machinery
+  lives inside `if(!need_converge)`; the persisted mask decides
+  measurement activity in the converged iteration).
+- LA_PR components: |r| 0.1667, sigma_assoc 2.6049e-3, z 4.342, plane_var
+  9.57e-5, sensor 2.05e-4, pose_rot 2.30e-3, pose_pos 2.90e-6;
+  probe_rescued 23,954 (11.2% of LA_PR).
+- S6 count bins: LA_PR rate decreases with representative count
+  (1.53% → 0.49%), z mean 4.27–4.58 — **S6_PRIMARY_CAUSE_NOT_SUPPORTED**.
+
+#### Run B0 — current applied P5 (same source)
+
+- `run_20260831_012108`, association_mode=prob_livo2, shadow off:
+  **ATE 1.190814611** — exact reproduction of the applied-P5 regression
+  (Run B in P5-3).
+
+#### Bounded-fix decision
+
+**NOT AUTHORIZED.** §15 gate: corrected evidence shows
+`sticky_skip_due_prior_prob_reject = 0` and `counterfactual_reaccept = 0`
+(the converged phase performs no association re-evaluation at all; the
+sticky-reject hypothesis is not evidenced). No Commit N; A0/B0 are final.
+The lifecycle mismatch that remains (converged-phase persistence vs
+FAST-LIVO2 full per-iteration re-association) is out of the authorized
+bounded scope (no ESKF / HKNN / QR / P4 / gate changes).
+
+#### Final P5 classification
+
+**P5_LIFECYCLE_MISMATCH_NOT_FIXED_BY_BOUNDED_SCOPE**:
+- the probability-gate semantics are valid and deterministic (shared
+  authority, byte parity, exact regression reproduction);
+- the verified lifecycle: per-iteration re-gating across non-converged
+  iterations (acc2rej/rej2acc substantial) + converged-phase persistence
+  (no re-evaluation); FAST-LIVO2 re-associates every iteration — the
+  mismatch is not fixable within the authorized bounded scope and is not
+  evidenced as the divergence driver;
+- P5 remains materially worse than P4 (1.1908 vs 0.0888): the binary gate
+  removes ~0.6% of legacy-accepted correspondences (|r|/σ ≈ 4.3) that P4
+  soft weighting retains.
+
+**Canonical Prob-LIO = P0–P4; Association = Super legacy; P5 =
+experimental ablation.** Generalization NOT STARTED / OWNER NEXT
+DECISION. P5 is NOT Owner-verified.
+
 ### Round P5-3 — FINAL P5 closure: production-seam unification + IEKF-lifecycle diagnosis (prompt8)
 
 - Prompt: `prompts/prob_lio/prompt8_FINAL_P5_lifecycle_closure.md`.
@@ -741,6 +846,19 @@ meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
   `quit_eps` break, so the applied P5 gate is effectively single-shot per
   frame (its decisions are final). The `need_converge` phase is rarely
   reached (1 frame reached iter 4).
+
+  > **P9 REDO CORRECTION (prompt9):** Gap C's lifecycle claims are
+  > INVALIDATED by the corrected iteration accounting. The "3980/3981
+  > frames run one iteration" figure was an artifact of the per-iteration
+  > `reset()` destroying frame identity (iter2+ records collapsed onto a
+  > fake frame 0). Corrected evidence (P5-4 round, Run A0): frames execute
+  > 2–4 iterations — final-iteration histogram iter2: 395 / iter3: 195 /
+  > iter4: 3391 of 3981 frames — and 3586 frames reach the need_converge
+  > phase. The prob gate IS re-evaluated across non-converged iterations
+  > (acc2rej 29,765 / rej2acc 61,994 / flip 91,759), and the converged
+  > iteration performs NO probability re-evaluation (production ordering:
+  > the whole association machinery lives inside `if(!need_converge)`; the
+  > persisted mask decides measurement activity).
 - **Gap D** — analyzer derived bursts from a score-sorted list (produced
   impossible ranges like `2321..1995`). FIXED: ranking and chronology views
   are separate; bursts derive strictly from frame_id order (G-P5.F5,
@@ -758,6 +876,17 @@ terminates within 4 iterations. Classification:
 **LIFECYCLE_MISMATCH_OTHER** (not mask-stickiness: Super re-gates
 survivors across executed iterations; the mismatch is single-shot
 termination vs reference iterative re-association).
+
+> **P9 REDO CORRECTION (prompt9):** with the corrected iteration
+> accounting (see Gap C), the parity picture changes: Super executes 2–4
+> iterations per frame and re-gates the survivors across the non-converged
+> iterations; the mismatch is the CONVERGED phase — Super performs NO
+> probability re-evaluation there (persisted-mask measurement only), while
+> FAST-LIVO2 re-associates every iteration including the final one.
+> Classification remains **LIFECYCLE_MISMATCH_OTHER** (converged-phase
+> persistence vs reference full re-association; NOT the sticky-reject
+> subtype — sticky_skip_due_prior_prob_reject = 0 in the corrected
+> shadow evidence).
 
 #### Hard gates (all GREEN)
 
@@ -814,6 +943,15 @@ termination vs reference iterative re-association).
   with small weights. Removing these constraints outright (binary) is
   architecturally incompatible with Super's single-shot lifecycle + P4
   soft weighting;
+
+  > **P9 REDO CORRECTION (prompt9):** the "single-shot" framing above is
+  > superseded — corrected evidence shows 2–4 executed iterations per
+  > frame with per-iteration re-gating (see Gap C). The substance of the
+  > classification stands: the applied binary gate removes ~0.6% of
+  > legacy-accepted correspondences (|r|/σ ≈ 4.3) that the P4 soft
+  > weighting retains with small weights — a semantic-valid outcome, not
+  > a lifecycle artifact; the applied-P5 regression reproduces exactly
+  > (B0 ATE 1.190814611, same as Run B).
 - no implementation bug, no S6-underestimation driver
   (S6_PRIMARY_CAUSE_NOT_SUPPORTED: LA_PR rate decreases with representative
   count 1.53% → 0.54%, probe rescues only ~10%);
