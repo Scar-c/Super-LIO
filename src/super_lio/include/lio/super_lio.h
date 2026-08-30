@@ -121,9 +121,22 @@ protected:
   /// per-frame bounded summaries (read-only wrt estimator state).
   struct FrameAssocSummary {
     double timestamp = 0.0;
+    int frame_id = 0;          // Observe scan index (0-based)
+    int obs_iter = 0;          // IEKF iteration index (0-based)
+    int need_converge = 0;     // 1 in the converged (final) phase
     std::uint64_t attempted = 0;
     std::uint64_t la_pa = 0, la_pr = 0, lr_pa = 0, lr_pr = 0;
     std::uint64_t invalid_nonfinite = 0, invalid_negative = 0;
+    // P8 lifecycle counters (definitions in SPEC):
+    std::uint64_t prob_reject_from_active = 0;  // prob reject (plane-valid)
+    std::uint64_t prob_reject_late = 0;         // reject when need_converge
+    std::uint64_t sticky_reject = 0;            // reject in the converged
+                                                // (final) phase
+    std::uint64_t decision_flip = 0;            // decision != previous iter
+    std::uint64_t counterfactual_reaccept = 0;  // sticky reject whose
+                                                // previous-iter decision
+                                                // was accept (flip-to-reject
+                                                // in the final iteration)
     double r_min = 1e300, r_sum = 0.0, r_max = 0.0;      // LA_PR |r|
     double s_min = 1e300, s_sum = 0.0, s_max = 0.0;      // sigma_assoc
     double z_min = 1e300, z_sum = 0.0, z_max = 0.0;      // |r|/sqrt(var)
@@ -140,8 +153,12 @@ protected:
     Bin bins[5];  // count bins: 1, 2-4, 5-9, 10-14, 15-20
     void reset() { *this = FrameAssocSummary(); }
   };
-  FrameAssocSummary frame_assoc_acc_;          // current-scan accumulator
+  FrameAssocSummary frame_assoc_acc_;          // current-(scan,iter) accumulator
+  int assoc_frame_id_ = 0;                     // scan counter for records
   std::vector<FrameAssocSummary> frame_assoc_summaries_;
+  /// P8: previous-iteration prob decision per index (255 = unknown; reset
+  /// every scan) for flip/reaccept lifecycle accounting.
+  std::vector<std::uint8_t> assoc_prev_decision_;
 
   /// Per-index neighbor representative-count identity (filled with the plane
   /// fit; index-aligned with plane_qr_vec_).

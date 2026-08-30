@@ -226,3 +226,16 @@ target_link_libraries(test_p5_seam_shadow ${catkin_LIBRARIES})
 add_test(NAME prob_lio_p5_seam_shadow
          COMMAND test_p5_seam_shadow)
 
+# Prob-LIO P8 tests (single association authority + sticky lifecycle).
+add_executable(test_p5_lifecycle
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_p5_lifecycle.cpp
+)
+target_include_directories(test_p5_lifecycle PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_p5_lifecycle ${catkin_LIBRARIES})
+add_test(NAME prob_lio_p5_lifecycle
+         COMMAND test_p5_lifecycle)
+

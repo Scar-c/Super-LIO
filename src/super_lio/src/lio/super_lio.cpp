@@ -73,6 +73,7 @@ void SuperLIO::init(){
   plane_qr_vec_.resize(20000);
   assoc_count_mean_vec_.resize(20000);
   assoc_count_max_vec_.resize(20000);
+  assoc_prev_decision_.assign(20000, 255);
   effect_knn_idxs_.resize(20000);
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
@@ -473,6 +474,8 @@ struct ThreadACC{
   std::uint64_t a_attempted = 0;
   std::uint64_t a_la_pa = 0, a_la_pr = 0, a_lr_pa = 0, a_lr_pr = 0;
   std::uint64_t a_inv_nf = 0, a_inv_neg = 0;
+  std::uint64_t a_rej_active = 0, a_rej_late = 0, a_sticky = 0;
+  std::uint64_t a_flip = 0, a_reaccept = 0;
   double a_r_min = 1e300, a_r_sum = 0.0, a_r_max = 0.0;
   double a_s_min = 1e300, a_s_sum = 0.0, a_s_max = 0.0;
   double a_z_min = 1e300, a_z_sum = 0.0, a_z_max = 0.0;
@@ -535,6 +538,8 @@ void SuperLIO::Observe(){
   int obs_iter = 0;
   frame_assoc_acc_.reset();
   frame_assoc_acc_.timestamp = measures_.lidar.end_time;
+  frame_assoc_acc_.frame_id = assoc_frame_id_;
+  std::fill(assoc_prev_decision_.begin(), assoc_prev_decision_.end(), 255);
 
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
     const SE3 pose = kf_state.pose;
@@ -656,6 +661,21 @@ void SuperLIO::Observe(){
                                  : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
                   local_acc.a_bin_n[bin]++;
                 }
+                {
+                  const std::uint8_t prev = assoc_prev_decision_[idx];
+                  assoc_prev_decision_[idx] = pg.accept ? 1 : 0;
+                  if(prev != 255 && prev != (pg.accept ? 1u : 0u))
+                    local_acc.a_flip++;
+                  if(!pg.accept && !pg.invalid_nonfinite &&
+                     !pg.invalid_negative){
+                    local_acc.a_rej_active++;
+                    if(need_converge){
+                      local_acc.a_rej_late++;
+                      local_acc.a_sticky++;
+                      if(prev == 1) local_acc.a_reaccept++;
+                    }
+                  }
+                }
                 if(pg.accept){
                   if(legacy_accept) local_acc.a_la_pa++;
                   else local_acc.a_lr_pa++;
@@ -770,15 +790,19 @@ void SuperLIO::Observe(){
                     : assoc_pose_cov_model_ == 1
                           ? MapPoseCovModel::Livo2Compat
                           : map_pose_cov_model_;
-            const BASIC::M3d Sigma_query_W = ComputeQueryWorldCovariance(
-                p_I, body_cov_list_[idx], R_WI, P_RR, P_pp, apose);
-            const double sigma_assoc2 =
+            /// P8 (G-P5.F1): ONE production association candidate authority.
+            /// The applied path consumes the same BuildAssociationCandidate
+            /// record as the shadow path — no independent re-derivation of
+            /// the query covariance, association variance or residual.
+            const AssociationCandidate cand = BuildAssociationCandidate(
+                point_world.cast<double>(), n, p_I, body_cov_list_[idx],
+                pose.R_.cast<double>(), P_RR, P_pp,
                 plane.status == ProbQrPlane::kValid
-                    ? AssociationVariance(point_world.cast<double>(), n,
-                                          plane.covariance, Sigma_query_W)
-                    : 0.0;
-            const AssocGateResult gate = ProbAssocGate(
-                double(error), sigma_assoc2, g_prob_lio_assoc_sigma_num);
+                    ? plane.covariance
+                    : Eigen::Matrix4d::Zero(),
+                double(error), _lengths[idx], g_prob_lio_assoc_sigma_num,
+                assoc_count_mean_vec_[idx], assoc_count_max_vec_[idx], apose);
+            const AssocGateResult gate = ProbAssocGate(cand);
             if(!gate.accept && gate.invalid_nonfinite){
               assoc_invalid_nonfinite_.fetch_add(1, std::memory_order_relaxed);
             }else if(!gate.accept && gate.invalid_negative){
@@ -870,7 +894,7 @@ void SuperLIO::Observe(){
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
-      if(g_prob_lio_assoc_shadow_enable && obs_iter == 1){
+      if(g_prob_lio_assoc_shadow_enable){
         FrameAssocSummary& f = frame_assoc_acc_;
         f.attempted += local_acc.a_attempted;
         f.la_pa += local_acc.a_la_pa;
@@ -879,6 +903,11 @@ void SuperLIO::Observe(){
         f.lr_pr += local_acc.a_lr_pr;
         f.invalid_nonfinite += local_acc.a_inv_nf;
         f.invalid_negative += local_acc.a_inv_neg;
+        f.prob_reject_from_active += local_acc.a_rej_active;
+        f.prob_reject_late += local_acc.a_rej_late;
+        f.sticky_reject += local_acc.a_sticky;
+        f.decision_flip += local_acc.a_flip;
+        f.counterfactual_reaccept += local_acc.a_reaccept;
         if(local_acc.a_la_pr > 0){
           f.r_min = std::min(f.r_min, local_acc.a_r_min);
           f.r_sum += local_acc.a_r_sum;
@@ -940,6 +969,13 @@ void SuperLIO::Observe(){
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
 
+    if(g_prob_lio_assoc_shadow_enable){
+      frame_assoc_acc_.obs_iter = obs_iter;
+      frame_assoc_acc_.need_converge = need_converge ? 1 : 0;
+      frame_assoc_summaries_.push_back(frame_assoc_acc_);
+      frame_assoc_acc_.reset();
+    }
+
     if(need_converge) return;
 
     int _effect_knn_num = 0;
@@ -957,10 +993,7 @@ void SuperLIO::Observe(){
   });
 
   frame_num_++;
-
-  if(g_prob_lio_assoc_shadow_enable){
-    frame_assoc_summaries_.push_back(frame_assoc_acc_);
-  }
+  assoc_frame_id_++;
 }
 
 
@@ -1065,7 +1098,7 @@ void SuperLIO::printTimeRecord(){
     // persist per-frame bounded summaries (G-P5.C4/C6 evidence)
     std::ofstream fout(g_root_dir + "assoc_shadow_frames.csv");
     if(fout){
-      fout << "timestamp,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,"
+      fout << "frame_id,timestamp,obs_iter,need_converge,attempted,la_pa,la_pr,lr_pa,lr_pr,inv_nf,inv_neg,rej_active,rej_late,sticky,flip,reaccept,"
               "r_min,r_mean,r_max,s_min,s_mean,s_max,z_min,z_mean,z_max,"
               "pv_min,pv_mean,pv_max,sv_min,sv_mean,sv_max,"
               "rv_min,rv_mean,rv_max,tv_min,tv_mean,tv_max,"
@@ -1077,10 +1110,13 @@ void SuperLIO::printTimeRecord(){
       for(const auto& f : frame_assoc_summaries_){
         const double nlapr = f.la_pr > 0 ? double(f.la_pr) : 1.0;
         fout << std::setprecision(12)
-             << f.timestamp << "," << f.attempted << ","
+             << f.frame_id << "," << f.timestamp << "," << f.obs_iter << ","
+             << f.need_converge << "," << f.attempted << ","
              << f.la_pa << "," << f.la_pr << "," << f.lr_pa << ","
              << f.lr_pr << "," << f.invalid_nonfinite << ","
-             << f.invalid_negative << ","
+             << f.invalid_negative << "," << f.prob_reject_from_active << ","
+             << f.prob_reject_late << "," << f.sticky_reject << ","
+             << f.decision_flip << "," << f.counterfactual_reaccept << ","
              << f.r_min << "," << (f.r_sum / nlapr) << "," << f.r_max << ","
              << f.s_min << "," << (f.s_sum / nlapr) << "," << f.s_max << ","
              << f.z_min << "," << (f.z_sum / nlapr) << "," << f.z_max << ","
