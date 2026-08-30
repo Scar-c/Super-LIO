@@ -46,7 +46,7 @@ def main():
     def S(k):
         return sum(r[k] for r in rows)
 
-    lapr_sum = S("la_pr")
+    lapr_mean = S("la_pr")
     report = []
     add = report.append
     add("=== P5 shadow association diagnosis ===")
@@ -57,19 +57,23 @@ def main():
     add(f"matrix sum={S('la_pa')+S('la_pr')+S('lr_pa')+S('lr_pr'):.0f} "
         f"(== attempted: {'OK' if abs(S('la_pa')+S('la_pr')+S('lr_pa')+S('lr_pr')-S('attempted'))<1 else 'MISMATCH'})")
     add(f"invalid: nonfinite={S('inv_nf'):.0f} negative={S('inv_neg'):.0f}")
-    nlapr = lapr_sum if lapr_sum > 0 else 1.0
+    nlapr = lapr_mean if lapr_mean > 0 else 1.0
     add("LA_PR component summaries (mean over LA_PR):")
-    add(f"  |r| mean={S('r_sum')/nlapr:.4f} min={min(r['r_min'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f} max={max(r['r_max'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f}")
-    add(f"  sigma_assoc mean={S('s_sum')/nlapr:.4e}")
-    add(f"  z=|r|/sqrt(var) mean={S('z_sum')/nlapr:.3f}")
-    add(f"  plane_var mean={S('pv_sum')/nlapr:.4e}")
-    add(f"  query_sensor_var mean={S('sv_sum')/nlapr:.4e}")
-    add(f"  query_pose_rot_var mean={S('rv_sum')/nlapr:.4e}")
-    add(f"  query_pose_pos_var mean={S('tv_sum')/nlapr:.4e}")
-    add(f"  neighbor_count mean={S('cnt_mean_mean')/nlapr:.2f} "
-        f"max={S('cnt_max_mean')/nlapr:.2f}")
+    add(f"  |r| mean={S('r_mean')/nlapr:.4f} min={min(r['r_min'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f} max={max(r['r_max'] for r in rows if r['la_pr']>0) if any(r['la_pr']>0 for r in rows) else float('nan'):.4f}")
+    add(f"  sigma_assoc mean={S('s_mean')/nlapr:.4e}")
+    add(f"  z=|r|/sqrt(var) mean={S('z_mean')/nlapr:.3f}")
+    add(f"  plane_var mean={S('pv_mean')/nlapr:.4e}")
+    add(f"  query_sensor_var mean={S('sv_mean')/nlapr:.4e}")
+    add(f"  query_pose_rot_var mean={S('rv_mean')/nlapr:.4e}")
+    add(f"  query_pose_pos_var mean={S('tv_mean')/nlapr:.4e}")
+    wt_mean = (sum(r["cnt_mean_mean"] * r["la_pr"] for r in rows) / nlapr
+               if lapr_sum else 0.0)
+    wt_max = (sum(r["cnt_max_mean"] * r["la_pr"] for r in rows) / nlapr
+              if lapr_sum else 0.0)
+    add(f"  neighbor_count mean={wt_mean:.2f} max={wt_max:.2f} "
+        f"(weighted by frame LA_PR)")
     add(f"  probe_rescued={S('probe_rescued'):.0f} "
-        f"({100.0*S('probe_rescued')/nlapr if lapr_sum else 0:.1f}% of LA_PR)")
+        f"({100.0*S('probe_rescued')/nlapr if lapr_mean else 0:.1f}% of LA_PR)")
 
     add("\ncount-bin table (LA_PR candidates):")
     add("  bin        n      LA_PR  LA_PR_rate  plane_var_mean  z_mean")

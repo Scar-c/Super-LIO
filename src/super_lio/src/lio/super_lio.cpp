@@ -650,6 +650,12 @@ void SuperLIO::Observe(){
                     apose);
                 const AssocGateResult pg = ProbAssocGate(cand);
                 local_acc.a_attempted++;
+                {
+                  const double cm = cand.neighbor_count_mean;
+                  const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
+                                 : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
+                  local_acc.a_bin_n[bin]++;
+                }
                 if(pg.accept){
                   if(legacy_accept) local_acc.a_la_pa++;
                   else local_acc.a_lr_pa++;
@@ -692,7 +698,6 @@ void SuperLIO::Observe(){
                     const double cm = cand.neighbor_count_mean;
                     const int bin = (cm <= 1.0) ? 0 : (cm <= 4.0) ? 1
                                    : (cm <= 9.0) ? 2 : (cm <= 14.0) ? 3 : 4;
-                    local_acc.a_bin_n[bin]++;
                     local_acc.a_bin_lapr[bin]++;
                     local_acc.a_bin_pv[bin] += cand.plane_var;
                     local_acc.a_bin_z[bin] += z;
