@@ -28,7 +28,8 @@ remain Super-LIO's own.
 | P1 | Current Point Probability | **CLOSED / OWNER-CORRECTIVE-GREEN** (rounds P1-1, P1-2 corrective) |
 | P2 | Probabilistic Map Plumbing | **CLOSED / OWNER-CORRECTIVE-CLOSED** (rounds P2-1, P2-2 corrective) |
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** (rounds P3-1, P3-2 owner closure) |
-| P4 | Probabilistic P2P Weighting | **CLOSED/PASS** (round P4-1) |
+| P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** (rounds P4-1, P4-2 clean-source closure) |
+| P5 | Probabilistic Association (optional / second stage) | **CLOSED/PASS** (round P5-1; Owner audit pending) |
 | P5 | Probabilistic Association (optional / second stage) | NOT STARTED |
 
 ## 4. Authoritative seam IDs (S0–S13)
@@ -610,6 +611,110 @@ changes uncommitted) while meta.txt bound an earlier clean commit.
 - Status: P4 = CLOSED/PASS (semantics verdict separate from accuracy
   outcome); P5 remains NOT STARTED. Commit H = `50f3e88` (recorded by
   the docs follow-up commit).
+
+### Round P4-2 / P5-1 — P4 clean-source closure + P5 probabilistic association (prompt6)
+
+- Prompt: `prompts/prob_lio/prompt6_P4_clean_closure_P5_prob_association.md`.
+- Starting HEAD: `1f74841` (clean worktree).
+
+#### Clean-source project rule (now a HARD invariant)
+
+Canonical closure runs require, before the run starts: `git status --short`
+empty, `git_dirty=false`, `git_head` = the exact committed HEAD containing
+the tested code. Sequence: modify → test → commit → verify clean → run →
+evaluate → evidence → optional docs commit. Dirty runs are diagnostic only.
+The runner enforces this with `--canonical` (refuses dirty worktree, rc 3);
+meta.txt records git_head/git_status_short/git_dirty/git_diff_sha256.
+
+#### P4 owner closure (Part A) — Commit I `b4bf876`
+
+- **P4-C1 validation modes**: `cov_validation_mode` ∈ {`light` (canonical
+  default: finite + symmetry tolerance, NO per-covariance eigensolver in the
+  hot path), `full` (PSD eigensolver for unit tests/diagnosis)}. Hot-path
+  validation loops (map_init :202, Observe :505, UpdateMap :751) now dispatch
+  on the mode. G-P4.C1 PASS (`test_validation_mode.cpp`, 18 checks): light and
+  full agree on healthy PSD; NaN rejected by both; asymmetric rejected by
+  both; finite indefinite: full rejects, light accepts at matrix level while
+  the P4 scalar residual-variance safety (ComputeP2pProbWeight) prevents
+  materially negative variance from entering solver information; eigensolver
+  spy proves light never runs the eigensolver and the mutated old-behavior
+  light is detected.
+- **G-P4.C2 canonical preflight** PASS (`test_canonical_guard.sh`): clean +
+  --canonical allowed; dirty + --canonical refused (rc 3 + message); dirty +
+  diagnostic allowed. Guard bypass (removal) fails the test.
+- **P4-C2 comments** corrected to the coupled pipeline semantics.
+- **Clean authoritative runs** (all bound to committed HEAD `b4bf876`,
+  git_dirty=no):
+  - Run A `fixed_1000` (`run_20260830_215502`): BYTE_PARITY PASS (sha256
+    `6a8cc65a...`), ATE 0.118875639, matched 3329, rows 3981, wall 45.8 s.
+  - Run B `prob_livo2`+`livo2_compat`+`light` (`run_20260830_215616`): ATE
+    0.088831554 (exact match to the provisional value), weights 40,829,587
+    valid / 0 invalid, sha256 `259d3fbc...`, wall 43.1 s.
+  - Run C `prob_livo2`+`super_right_consistent` (`run_20260830_215722`): ATE
+    0.089745655 (exact match), sha256 `6aab2846...`, wall 40.6 s.
+- P4 closure gate GREEN → **P4 = CLOSED / OWNER VERIFIED.**
+
+#### P5 probabilistic association (Part B) — Commit J `a46c930`
+
+- **FAST-LIVO2 association audit** (ref voxel_map.cpp:713-786
+  `build_single_residual`): query covariance `pv.var` formed per iteration
+  (:385-388) including current pose blocks (rotation + translation, no
+  cross term); `sigma_l = J_nq·plane_var_·J_nqᵀ + nᵀ·pv.var·n` (:735-736);
+  accept if `|r| < sigma_num·sqrt(sigma_l)` (:737); `sigma_num` from
+  `lio/sigma_num` (loadVoxelConfig :43, default 3); the `0.001` floor is NOT
+  in association (final-weight only); all active (nothing commented in
+  build_single_residual).
+- **Implementation**: `association_mode` ∈ {`super_legacy` (canonical
+  default; exact `compute_error()` gate preserved), `prob_livo2` (prob gate)}.
+  Query covariance `ComputeQueryWorldCovariance` reuses the S3 formula with
+  the `map_pose_cov_model` pose term (livo2_compat default);
+  `AssociationVariance` = plane (4×4 [n;d] residual variance) + query;
+  `ProbAssocGate`: `|r| < assoc_sigma_num·sqrt(σ_assoc²)` with strict `<`,
+  invalid variance → conservative reject; counters (race-free):
+  assoc_attempted / legacy_accept (shadow diagnostic) / prob_accept /
+  prob_reject / invalid_nonfinite / invalid_negative.
+- **Gates** (test_p5_association.cpp, 43 checks / 0 failures):
+  - G-P5.1 association variance formula PASS (livo2_compat query == active
+    form; sensor/pose/plane-only cases; omit-sensor / omit-pose-rotation /
+    omit-translation / omit-plane / unauthorized-0.001-floor mutations all
+    detected);
+  - G-P5.2 right-perturbation FD PASS (J_R == −R_WI[p_I]× via central FD;
+    super_right query term == J_R P_RR J_Rᵀ; removed-R / wrong-sign detected);
+  - G-P5.3 gate threshold parity PASS (inside/outside/boundary/tiny/large/
+    sign-symmetry; variance-vs-stddev / wrong-side-square / strictness /
+    wrong-k mutations detected);
+  - G-P5.4 association vs measurement separation PASS (current-P varies →
+    association acceptance changes, P4 R_i/w_i unchanged; pose-leak negative
+    detected);
+  - G-P5.5 legacy preservation PASS (resolver defaults; full-bag legacy
+    control below byte-matches the clean P4 canonical);
+  - G-P5.6 production seam PASS (same residual/geometry; only gate predicate
+    differs; different-residual negative detected);
+  - G-P5.7 invalid safety PASS (NaN/Inf → invalid_nonfinite reject; negative
+    → invalid_negative reject; tiny roundoff clamps; no invalid fixture
+    produces acceptance).
+- **Clean P5 runs** (all bound to committed HEAD `a46c930`, git_dirty=no):
+  - Run A `super_legacy` + `prob_livo2` weights (`run_20260830_220332`):
+    **BYTE-MATCHES the clean P4 canonical** (sha256 `259d3fbc...`, ATE
+    0.088831554) — P5 code present but disabled, zero contamination
+    (G-P5.5 runtime).
+  - Run B `prob_livo2` association + livo2_compat (`run_20260830_220432`):
+    association attempted 37,963,709, legacy-accept shadow 37,939,209,
+    prob_accept 37,723,571, prob_reject 240,138, invalid 0/0
+    (ASSOCIATION_EFFECT = more_selective); P4 weights 37,723,571 valid / 0
+    invalid; ATE 1.190814611 (ACCURACY_OUTCOME = regressed vs the 0.0888 P4
+    canonical); sha256 `46b0d626...`, wall 41.9 s.
+  - Run C right-consistent association (`run_20260830_220539`): prob_accept
+    37,801,696 / reject 301,956, ATE 1.311344291, wall 41.9 s.
+- Classification: **P5_SEMANTICS_VALID = YES** (no crash, no NaN, no invalid
+  association variance, P4 final measurement formula unchanged — current pose
+  enters association only, ESKF/QR/HKNN untouched, gate executed
+  extensively). Accuracy regression is a semantic-valid outcome; no tuning
+  performed.
+- Diff audit: only S2/S10 + config/params; ESKF, HKNN search, QR geometry,
+  OctVox map, `compute_error()` (legacy path) unchanged.
+- Status: **P4 = CLOSED / OWNER VERIFIED**; **P5 = CLOSED/PASS** (Owner audit
+  pending — not claimed Owner-verified); P5 remains the final roadmap stage.
 
 ## 10. Gate summary
 
