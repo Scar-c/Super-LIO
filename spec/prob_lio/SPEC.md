@@ -515,8 +515,8 @@ P2 corrective gates:
   Full-bag wall times: baseline 16.9 s, pipeline-ON 25.6 s (P2-1) / 31.7 s
   (P2-2 double), +QR shadow 46.0 s (P3; machine-load dependent — the same
   code measured 31.7 s with QR in run 201615). No premature optimization.
-- Commits: E `1d5dce4` (P2 corrective), F (P3; SHA recorded by the docs
-  follow-up commit).
+- Commits: E `1d5dce4` (P2 corrective), F `cb51206` (P3; recorded here by the
+  docs follow-up commit).
 - Status: P3 = CLOSED/PASS; P4 remains NOT STARTED.
 
 ## 10. Gate summary
