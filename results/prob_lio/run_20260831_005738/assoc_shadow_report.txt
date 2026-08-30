@@ -1,0 +1,83 @@
+=== P5 shadow association diagnosis (iteration-resolved) ===
+records=14939 (frame,iteration) rows; frames=3981; iterations=[1, 2, 3, 4]
+iteration accounting: sum(iterations_executed)=14939 == records=14939 (OK)
+frames reaching need_converge (iter>2): 3586
+attempted=39813081
+quadrant matrix: LA_PA=39556653 LA_PR=235174 LR_PA=5236 LR_PR=16018
+matrix sum=39813081 (== attempted: OK)
+invalid: nonfinite=0 negative=0
+lifecycle: reject_from_active=251192 late(need_converge)=0 sticky(need_converge)=0 flip=91759 accept_to_reject=29765 reject_to_accept=61994 sticky_skip(prior prob reject)=19279 counterfactual_reaccept=16338
+  NOTE: the ESKF breaks on convergence (quit_eps), so the need_converge iteration rarely executes;
+  'final-iteration' decisions (the ones that determine the state) are analyzed per frame below.
+
+final-iteration-per-frame analysis (frames=3981):
+  attempted=1310855 LA_PR=2792 rej_active=2881 flip=173
+  iteration histogram of final decisions:
+    final iter 2: 395 frames
+    final iter 3: 195 frames
+    final iter 4: 3391 frames
+
+per-iteration summary:
+  iter need_converge attempted  LA_PA   LA_PR   LR_PA   LR_PR  sticky  flip  acc2rej  rej2acc  sticky_skip  counterfactual
+    1            0  13547465 13442985   92742    3166    8572       0      0        0        0           0              0
+    2            0  13544939 13464687   74582    1215    4455       0  60498    18459    42039        8998           7493
+    3            0  12720677 12648981   67850     855    2991       0  31261    11306    19955       10281           8845
+    4            1         0       0       0       0       0       0      0        0        0           0              0
+
+LA_PR component summaries (weighted by frame LA_PR):
+  |r| mean=0.1666
+  sigma_assoc mean=2.6174e-03
+  z=|r|/sqrt(var) mean=4.320
+  plane_var mean=1.3043e-04
+  query_sensor_var mean=2.0769e-04
+  query_pose_rot_var mean=2.2763e-03
+  query_pose_pos_var mean=2.9188e-06
+  neighbor_count mean=7.27 max=12.48 (weighted)
+  probe_rescued=23954 (10.2% of LA_PR)
+
+count-bin table (LA_PR candidates):
+  bin        n      LA_PR  LA_PR_rate  plane_var_mean  z_mean
+      1  1264879    16279       1.29%     3.1168e-04   4.541
+    2-4  10996996    74382       0.68%     1.8426e-04   4.405
+    5-9  9969168    62028       0.62%     1.0222e-04   4.251
+  10-14  10011218    49153       0.49%     7.5229e-05   4.252
+  15-20  7570820    33332       0.44%     5.5722e-05   4.254
+
+top 10 frames by LA_PR count (ranking):
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+   2321  1609059245.870000     982      0.098
+   2000  1609059213.760000     881      0.092
+   1996  1609059213.350000     793      0.081
+   2267  1609059240.470000     764      0.088
+   2325  1609059246.250000     692      0.063
+   2270  1609059240.750000     659      0.068
+   2040  1609059217.750000     621      0.065
+   2039  1609059217.650000     616      0.062
+   2268  1609059240.570000     609      0.071
+    517  1609059065.470000     590      0.104
+
+top 10 frames by LA_PR/legacy fraction (ranking):
+  frame  timestamp      LA_PR  LA_PR/legacy_accept
+    517  1609059065.470000     590      0.104
+    518  1609059065.580000     557      0.098
+   2321  1609059245.870000     982      0.098
+   2000  1609059213.760000     881      0.092
+   2267  1609059240.470000     764      0.088
+   1996  1609059213.350000     793      0.081
+    521  1609059065.850000     489      0.078
+    519  1609059065.680000     444      0.074
+   2268  1609059240.570000     609      0.071
+   2270  1609059240.750000     659      0.068
+
+first spike frame (LA_PR>=100): 516 (LA_PR=264)
+disagreement bursts (5-gap, chronology): 111
+  frames 516..587 (n=62, total LA_PR=14627)
+  frames 594..598 (n=3, total LA_PR=351)
+  frames 617..620 (n=2, total LA_PR=209)
+  frames 631..642 (n=5, total LA_PR=579)
+  frames 653..653 (n=1, total LA_PR=139)
+  frames 669..669 (n=1, total LA_PR=125)
+  frames 675..699 (n=12, total LA_PR=1525)
+  frames 708..709 (n=2, total LA_PR=240)
+  frames 717..733 (n=7, total LA_PR=879)
+  frames 739..753 (n=8, total LA_PR=1198)

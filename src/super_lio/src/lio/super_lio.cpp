@@ -676,13 +676,15 @@ void SuperLIO::Observe(){
                 qr_cov_nonfinite_.fetch_add(1, std::memory_order_relaxed);
               }
 
-          if(!effect_mask_[idx]) continue;
           }
 
           /// P5-C1 shadow diagnostics (super_legacy authoritative +
           /// shadow enabled): probability-gate decisions are COMPUTED
           /// only; effect_mask_/HTVH/HTVr/map/state/P4/ESKF are never
-          /// touched.
+          /// touched. §5 ordering: the early guard `if (!effect_mask)
+          /// continue` sits BEFORE the probability gate (was dead code
+          /// inside the QR-plane block where effect_mask_ is always true).
+          if(!effect_mask_[idx]) continue;
           if(g_prob_lio_assoc_shadow_enable &&
              g_prob_lio_association_mode ==
                  static_cast<int>(AssociationMode::SuperLegacy)){

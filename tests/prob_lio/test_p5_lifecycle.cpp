@@ -212,7 +212,9 @@ static void test_gp9t3_production_lifecycle() {
     //   iter0 !nc: geometry valid, prob accept
     //   iter1 !nc: geometry valid, prob reject
     //   iter2 !nc: geometry refresh valid, prob accept
-    //   iter3  nc: evaluate from persisted state (mask true -> gate reached)
+    //   iter3  nc: NO probability re-evaluation (production ordering keeps
+    //              the gate inside !need_converge); persisted mask true ->
+    //              measurement stays active (PersistedActive)
     P5Lifecycle lc;
     const AssocEvalState s0 =
         lc.Step(false, true, true, true);   // refresh, gate, accept
@@ -221,11 +223,11 @@ static void test_gp9t3_production_lifecycle() {
     const AssocEvalState s2 =
         lc.Step(false, true, true, true);   // refresh, gate, accept
     const AssocEvalState s3 =
-        lc.Step(true, true, true, true);    // nc: persisted mask true -> gate
+        lc.Step(true, true, true, true);    // nc: no gate, persisted mask
     CHECK(s0 == AssocEvalState::Active);
     CHECK(s1 == AssocEvalState::ProbRejected);
     CHECK(s2 == AssocEvalState::Active);
-    CHECK(s3 == AssocEvalState::Active);  // re-evaluated, NOT skipped
+    CHECK(s3 == AssocEvalState::PersistedActive);  // NOT re-evaluated
     CHECK(lc.accept_to_reject == 1);      // iter1 A->R
     CHECK(lc.reject_to_accept == 1);      // iter2 R->A
     CHECK(lc.sticky_skip_due_prior_prob_reject == 0);
@@ -234,12 +236,13 @@ static void test_gp9t3_production_lifecycle() {
                                           // phase
   }
   {
-    // Fixture B (prompt §8): reject at iter2 (!nc), converged iter3 where the
-    // counterfactual current probability would accept. The applied ordering
-    // skips BEFORE the prob gate (persisted mask false).
+    // Fixture B (prompt §8): reject at iter1 (!nc), converged iter2 where the
+    // counterfactual current probability would accept. The production
+    // ordering skips BEFORE the probability gate (persisted prob-reject
+    // mask); the converged phase performs no gate.
     P5Lifecycle lc;
     lc.Step(false, true, true, true);    // iter0 accept
-    lc.Step(false, true, false, true);   // iter1 reject (mask -> false)
+    lc.Step(false, true, false, true);   // iter1 reject (mask -> false, prob)
     const AssocEvalState s2 =
         lc.Step(true, true, true, true);  // iter2 nc: skip + diagnostic accept
     CHECK(s2 == AssocEvalState::SkippedPriorProbReject);
@@ -265,34 +268,26 @@ static void test_gp9t3_production_lifecycle() {
     CHECK(correct_sticky == 0);
     // mutated model: unconditional per-iteration re-gate (the old
     // LifecycleSim::runActual semantics) — the mask never persists
-    P5Lifecycle mutated;
-    bool m1 = false, m2 = false;
-    const bool mutated_step = [&]() {
-      // mutation: overwrite ignores the mask; refresh always
+    std::uint64_t mutated_step = 0;
+    {
       bool mask = true;
       bool prev = false;
       bool has = false;
-      std::uint64_t sticky = 0;
       for (int it = 0; it < 3; ++it) {
         const bool nc = (it == 2);
-        const bool geom = true;
         const bool accept = (it == 2) ? true : (it == 1 ? false : true);
-        if (!nc) mask = geom;
-        // mutation: skip condition REMOVED (unconditional re-gate)
-        if (has && !prev && mask == false) sticky++;  // never taken
+        if (!nc) mask = true;
+        if (has && !prev && mask == false) mutated_step++;  // never taken
         has = true;
         prev = accept;
         if (nc) mask = accept;
       }
-      return sticky;
-    }();
+    }
     CHECK(mutated_step == 0);
     if (mutated_step != 0) {
       ++g_failures;
       std::printf("FAIL: unconditional-regating mutation not detected\n");
     }
-    (void)m1;
-    (void)m2;
   }
   // Negative mutation 2: ignore need_converge — refreshing geometry in the
   // converged phase removes the sticky skip.
@@ -300,17 +295,10 @@ static void test_gp9t3_production_lifecycle() {
     P5Lifecycle lc;
     lc.Step(false, true, true, true);
     lc.Step(false, true, false, true);
-    // mutation: Step treats nc as !nc (refreshes the mask)
-    lc.Step(true, true, true, true);  // correct call; the mutation is the
-                                      // refresh-on-nc behavior below
-    bool ignore_nc = (lc.effect_mask == true &&
-                      lc.sticky_skip_due_prior_prob_reject == 0);
-    if (!ignore_nc) {
-      // (invariant holds only under the mutation; nothing to do)
-    }
     // The mutation under test: a Step implementation that refreshes the
     // mask in the converged phase would show sticky==0 here; the correct
     // implementation (persisted mask) shows sticky==1.
+    lc.Step(true, true, true, true);  // correct nc behavior
     const bool correct_impl = (lc.sticky_skip_due_prior_prob_reject == 1);
     if (!correct_impl) {
       ++g_failures;
@@ -318,11 +306,11 @@ static void test_gp9t3_production_lifecycle() {
     }
   }
   // Negative mutation 3: conflate geometry-invalid with P5 reject — a
-  // geometry-invalid skip must NOT be counted as sticky.
+  // geometry-origin skip must NOT be counted sticky even with a prior prob
+  // reject (mask_origin distinguishes the cause).
   {
     P5Lifecycle lc;
-    lc.Step(false, true, true, true);
-    // geometry becomes invalid in a non-converged iteration (mask false)
+    lc.Step(false, true, false, true);   // iter0: geometry valid, prob REJECT
     const AssocEvalState s1 = lc.Step(false, false, false, true);
     CHECK(s1 == AssocEvalState::GeometryInvalid);
     if (lc.sticky_skip_due_prior_prob_reject != 0) {

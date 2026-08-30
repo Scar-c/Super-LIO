@@ -528,23 +528,38 @@ inline AssocEvaluation EvaluateAssociationPredicates(
 }
 
 /// P9-T3: per-candidate production lifecycle state machine, one-to-one with
-/// Observe()'s candidate ordering:
-///   if (!need_converge):  effect_mask = geometry_valid   (geometry refresh)
-///   if (!effect_mask):    skip BEFORE the probability gate (early guard)
-///   probability gate; if (overwrite_mask): effect_mask = prob_accept
+/// Observe()'s candidate ordering (VERIFIED against the production source):
+///   if (!need_converge):  effect_mask = geometry_valid (geometry refresh)
+///                         if (!effect_mask): skip BEFORE the probability
+///                         gate (early guard)
+///                         probability gate; if (overwrite_mask):
+///                         effect_mask = prob_accept
+///   else (need_converge): NO probability re-evaluation in the converged
+///                         phase (production Observe() keeps the whole
+///                         association machinery inside !need_converge):
+///                         the persisted mask decides measurement activity.
 ///
-/// overwrite_mask=true models the APPLIED P5 path (prob decision owns the
-/// mask, so a prior prob reject becomes sticky in the converged phase);
-/// overwrite_mask=false models the shadow path (mask untouched by prob).
+/// The skip cause is tracked by mask_origin: only a skip caused by a
+/// PERSISTED prob reject (origin == Prob) is counted as a sticky skip;
+/// geometry-origin skips are never sticky (TEST BUG: conflating the two).
 enum class AssocEvalState : std::uint8_t {
-  GeometryInvalid = 0,         // mask false for geometry reasons
-  SkippedPriorProbReject = 1,  // skip before the prob gate; prior prob reject
+  GeometryInvalid = 0,         // skip before the prob gate; geometry cause
+  SkippedPriorProbReject = 1,  // skip before the prob gate; persisted prob
+                               // reject cause
   ProbRejected = 2,            // gate reached, rejected this iteration
   Active = 3,                  // gate reached, accepted this iteration
+  PersistedActive = 4,         // converged phase: no gate; persisted mask
+                               // true -> measurement stays active
 };
 
 struct P5Lifecycle {
+  enum class MaskOrigin : std::uint8_t {
+    Geometry = 0,
+    Prob = 1,
+  };
+
   bool effect_mask = false;    // persisted production mask
+  MaskOrigin mask_origin = MaskOrigin::Geometry;
   bool prev_prob_accept = false;
   bool has_prev = false;
   std::uint64_t accept_to_reject = 0;             // prev A -> current R
@@ -561,13 +576,20 @@ struct P5Lifecycle {
                       bool prob_accept, bool overwrite_mask) {
     if (!need_converge) {
       effect_mask = geometry_valid;
+      mask_origin = MaskOrigin::Geometry;
     }
     if (!effect_mask) {
-      if (has_prev && !prev_prob_accept && overwrite_mask) {
+      if (has_prev && !prev_prob_accept && overwrite_mask &&
+          mask_origin == MaskOrigin::Prob) {
         sticky_skip_due_prior_prob_reject++;
         return AssocEvalState::SkippedPriorProbReject;
       }
       return AssocEvalState::GeometryInvalid;
+    }
+    if (need_converge) {
+      // Converged phase: the production ordering performs NO probability
+      // re-evaluation; the persisted mask decides measurement activity.
+      return AssocEvalState::PersistedActive;
     }
     if (has_prev) {
       if (prev_prob_accept && !prob_accept) accept_to_reject++;
@@ -578,6 +600,7 @@ struct P5Lifecycle {
     prev_prob_accept = prob_accept;
     if (overwrite_mask) {
       effect_mask = prob_accept;
+      mask_origin = MaskOrigin::Prob;
     }
     return prob_accept ? AssocEvalState::Active
                        : AssocEvalState::ProbRejected;

@@ -77,8 +77,9 @@ def validate(rows):
         if fid == last_fid and abs(ts - last_ts) > 1e-9:
             errs.append(
                 f"timestamp changed inside frame {fid}: {last_ts} -> {ts}")
-        if fid == 0 and i > 0:
-            # frame_id reset to the default mid-run
+        if fid == 0 and last_fid > 0:
+            # frame_id reset to the default mid-run (frame 0 is legitimate
+            # only as the first frame of the run)
             errs.append(f"frame identity reset to default 0 at row {i}")
         last_fid = fid
         last_ts = ts
