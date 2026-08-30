@@ -199,3 +199,16 @@ target_link_libraries(test_validation_mode ${catkin_LIBRARIES})
 add_test(NAME prob_lio_validation_mode
          COMMAND test_validation_mode)
 
+# Prob-LIO P5 tests (S2/S10 probabilistic association).
+add_executable(test_p5_association
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/prob_lio/test_p5_association.cpp
+)
+target_include_directories(test_p5_association PRIVATE
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+target_link_libraries(test_p5_association ${catkin_LIBRARIES})
+add_test(NAME prob_lio_p5_association
+         COMMAND test_p5_association)
+

@@ -84,6 +84,14 @@ namespace LI2Sup{
   /// eigensolver in the hot path).
   extern int    g_prob_lio_cov_validation_mode;
 
+  /// Prob-LIO P5 (S2/S10): association mode
+  /// (AssociationMode; default SuperLegacy = exact existing compute_error
+  /// gate). prob_livo2 implies the covariance pipeline ON.
+  extern int    g_prob_lio_association_mode;
+  /// P5: k-sigma threshold for the probabilistic association gate
+  /// (FAST-LIVO2 "sigma_num" semantics, voxel_map.cpp:43, default 3).
+  extern double g_prob_lio_assoc_sigma_num;
+
 
   extern BASIC::SE3 g_lidar_imu;      // lidar in imu frame
   extern BASIC::SE3 g_odom_robo;      // lidar in robot frame

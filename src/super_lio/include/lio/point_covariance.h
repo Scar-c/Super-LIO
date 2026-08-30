@@ -365,6 +365,75 @@ inline ProbWeight ComputeP2pProbWeight(double sigma_plane2, double sigma_point2,
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// P5 (S2/S10): probabilistic association.
+//
+// FAST-LIVO2 active association semantics (ref voxel_map.cpp:713-786,
+// build_single_residual):
+//   sigma_l  = J_nq * plane_var_ * J_nq^T        (plane contribution)
+//   sigma_l += n^T * pv.var * n                  (current-query contribution)
+//   accept if |r| < sigma_num * sqrt(sigma_l)
+// with pv.var formed per-iteration (voxel_map.cpp:385-388):
+//   R_WI*Sigma_I*R_WI^T + [p_I]x P_RR [p_I]x^T + P_pp   (livo2-compat pose
+//   term; current pose DOES enter association — S2), no rotation-position
+//   cross term, and NO 0.001 floor in association (the floor belongs to the
+//   P4 final measurement weight only).
+//
+// The query-world covariance reuses the S3 formula (ComputeMapPointCov):
+// the pose-term convention follows map_pose_cov_model (livo2_compat default
+// / super_right_consistent), identical to P2 map insertion semantics.
+// The plane contribution uses the same 4x4 [n;d] residual variance as P4.
+// ---------------------------------------------------------------------------
+enum class AssociationMode { SuperLegacy = 0, ProbLivo2 = 1 };
+
+inline AssociationMode ResolveAssociationMode(const std::string& value) {
+  if (value == "prob_livo2") return AssociationMode::ProbLivo2;
+  return AssociationMode::SuperLegacy;  // canonical default; unknown -> default
+}
+
+// G-P5.1: current-query world covariance (reuses the S3 formula).
+inline BASIC::M3d ComputeQueryWorldCovariance(
+    const BASIC::V3d& p_I, const BASIC::M3d& Sigma_I, const BASIC::M3d& R_WI,
+    const BASIC::M3d& P_RR, const BASIC::M3d& P_pp,
+    MapPoseCovModel model = MapPoseCovModel::Livo2Compat) {
+  return ComputeMapPointCov(p_I, Sigma_I, R_WI, P_RR, P_pp, model);
+}
+
+// G-P5.1: association residual variance = plane + current-query.
+inline double AssociationVariance(const BASIC::V3d& p_W, const BASIC::V3d& n,
+                                  const Eigen::Matrix4d& Sigma_pi,
+                                  const BASIC::M3d& Sigma_query_W) {
+  const double plane2 = PlaneResidualVariance(p_W, Sigma_pi);
+  const double query2 = n.dot(Sigma_query_W * n);
+  return plane2 + query2;
+}
+
+// G-P5.3/G-P5.7: probabilistic association gate (exact audited form
+// |r| < k * sqrt(sigma_assoc^2)); invalid variance -> conservative reject.
+struct AssocGateResult {
+  bool accept = false;
+  bool invalid_nonfinite = false;
+  bool invalid_negative = false;
+};
+
+inline AssocGateResult ProbAssocGate(double residual, double sigma_assoc2,
+                                     double k) {
+  AssocGateResult out;
+  if (!std::isfinite(residual) || !std::isfinite(sigma_assoc2) ||
+      !std::isfinite(k)) {
+    out.invalid_nonfinite = true;
+    return out;
+  }
+  constexpr double kNegEps = 1e-9;
+  if (sigma_assoc2 < 0.0 && sigma_assoc2 > -kNegEps) sigma_assoc2 = 0.0;
+  if (sigma_assoc2 < 0.0) {
+    out.invalid_negative = true;
+    return out;
+  }
+  out.accept = std::fabs(residual) < k * std::sqrt(sigma_assoc2);
+  return out;
+}
+
 }  // namespace LI2Sup
 
 #endif  // POINT_COVARIANCE_HPP_

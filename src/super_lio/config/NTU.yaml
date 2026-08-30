@@ -60,6 +60,15 @@ lio:
     # hot path; full = strong PSD eigensolver validation (unit tests /
     # diagnosis / explicit debug experiments only).
     cov_validation_mode: light
+    # P5 (S2/S10): association mode. super_legacy (default) keeps the exact
+    # existing compute_error() geometric gate; prob_livo2 uses the
+    # FAST-LIVO2-compatible covariance-aware gate
+    # |r| < assoc_sigma_num * sqrt(sigma_plane^2 + sigma_query^2) where the
+    # query covariance MAY include current pose uncertainty (S2) but the P4
+    # final measurement R_i never does (S12). prob_livo2 implies the
+    # covariance pipeline ON.
+    association_mode: super_legacy
+    assoc_sigma_num: 3.0
 
   # Extrinsic Parameters
   extrinsic:

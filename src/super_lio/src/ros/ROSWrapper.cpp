@@ -96,6 +96,24 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   g_prob_lio_cov_validation_mode =
       static_cast<int>(ResolveCovValidationMode(cov_validation_mode));
 
+  // P5 (S2/S10): association mode (super_legacy default; prob_livo2).
+  std::string association_mode = "super_legacy";
+  nh.getParam("/lio/prob_lio/association_mode", association_mode);
+  g_prob_lio_association_mode =
+      static_cast<int>(ResolveAssociationMode(association_mode));
+  nh.getParam("/lio/prob_lio/assoc_sigma_num", g_prob_lio_assoc_sigma_num);
+  // P5 dependency: probabilistic association requires the covariance
+  // pipeline (query covariance). Normalize like the QR/P4 dependencies.
+  if (g_prob_lio_association_mode ==
+          static_cast<int>(AssociationMode::ProbLivo2) &&
+      !g_prob_lio_cov_enable) {
+    LOG(WARNING) << YELLOW
+                 << " ---> [Prob-LIO] association_mode=prob_livo2 with "
+                    "covariance pipeline OFF: normalizing pipeline=ON"
+                 << RESET;
+    g_prob_lio_cov_enable = true;
+  }
+
   // P4 (S11): P2P weight mode (fixed_1000 default; prob_livo2).
   std::string p2p_weight_mode = "fixed_1000";
   nh.getParam("/lio/prob_lio/p2p_weight_mode", p2p_weight_mode);

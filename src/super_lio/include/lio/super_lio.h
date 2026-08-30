@@ -109,6 +109,14 @@ protected:
   std::atomic<std::uint64_t> prob_weight_invalid_nonfinite_{0};
   std::atomic<std::uint64_t> prob_weight_invalid_negative_{0};
 
+  /// Prob-LIO P5 (S2/S10): association counters (race-free).
+  std::atomic<std::uint64_t> assoc_attempted_{0};
+  std::atomic<std::uint64_t> assoc_legacy_accept_{0};  // shadow diagnostic
+  std::atomic<std::uint64_t> assoc_prob_accept_{0};
+  std::atomic<std::uint64_t> assoc_prob_reject_{0};
+  std::atomic<std::uint64_t> assoc_invalid_nonfinite_{0};
+  std::atomic<std::uint64_t> assoc_invalid_negative_{0};
+
   /// Prob-LIO P4: aggregated weight statistics (TLS-reduced on the main
   /// thread inside UpdateObserve after the parallel section).
   struct WeightStats {

@@ -61,6 +61,10 @@ namespace LI2Sup{
   /// P4-C1: light = 0 (canonical default), full = 1.
   int g_prob_lio_cov_validation_mode = 0;
 
+  /// P5: super_legacy = 0 (canonical default), prob_livo2 = 1.
+  int    g_prob_lio_association_mode = 0;
+  double g_prob_lio_assoc_sigma_num = 3.0;  // FAST-LIVO2 sigma_num default
+
 
   SE3 g_lidar_imu;
   SE3 g_odom_robo;

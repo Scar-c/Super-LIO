@@ -582,8 +582,56 @@ void SuperLIO::Observe(){
           if(!effect_mask_[idx]) continue;
 
           auto& abcd = abcd_vec_[idx];
-          scalar error;
-          effect_mask_[idx] = compute_error(abcd, point_world, _lengths[idx], error);
+          scalar error = 0.0;
+          if(g_prob_lio_association_mode ==
+             static_cast<int>(AssociationMode::ProbLivo2)){
+            /// Prob-LIO P5 (S2/S10): covariance-aware association gate.
+            /// FAST-LIVO2-compatible: |r| < sigma_num*sqrt(sigma_assoc^2)
+            /// with sigma_assoc^2 = sigma_plane^2 + sigma_query^2. Current
+            /// pose covariance MAY enter the query covariance (S2) but never
+            /// the P4 final measurement R_i (S12). Legacy compute_error()
+            /// remains the authoritative baseline mode (super_legacy).
+            assoc_attempted_.fetch_add(1, std::memory_order_relaxed);
+            // residual (identical expression to compute_error)
+            error = abcd[0] * point_world[0] + abcd[1] * point_world[1] +
+                    abcd[2] * point_world[2] + abcd[3];
+            // shadow diagnostic: would the legacy gate accept?
+            if(_lengths[idx] > 81.0 * double(error) * double(error)){
+              assoc_legacy_accept_.fetch_add(1, std::memory_order_relaxed);
+            }
+            const ProbQrPlane& plane = plane_qr_vec_[idx];
+            const M3d R_WI = pose.R_.cast<double>();
+            const M3d P_RR =
+                kf_->GetCov().template block<3, 3>(0, 0).cast<double>();
+            const M3d P_pp =
+                kf_->GetCov().template block<3, 3>(3, 3).cast<double>();
+            const V3d p_I = point_body.cast<double>();
+            const V3d n(abcd[0], abcd[1], abcd[2]);
+            const BASIC::M3d Sigma_query_W = ComputeQueryWorldCovariance(
+                p_I, body_cov_list_[idx], R_WI, P_RR, P_pp,
+                map_pose_cov_model_);
+            const double sigma_assoc2 =
+                plane.status == ProbQrPlane::kValid
+                    ? AssociationVariance(point_world.cast<double>(), n,
+                                          plane.covariance, Sigma_query_W)
+                    : 0.0;
+            const AssocGateResult gate = ProbAssocGate(
+                double(error), sigma_assoc2, g_prob_lio_assoc_sigma_num);
+            if(!gate.accept && gate.invalid_nonfinite){
+              assoc_invalid_nonfinite_.fetch_add(1, std::memory_order_relaxed);
+            }else if(!gate.accept && gate.invalid_negative){
+              assoc_invalid_negative_.fetch_add(1, std::memory_order_relaxed);
+            }
+            if(gate.accept){
+              assoc_prob_accept_.fetch_add(1, std::memory_order_relaxed);
+            }else{
+              assoc_prob_reject_.fetch_add(1, std::memory_order_relaxed);
+            }
+            effect_mask_[idx] = gate.accept;
+          }else{
+            effect_mask_[idx] =
+                compute_error(abcd, point_world, _lengths[idx], error);
+          }
           if(!effect_mask_[idx]) continue;
           
           {
@@ -804,6 +852,22 @@ void SuperLIO::printTimeRecord(){
               << qr_cov_rank_invalid_.load(std::memory_order_relaxed)
               << ", nonfinite: "
               << qr_cov_nonfinite_.load(std::memory_order_relaxed) << RESET;
+  }
+  if(g_prob_lio_association_mode ==
+     static_cast<int>(AssociationMode::ProbLivo2)){
+    LOG(INFO) << GREEN << " ---> [Prob-LIO P5] association attempted: "
+              << assoc_attempted_.load(std::memory_order_relaxed)
+              << ", legacy_accept(shadow): "
+              << assoc_legacy_accept_.load(std::memory_order_relaxed)
+              << ", prob_accept: "
+              << assoc_prob_accept_.load(std::memory_order_relaxed)
+              << ", prob_reject: "
+              << assoc_prob_reject_.load(std::memory_order_relaxed)
+              << ", invalid_nonfinite: "
+              << assoc_invalid_nonfinite_.load(std::memory_order_relaxed)
+              << ", invalid_negative: "
+              << assoc_invalid_negative_.load(std::memory_order_relaxed)
+              << RESET;
   }
   if(g_prob_lio_p2p_weight_mode == static_cast<int>(P2pWeightMode::ProbLivo2)){
     const auto& ws = weight_stats_;
