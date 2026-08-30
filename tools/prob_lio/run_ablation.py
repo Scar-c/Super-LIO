@@ -251,6 +251,7 @@ def main(argv=None):
     parser.add_argument("--output-root", default="results/prob_lio")
     parser.add_argument("--gt")
     parser.add_argument("--gt-topic")
+    parser.add_argument("--required-topic", action="append", default=[])
     parser.add_argument("--calibration", action="append", default=[])
     parser.add_argument("--canonical", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
@@ -281,9 +282,7 @@ def main(argv=None):
         return 2
 
     topics = rosbag_topics(bag)
-    required_topics = args.__dict__.get("required_topic", None) or profile.get(
-        "required_topics", []
-    )
+    required_topics = args.required_topic or profile.get("required_topics", [])
     missing_topics = [topic for topic in required_topics if topic not in topics]
     calibration = [resolve(path) for path in args.calibration]
     gt_source = profile.get("gt_source")
@@ -350,8 +349,16 @@ def main(argv=None):
     if run_dir.exists() and not args.preflight_only:
         print(f"refusing to overwrite existing run directory: {run_dir}", file=sys.stderr)
         return 2
-    run_dir.mkdir(parents=True, exist_ok=True)
-    write_yaml(run_dir / "preflight.yaml", preflight)
+    # A canonical run must enter run_baseline.sh with a clean worktree. Keep
+    # the preflight/requested snapshot outside the repository until the shell
+    # runner has performed its clean-source check and created the run dir.
+    snapshot_dir = run_dir
+    if not args.preflight_only and args.canonical:
+        import tempfile
+        snapshot_dir = pathlib.Path(tempfile.mkdtemp(prefix="prob-lio-preflight-"))
+    else:
+        run_dir.mkdir(parents=True, exist_ok=True)
+    write_yaml(snapshot_dir / "preflight.yaml", preflight)
     if profile_status != "ACTIVE":
         print(
             f"BLOCKED({profile_status}): "
@@ -365,7 +372,7 @@ def main(argv=None):
         print(f"preflight: PASS {run_dir / 'preflight.yaml'}")
         return 0
 
-    expected_config = run_dir / "requested_effective_config.yaml"
+    expected_config = snapshot_dir / "requested_effective_config.yaml"
     write_yaml(expected_config, {
         "base_config": identity(config),
         "dataset": args.dataset,
@@ -382,7 +389,19 @@ def main(argv=None):
         command.append("--canonical")
     for key, value in rosparam_overrides(args.variant).items():
         command.extend(["--set", f"{key}={value}"])
+    started = time.monotonic()
     shell_rc = run_command(command)
+    runtime_wall_s = time.monotonic() - started
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if snapshot_dir != run_dir:
+        write_yaml(run_dir / "preflight.yaml", preflight)
+        write_yaml(run_dir / "requested_effective_config.yaml", {
+            "base_config": identity(config),
+            "dataset": args.dataset,
+            "sequence": args.sequence,
+            "variant": args.variant,
+            "rosparam_overrides": rosparam_overrides(args.variant),
+        })
     trajectory = run_dir / "trajectory.tum"
     gt_for_eval = gt
     adapter_rc = 0
@@ -432,10 +451,18 @@ def main(argv=None):
         "bag": identity(bag),
         "ground_truth": (
             {"source": "bag_topic", "topic": args.gt_topic or profile["gt_topic"],
-             "derived_tum": identity(gt_for_eval)}
+             "derived_tum": (
+                 identity(gt_for_eval)
+                 if gt_for_eval is not None and pathlib.Path(gt_for_eval).is_file()
+                 else None
+             )}
             if gt_source == "bag_topic"
             else {"source": gt_source, "source_identity": identity(gt),
-                  "derived_tum": identity(gt_for_eval)}
+                  "derived_tum": (
+                      identity(gt_for_eval)
+                      if gt_for_eval is not None and pathlib.Path(gt_for_eval).is_file()
+                      else None
+                  )}
         ),
         "config": identity(config),
         "effective_config": identity(run_dir / "effective_rosparams.yaml"),
@@ -446,7 +473,7 @@ def main(argv=None):
         "rows": parse_rows(trajectory) if trajectory.is_file() else 0,
         "completion": shell_rc == 0 and trajectory.is_file(),
         "return_codes": {"runner": shell_rc, "gt_adapter": adapter_rc, "evaluator": eval_rc},
-        "runtime_wall_s": None,
+        "runtime_wall_s": runtime_wall_s,
         "metric": metric,
         "artifacts": {
             "preflight": str((run_dir / "preflight.yaml").resolve()),
