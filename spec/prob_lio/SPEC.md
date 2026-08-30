@@ -144,7 +144,9 @@ FAST-LIVO2-Dataset download link").
 - Prompt: `prompts/prob_lio/prompt1_P0_baseline_freeze.md` (registered copy).
 - Starting HEAD: `60b57aaac8dc397f80c56364e7ccb008c300cc29` (prob-lio, clean
   worktree, upstream `origin/prob-lio`).
-- Ending HEAD/commit: <filled by follow-up docs commit — see git log>.
+- Ending HEAD/commit: `63f97ea` ("chore(prob-lio): freeze P0 baseline and
+  project spec", closing P0; spec round-history SHA recorded by the
+  follow-up docs commit).
 - What changed (all tooling/docs only; no production algorithm change):
   - `spec/prob_lio/SPEC.md` (this file);
   - `prompts/prob_lio/prompt1_P0_baseline_freeze.md` + `prompts/README.md`;
