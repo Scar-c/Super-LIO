@@ -11,16 +11,22 @@ import datetime
 import hashlib
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import time
 
 import yaml
 
+from export_evidence import export_evidence
+from production_identity import production_code_oid
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 REGISTRY_PATH = REPO_ROOT / "eval/prob_lio/evaluator_registry.yaml"
 RUNNER_PATH = REPO_ROOT / "tools/prob_lio/run_baseline.sh"
+DEFAULT_RUNTIME_ROOT = REPO_ROOT.parent.parent / "results/prob_lio_runtime"
+DEFAULT_EVIDENCE_ROOT = REPO_ROOT / "results/prob_lio/evidence"
 
 VARIANTS = {
     "B0": {
@@ -139,6 +145,7 @@ def git_info():
         "dirty": bool(status),
         "status_short": status,
         "production_tree_oid": git("rev-parse", "HEAD:src/super_lio"),
+        "production_code_oid": production_code_oid(REPO_ROOT),
     }
 
 
@@ -248,7 +255,19 @@ def main(argv=None):
     parser.add_argument("--bag", required=True)
     parser.add_argument("--config", required=True)
     parser.add_argument("--evaluator-profile", required=True)
-    parser.add_argument("--output-root", default="results/prob_lio")
+    parser.add_argument(
+        "--output-root", "--runtime-root", dest="runtime_root",
+        default=str(DEFAULT_RUNTIME_ROOT),
+        help="full local runtime output root (outside the Git checkout by default)",
+    )
+    parser.add_argument(
+        "--evidence-root", default=str(DEFAULT_EVIDENCE_ROOT),
+        help="compact Git-tracked evidence root",
+    )
+    parser.add_argument(
+        "--no-evidence-export", action="store_true",
+        help="leave evidence in the runtime directory for a later explicit export",
+    )
     parser.add_argument("--gt")
     parser.add_argument("--gt-topic")
     parser.add_argument("--required-topic", action="append", default=[])
@@ -337,7 +356,8 @@ def main(argv=None):
             "requested_overrides": rosparam_overrides(args.variant),
         },
     }
-    output_root = resolve(args.output_root)
+    output_root = resolve(args.runtime_root)
+    evidence_root = resolve(args.evidence_root)
     run_id = args.run_id or (
         f"{args.dataset}_{args.sequence}_{args.variant}_"
         f"{datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}"
@@ -479,6 +499,11 @@ def main(argv=None):
         # may itself be untracked until evidence is committed, so retain the
         # post-run Git state only as a diagnostic field.
         "algorithm": preflight["algorithm"],
+        "algorithm_commit": args.algorithm_commit or preflight["algorithm"]["head"],
+        "production_code_oid": preflight["algorithm"]["production_code_oid"],
+        "dataset_config_sha256": (
+            preflight["effective_config_snapshot"]["base_config_sha256"]
+        ),
         "post_run_git": post_git,
         "run_id": run_id,
         "trajectory": identity(trajectory),
@@ -487,6 +512,11 @@ def main(argv=None):
         "return_codes": {"runner": shell_rc, "gt_adapter": adapter_rc, "evaluator": eval_rc},
         "runtime_wall_s": runtime_wall_s,
         "metric": metric,
+        "instrumentation": {
+            "cov_validation_mode": VARIANTS[args.variant]["cov_validation_mode"],
+            "prob_assoc_shadow_enable": VARIANTS[args.variant]["prob_assoc_shadow_enable"],
+            "heavy_diagnostics": False,
+        },
         "artifacts": {
             "preflight": str((run_dir / "preflight.yaml").resolve()),
             "runner_meta": str((run_dir / "meta.txt").resolve()),
@@ -496,8 +526,24 @@ def main(argv=None):
         },
         "notes": "n=1 screening run; matrix is intentionally not edited by this runner",
     }
+    evidence_dir = evidence_root / run_id
+    manifest["evidence"] = {
+        "tracked_root": str(evidence_dir.resolve()),
+        "trajectory_copied": False,
+        "runtime_root": str(run_dir.resolve()),
+    }
     write_yaml(run_dir / "run_manifest.yaml", manifest)
+    if not args.no_evidence_export:
+        try:
+            exported = export_evidence(run_dir, evidence_dir)
+        except (FileExistsError, FileNotFoundError, RuntimeError) as exc:
+            print(f"evidence export failed: {exc}", file=sys.stderr)
+            return 1
+        manifest["evidence"]["exported_files"] = exported
+        write_yaml(run_dir / "run_manifest.yaml", manifest)
+        shutil.copy2(run_dir / "run_manifest.yaml", evidence_dir / "run_manifest.yaml")
     print(f"manifest: {run_dir / 'run_manifest.yaml'}")
+    print(f"evidence: {evidence_dir}")
     print(f"status: {classification}")
     if metric:
         print(f"{metric['primary_metric']}={metric['value']:.9f} {metric['unit']}")

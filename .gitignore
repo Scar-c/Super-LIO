@@ -11,4 +11,26 @@ src/CMakeLists.txt
 __pycache__/
 *.py[cod]
 # Large recorded bags must not be committed (per spec/prob_lio/SPEC.md §10)
-results/prob_lio/**/*.bag
+**/*.bag
+
+# Prompt12: full runtime output belongs outside the checkout or remains local
+# and ignored. Compact manifests/evaluations under results/prob_lio/evidence/
+# remain trackable.
+**/node.log
+**/roscore*.log
+**/roslaunch*.log
+**/stdout.log
+**/stderr.log
+**/play.log
+**/record.log
+**/ros_log/
+results/prob_lio/**/trajectory.tum
+results/prob_lio/**/ground_truth.tum
+results/prob_lio/**/parity_*.tum
+results/prob_lio/**/assoc_shadow_frames.csv
+results/prob_lio/**/raw_dump*
+results/prob_lio/**/build*.log
+results/prob_lio/**/*.out
+results/prob_lio/**/gt/*.tum
+results/prob_lio/build*.log
+results/prob_lio/*.out

@@ -1,8 +1,13 @@
-# Prob-LIO Generalization Result Ledger (template)
+# Prob-LIO Generalization Result Ledger
 
 Do not fabricate results. Each future dataset/sequence run appends one row
 below once it has clean committed-source evidence. Rule:
 `modify → test → commit → clean → canonical run → evaluate`.
+
+Since Prompt12, full runtime output is written outside the checkout under
+`/home/lc/super_livo/results/prob_lio_runtime/`. Git tracks only compact
+exports under [`evidence/`](evidence/); trajectories and logs remain local and
+are represented by hashes/row counts in each manifest.
 
 ## Ledger template
 

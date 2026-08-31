@@ -44,7 +44,7 @@ source /opt/ros/noetic/setup.bash
 
 BAG=""
 CONFIG="$REPO_ROOT/src/super_lio/config/NTU.yaml"
-OUT="$REPO_ROOT/results/prob_lio"
+OUT="${PROB_LIO_RUNTIME_ROOT:-$(cd "$REPO_ROOT/../.." && pwd)/results/prob_lio_runtime}"
 DURATION=""
 RATE="1.0"
 OFFLINE=0
@@ -134,6 +134,8 @@ fi
   echo "run_git_dirty: $GIT_DIRTY"
   echo "run_git_status_short: $GIT_STATUS_SHORT"
   echo "production_tree_oid: $(git -C "$REPO_ROOT" rev-parse HEAD:src/super_lio)"
+  echo "production_code_oid: $(python3 "$REPO_ROOT/tools/prob_lio/production_identity.py" --repo-root "$REPO_ROOT" | sed -n 's/^production_code_oid: //p')"
+  echo "dataset_config_sha256: $(sha256sum "$CONFIG" | cut -d' ' -f1)"
   echo "algorithm_commit: ${ALGORITHM_COMMIT:-<unset>}"
   echo "git_diff_sha256: ${GIT_DIFF_SHA256:-clean}"
   echo "config: $CONFIG"

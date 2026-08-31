@@ -1,9 +1,10 @@
-# Prob-LIO Prompt11 Ablation Matrix
+# Prob-LIO Generalization Ablation Matrix
 
 This is the authoritative cross-dataset screening ledger. Values are reported
 under the registered **PRIMARY METRIC** for each ground-truth contract; this is
 not an ATE table. Prompt11 uses one clean deterministic screening run
-(`n=1`) per sequence and variant.
+(`n=1`) per sequence and variant. Prompt12 adds the NTU `sbs_01` row,
+audited Oxford screening, and explicit M3DGR owner exclusions.
 
 ## Required compact matrix
 
@@ -12,8 +13,12 @@ not an ATE table. Prompt11 uses one clean deterministic screening run
 | MCD | ntu_night_08 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 1.021000 | 1.302700 | 1.260700 | 1.324500 | 1.151800 | 1.148600 | all six `CANONICAL_VALID`; merged input and GT/config identities recorded |
 | NTU VIRAL | eee_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.118875639 | 0.088831554 | 0.089745655 | 1.190814611 | 1.190814611 | 1.225502411 | all six `CANONICAL_VALID`; P4-LC byte parity and all three exact isolation checks PASS |
 | NTU VIRAL | nya_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.062926634 | 0.060714509 | 0.060846956 | 0.064154094 | 0.064154094 | 0.064981117 | all six `CANONICAL_VALID`; P5 ACTIVE/SENSOR byte identity under `R_LI=I` |
-| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | old lineage says OWNER_DECISION; current audited config absent |
-| M3DGR | Corridor01 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | old lineage names an owner/current runner config, but current audited Super-LIO config is absent; terminal relative metric only |
+| NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | Prompt12 provenance passed; six-cell screening pending |
+| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | exact old-branch config ported; calibration/frame/evaluator audit pending |
+| M3DGR | Outdoor01 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
+| M3DGR | Outdoor04 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
+| M3DGR | Corridor01 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
+| M3DGR | Corridor02 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
 
 `BLOCKED(...)`, `NOT_RUN`, `DIVERGED`, and `INVALID` are deliberate cell
 states. A numerical cell is valid only when its run manifest is
@@ -21,8 +26,10 @@ states. A numerical cell is valid only when its run manifest is
 
 ## Variant isolation contract
 
-The runner writes `effective_rosparams.yaml` for every run. Compare these
-snapshots with `tools/prob_lio/compare_variant_configs.py`:
+The runner writes `effective_rosparams.yaml` for every run in the local
+runtime directory and exports the compact snapshot under
+`results/prob_lio/evidence/`. Compare these snapshots with
+`tools/prob_lio/compare_variant_configs.py`:
 
 | Comparison | The only allowed changed key |
 |---|---|
@@ -100,7 +107,8 @@ The evaluator registry is
 `eval/prob_lio/evaluator_registry.yaml`. NTU uses the dataset-author
 compatible prism/interpolation/SE3-no-scale evaluator. MCD uses the verified
 night08 `pose_inW.csv` Body=VN100 contract and rigid/no-scale TUM evaluator.
-M3DGR Corridor01 uses `T_B0_Bend = inverse(T_W_B0) @ T_W_Bend` and only the
-terminal relative translation primary metric. Oxford remains blocked until the
-current config/frame/time authority is proven. No generic ATE is emitted for
+Oxford is eligible only after the exact old-branch config and official
+calibration/frame/time authority are proven. M3DGR Outdoor remains blocked
+without an exact Super-LIO config. Corridor01/02 are explicitly
+`EXCLUDED_BY_OWNER` in Prompt12. No generic ATE is emitted for
 FINAL_RELATIVE_POSE or UNKNOWN/NONE GT.

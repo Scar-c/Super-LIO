@@ -1,11 +1,11 @@
 schema_version: 1
 description: >
-  Prob-LIO Prompt11 evaluator registry. Metric names are profile-specific;
+  Prob-LIO Prompt12 evaluator registry. Metric names are profile-specific;
   FINAL_RELATIVE_POSE profiles must never be routed through trajectory ATE.
 profiles:
   ntu_viral_full_trajectory:
     dataset_family: NTU VIRAL
-    sequences: [eee_01, nya_01]
+    sequences: [eee_01, nya_01, sbs_01]
     ground_truth_type: FULL_TRAJECTORY
     primary_metric: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
     unit: m
@@ -33,6 +33,11 @@ profiles:
       old_branch_config: configs/super_livo/reference_base/ntu_{sequence}.yaml
       old_branch_lineage: configs/super_livo/reference_base/ntu_{sequence}.lineage.yaml
       authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
+      family_extension: >
+        sbs_01 has the same NTU VIRAL sensor contract: the local
+        dataset-author files provide the same topics, Leica prism lever arm,
+        and identity lidar-to-IMU extrinsic as the accepted eee_01/nya_01
+        contract; no sequence-specific estimator config is substituted.
     calibration_source: DATASET_AUTHOR_SENSOR files beside each NTU bag
 
   mcd_night08_full_trajectory:
@@ -81,11 +86,8 @@ profiles:
     required_topics:
       - /hesai/pandar
       - /alphasense_driver_ros/imu
-    status: CONFIG_PROVENANCE_BLOCKED
-    block_reason: >
-      Old lineage marks the LIO parameters OWNER_DECISION and explicitly
-      says SUPER_LIO_DATASET_CONFIG_NOT_PUBLISHED; current branch lacks the
-      audited src/super_lio/config/oxford_quarter01.yaml.
+    status: ACTIVE
+    block_reason: null
     frame_transform: >
       Not publishable until current config and Oxford calibration/frame
       conversion are independently reconciled.
@@ -94,9 +96,61 @@ profiles:
     config_provenance:
       old_branch_config: configs/super_livo/reference_base/oxford_quarter01.yaml
       old_branch_lineage: configs/super_livo/reference_base/oxford_quarter01.lineage.yaml
-      authority: OWNER_DECISION
-      note: SUPER_LIO_DATASET_CONFIG_NOT_PUBLISHED
+      current_config: src/super_lio/config/oxford_quarter01.yaml
+      current_config_source: origin/super-livo:src/super_lio/config/oxford_quarter01.yaml
+      authority: SUPER_LIO_DATASET_CONFIG_DERIVED_FROM_OFFICIAL_CALIBRATION
+      note: exact old-branch config ported; source blob recorded in Prompt12 audit
     calibration_source: bag/OXFORD/Calibration dataset files; frame audit pending
+
+  m3dgr_outdoor01_full_trajectory:
+    dataset_family: M3DGR
+    sequences: [Outdoor01]
+    ground_truth_type: FULL_TRAJECTORY
+    primary_metric: M3DGR_TUM_TRANSLATION_APE_RMSE_M
+    unit: m
+    evaluator_kind: tum_translation
+    evaluator_path: eval/prob_lio/eval_tum_translation.py
+    gt_source: external_tum
+    gt_path: ../../bag/M3DGR/Outdoor01/Outdoor01.tum
+    required_topics:
+      - /livox/avia/lidar
+      - /livox/avia/imu
+    status: CONFIG_PROVENANCE_BLOCKED
+    block_reason: >
+      No exact current_committed_m3dgr_runner_config or Super-LIO Outdoor
+      config is present in the audited current/old method-author trees;
+      M2DGR.yaml, livox_360.yaml, and guessed configs are forbidden substitutes.
+    frame_transform: full trajectory frame audit required after exact config recovery
+    timestamp_policy: strict increasing TUM with explicit frame/time audit required
+    alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+    config_provenance:
+      old_branch_config: NOT_FOUND
+      authority: CONFIG_PROVENANCE_BLOCKED
+
+  m3dgr_outdoor04_full_trajectory:
+    dataset_family: M3DGR
+    sequences: [Outdoor04]
+    ground_truth_type: FULL_TRAJECTORY
+    primary_metric: M3DGR_TUM_TRANSLATION_APE_RMSE_M
+    unit: m
+    evaluator_kind: tum_translation
+    evaluator_path: eval/prob_lio/eval_tum_translation.py
+    gt_source: external_tum
+    gt_path: ../../bag/M3DGR/Outdoor04/Outdoor04.tum
+    required_topics:
+      - /livox/avia/lidar
+      - /livox/avia/imu
+    status: CONFIG_PROVENANCE_BLOCKED
+    block_reason: >
+      No exact current_committed_m3dgr_runner_config or Super-LIO Outdoor
+      config is present in the audited current/old method-author trees;
+      M2DGR.yaml, livox_360.yaml, and guessed configs are forbidden substitutes.
+    frame_transform: full trajectory frame audit required after exact config recovery
+    timestamp_policy: strict increasing TUM with explicit frame/time audit required
+    alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+    config_provenance:
+      old_branch_config: NOT_FOUND
+      authority: CONFIG_PROVENANCE_BLOCKED
 
   m3dgr_aruco_final_relative:
     dataset_family: M3DGR
@@ -116,12 +170,10 @@ profiles:
     required_topics:
       - /livox/avia/lidar
       - /livox/avia/imu
-    status: CONFIG_PROVENANCE_BLOCKED
+    status: EXCLUDED_BY_OWNER
     block_reason: >
-      The old lineage identifies an OWNER_DECISION/current committed M3DGR
-      runner config, but this prob-lio checkout contains no audited
-      Super-LIO Corridor01 config. Existing livox_360.yaml and M2DGR.yaml are
-      different sensor/config authorities and cannot be substituted or tuned.
+      Owner explicitly excludes M3DGR Corridor01 from Prompt12; no run is
+      authorized regardless of evaluator/config availability.
     frame_transform: >
       Reference is T_B0_Bend = inverse(T_W_B0) @ T_W_Bend in the
       estimator body frame; no prism conversion.
@@ -151,5 +203,5 @@ profiles:
     required_topics:
       - /livox/avia/lidar
       - /livox/avia/imu
-    status: GT_SEMANTICS_BLOCKED
-    block_reason: Corridor02 frame-convention gate is not closed; not a Prompt11 run.
+    status: EXCLUDED_BY_OWNER
+    block_reason: Owner explicitly excludes M3DGR Corridor02 from Prompt12; do not run.
