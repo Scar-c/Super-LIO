@@ -1,0 +1,113 @@
+schema_version: 1
+status: CANONICAL_VALID
+dataset: Oxford_Spires
+sequence: Quarter_01
+variant_id: P5-ACTIVE
+ground_truth_type: FULL_TRAJECTORY
+primary_metric_name: OXFORD_TUM_TRANSLATION_APE_RMSE_M
+primary_metric_value: 0.0796
+unit: m
+evaluator_profile: oxford_quarter01_full_trajectory
+evaluator:
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  exists: true
+  size_bytes: 8604
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+evaluator_provenance:
+  profile: oxford_quarter01_full_trajectory
+  kind: tum_translation
+  upstream:
+    source: origin/super-livo evaluator port
+    tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+  frame_transform: 'Not publishable until current config and Oxford calibration/frame
+    conversion are independently reconciled.
+
+    '
+  timestamp_policy: strict increasing TUM with explicit frame/time audit required
+  alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+bag:
+  path: /home/lc/super_livo/bag/OXFORD/Quarter_01/Quarter_01.bag
+  exists: true
+  size_bytes: 5466871208
+  sha256: 5da1843f9a8949fd0f7dce01e92b3c710ce524213c321b7850cba1a80d8201aa
+ground_truth:
+  source: external_tum
+  source_identity:
+    path: /home/lc/super_livo/bag/OXFORD/Quarter_01/gt-tum.txt
+    exists: true
+    size_bytes: 1163922
+    sha256: afb6011ad6b21413b811568337d5a0d24447efa967105dc17d29e959490519c1
+  derived_tum: null
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/oxford_quarter01.yaml
+  exists: true
+  size_bytes: 1301
+  sha256: 72f5553a654a372738fe47933522f2f6500fd4cb96212d13474feb60c6f1209b
+effective_config:
+  path: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/effective_rosparams.yaml
+  exists: true
+  size_bytes: 1623
+  sha256: faad18a715df12e64580f72445069510b444d381db11cf6473f80df4ae5b3f24
+config_provenance:
+  old_branch_config: configs/super_livo/reference_base/oxford_quarter01.yaml
+  old_branch_lineage: configs/super_livo/reference_base/oxford_quarter01.lineage.yaml
+  current_config: src/super_lio/config/oxford_quarter01.yaml
+  current_config_source: origin/super-livo:src/super_lio/config/oxford_quarter01.yaml
+  authority: SUPER_LIO_DATASET_CONFIG_DERIVED_FROM_OFFICIAL_CALIBRATION
+  note: exact old-branch config ported; source blob recorded in Prompt12 audit
+algorithm:
+  branch: prob-lio
+  head: edcad2f6368d73c4c2863d86a1c0f7faf8820e74
+  dirty: false
+  status_short: ''
+  production_tree_oid: 097f5af820120376adb4b8786f8b6726705aacf8
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+algorithm_commit: edcad2f6368d73c4c2863d86a1c0f7faf8820e74
+production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+dataset_config_sha256: 72f5553a654a372738fe47933522f2f6500fd4cb96212d13474feb60c6f1209b
+post_run_git:
+  branch: prob-lio
+  head: edcad2f6368d73c4c2863d86a1c0f7faf8820e74
+  dirty: false
+  status_short: ''
+  production_tree_oid: 097f5af820120376adb4b8786f8b6726705aacf8
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+run_id: p12_oxford_quarter01_p5_active
+trajectory:
+  path: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/trajectory.tum
+  exists: true
+  size_bytes: 468741
+  sha256: 36407fcab07e3f1f17b6863f9df0a2914ab8bcff77a0f700293b5336d211a903
+rows: 2888
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+runtime_wall_s: 368.7493292120007
+metric:
+  primary_metric: OXFORD_TUM_TRANSLATION_APE_RMSE_M
+  value: 0.0796
+  unit: m
+  evaluator_output: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/evaluation.txt
+instrumentation:
+  cov_validation_mode: light
+  prob_assoc_shadow_enable: 'false'
+  heavy_diagnostics: false
+artifacts:
+  preflight: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/preflight.yaml
+  runner_meta: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/meta.txt
+  effective_config: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/effective_rosparams.yaml
+  trajectory: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/trajectory.tum
+  evaluation: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active/evaluation.txt
+notes: n=1 screening run; matrix is intentionally not edited by this runner
+evidence:
+  tracked_root: /home/lc/super_livo/src/Super-LIO/results/prob_lio/evidence/p12_oxford_quarter01_p5_active
+  trajectory_copied: false
+  runtime_root: /home/lc/super_livo/results/prob_lio_runtime/p12_oxford_quarter01_p5_active
+  exported_files:
+  - effective_rosparams.yaml
+  - evaluation.txt
+  - preflight.yaml
+  - requested_effective_config.yaml
+  - run_manifest.yaml
