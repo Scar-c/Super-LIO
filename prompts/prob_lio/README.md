@@ -17,6 +17,7 @@ Index of all prob-lio round prompts (historical; do not delete).
 | P10 | `prompt10_documentation_consolidation.md` | documentation consolidation / canonicalization before generalization | docs | CLOSED |
 | P11 | `prompt11_generalization_ablation_pipeline.md` | generalization ablation matrix and reusable P4/P5 evaluation pipeline | P4/P5/generalization | EXECUTED — canonical MCD/NTU matrices complete; Oxford/M3DGR provenance blocks recorded |
 | P12 | `prompt12_generalization_hygiene_sbs_oxford_m3.md` | runtime/evidence hygiene, NTU sbs_01, Oxford provenance, M3DGR outdoor/exclusion audit | generalization/evidence | CLOSED — sbs/Oxford six-cell matrices published; M3 Outdoor blocked; Corridors owner-excluded |
+| P13 | `prompt13_covariance_authority_mcd_oxford_m3.md` | dataset covariance authority corrective, Oxford official FAST-LIVO2 semantics, MCD day10/night08 reruns, M3 Outdoor provenance | generalization/covariance authority | IN PROGRESS |
 
 Corrective/superseded relationships:
 - prompt3 corrects prompt2's P1 frame semantics;

@@ -13,6 +13,7 @@ import sys
 
 
 COMPACT_FILES = {
+    "meta.txt",
     "run_manifest.yaml",
     "preflight.yaml",
     "requested_effective_config.yaml",

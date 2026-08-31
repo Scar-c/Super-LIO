@@ -274,6 +274,10 @@ def main(argv=None):
     parser.add_argument("--calibration", action="append", default=[])
     parser.add_argument("--canonical", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument(
+        "--duration", type=float,
+        help="optional bounded bag duration passed to run_baseline.sh (smoke only)",
+    )
     parser.add_argument("--run-id")
     args = parser.parse_args(argv)
 
@@ -322,6 +326,7 @@ def main(argv=None):
         "dataset": args.dataset,
         "sequence": args.sequence,
         "variant": args.variant,
+        "duration": args.duration,
         "ground_truth_type": profile["ground_truth_type"],
         "primary_metric": profile["primary_metric"],
         "unit": profile["unit"],
@@ -407,6 +412,8 @@ def main(argv=None):
     ]
     if args.canonical:
         command.append("--canonical")
+    if args.duration is not None:
+        command.extend(["--duration", str(args.duration)])
     for key, value in rosparam_overrides(args.variant).items():
         command.extend(["--set", f"{key}={value}"])
     started = time.monotonic()
@@ -420,6 +427,7 @@ def main(argv=None):
             "dataset": args.dataset,
             "sequence": args.sequence,
             "variant": args.variant,
+            "duration": args.duration,
             "rosparam_overrides": rosparam_overrides(args.variant),
         })
     trajectory = run_dir / "trajectory.tum"
@@ -500,10 +508,16 @@ def main(argv=None):
         # post-run Git state only as a diagnostic field.
         "algorithm": preflight["algorithm"],
         "algorithm_commit": preflight["algorithm"]["head"],
+        "run_git_head": preflight["algorithm"]["head"],
+        "run_git_dirty": preflight["algorithm"]["dirty"],
+        "production_code_tree_oid": preflight["algorithm"]["production_tree_oid"],
         "production_code_oid": preflight["algorithm"]["production_code_oid"],
         "dataset_config_sha256": (
             preflight["effective_config_snapshot"]["base_config_sha256"]
         ),
+        "effective_config_sha256": identity(
+            run_dir / "effective_rosparams.yaml"
+        )["sha256"],
         "post_run_git": post_git,
         "run_id": run_id,
         "trajectory": identity(trajectory),

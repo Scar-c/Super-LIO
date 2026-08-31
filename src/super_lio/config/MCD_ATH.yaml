@@ -27,6 +27,12 @@ lio:
     imu_ng: 0.1
     imu_nba: 0.0001
     imu_nbg: 0.0001
+    # Prompt13: MCD uses Livox Mid-70. These are explicit sensor-spec
+    # mappings for CalcLidarPointCov, not an MCD algorithm-author config:
+    # range precision <= 0.02 m (1 sigma @ 20 m) and angular precision <
+    # 0.1 deg (1 sigma). Keep the proxy classification in the registry.
+    dept_err: 0.02
+    beam_err: 0.1
 
   # Extrinsic Parameters
   extrinsic:

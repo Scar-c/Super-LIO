@@ -26,6 +26,11 @@ Prompt11 orchestration:
 - `merge_mcd.py` — audited bounded-memory record-time k-way merge for the
   separate MCD lidar/IMU bags; it preserves message header stamps and writes
   only after successful completion.
+- `cache_lio_topics.py` — copies selected serialized ROS1 records into an
+  outside-Git LZ4 LIO-only cache without camera messages or estimator-side
+  preprocessing.
+- `compare_rosbag_topics.py` — compares selected bag record order, timestamps,
+  and serialized payloads with a compact YAML parity report.
 
 Owned offline component (in `src/super_lio/offline/`):
 

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Deterministic MCD pose_inW.csv to TUM conversion.
 
-This adapter is used for ntu_night_08 only after the local CSV schema and
-timestamp/frame semantics have been independently audited.  The verified
-contract is: Body = VN100 IMU, CSV pose is W_T_B, no prism/lever-arm
+This adapter is used for the audited MCD day10 and night08 sequences. The
+verified contract is: Body = VN100 IMU, CSV pose is W_T_B, no prism/lever-arm
 compensation, and no scale alignment.
 """
 import argparse
@@ -75,5 +74,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
 
