@@ -138,10 +138,14 @@ profiles:
     status: ACTIVE
     block_reason: null
     frame_transform: >
-      Not publishable until current config and Oxford calibration/frame
-      conversion are independently reconciled.
-    timestamp_policy: strict increasing TUM with explicit frame/time audit required
-    alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+      LIO output is the IMU/body W_T_B trajectory.  The supplied Oxford TUM
+      reference is evaluated in its published world frame with rigid SE3
+      Umeyama alignment and no scale; the LIO-only path does not use camera
+      poses or a camera-to-body lever-arm correction.
+    timestamp_policy: >
+      gt-tum.txt is strict-increasing TUM; one-to-one nearest timestamp
+      association is limited to max_diff=0.05 s.
+    alignment_policy: SE3 Umeyama, no scale
     config_provenance:
       old_branch_config: configs/super_livo/reference_base/oxford_quarter01.yaml
       old_branch_lineage: configs/super_livo/reference_base/oxford_quarter01.lineage.yaml
@@ -166,7 +170,10 @@ profiles:
         Existing Super-LIO Oxford topics, calibration, filtering, and IESKF
         settings are retained; only the two omitted covariance values are
         made explicit in the effective Super-LIO config.
-    calibration_source: bag/OXFORD/Calibration dataset files; frame audit recorded in Prompt13 audit
+    calibration_source: >
+      bag/OXFORD/Calibration dataset files; the current LIO-only frame/time
+      gate is recorded in Prompt13 audit and smoke-tested on original/cache
+      inputs before formal runs.
 
   m3dgr_outdoor01_full_trajectory:
     dataset_family: M3DGR
