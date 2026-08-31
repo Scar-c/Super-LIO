@@ -9,7 +9,44 @@ unless explicitly labeled. Trajectory hashes are sha256 prefixes of the
 local runtime `trajectory.tum`; Prompt12 compact evidence never copies the
 large trajectory into Git.
 
-## 0. Prompt12 generalization evidence
+## 0. Prompt13 current generalization evidence
+
+Prompt13 is the current generalization authority for MCD and Oxford. It
+published 18 `CANONICAL_VALID` cells: six MCD `ntu_day_10`, six corrected MCD
+`ntu_night_08`, and six Oxford `Quarter_01`. The authoritative matrix with
+one manifest link per cell is [`ABLATION_MATRIX.md`](ABLATION_MATRIX.md).
+
+All 18 runs use commit
+`0a5e19402957f1094a37cb742201195068544d6c`, production code OID
+`36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62`,
+`run_git_dirty=false`, whole-bag execution, light covariance validation, P5
+shadow OFF, and heavy diagnostics OFF. Each compact evidence directory
+contains `meta.txt`, `run_manifest.yaml`, `preflight.yaml`,
+`requested_effective_config.yaml`, `effective_rosparams.yaml`, and evaluator
+output. The manifest carries run head, algorithm commit, production tree/code
+OIDs, bag/GT/evaluator/config/effective-config hashes, variant ID, completion
+and RCs, primary metric, trajectory hash/rows, runtime, and classification.
+No trajectory, bag, ROS log, debug dump, or build/devel artifact is copied to
+the tracked evidence directories.
+
+| Dataset / sequence | B0 | P4-LC | P4-RC | P5-ACTIVE | P5-SENSOR-CORR | P5-BOTH-CORR |
+|---|---:|---:|---:|---:|---:|---:|
+| MCD `ntu_day_10` (m) | 0.716300 | 1.197000 | 1.091200 | 1.068900 | 1.095000 | 0.821200 |
+| MCD `ntu_night_08` corrected (m) | 1.021000 | 2.002200 | 1.655500 | 2.307300 | 1.930100 | 1.724600 |
+| Oxford `Quarter_01` (m) | 0.063000 | 0.051400 | 0.051900 | 0.079600 | 0.081200 | 0.081200 |
+
+Evidence-specific audits:
+
+- MCD legacy cache: [`p13_mcd_legacy_cache_audit.yaml`](../../results/prob_lio/evidence/p13_mcd_legacy_cache_audit.yaml). Day10 has 132,438 source-merge records with exact serialized payload/topic-order parity; maximum record-time delta is 120 ns. The manifest path prefix mismatch is explicitly recorded.
+- Oxford cache: [`p13_oxford_cache_parity.yaml`](../../results/prob_lio/evidence/p13_oxford_cache_parity.yaml). The selected IMU/lidar records have exact global and per-topic serialized SHA parity, and original/cache B0 and P4-LC smoke trajectories are byte-identical.
+- M3DGR Avia authority: [`p13_m3dgr_avia_authority.yaml`](../../results/prob_lio/evidence/p13_m3dgr_avia_authority.yaml). Outdoor01/04 remain config-provenance blocked; Corridor01/02 remain owner-excluded, with no numeric run.
+
+The old Prompt11 MCD night08 probability cells remain in the historical
+ledger but are `SUPERSEDED_INVALID_COVARIANCE_CONFIG`; the old-default B0
+control is retained separately as a correction proof:
+[`p13_mcd_night08_b0_old_control`](../../results/prob_lio/evidence/p13_mcd_night08_b0_old_control/run_manifest.yaml).
+
+## 1. Prompt12 generalization evidence
 
 The six NTU `sbs_01` cells and six Oxford `Quarter_01` cells are indexed in
 [`ABLATION_MATRIX.md`](ABLATION_MATRIX.md). Their compact manifests live in
@@ -26,7 +63,7 @@ Oxford `Quarter_01` config SHA256 is
 M3DGR Outdoor01/04 have compact blocked preflight evidence; Corridor01/02
 have explicit owner-exclusion evidence and were not run.
 
-## 1. Frozen baseline (pre-P1, fixed `1000`)
+## 2. Frozen baseline (pre-P1, fixed `1000`)
 
 | Item | Value |
 |---|---|
@@ -38,7 +75,7 @@ have explicit owner-exclusion evidence and were not run.
 | evaluator output | `eval_official.yaml` (translation_ate_rmse_m 0.11887563928223766) |
 | GT | `results/prob_lio/run_20260830_182308/gt/leica_gt.tum` |
 
-## 2. Canonical P4 (`prob_livo2 + livo2_compat`)
+## 3. Canonical P4 (`prob_livo2 + livo2_compat`)
 
 | Item | Value |
 |---|---|
@@ -52,7 +89,7 @@ have explicit owner-exclusion evidence and were not run.
 | byte-parity twin (prompt9 redo) | `results/prob_lio/run_20260831_011924/` — identical hash `259d3fbc...`, HEAD `f56c376`, ATE 0.088831554 |
 | P4 shadow (corrected, same hash) | `results/prob_lio/run_20260831_011924/assoc_shadow_report.txt` |
 
-## 3. P4 `prob_livo2 + super_right_consistent` (clean A/B observation)
+## 4. P4 `prob_livo2 + super_right_consistent` (clean A/B observation)
 
 | Item | Value |
 |---|---|
@@ -62,7 +99,7 @@ have explicit owner-exclusion evidence and were not run.
 | run dir | `results/prob_lio/run_20260830_215722/` |
 | run HEAD | `e6222d31` (clean) |
 
-## 4. P5 applied probabilistic association (experimental regression)
+## 5. P5 applied probabilistic association (experimental regression)
 
 | Item | Value |
 |---|---|
@@ -76,7 +113,7 @@ have explicit owner-exclusion evidence and were not run.
 P5 status: EXPERIMENTAL / NON-CANONICAL only. Rejection reason: empirical
 performance gap; root cause UNRESOLVED (see SPEC §5A.5).
 
-## 5. Corrected iteration facts (prompt9 redo, Run A0)
+## 6. Corrected iteration facts (prompt9 redo, Run A0)
 
 - Final-iteration histogram (3981 frames): `obs_iter=2` 395 frames;
   `obs_iter=3` 195 frames; `obs_iter=4` 3391 frames (~85.2%).
@@ -91,7 +128,7 @@ performance gap; root cause UNRESOLVED (see SPEC §5A.5).
   (sticky_skip=0, counterfactual_reaccept=0 are shadow-observation
   facts, NOT proof of absence in the applied convergence phase).
 
-## 6. Stage closure evidence
+## 7. Stage closure evidence
 
 | Stage | Gate status | Evidence |
 |---|---|---|
@@ -102,7 +139,7 @@ performance gap; root cause UNRESOLVED (see SPEC §5A.5).
 | P4 | G-P4.1–C1 PASS | `test_p4_weight`, `test_validation_mode`; SPEC Round P4-1/P4-2; canonical run §2 |
 | P5 | EXPERIMENTAL / NON-CANONICAL | SPEC §5A.5, Round P5-2/P5-3/P5-4; tests `test_p5_association`, `test_p5_seam_shadow`, `test_p5_lifecycle` |
 
-## 7. Clean source identities
+## 8. Clean source identities
 
 | Artifact | Commit |
 |---|---|
@@ -115,14 +152,14 @@ performance gap; root cause UNRESOLVED (see SPEC §5A.5).
 | Prompt10 docs consolidation | see `git log` (docs commit after this file) |
 | production code tree oid (prompt9 redo runs) | `48abc2c7` (`f56c376:src/super_lio`) |
 
-## 8. Evaluator authority
+## 9. Evaluator authority
 
 `eval/prob_lio/eval_ntu_viral_official.py` — NTU official-compatible:
 prism lever arm, strict timestamp interpolation, SE(3) Umeyama alignment
 no scale; 3981 estimated rows / 3329 matched. Frozen GT:
 `results/prob_lio/run_20260830_182308/gt/leica_gt.tum`.
 
-## 9. Run/evidence hygiene
+## 10. Run/evidence hygiene
 
 Permanent rule: `modify → test → commit → clean → canonical run →
 evaluate`. Canonical metadata: `algorithm_commit`, `run_git_head`,

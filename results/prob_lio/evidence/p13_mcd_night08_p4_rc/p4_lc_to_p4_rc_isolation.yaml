@@ -1,0 +1,10 @@
+schema_version: 1
+left: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p4_lc/effective_rosparams.yaml
+right: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p4_rc/effective_rosparams.yaml
+allowed_keys:
+- lio/prob_lio/map_pose_cov_model
+differences:
+- key: lio/prob_lio/map_pose_cov_model
+  left: livo2_compat
+  right: super_right_consistent
+status: PASS

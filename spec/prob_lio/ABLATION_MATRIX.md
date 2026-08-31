@@ -3,20 +3,23 @@
 This is the authoritative cross-dataset screening ledger. Values are reported
 under the registered **PRIMARY METRIC** for each ground-truth contract; this is
 not an ATE table. Prompt11 uses one clean deterministic screening run
-(`n=1`) per sequence and variant. Prompt12 adds the NTU `sbs_01` row,
-audited Oxford screening, and explicit M3DGR owner exclusions. New compact
-evidence is under `results/prob_lio/evidence/`; full runtime artifacts remain
-outside the repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
+(`n=1`) per sequence and variant. Prompt12 adds the NTU `sbs_01` row and
+Oxford screening. Prompt13 corrects MCD Mid-70 covariance authority, adds the
+MCD `ntu_day_10` row, and republishes the affected MCD/Oxford cells with
+compact evidence. New compact evidence is under
+`results/prob_lio/evidence/`; full runtime artifacts remain outside the
+repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
 
 ## Required compact matrix
 
 | Dataset | Sequence | GT type | Primary metric (unit) | Evaluator | B0 | P4-LC | P4-RC | P5-ACTIVE | P5-SENSOR-CORR | P5-BOTH-CORR | Status / notes |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| MCD | ntu_night_08 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 1.021000 | 1.302700 | 1.260700 | 1.324500 | 1.151800 | 1.148600 | all six `CANONICAL_VALID`; merged input and GT/config identities recorded |
+| MCD | ntu_day_10 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 0.716300 | 1.197000 | 1.091200 | 1.068900 | 1.095000 | 0.821200 | all six Prompt13 `CANONICAL_VALID`; legacy day10 LIO cache audit PASS |
+| MCD | ntu_night_08 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 1.021000 | 2.002200 | 1.655500 | 2.307300 | 1.930100 | 1.724600 | all six Prompt13 `CANONICAL_VALID`; Mid-70 covariance proxy explicit; Prompt11 probability cells superseded |
 | NTU VIRAL | eee_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.118875639 | 0.088831554 | 0.089745655 | 1.190814611 | 1.190814611 | 1.225502411 | all six `CANONICAL_VALID`; P4-LC byte parity and all three exact isolation checks PASS |
 | NTU VIRAL | nya_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.062926634 | 0.060714509 | 0.060846956 | 0.064154094 | 0.064154094 | 0.064981117 | all six `CANONICAL_VALID`; P5 ACTIVE/SENSOR byte identity under `R_LI=I` |
 | NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.084422872 | 0.083957108 | 0.083900662 | 0.618501810 | 0.618501810 | 0.653594851 | all six `CANONICAL_VALID`; 2813 matches; NTU family config/evaluator contract audited |
-| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | all six `CANONICAL_VALID`; 2887 matches; exact old-branch config ported |
+| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | all six Prompt13 `CANONICAL_VALID`; strict original→LIO-cache parity PASS; 2887 matches |
 | M3DGR | Outdoor01 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
 | M3DGR | Outdoor04 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
 | M3DGR | Corridor01 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
@@ -25,6 +28,60 @@ outside the repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
 `BLOCKED(...)`, `NOT_RUN`, `DIVERGED`, and `INVALID` are deliberate cell
 states. A numerical cell is valid only when its run manifest is
 `CANONICAL_VALID`.
+
+## Prompt13 corrected authority and current numeric run ledger
+
+Prompt13 did not change estimator mathematics. It made the omitted MCD
+Mid-70 sensor values explicit in `src/super_lio/config/MCD_ATH.yaml` as a
+documented sensor-spec proxy (`dept_err=0.02 m`, `beam_err=0.1 deg`, both
+upper-bound 1-sigma specifications), and made the official Oxford FAST-LIVO2
+defaults explicit in the Oxford config (`dept_err=0.05 m`, `beam_err=0.02
+deg`). The MCD day10 legacy cache is selected after the audit in
+`results/prob_lio/evidence/p13_mcd_legacy_cache_audit.yaml`; the Oxford formal
+runs use the strictly parity-checked LIO-only cache recorded in
+`results/prob_lio/evidence/p13_oxford_cache_parity.yaml`.
+
+All 18 current cells below use algorithm commit `0a5e19402957f1094a37cb742201195068544d6c`,
+production code OID `36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62`,
+`run_git_dirty=false`, whole-bag execution, light covariance validation, P5
+shadow OFF, and heavy diagnostics OFF. Each linked manifest contains the full
+bag/GT/evaluator/config hashes, effective config snapshot/hash, variant ID,
+return codes, primary metric/output, trajectory hash, runtime, and
+`CANONICAL_VALID` classification.
+
+| Dataset | Sequence | Variant | Primary metric (m) | Rows / matched | Trajectory sha256 prefix | Evidence |
+|---|---|---|---:|---:|---|---|
+| MCD | ntu_day_10 | B0 | 0.7163000 | 3242 / 2867 | `fec543cce8eb` | [`p13_mcd_day10_b0`](../../results/prob_lio/evidence/p13_mcd_day10_b0/run_manifest.yaml) |
+| MCD | ntu_day_10 | P4-LC | 1.1970000 | 3242 / 2867 | `6013d3411ccd` | [`p13_mcd_day10_p4_lc`](../../results/prob_lio/evidence/p13_mcd_day10_p4_lc/run_manifest.yaml) |
+| MCD | ntu_day_10 | P4-RC | 1.0912000 | 3242 / 2867 | `5b15eb7aa974` | [`p13_mcd_day10_p4_rc`](../../results/prob_lio/evidence/p13_mcd_day10_p4_rc/run_manifest.yaml) |
+| MCD | ntu_day_10 | P5-ACTIVE | 1.0689000 | 3242 / 2867 | `8fbfeb6fa578` | [`p13_mcd_day10_p5_active`](../../results/prob_lio/evidence/p13_mcd_day10_p5_active/run_manifest.yaml) |
+| MCD | ntu_day_10 | P5-SENSOR-CORR | 1.0950000 | 3242 / 2867 | `117cfc7ffb08` | [`p13_mcd_day10_p5_sensor_corr`](../../results/prob_lio/evidence/p13_mcd_day10_p5_sensor_corr/run_manifest.yaml) |
+| MCD | ntu_day_10 | P5-BOTH-CORR | 0.8212000 | 3242 / 2867 | `61bea8449825` | [`p13_mcd_day10_p5_both_corr_retry`](../../results/prob_lio/evidence/p13_mcd_day10_p5_both_corr_retry/run_manifest.yaml) |
+| MCD | ntu_night_08 | B0 | 1.0210000 | 4661 / 4438 | `dbe667eee301` | [`p13_mcd_night08_b0_corrected_retry`](../../results/prob_lio/evidence/p13_mcd_night08_b0_corrected_retry/run_manifest.yaml) |
+| MCD | ntu_night_08 | P4-LC | 2.0022000 | 4661 / 4438 | `1c936ee93481` | [`p13_mcd_night08_p4_lc`](../../results/prob_lio/evidence/p13_mcd_night08_p4_lc/run_manifest.yaml) |
+| MCD | ntu_night_08 | P4-RC | 1.6555000 | 4661 / 4438 | `49c2f36b9c6c` | [`p13_mcd_night08_p4_rc`](../../results/prob_lio/evidence/p13_mcd_night08_p4_rc/run_manifest.yaml) |
+| MCD | ntu_night_08 | P5-ACTIVE | 2.3073000 | 4661 / 4438 | `f8272c4ff43c` | [`p13_mcd_night08_p5_active`](../../results/prob_lio/evidence/p13_mcd_night08_p5_active/run_manifest.yaml) |
+| MCD | ntu_night_08 | P5-SENSOR-CORR | 1.9301000 | 4661 / 4438 | `a2830b4f2781` | [`p13_mcd_night08_p5_sensor_corr`](../../results/prob_lio/evidence/p13_mcd_night08_p5_sensor_corr/run_manifest.yaml) |
+| MCD | ntu_night_08 | P5-BOTH-CORR | 1.7246000 | 4661 / 4438 | `4e7081ae0e46` | [`p13_mcd_night08_p5_both_corr`](../../results/prob_lio/evidence/p13_mcd_night08_p5_both_corr/run_manifest.yaml) |
+| Oxford | Quarter_01 | B0 | 0.0630000 | 2888 / 2887 | `4fc6c57614f7` | [`p13_oxford_quarter01_b0`](../../results/prob_lio/evidence/p13_oxford_quarter01_b0/run_manifest.yaml) |
+| Oxford | Quarter_01 | P4-LC | 0.0514000 | 2888 / 2887 | `972a50df361a` | [`p13_oxford_quarter01_p4_lc`](../../results/prob_lio/evidence/p13_oxford_quarter01_p4_lc/run_manifest.yaml) |
+| Oxford | Quarter_01 | P4-RC | 0.0519000 | 2888 / 2887 | `c4b100dbcbfe` | [`p13_oxford_quarter01_p4_rc`](../../results/prob_lio/evidence/p13_oxford_quarter01_p4_rc/run_manifest.yaml) |
+| Oxford | Quarter_01 | P5-ACTIVE | 0.0796000 | 2888 / 2887 | `36407fcab07e` | [`p13_oxford_quarter01_p5_active`](../../results/prob_lio/evidence/p13_oxford_quarter01_p5_active/run_manifest.yaml) |
+| Oxford | Quarter_01 | P5-SENSOR-CORR | 0.0812000 | 2888 / 2887 | `68db1459ec53` | [`p13_oxford_quarter01_p5_sensor_corr`](../../results/prob_lio/evidence/p13_oxford_quarter01_p5_sensor_corr/run_manifest.yaml) |
+| Oxford | Quarter_01 | P5-BOTH-CORR | 0.0812000 | 2888 / 2887 | `24a287663451` | [`p13_oxford_quarter01_p5_both_corr`](../../results/prob_lio/evidence/p13_oxford_quarter01_p5_both_corr/run_manifest.yaml) |
+
+The previous Prompt11 MCD `ntu_night_08` probability rows are retained below
+as historical records only. Their effective config used unstated/default
+covariance authority and they are superseded by the six Prompt13 corrected
+night08 cells. The old-default control is separately recorded at
+[`p13_mcd_night08_b0_old_control`](../../results/prob_lio/evidence/p13_mcd_night08_b0_old_control/run_manifest.yaml)
+and is not one of the 18 current cells.
+
+Prompt13 isolation reports for all three declared A/B axes are stored beside
+the relevant evidence manifests and all report PASS. M3DGR Avia authority is
+recorded in `results/prob_lio/evidence/p13_m3dgr_avia_authority.yaml`; Outdoor01
+and Outdoor04 remain `CONFIG_PROVENANCE_BLOCKED`, and Corridor01/02 remain
+`EXCLUDED_BY_OWNER`. No M3DGR numeric run was performed.
 
 ## Variant isolation contract
 

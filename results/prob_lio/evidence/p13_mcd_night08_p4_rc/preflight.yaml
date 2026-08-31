@@ -1,0 +1,108 @@
+schema_version: 1
+status: PREFLIGHT_OK
+dataset: MCD
+sequence: ntu_night_08
+variant: P4-RC
+duration: null
+ground_truth_type: FULL_TRAJECTORY
+primary_metric: MCD_DATASET_TRANSLATION_ATE_RMSE_M
+unit: m
+bag:
+  path: /home/lc/super_livo_legacy/cache/datasets/ntu_night_08_lio_filtered.bag
+  exists: true
+  size_bytes: 800038892
+  sha256: ac1997f6f67eee1a2f7768bd86ae5bca2b883d63bd71067aa5882b8fcc742657
+topics:
+  /livox/lidar:
+    type: livox_ros_driver/CustomMsg
+    messages: 4667
+    frequency: null
+  /vn100/imu:
+    type: sensor_msgs/Imu
+    messages: 185463
+    frequency: null
+required_topics:
+- /livox/lidar
+- /vn100/imu
+missing_topics: []
+calibration:
+- path: /home/lc/super_livo/bag/MCD/atv_calib.yaml
+  exists: true
+  size_bytes: 6416
+  sha256: 43642504cd6a9c73043793bae2a52fd2c006508053402c4407c9252c067aaabc
+ground_truth:
+  path: /home/lc/super_livo/bag/MCD/ntu_night_08/pose_inW.csv
+  exists: true
+  size_bytes: 736230
+  sha256: b2804bd8ea8e8c2d8ceca9cf3380c37a7e768f8e5ac3dd310b0e37e34e12b3e5
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/MCD_ATH.yaml
+  exists: true
+  size_bytes: 1691
+  sha256: aead11fa9b0b99bf09df6bd401dd35c3f4d3a44069642eb73bd5b902d994e852
+evaluator:
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  exists: true
+  size_bytes: 8604
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+evaluator_provenance:
+  profile: mcd_night08_full_trajectory
+  kind: tum_translation
+  upstream:
+    source: origin/super-livo evaluator port
+    tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+  frame_transform: 'Verified local pose_inW.csv is W_T_B with Body=VN100 IMU; no prism
+    or lever-arm compensation.
+
+    '
+  timestamp_policy: 'CSV t is seconds since epoch, strictly increasing; association
+    max_diff=0.05 s and one-to-one matching.
+
+    '
+  alignment_policy: SE3 Umeyama, no scale
+config_provenance:
+  old_branch_config: configs/super_livo/reference_base/mcd_night08.yaml
+  old_branch_lineage: configs/super_livo/reference_base/mcd_night08.lineage.yaml
+  authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
+  covariance_authority: Livox Mid-70 official measurement specification
+  covariance_provenance: MCD_MID70_SENSOR_SPEC_PROXY
+  effective_dept_err_m: 0.02
+  effective_beam_err_deg: 0.1
+  statistical_meaning: 'Official Mid-70 range precision is an upper-bound 1-sigma
+    value at 20 m and angular precision is an upper-bound 1-sigma value; mapping them
+    to the CalcLidarPointCov parameters is a sensor-spec proxy, not a dataset-author
+    algorithm configuration.
+
+    '
+algorithm:
+  branch: prob-lio
+  head: 0a5e19402957f1094a37cb742201195068544d6c
+  dirty: false
+  status_short: ''
+  production_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+variant_overrides:
+  /lio/prob_lio/cov_enable: 'true'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: super_right_consistent
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'true'
+  /lio/prob_lio/p2p_weight_mode: prob_livo2
+  /lio/prob_lio/association_mode: super_legacy
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: inherit_map
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
+effective_config_snapshot:
+  base_config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/MCD_ATH.yaml
+  base_config_sha256: aead11fa9b0b99bf09df6bd401dd35c3f4d3a44069642eb73bd5b902d994e852
+  requested_overrides:
+    /lio/prob_lio/cov_enable: 'true'
+    /lio/prob_lio/cov_validation_mode: light
+    /lio/prob_lio/map_pose_cov_model: super_right_consistent
+    /lio/prob_lio/map_cov_storage_precision: double
+    /lio/prob_lio/qr_plane_cov_enable: 'true'
+    /lio/prob_lio/p2p_weight_mode: prob_livo2
+    /lio/prob_lio/association_mode: super_legacy
+    /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+    /lio/prob_lio/association_pose_cov_model: inherit_map
+    /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent

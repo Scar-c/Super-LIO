@@ -1,0 +1,25 @@
+schema_version: 1
+purpose: Prompt13 M3DGR Avia covariance/config authority audit
+dataset: M3DGR
+sensor: Livox Avia
+method_author_source:
+  repository: https://github.com/sjtuyinjie/M3DGR
+  revision: e0cf7d59c9a5a3df515624034698d976abc26549
+  adapted_config: old branch .scratch/fast_livo2/m3dgr/original/m3dgr_avia.yaml
+  adapted_config_sha256: 403e4ea2dc393e9c81512840c0056075c4fef590cf6ac4e9df676074226eabe9
+  effective_dept_err_m: 0.02
+  effective_beam_err_deg: 0.05
+  authority_class: DATASET_AUTHOR_ADAPTED_AVIA_CONFIG
+scope:
+  outdoor01: CONFIG_PROVENANCE_BLOCKED
+  outdoor04: CONFIG_PROVENANCE_BLOCKED
+  corridor01: EXCLUDED_BY_OWNER
+  corridor02: EXCLUDED_BY_OWNER
+block_reason: >
+  The exact current committed Super-LIO Outdoor runner/config could not be
+  recovered. The dataset-author adapted Avia file is a sensor/config clue but
+  is not sufficient authority for the exact Super-LIO Outdoor pipeline.
+  M2DGR.yaml, livox_360.yaml, and guessed configs are not substitutes.
+runs_authorized: false
+numeric_results_published: false
+status: PASS_BLOCK_RECORDED

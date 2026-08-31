@@ -1,0 +1,20 @@
+base_config:
+  path: /tmp/p13_mcd_old_MCD_ATH.yaml
+  exists: true
+  size_bytes: 1200
+  sha256: 0a6c02ab36494cb06e7360b801e48c4ac27f14c1eca603370a7280e5b052e9ff
+dataset: MCD
+sequence: ntu_night_08
+variant: B0
+duration: null
+rosparam_overrides:
+  /lio/prob_lio/cov_enable: 'false'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: livo2_compat
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'false'
+  /lio/prob_lio/p2p_weight_mode: fixed_1000
+  /lio/prob_lio/association_mode: super_legacy
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: inherit_map
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent

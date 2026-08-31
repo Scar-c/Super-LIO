@@ -95,7 +95,7 @@ Round-history sections below are records and may quote superseded claims
 | P3 | CLOSED / OWNER VERIFIED |
 | P4 | CLOSED / OWNER VERIFIED |
 | P5 | EXPERIMENTAL / NON-CANONICAL |
-| Generalization | Prompt12 ACTIVE: NTU `sbs_01` and Oxford `Quarter_01` six-cell matrices complete; M3DGR Outdoor01/04 provenance-blocked; Corridor01/02 owner-excluded |
+| Generalization | Prompt13 CLOSED for the authorized scope: MCD `ntu_day_10`, corrected MCD `ntu_night_08`, and Oxford `Quarter_01` six-cell matrices complete; M3DGR Outdoor01/04 provenance-blocked; Corridor01/02 owner-excluded |
 
 P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
 the recommended default.
@@ -320,6 +320,47 @@ Super-LIO Outdoor configuration was found in the audited current or old
 method-author trees. M3DGR Corridor01 and Corridor02 are
 `EXCLUDED_BY_OWNER`; neither corridor bag was run. This status does not
 authorize any follow-on config design or noise-tuning round.
+
+### 5A.13 Prompt13 covariance-authority and generalization status
+
+Prompt13 made dataset covariance authority explicit without changing
+estimator mathematics. For MCD, the shared `MCD_ATH.yaml` now records the
+Livox Mid-70 sensor-spec proxy `dept_err=0.02 m` and `beam_err=0.1 deg`.
+These are upper-bound 1-sigma specifications mapped to
+`CalcLidarPointCov`; they are not claimed to be dataset-author algorithm
+parameters. The verified legacy LIO-only day10 and night08 filtered bags are
+the formal inputs. The day10 cache audit, including source merge payload/order
+parity, is recorded at
+`results/prob_lio/evidence/p13_mcd_legacy_cache_audit.yaml`.
+
+For Oxford, the official FAST-LIVO2 `config-used-OSD` source was audited and
+the omitted voxel covariance defaults were made explicit in
+`src/super_lio/config/oxford_quarter01.yaml`:
+`dept_err=0.05 m` and `beam_err=0.02 deg`. The Oxford LIO-only cache passed
+strict selected-topic serialized payload/order parity against the original
+bag, followed by B0/P4 smoke trajectory byte parity. The cache audit is
+`results/prob_lio/evidence/p13_oxford_cache_parity.yaml`. The evaluator gate
+is now resolved for this LIO-only contract: body/IMU trajectory, supplied TUM
+world frame, rigid SE3 Umeyama, no scale, and one-to-one nearest timestamps
+with `max_diff=0.05 s`.
+
+The current matrix contains 18 `CANONICAL_VALID` cells: six for MCD
+`ntu_day_10`, six corrected cells for MCD `ntu_night_08`, and six for Oxford
+`Quarter_01`. Every manifest records `run_git_head`,
+`run_git_dirty=false`, `production_code_tree_oid`, bag/GT/evaluator/config
+hashes, effective configuration snapshot/hash, completion and RCs, primary
+metric/output, trajectory hash, and runtime classification. Compact evidence
+is under `results/prob_lio/evidence/p13_*`; bags, trajectories, ROS logs, and
+other large runtime artifacts remain outside Git.
+
+The Prompt11 MCD night08 probability cells are historical and
+`SUPERSEDED_INVALID_COVARIANCE_CONFIG`; the Prompt13 corrected cells are the
+current values. P5 remains `EXPERIMENTAL / NON-CANONICAL`; these results do
+not promote P5 to a default or owner-verified stage. M3DGR Avia authority is
+recorded in `results/prob_lio/evidence/p13_m3dgr_avia_authority.yaml`, but the
+exact current Super-LIO Outdoor configuration remains unavailable, so
+Outdoor01/04 are `CONFIG_PROVENANCE_BLOCKED` and Corridor01/02 remain
+`EXCLUDED_BY_OWNER`. No M3DGR numeric run was performed.
 
 ## 6. Baseline (frozen)
 

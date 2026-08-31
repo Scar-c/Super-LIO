@@ -1,0 +1,125 @@
+schema_version: 1
+status: CANONICAL_VALID
+dataset: MCD
+sequence: ntu_night_08
+variant_id: P5-SENSOR-CORR
+ground_truth_type: FULL_TRAJECTORY
+primary_metric_name: MCD_DATASET_TRANSLATION_ATE_RMSE_M
+primary_metric_value: 1.9301
+unit: m
+evaluator_profile: mcd_night08_full_trajectory
+evaluator:
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  exists: true
+  size_bytes: 8604
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+evaluator_provenance:
+  profile: mcd_night08_full_trajectory
+  kind: tum_translation
+  upstream:
+    source: origin/super-livo evaluator port
+    tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+  frame_transform: 'Verified local pose_inW.csv is W_T_B with Body=VN100 IMU; no prism
+    or lever-arm compensation.
+
+    '
+  timestamp_policy: 'CSV t is seconds since epoch, strictly increasing; association
+    max_diff=0.05 s and one-to-one matching.
+
+    '
+  alignment_policy: SE3 Umeyama, no scale
+bag:
+  path: /home/lc/super_livo_legacy/cache/datasets/ntu_night_08_lio_filtered.bag
+  exists: true
+  size_bytes: 800038892
+  sha256: ac1997f6f67eee1a2f7768bd86ae5bca2b883d63bd71067aa5882b8fcc742657
+ground_truth:
+  source: external_csv
+  source_identity:
+    path: /home/lc/super_livo/bag/MCD/ntu_night_08/pose_inW.csv
+    exists: true
+    size_bytes: 736230
+    sha256: b2804bd8ea8e8c2d8ceca9cf3380c37a7e768f8e5ac3dd310b0e37e34e12b3e5
+  derived_tum:
+    path: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/ground_truth.tum
+    exists: true
+    size_bytes: 513937
+    sha256: bb8894b42ac6f87bc76382574c1e7e44a38b5a5251bf2cfedc92c21f5138e11a
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/MCD_ATH.yaml
+  exists: true
+  size_bytes: 1691
+  sha256: aead11fa9b0b99bf09df6bd401dd35c3f4d3a44069642eb73bd5b902d994e852
+effective_config:
+  path: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/effective_rosparams.yaml
+  exists: true
+  size_bytes: 1652
+  sha256: 0a62904aea783d73c811b2d11d73a406411fd73d696b994e394d11eaa120f4b8
+config_provenance:
+  old_branch_config: configs/super_livo/reference_base/mcd_night08.yaml
+  old_branch_lineage: configs/super_livo/reference_base/mcd_night08.lineage.yaml
+  authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
+  covariance_authority: Livox Mid-70 official measurement specification
+  covariance_provenance: MCD_MID70_SENSOR_SPEC_PROXY
+  effective_dept_err_m: 0.02
+  effective_beam_err_deg: 0.1
+  statistical_meaning: 'Official Mid-70 range precision is an upper-bound 1-sigma
+    value at 20 m and angular precision is an upper-bound 1-sigma value; mapping them
+    to the CalcLidarPointCov parameters is a sensor-spec proxy, not a dataset-author
+    algorithm configuration.
+
+    '
+algorithm:
+  branch: prob-lio
+  head: 0a5e19402957f1094a37cb742201195068544d6c
+  dirty: false
+  status_short: ''
+  production_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+algorithm_commit: 0a5e19402957f1094a37cb742201195068544d6c
+run_git_head: 0a5e19402957f1094a37cb742201195068544d6c
+run_git_dirty: false
+production_code_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+dataset_config_sha256: aead11fa9b0b99bf09df6bd401dd35c3f4d3a44069642eb73bd5b902d994e852
+effective_config_sha256: 0a62904aea783d73c811b2d11d73a406411fd73d696b994e394d11eaa120f4b8
+post_run_git:
+  branch: prob-lio
+  head: 0a5e19402957f1094a37cb742201195068544d6c
+  dirty: false
+  status_short: ''
+  production_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+run_id: p13_mcd_night08_p5_sensor_corr
+trajectory:
+  path: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/trajectory.tum
+  exists: true
+  size_bytes: 749409
+  sha256: a2830b4f27817293549ae44f02bddb42b15ac5bbc7fec8815f6d118b5a6f106e
+rows: 4661
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+runtime_wall_s: 18.42678921699917
+metric:
+  primary_metric: MCD_DATASET_TRANSLATION_ATE_RMSE_M
+  value: 1.9301
+  unit: m
+  evaluator_output: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/evaluation.txt
+instrumentation:
+  cov_validation_mode: light
+  prob_assoc_shadow_enable: 'false'
+  heavy_diagnostics: false
+artifacts:
+  preflight: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/preflight.yaml
+  runner_meta: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/meta.txt
+  effective_config: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/effective_rosparams.yaml
+  trajectory: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/trajectory.tum
+  evaluation: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr/evaluation.txt
+notes: n=1 screening run; matrix is intentionally not edited by this runner
+evidence:
+  tracked_root: /home/lc/super_livo/src/Super-LIO/results/prob_lio/evidence/p13_mcd_night08_p5_sensor_corr
+  trajectory_copied: false
+  runtime_root: /home/lc/super_livo/results/prob_lio_runtime/p13_mcd_night08_p5_sensor_corr

@@ -1,0 +1,46 @@
+schema_version: 1
+purpose: Prompt13 Oxford LIO-only cache and formal-run input audit
+original:
+  path: /home/lc/super_livo/bag/OXFORD/Quarter_01/Quarter_01.bag
+  sha256: 5da1843f9a8949fd0f7dce01e92b3c710ce524213c321b7850cba1a80d8201aa
+  selected_topics:
+    /alphasense_driver_ros/imu: 115459
+    /hesai/pandar: 2894
+candidate_cache:
+  path: /home/lc/super_livo/results/prob_lio_runtime/p13_oxford_quarter01_lio_cache.bag
+  sha256: 39f1c60eda2f3240d38956209b42417760bee0606ae7a8bb4d7bc39ca480e152
+  size_bytes: 2992890893
+  transport: LZ4
+  method: raw serialized records, original record order and bag timestamps
+strict_parity:
+  records: 118353
+  first_stamp_ns: 1710338099003858619
+  last_stamp_ns: 1710338387978226812
+  serialized_sha256: e3a76e8b91dacbb25aa01547991eba592fd2b4ffb8366cbdaefda2328d3994f9
+  topics:
+    /alphasense_driver_ros/imu:
+      records: 115459
+      serialized_sha256: e157eb16de5c04911d0b2f94f3fdb8d11de2504a11b8ae666c4fab7f8ddbe2d6
+    /hesai/pandar:
+      records: 2894
+      serialized_sha256: 9f2cf7371b2dd0b414d4452924e57de7777a990d0024b2c63d41dfa4ff7e5bb6
+  status: PASS
+smoke_cache_gate:
+  B0:
+    original_metric_m: 0.0087
+    cache_metric_m: 0.0087
+    trajectory_sha256: 35b3ce6dd0ef21ee5f3baba7cc5be21a83fbc607e8cd0baa4a41af499911ea8a
+    trajectory_byte_cmp: PASS
+  P4-LC:
+    original_metric_m: 0.0131
+    cache_metric_m: 0.0131
+    trajectory_sha256: 32c6d62f0d13a4c91cf2e73d6a421bb77ca55b3c09bcd21c4d621427fe59ec89
+    trajectory_byte_cmp: PASS
+  status: PASS
+formal_input_policy:
+  run_ids_prefix: p13_oxford_quarter01_
+  full_runs_use_candidate_cache: true
+  full_trajectory_gt: /home/lc/super_livo/bag/OXFORD/Quarter_01/gt-tum.txt
+  gt_sha256: afb6011ad6b21413b811568337d5a0d24447efa967105dc17d29e959490519c1
+  cache_committed: false
+  status: PASS

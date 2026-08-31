@@ -1,0 +1,58 @@
+schema_version: 1
+purpose: Prompt13 MCD legacy filtered-bag authority audit
+selection: >
+  Use the legacy LIO-only filtered bags after checking rosbag metadata and
+  reproducing the source merge semantics. Do not commit either bag.
+manifest:
+  path: /home/lc/super_livo_legacy/cache/datasets/manifest.json
+  path_note: >
+    The manifest records the historical /home/lc/super_livo/cache/datasets
+    prefix; the verified assets currently live under /home/lc/super_livo_legacy.
+assets:
+  day10:
+    path: /home/lc/super_livo_legacy/cache/datasets/ntu_day_10_lio_filtered.bag
+    size_bytes: 554012330
+    sha256: 61c51f07d63546c44272e0876f4e86fcd107f75557e845570aa371ae015a880e
+    manifest_md5: d38c5ee79298988367d4d1f32d07dc9f
+    duration_s: 324.7798674106598
+    topics:
+      /livox/lidar: 3247
+      /vn100/imu: 129191
+    rosbag_transport: lz4
+    rosbag_indexed: true
+  night08:
+    path: /home/lc/super_livo_legacy/cache/datasets/ntu_night_08_lio_filtered.bag
+    size_bytes: 800038892
+    sha256: ac1997f6f67eee1a2f7768bd86ae5bca2b883d63bd71067aa5882b8fcc742657
+    manifest_md5: 9d534e9daafa44e89907b3b234d3c0c1
+    duration_s: 466.7684552669525
+    topics:
+      /livox/lidar: 4667
+      /vn100/imu: 185463
+    rosbag_transport: lz4
+    rosbag_indexed: true
+parity:
+  source_merge_script: tools/prob_lio/merge_mcd.py
+  source_merge_script_sha256: 181ee5dc70bbf43472ed5beebd21059a3e097e73a26fa1f8896e612ba02175c3
+  historical_generator_script_sha256: 29c5b088bcef5fe746b6001ff9acfe0d549826bed54cfc92543385786ba420e7
+  historical_generator_commit: cece772b048a9ccea4b1daa8d4379e8a9732becb
+  record_count_checked: 132438
+  day10_serialized_payload_and_topic_order: PASS
+  day10_source_merge_record_time_max_abs_delta_ns: 120
+  day10_source_merge_record_time_nonidentical: 131875
+  day10_status: PASS
+  night08_current_prompt11_input_cmp: PASS
+  night08_current_prompt11_input_sha256: ac1997f6f67eee1a2f7768bd86ae5bca2b883d63bd71067aa5882b8fcc742657
+contract:
+  lidar_topic: /livox/lidar
+  imu_topic: /vn100/imu
+  ground_truth: pose_inW.csv
+  frame: W_T_B, Body=VN100 IMU
+  lever_arm: none
+  scale_alignment: none
+submission_policy:
+  bags_committed: false
+  node_logs_committed: false
+  debug_dumps_committed: false
+  build_devel_committed: false
+  status: PASS
