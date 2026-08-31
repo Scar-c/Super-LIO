@@ -1,0 +1,11 @@
+git HEAD: UNKNOWN
+script path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+arguments: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_b0_canonical/trajectory.tum /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_b0_canonical/ground_truth.tum --out /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_b0_canonical/evaluation.txt --max-diff 0.05
+comparison frame: body
+alignment type: SE(3), no scale
+association max_diff: 0.050000 s
+matched count: 4438
+trajectory_overlap_duration: 465.231 s
+matched_duration: 465.303 s
+association |dt| s: P50=0.0395 P90=0.0477 P95=0.0485 P99=0.0497 max=0.0500
+translation APE (m): RMSE=1.0210 mean=0.9577 median=0.9063 max=2.1211 P90=1.3760 P95=1.7165
