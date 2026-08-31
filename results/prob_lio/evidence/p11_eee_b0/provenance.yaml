@@ -1,0 +1,48 @@
+schema_version: 1
+run_id: p11_eee_b0
+dataset: NTU
+sequence: eee_01
+variant_id: B0
+classification: CANONICAL_VALID
+run_git_head: 4e81e3f825921ec508cb9709c813a6a33d8841f1
+algorithm_commit: 4e81e3f825921ec508cb9709c813a6a33d8841f1
+run_git_dirty: false
+run_git_status_short: ''
+post_run_git_dirty: true
+production_code_tree_oid: 2a60f5f6e125152c0549ef95d00322e5bfd2e457
+production_code_oid: null
+bag:
+  path: /home/lc/super_livo/bag/NTU/eee_01/eee_01.bag
+  sha256: 7ea43946cffdd49c88d993ad3f192a4e90a8f6826eddc2ef1a9d4f5343ca6c17
+ground_truth:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_b0/ground_truth.tum
+  sha256: 1829bbbd60da4e5ec3b94a51ee96431f443b6672f18c76ed24d060497040049e
+  source: bag_topic
+  topic: /leica/pose/relative
+evaluator:
+  profile: ntu_viral_full_trajectory
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_ntu_viral_official.py
+  sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
+  output: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_b0/evaluation.yaml
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+  sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+effective_config:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_b0/effective_rosparams.yaml
+  sha256: d57d91d5372031af947af166320fa3348972300b4bc8bfb3581a96b58077eff5
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+primary_metric:
+  name: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+  value: 0.11887563928223766
+  unit: m
+trajectory:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_eee_b0/trajectory.tum
+  sha256: 6a8cc65adf3c90e07ddcfa86d7baae9eb53ce31214711636b15f0de909e06e13
+  rows: 3981
+runtime_wall_s: 49.977098433999345
+runtime_classification: CANONICAL_VALID
+manifest: results/prob_lio/evidence/p11_eee_b0/run_manifest.yaml

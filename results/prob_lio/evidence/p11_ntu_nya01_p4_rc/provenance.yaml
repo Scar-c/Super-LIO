@@ -1,0 +1,48 @@
+schema_version: 1
+run_id: p11_ntu_nya01_p4_rc
+dataset: NTU
+sequence: nya_01
+variant_id: P4-RC
+classification: CANONICAL_VALID
+run_git_head: 1c7f92c7ecef946a3571936e74b4767082103dfc
+algorithm_commit: 1c7f92c7ecef946a3571936e74b4767082103dfc
+run_git_dirty: false
+run_git_status_short: ''
+post_run_git_dirty: true
+production_code_tree_oid: 36573874c71699769a20847f0b3b292c513504bd
+production_code_oid: null
+bag:
+  path: /home/lc/super_livo/bag/NTU/nya_01/nya_01.bag
+  sha256: 8e8655cea434bf78cb037a05bde4726e72a434cd37197e309a97d0c376e10061
+ground_truth:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p4_rc/ground_truth.tum
+  sha256: da3cd291a29b499df70ead3ba92da863e8dc581d92494d7d0284392cf5940b00
+  source: bag_topic
+  topic: /leica/pose/relative
+evaluator:
+  profile: ntu_viral_full_trajectory
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_ntu_viral_official.py
+  sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
+  output: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p4_rc/evaluation.yaml
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+  sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+effective_config:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p4_rc/effective_rosparams.yaml
+  sha256: 3375e2f32243ddecc4652b5619260f92f46f1e15d7655ff968663a4036316aec
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+primary_metric:
+  name: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+  value: 0.060846955523802156
+  unit: m
+trajectory:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p4_rc/trajectory.tum
+  sha256: 8c2558133d61669e947ff388c4f6e9ed0583e4de352b19b545384144d805fd77
+  rows: 3943
+runtime_wall_s: 57.61471764500311
+runtime_classification: CANONICAL_VALID
+manifest: results/prob_lio/evidence/p11_ntu_nya01_p4_rc/run_manifest.yaml

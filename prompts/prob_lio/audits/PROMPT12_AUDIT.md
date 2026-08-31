@@ -34,7 +34,9 @@ results/prob_lio/evidence/<run_id>/
 The compact exporter allowlist is implemented by
 `tools/prob_lio/export_evidence.py`; `tests/prob_lio/test_evidence_hygiene.py`
 and `tools/prob_lio/check_evidence_hygiene.py` enforce it. Prompt11's 18
-existing `CANONICAL_VALID` runs have compact evidence under this root. Each
+existing `CANONICAL_VALID` runs have compact evidence under this root,
+including normalized `provenance.yaml` records with explicit
+`run_git_head`/`run_git_dirty=false` fields. Each
 of the 12 Prompt12 completed runs has roughly 5–6 KB tracked evidence and
 roughly 0.5–1.1 MB local runtime; the runtime contains the ignored trajectory,
 GT adapter output, and ROS logs, while the tracked evidence contains no such

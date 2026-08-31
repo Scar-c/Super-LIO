@@ -1,0 +1,48 @@
+schema_version: 1
+run_id: p11_mcd_night08_p4_lc
+dataset: MCD
+sequence: ntu_night_08
+variant_id: P4-LC
+classification: CANONICAL_VALID
+run_git_head: cdb7329ba63c745f99313bf4a6bdd3fb3a401e3b
+algorithm_commit: cdb7329ba63c745f99313bf4a6bdd3fb3a401e3b
+run_git_dirty: false
+run_git_status_short: ''
+post_run_git_dirty: true
+production_code_tree_oid: 36573874c71699769a20847f0b3b292c513504bd
+production_code_oid: null
+bag:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_input/ntu_night_08_lio_filtered.bag
+  sha256: ac1997f6f67eee1a2f7768bd86ae5bca2b883d63bd71067aa5882b8fcc742657
+ground_truth:
+  path: /home/lc/super_livo/bag/MCD/ntu_night_08/pose_inW.csv
+  sha256: b2804bd8ea8e8c2d8ceca9cf3380c37a7e768f8e5ac3dd310b0e37e34e12b3e5
+  source: external_csv
+  topic: null
+evaluator:
+  profile: mcd_night08_full_trajectory
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+  output: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_p4_lc/evaluation.txt
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/MCD_ATH.yaml
+  sha256: ccafd53ef5ec1e3caa9e224e73a12ff20ab8f7638e60ac1bb62bf02b22174d23
+effective_config:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_p4_lc/effective_rosparams.yaml
+  sha256: ac4895045d8e855870a5abcb687069c8fea8b05fbfb9809ea098266017d1bd28
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+primary_metric:
+  name: MCD_DATASET_TRANSLATION_ATE_RMSE_M
+  value: 1.3027
+  unit: m
+trajectory:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_mcd_night08_p4_lc/trajectory.tum
+  sha256: ca8a38ed6cdef8981e118a06f9c7b924414bd23369aa564a69dfd92904fa01dc
+  rows: 4661
+runtime_wall_s: 49.060728952004865
+runtime_classification: CANONICAL_VALID
+manifest: results/prob_lio/evidence/p11_mcd_night08_p4_lc/run_manifest.yaml

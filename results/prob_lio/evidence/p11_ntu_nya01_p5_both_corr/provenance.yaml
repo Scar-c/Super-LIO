@@ -1,0 +1,48 @@
+schema_version: 1
+run_id: p11_ntu_nya01_p5_both_corr
+dataset: NTU
+sequence: nya_01
+variant_id: P5-BOTH-CORR
+classification: CANONICAL_VALID
+run_git_head: 645bc77ccbae54c024cddcae2ba072ac9abe7b64
+algorithm_commit: 645bc77ccbae54c024cddcae2ba072ac9abe7b64
+run_git_dirty: false
+run_git_status_short: ''
+post_run_git_dirty: true
+production_code_tree_oid: 36573874c71699769a20847f0b3b292c513504bd
+production_code_oid: null
+bag:
+  path: /home/lc/super_livo/bag/NTU/nya_01/nya_01.bag
+  sha256: 8e8655cea434bf78cb037a05bde4726e72a434cd37197e309a97d0c376e10061
+ground_truth:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_both_corr/ground_truth.tum
+  sha256: da3cd291a29b499df70ead3ba92da863e8dc581d92494d7d0284392cf5940b00
+  source: bag_topic
+  topic: /leica/pose/relative
+evaluator:
+  profile: ntu_viral_full_trajectory
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_ntu_viral_official.py
+  sha256: 092beba2b99ac02cfbb1d30b1c0b1ec49cf2b41203090a81c66eb0d0824187dd
+  output: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_both_corr/evaluation.yaml
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+  sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+effective_config:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_both_corr/effective_rosparams.yaml
+  sha256: 997bf9ef61acd6063b29d9ec5b1b53b5f8feb195b92057333b74041b93b1cb95
+completion: true
+return_codes:
+  runner: 0
+  gt_adapter: 0
+  evaluator: 0
+primary_metric:
+  name: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
+  value: 0.06498111715198579
+  unit: m
+trajectory:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/p11_ntu_nya01_p5_both_corr/trajectory.tum
+  sha256: acf147e78e836d035ff9ab67030f14058a7a1bd4963db415b92743549c6571aa
+  rows: 3943
+runtime_wall_s: 63.37138507799682
+runtime_classification: CANONICAL_VALID
+manifest: results/prob_lio/evidence/p11_ntu_nya01_p5_both_corr/run_manifest.yaml
