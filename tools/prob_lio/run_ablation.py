@@ -499,7 +499,7 @@ def main(argv=None):
         # may itself be untracked until evidence is committed, so retain the
         # post-run Git state only as a diagnostic field.
         "algorithm": preflight["algorithm"],
-        "algorithm_commit": args.algorithm_commit or preflight["algorithm"]["head"],
+        "algorithm_commit": preflight["algorithm"]["head"],
         "production_code_oid": preflight["algorithm"]["production_code_oid"],
         "dataset_config_sha256": (
             preflight["effective_config_snapshot"]["base_config_sha256"]
