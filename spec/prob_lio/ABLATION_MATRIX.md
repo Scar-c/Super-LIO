@@ -4,7 +4,9 @@ This is the authoritative cross-dataset screening ledger. Values are reported
 under the registered **PRIMARY METRIC** for each ground-truth contract; this is
 not an ATE table. Prompt11 uses one clean deterministic screening run
 (`n=1`) per sequence and variant. Prompt12 adds the NTU `sbs_01` row,
-audited Oxford screening, and explicit M3DGR owner exclusions.
+audited Oxford screening, and explicit M3DGR owner exclusions. New compact
+evidence is under `results/prob_lio/evidence/`; full runtime artifacts remain
+outside the repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
 
 ## Required compact matrix
 
@@ -13,8 +15,8 @@ audited Oxford screening, and explicit M3DGR owner exclusions.
 | MCD | ntu_night_08 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 1.021000 | 1.302700 | 1.260700 | 1.324500 | 1.151800 | 1.148600 | all six `CANONICAL_VALID`; merged input and GT/config identities recorded |
 | NTU VIRAL | eee_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.118875639 | 0.088831554 | 0.089745655 | 1.190814611 | 1.190814611 | 1.225502411 | all six `CANONICAL_VALID`; P4-LC byte parity and all three exact isolation checks PASS |
 | NTU VIRAL | nya_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.062926634 | 0.060714509 | 0.060846956 | 0.064154094 | 0.064154094 | 0.064981117 | all six `CANONICAL_VALID`; P5 ACTIVE/SENSOR byte identity under `R_LI=I` |
-| NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | Prompt12 provenance passed; six-cell screening pending |
-| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | exact old-branch config ported; calibration/frame/evaluator audit pending |
+| NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.084422872 | 0.083957108 | 0.083900662 | 0.618501810 | 0.618501810 | 0.653594851 | all six `CANONICAL_VALID`; 2813 matches; NTU family config/evaluator contract audited |
+| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | all six `CANONICAL_VALID`; 2887 matches; exact old-branch config ported |
 | M3DGR | Outdoor01 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
 | M3DGR | Outdoor04 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
 | M3DGR | Corridor01 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
@@ -38,6 +40,37 @@ runtime directory and exports the compact snapshot under
 | P5-SENSOR-CORR → P5-BOTH-CORR | `lio/prob_lio/association_pose_cov_model` |
 
 Any other algorithm parameter difference makes the comparison `INVALID`.
+
+## Prompt12 completed run ledger
+
+The following 12 new cells are backed by compact, committed evidence. The
+manifest in each linked directory contains the full bag/GT/evaluator/config
+hashes, run and algorithm identities, dirty state, completion/return codes,
+metric output, trajectory hash, and runtime classification.
+
+| Dataset | Sequence | Variant | Primary metric (m) | Rows / matched | Trajectory sha256 | Evidence | Status |
+|---|---|---|---:|---:|---|---|---|
+| NTU | sbs_01 | B0 | 0.084422872 | 3536 / 2813 | `94309c3df4fc` | [`p12_ntu_sbs01_b0_retry`](../../results/prob_lio/evidence/p12_ntu_sbs01_b0_retry/run_manifest.yaml) | `CANONICAL_VALID` |
+| NTU | sbs_01 | P4-LC | 0.083957108 | 3536 / 2813 | `3164176cf70a` | [`p12_ntu_sbs01_p4_lc`](../../results/prob_lio/evidence/p12_ntu_sbs01_p4_lc/run_manifest.yaml) | `CANONICAL_VALID` |
+| NTU | sbs_01 | P4-RC | 0.083900662 | 3536 / 2813 | `560833e07cb4` | [`p12_ntu_sbs01_p4_rc`](../../results/prob_lio/evidence/p12_ntu_sbs01_p4_rc/run_manifest.yaml) | `CANONICAL_VALID` |
+| NTU | sbs_01 | P5-ACTIVE | 0.618501810 | 3536 / 2813 | `91cd47810110` | [`p12_ntu_sbs01_p5_active`](../../results/prob_lio/evidence/p12_ntu_sbs01_p5_active/run_manifest.yaml) | `CANONICAL_VALID` |
+| NTU | sbs_01 | P5-SENSOR-CORR | 0.618501810 | 3536 / 2813 | `91cd47810110` | [`p12_ntu_sbs01_p5_sensor_corr`](../../results/prob_lio/evidence/p12_ntu_sbs01_p5_sensor_corr/run_manifest.yaml) | `CANONICAL_VALID`; byte identity PASS |
+| NTU | sbs_01 | P5-BOTH-CORR | 0.653594851 | 3536 / 2813 | `d28a28bac6cf` | [`p12_ntu_sbs01_p5_both_corr`](../../results/prob_lio/evidence/p12_ntu_sbs01_p5_both_corr/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | B0 | 0.0630 | 2888 / 2887 | `4fc6c57614f7` | [`p12_oxford_quarter01_b0`](../../results/prob_lio/evidence/p12_oxford_quarter01_b0/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | P4-LC | 0.0514 | 2888 / 2887 | `972a50df361a` | [`p12_oxford_quarter01_p4_lc`](../../results/prob_lio/evidence/p12_oxford_quarter01_p4_lc/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | P4-RC | 0.0519 | 2888 / 2887 | `c4b100dbcbfe` | [`p12_oxford_quarter01_p4_rc`](../../results/prob_lio/evidence/p12_oxford_quarter01_p4_rc/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | P5-ACTIVE | 0.0796 | 2888 / 2887 | `36407fcab07e` | [`p12_oxford_quarter01_p5_active`](../../results/prob_lio/evidence/p12_oxford_quarter01_p5_active/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | P5-SENSOR-CORR | 0.0812 | 2888 / 2887 | `68db1459ec53` | [`p12_oxford_quarter01_p5_sensor_corr`](../../results/prob_lio/evidence/p12_oxford_quarter01_p5_sensor_corr/run_manifest.yaml) | `CANONICAL_VALID` |
+| Oxford Spires | Quarter_01 | P5-BOTH-CORR | 0.0812 | 2888 / 2887 | `24a287663451` | [`p12_oxford_quarter01_p5_both_corr`](../../results/prob_lio/evidence/p12_oxford_quarter01_p5_both_corr/run_manifest.yaml) | `CANONICAL_VALID` |
+
+Prompt12 identity: all completed cells use production code OID
+`36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62`.
+The NTU config hash is `9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a`;
+the Oxford config hash is
+`72f5553a654a372738fe47933522f2f6500fd4cb96212d13474feb60c6f1209b`.
+The three exact isolation families are recorded under the P4/P5 evidence
+directories; the sbs P5 ACTIVE/SENSOR-CORR trajectory hashes are identical
+because the accepted NTU extrinsic has identity rotation.
 
 ## Detailed per-run ledger
 

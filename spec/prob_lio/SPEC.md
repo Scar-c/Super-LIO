@@ -95,7 +95,7 @@ Round-history sections below are records and may quote superseded claims
 | P3 | CLOSED / OWNER VERIFIED |
 | P4 | CLOSED / OWNER VERIFIED |
 | P5 | EXPERIMENTAL / NON-CANONICAL |
-| Generalization | READY / NOT STARTED (Prompt11 preflight; ACTIVE / IN PROGRESS after the first real run) |
+| Generalization | Prompt12 ACTIVE: NTU `sbs_01` and Oxford `Quarter_01` six-cell matrices complete; M3DGR Outdoor01/04 provenance-blocked; Corridor01/02 owner-excluded |
 
 P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
 the recommended default.
@@ -299,9 +299,27 @@ modify → test → commit → clean → canonical run → evaluate
 ```
 
 Canonical run metadata must include: `algorithm_commit`, `run_git_head`,
-`run_git_dirty=false`, `run_git_status_short=""`, `production_code_tree_oid`,
-bag hash, effective config snapshot. Generated runtime artifacts belong
-under `results/prob_lio/run_xxx/`, never under `src/super_lio/`.
+`run_git_dirty=false`, `run_git_status_short=""`, `production_code_oid`,
+`dataset_config_sha256`, bag/GT/evaluator hashes, effective config snapshot,
+trajectory hash/rows, completion, metric, and runtime classification.
+Generated runtime artifacts belong under the ignored workspace-level
+`results/prob_lio_runtime/<run_id>/`; compact tracked evidence belongs under
+`results/prob_lio/evidence/<run_id>/`, never large runtime outputs under
+`src/super_lio/`.
+
+### 5A.12 Prompt12 generalization status
+
+Prompt12 completed clean six-cell screening for NTU `sbs_01` and Oxford
+`Quarter_01` using the fixed B0/P4/P5 variant contract. All 12 manifests are
+`CANONICAL_VALID`, with light covariance validation, P5 shadow OFF, and heavy
+diagnostics OFF. The full matrix and compact evidence links are maintained in
+`ABLATION_MATRIX.md` and `EVIDENCE_INDEX.md`.
+
+M3DGR Outdoor01 and Outdoor04 are `CONFIG_PROVENANCE_BLOCKED` because no exact
+Super-LIO Outdoor configuration was found in the audited current or old
+method-author trees. M3DGR Corridor01 and Corridor02 are
+`EXCLUDED_BY_OWNER`; neither corridor bag was run. This status does not
+authorize any follow-on config design or noise-tuning round.
 
 ## 6. Baseline (frozen)
 
@@ -1350,7 +1368,8 @@ sensors; this is recorded as a **pre-generalization semantic decision**
 
 - P5 remains `IMPLEMENTATION COMPLETE / OWNER DIAGNOSIS PENDING` — NOT
   Owner-verified; Owner audit pending.
-- Future generalization: **NOT STARTED / OWNER NEXT DECISION**.
+- Prompt12 generalization evidence is now indexed in `ABLATION_MATRIX.md`
+  and `EVIDENCE_INDEX.md`; no noise-tuning or attribution round was started.
 
 ## 10. Gate summary
 

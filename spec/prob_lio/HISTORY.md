@@ -19,6 +19,7 @@ current truth and must not be cited as such.
 | prompt9 (failed) | — | terminal P5 lifecycle corrective | `e53340b` (backup `backup/p9-failed-20260831_003717`) | DISCARDED (compile-broken state) |
 | prompt9-REDO | P5-4 | redo from `555d94a`; T1–T5 + corrected evidence | `9ec5be3` (M), `6473ab0`, `f56c376`, `4f12637`, `2bfc23c`, `8b5a1dc` | CLOSED; P5 experimental |
 | prompt10 | docs | documentation consolidation / canonicalization | docs commit | CLOSED |
+| prompt12 | generalization/evidence | runtime/evidence hygiene; NTU `sbs_01`; Oxford port; M3DGR provenance/exclusions | `c8f512c` through final Prompt12 range | CLOSED with Outdoor01/04 provenance blocked and Corridor01/02 owner-excluded |
 
 ## Superseded / invalidated conclusions
 

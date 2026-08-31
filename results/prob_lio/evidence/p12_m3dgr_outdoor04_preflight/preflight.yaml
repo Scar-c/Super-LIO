@@ -1,0 +1,140 @@
+schema_version: 1
+status: CONFIG_PROVENANCE_BLOCKED
+dataset: M3DGR
+sequence: Outdoor04
+variant: B0
+ground_truth_type: FULL_TRAJECTORY
+primary_metric: M3DGR_TUM_TRANSLATION_APE_RMSE_M
+unit: m
+bag:
+  path: /home/lc/super_livo/bag/M3DGR/Outdoor04/Outdoor04.bag
+  exists: true
+  size_bytes: 14349022307
+  sha256: fc1848dd1941af203858ba08d9c910e97a7aba18896e18a3d705bbd42fc7c06e
+topics:
+  /camera/aligned_depth_to_color/image_raw/compressedDepth:
+    type: sensor_msgs/CompressedImage
+    messages: 23462
+    frequency: null
+  /camera/color/image_raw/compressed:
+    type: sensor_msgs/CompressedImage
+    messages: 23470
+    frequency: null
+  /camera/imu:
+    type: sensor_msgs/Imu
+    messages: 156593
+    frequency: null
+  /cv_camera/image_raw/compressed:
+    type: sensor_msgs/CompressedImage
+    messages: 11742
+    frequency: null
+  /livox/avia/imu:
+    type: sensor_msgs/Imu
+    messages: 159187
+    frequency: null
+  /livox/avia/lidar:
+    type: livox_ros_driver/CustomMsg
+    messages: 7829
+    frequency: null
+  /livox/mid360/imu:
+    type: sensor_msgs/Imu
+    messages: 156583
+    frequency: null
+  /livox/mid360/lidar:
+    type: livox_ros_driver2/CustomMsg
+    messages: 7828
+    frequency: null
+  /mavros/global_position/raw/fix:
+    type: sensor_msgs/NavSatFix
+    messages: 11745
+    frequency: null
+  /odom:
+    type: nav_msgs/Odometry
+    messages: 15658
+    frequency: null
+  /ublox_driver/ephem:
+    type: gnss_comm/GnssEphemMsg
+    messages: 342
+    frequency: null
+  /ublox_driver/glo_ephem:
+    type: gnss_comm/GnssGloEphemMsg
+    messages: 120
+    frequency: null
+  /ublox_driver/iono_params:
+    type: gnss_comm/StampedFloat64Array
+    messages: 184
+    frequency: null
+  /ublox_driver/range_meas:
+    type: gnss_comm/GnssMeasMsg
+    messages: 7830
+    frequency: null
+  /ublox_driver/receiver_lla:
+    type: sensor_msgs/NavSatFix
+    messages: 7829
+    frequency: null
+  /ublox_driver/receiver_pvt:
+    type: gnss_comm/GnssPVTSolnMsg
+    messages: 7829
+    frequency: null
+required_topics:
+- /livox/avia/lidar
+- /livox/avia/imu
+missing_topics: []
+calibration: []
+ground_truth:
+  path: /home/lc/super_livo/bag/M3DGR/Outdoor04/Outdoor04.tum
+  exists: true
+  size_bytes: 988467
+  sha256: f6914984e6321b8205a2158b5e29c75a09b39889768ef6106af63af9342bc4da
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/m3dgr_outdoor04.yaml
+  exists: false
+  size_bytes: null
+  sha256: null
+evaluator:
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  exists: true
+  size_bytes: 8604
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+evaluator_provenance:
+  profile: m3dgr_outdoor04_full_trajectory
+  kind: tum_translation
+  upstream: pinned in evaluator source
+  frame_transform: full trajectory frame audit required after exact config recovery
+  timestamp_policy: strict increasing TUM with explicit frame/time audit required
+  alignment_policy: SE3 Umeyama, no scale only after frame/time audit
+config_provenance:
+  old_branch_config: NOT_FOUND
+  authority: CONFIG_PROVENANCE_BLOCKED
+algorithm:
+  branch: prob-lio
+  head: 7cec4c7f6a916f4f64849961acd3e89b27ed5eee
+  dirty: false
+  status_short: ''
+  production_tree_oid: 097f5af820120376adb4b8786f8b6726705aacf8
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+variant_overrides:
+  /lio/prob_lio/cov_enable: 'false'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: livo2_compat
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'false'
+  /lio/prob_lio/p2p_weight_mode: fixed_1000
+  /lio/prob_lio/association_mode: super_legacy
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: inherit_map
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
+effective_config_snapshot:
+  base_config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/m3dgr_outdoor04.yaml
+  base_config_sha256: null
+  requested_overrides:
+    /lio/prob_lio/cov_enable: 'false'
+    /lio/prob_lio/cov_validation_mode: light
+    /lio/prob_lio/map_pose_cov_model: livo2_compat
+    /lio/prob_lio/map_cov_storage_precision: double
+    /lio/prob_lio/qr_plane_cov_enable: 'false'
+    /lio/prob_lio/p2p_weight_mode: fixed_1000
+    /lio/prob_lio/association_mode: super_legacy
+    /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+    /lio/prob_lio/association_pose_cov_model: inherit_map
+    /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent

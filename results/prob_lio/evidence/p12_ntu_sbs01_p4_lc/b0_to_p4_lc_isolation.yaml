@@ -1,0 +1,18 @@
+schema_version: 1
+left: /home/lc/super_livo/results/prob_lio_runtime/p12_ntu_sbs01_b0_retry/effective_rosparams.yaml
+right: /home/lc/super_livo/results/prob_lio_runtime/p12_ntu_sbs01_p4_lc/effective_rosparams.yaml
+allowed_keys:
+- lio/prob_lio/cov_enable
+- lio/prob_lio/p2p_weight_mode
+- lio/prob_lio/qr_plane_cov_enable
+differences:
+- key: lio/prob_lio/cov_enable
+  left: false
+  right: true
+- key: lio/prob_lio/p2p_weight_mode
+  left: fixed_1000
+  right: prob_livo2
+- key: lio/prob_lio/qr_plane_cov_enable
+  left: false
+  right: true
+status: PASS

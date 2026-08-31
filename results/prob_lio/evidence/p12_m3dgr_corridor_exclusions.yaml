@@ -1,0 +1,14 @@
+schema_version: 1
+prompt: Prompt12
+dataset: M3DGR
+decision: EXCLUDED_BY_OWNER
+sequences:
+  Corridor01:
+    status: EXCLUDED_BY_OWNER
+    run_authorized: false
+    reason: Owner explicitly excludes M3DGR Corridor01 from Prompt12.
+  Corridor02:
+    status: EXCLUDED_BY_OWNER
+    run_authorized: false
+    reason: Owner explicitly excludes M3DGR Corridor02 from Prompt12.
+policy: No bag execution, config recovery, or evaluator work was performed for these cells.

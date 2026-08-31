@@ -1,0 +1,18 @@
+schema_version: 1
+production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+datasets:
+  NTU_sbs_01:
+    dataset_config_sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+  Oxford_Quarter_01:
+    dataset_config_sha256: 72f5553a654a372738fe47933522f2f6500fd4cb96212d13474feb60c6f1209b
+  M3DGR_Outdoor01_preflight:
+    dataset_config_sha256: null
+    status: CONFIG_PROVENANCE_BLOCKED
+  M3DGR_Outdoor04_preflight:
+    dataset_config_sha256: null
+    status: CONFIG_PROVENANCE_BLOCKED
+verification:
+  same_production_code_oid_across_completed_sequences: true
+  completed_sequence_config_hashes_differ_as_expected: true
+  negative_cpp_mutation_changes_production_code_oid: true
+  test: tests/prob_lio/test_production_identity.py

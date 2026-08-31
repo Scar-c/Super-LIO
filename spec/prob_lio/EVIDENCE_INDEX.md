@@ -1,12 +1,30 @@
 # Prob-LIO Evidence Index (Level 2 — current evidence authority)
 
-Single index of canonical evidence for Prob-LIO on `eee_01`. Level 1
+Single index of canonical evidence for Prob-LIO. Level 1
 (current architecture/status truth) is `SPEC.md` §5A. Historical/superseded
 material lives in `HISTORY.md` (Level 3).
 
 All runs below are **clean committed-source runs** (`run_git_dirty=no`),
 unless explicitly labeled. Trajectory hashes are sha256 prefixes of the
-run's `trajectory.tum`.
+local runtime `trajectory.tum`; Prompt12 compact evidence never copies the
+large trajectory into Git.
+
+## 0. Prompt12 generalization evidence
+
+The six NTU `sbs_01` cells and six Oxford `Quarter_01` cells are indexed in
+[`ABLATION_MATRIX.md`](ABLATION_MATRIX.md). Their compact manifests live in
+[`results/prob_lio/evidence/`](../../results/prob_lio/evidence/). Full runtime
+artifacts are intentionally outside the repository at
+`/home/lc/super_livo/results/prob_lio_runtime/<run_id>/`.
+
+Prompt12 production code OID is
+`36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62`.
+The NTU `sbs_01` dataset-config SHA256 is
+`9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a` and the
+Oxford `Quarter_01` config SHA256 is
+`72f5553a654a372738fe47933522f2f6500fd4cb96212d13474feb60c6f1209b`.
+M3DGR Outdoor01/04 have compact blocked preflight evidence; Corridor01/02
+have explicit owner-exclusion evidence and were not run.
 
 ## 1. Frozen baseline (pre-P1, fixed `1000`)
 
@@ -109,6 +127,8 @@ no scale; 3981 estimated rows / 3329 matched. Frozen GT:
 Permanent rule: `modify → test → commit → clean → canonical run →
 evaluate`. Canonical metadata: `algorithm_commit`, `run_git_head`,
 `run_git_dirty=false`, `run_git_status_short=""`,
-`production_code_tree_oid`, bag hash, effective config snapshot. Runtime
-artifacts under `results/prob_lio/run_xxx/` only. Dirty/provisional runs
-are never promoted to this index.
+`production_code_oid`, dataset config hash, bag hash, effective config
+snapshot. Runtime artifacts are under the ignored workspace-level
+`results/prob_lio_runtime/<run_id>/`; tracked evidence is compact and lives
+under `results/prob_lio/evidence/<run_id>/`. Dirty/provisional runs are never
+promoted to this index.
