@@ -403,6 +403,7 @@ def main(argv=None):
         "dataset": args.dataset,
         "sequence": args.sequence,
         "variant": args.variant,
+        "duration": args.duration,
         "rosparam_overrides": rosparam_overrides(args.variant),
     })
     command = [
