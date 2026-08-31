@@ -33,4 +33,5 @@ results/prob_lio/**/build*.log
 results/prob_lio/**/*.out
 results/prob_lio/**/gt/*.tum
 results/prob_lio/build*.log
+results/prob_lio/*build*.log
 results/prob_lio/*.out
