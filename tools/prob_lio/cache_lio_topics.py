@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import os
 import pathlib
 import sys
 
@@ -57,11 +58,16 @@ def main(argv=None):
         print(f"refusing to overwrite cache: {output_path}", file=sys.stderr)
         return 2
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    partial_path = pathlib.Path(str(output_path) + ".partial")
+    if partial_path.exists():
+        print(f"refusing to overwrite partial cache: {partial_path}", file=sys.stderr)
+        return 2
     try:
-        counts = build_cache(input_path, output_path, topics)
+        counts = build_cache(input_path, partial_path, topics)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    os.replace(partial_path, output_path)
     report = {
         "schema_version": 1,
         "input": {
