@@ -1,0 +1,114 @@
+schema_version: 1
+status: PASS
+source_bag:
+  path: /home/lc/super_livo/bag/OXFORD/Palace_01/Palace_01.bag
+  size_bytes: 6325760912
+  sha256: 377ab4e5535ea3f15de121f67e19128a6d2c308c4df9bbd69ec997e4160a2958
+  compression: bz2
+cache_bag:
+  path: /home/lc/super_livo/bag/OXFORD/Palace_01/Palace_01_LIVO.bag
+  size_bytes: 4722792709
+  sha256: 38d5b3d960134447f1965de8e568e76c0ed0352c7c45ec94a8ff696e0b3a4cfc
+  compression: lz4
+build_time_s: 531.866039478
+topics:
+- /hesai/pandar
+- /alphasense_driver_ros/imu
+- /alphasense_driver_ros/cam0/debayered/image/compressed
+source_summary:
+  records: 173493
+  first_stamp_ns: 1710406747003651852
+  last_stamp_ns: 1710407150998909025
+  record_sha256: c3d2ea42f4f1abac98f86777741e8e77ebdb53693b9de2484e447e1da9713ff5
+  payload_sha256: b3c67ec2398b02fd9a34006429f66281d798429ce6d75696100b7d5ed2302ced
+  topics:
+    /alphasense_driver_ros/cam0/debayered/image/compressed:
+      records: 8041
+      first_stamp_ns: 1710406747006430579
+      last_stamp_ns: 1710407150998909025
+      record_sha256: 5f44eec1b1a8143d7d70d5fdb29223e688471cdb6c07e97090bade6d0189229b
+      payload_sha256: 5db804439a712a49bffd92ada659370b2bf4927fb1afe75a1543fced14acee8b
+      type: sensor_msgs/CompressedImage
+    /alphasense_driver_ros/imu:
+      records: 161400
+      first_stamp_ns: 1710406747003651852
+      last_stamp_ns: 1710407150989797229
+      record_sha256: b99713cfe15137a2768e79d8e751c132c114709d57dfe33976c3509e177a40fe
+      payload_sha256: e245e0c404917b446757146785cad161e986bd819adb071c937ae7e129fe981b
+      type: sensor_msgs/Imu
+    /hesai/pandar:
+      records: 4052
+      first_stamp_ns: 1710406747081685168
+      last_stamp_ns: 1710407150907526772
+      record_sha256: ec92994efbfa74a8d3e86fe2a3d82211267b53cf5702ecd8d49dca4e4d95af6d
+      payload_sha256: a51c6f9a1fa604742a95740389bc678c4a9c97fd60cfe97a15d739f4f52c9b5e
+      type: sensor_msgs/PointCloud2
+cache_summary:
+  records: 173493
+  first_stamp_ns: 1710406747003651852
+  last_stamp_ns: 1710407150998909025
+  record_sha256: c3d2ea42f4f1abac98f86777741e8e77ebdb53693b9de2484e447e1da9713ff5
+  payload_sha256: b3c67ec2398b02fd9a34006429f66281d798429ce6d75696100b7d5ed2302ced
+  topics:
+    /alphasense_driver_ros/cam0/debayered/image/compressed:
+      records: 8041
+      first_stamp_ns: 1710406747006430579
+      last_stamp_ns: 1710407150998909025
+      record_sha256: 5f44eec1b1a8143d7d70d5fdb29223e688471cdb6c07e97090bade6d0189229b
+      payload_sha256: 5db804439a712a49bffd92ada659370b2bf4927fb1afe75a1543fced14acee8b
+      type: sensor_msgs/CompressedImage
+    /alphasense_driver_ros/imu:
+      records: 161400
+      first_stamp_ns: 1710406747003651852
+      last_stamp_ns: 1710407150989797229
+      record_sha256: b99713cfe15137a2768e79d8e751c132c114709d57dfe33976c3509e177a40fe
+      payload_sha256: e245e0c404917b446757146785cad161e986bd819adb071c937ae7e129fe981b
+      type: sensor_msgs/Imu
+    /hesai/pandar:
+      records: 4052
+      first_stamp_ns: 1710406747081685168
+      last_stamp_ns: 1710407150907526772
+      record_sha256: ec92994efbfa74a8d3e86fe2a3d82211267b53cf5702ecd8d49dca4e4d95af6d
+      payload_sha256: a51c6f9a1fa604742a95740389bc678c4a9c97fd60cfe97a15d739f4f52c9b5e
+      type: sensor_msgs/PointCloud2
+parity:
+  status: PASS
+  differences: []
+  ordering_parity: PASS
+  timestamp_parity: PASS
+  topics:
+    /hesai/pandar:
+      type: sensor_msgs/PointCloud2
+      source_count: 4052
+      cache_count: 4052
+      payload_sha256_source: a51c6f9a1fa604742a95740389bc678c4a9c97fd60cfe97a15d739f4f52c9b5e
+      payload_sha256_cache: a51c6f9a1fa604742a95740389bc678c4a9c97fd60cfe97a15d739f4f52c9b5e
+      payload_parity: PASS
+      timestamp_parity: PASS
+      ordering_parity: PASS
+    /alphasense_driver_ros/imu:
+      type: sensor_msgs/Imu
+      source_count: 161400
+      cache_count: 161400
+      payload_sha256_source: e245e0c404917b446757146785cad161e986bd819adb071c937ae7e129fe981b
+      payload_sha256_cache: e245e0c404917b446757146785cad161e986bd819adb071c937ae7e129fe981b
+      payload_parity: PASS
+      timestamp_parity: PASS
+      ordering_parity: PASS
+    /alphasense_driver_ros/cam0/debayered/image/compressed:
+      type: sensor_msgs/CompressedImage
+      source_count: 8041
+      cache_count: 8041
+      payload_sha256_source: 5db804439a712a49bffd92ada659370b2bf4927fb1afe75a1543fced14acee8b
+      payload_sha256_cache: 5db804439a712a49bffd92ada659370b2bf4927fb1afe75a1543fced14acee8b
+      payload_parity: PASS
+      timestamp_parity: PASS
+      ordering_parity: PASS
+camera_policy:
+  official_camera: cam0
+  retained_topic: /alphasense_driver_ros/cam0/debayered/image/compressed
+  excluded_topics:
+  - /alphasense_driver_ros/cam1/debayered/image/compressed
+  - /alphasense_driver_ros/cam2/debayered/image/compressed
+  conversion: none
+transport: topic subset plus LZ4 bag container; raw serialized payloads preserved

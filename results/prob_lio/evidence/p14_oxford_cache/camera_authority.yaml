@@ -1,0 +1,30 @@
+prompt: Prompt14
+dataset: Oxford Spires
+authority:
+  source: FAST-LIVO2 official Oxford Spires configuration
+  branch: config-used-OSD
+  official_camera_topic: /alphasense_driver_ros/cam0/color/image
+  source_bag_camera_topic: /alphasense_driver_ros/cam0/debayered/image/compressed
+  rationale: The source bag stores the official cam0 stream in compressed form; the cache copies its serialized CompressedImage payload without decode or re-encode.
+cache_policy:
+  required_topics:
+    - /hesai/pandar
+    - /alphasense_driver_ros/imu
+    - /alphasense_driver_ros/cam0/debayered/image/compressed
+  excluded_camera_topics:
+    - /alphasense_driver_ros/cam1/debayered/image/compressed
+    - /alphasense_driver_ros/cam2/debayered/image/compressed
+  transformation: raw serialized topic copy only
+  image_decode: false
+  image_reencode: false
+  compression: lz4
+  cache_paths:
+    Quarter_01: /home/lc/super_livo/bag/OXFORD/Quarter_01/Quarter_01_LIVO.bag
+    Church_05: /home/lc/super_livo/bag/OXFORD/Church_05/Church_05_LIVO.bag
+    College_03: /home/lc/super_livo/bag/OXFORD/College_03/College_03_LIVO.bag
+    Palace_01: /home/lc/super_livo/bag/OXFORD/Palace_01/Palace_01_LIVO.bag
+manifests:
+  - Quarter_01_LIVO_cache.yaml
+  - Church_05_LIVO_cache.yaml
+  - College_03_LIVO_cache.yaml
+  - Palace_01_LIVO_cache.yaml
