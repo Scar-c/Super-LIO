@@ -1,0 +1,35 @@
+repository_root: /home/lc/super_livo/src/Super-LIO
+catkin_workspace: /home/lc/super_livo
+git_branch: prob-lio
+run_git_head: 3c347cdeb7cf62da03cb85df063457e2a725773f
+run_git_dirty: no
+run_git_status_short:
+production_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+dataset_config_sha256: 9ff44a99ecbb27cb31f1cb878e1008f3554937f18c9bfd24ad997b045e1ab97a
+algorithm_commit: 3c347cdeb7cf62da03cb85df063457e2a725773f
+git_diff_sha256: clean
+config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/NTU.yaml
+bag: /home/lc/super_livo/bag/NTU/nya_02/nya_02.bag
+rate: 1.0
+duration: whole-bag
+record_topics: /lio/odom,/lio/path
+start: 2026-09-01T08:35:17Z
+host: robot  cores: 32
+ROS_MASTER_URI=http://localhost:11345
+param override: /lio/prob_lio/cov_enable=false
+param override: /lio/prob_lio/cov_validation_mode=light
+param override: /lio/prob_lio/map_pose_cov_model=livo2_compat
+param override: /lio/prob_lio/map_cov_storage_precision=double
+param override: /lio/prob_lio/qr_plane_cov_enable=false
+param override: /lio/prob_lio/p2p_weight_mode=fixed_1000
+param override: /lio/prob_lio/association_mode=super_legacy
+param override: /lio/prob_lio/prob_assoc_shadow_enable=false
+param override: /lio/prob_lio/association_pose_cov_model=inherit_map
+param override: /lio/prob_lio/association_sensor_cov_model=extrinsic_consistent
+effective_config: /tmp/p14_ntu_runtime/p14_nya_02_B0/effective_rosparams.yaml
+effective_config_sha256: 7174ea8832413b04729bb565da98348e7f04a582038e0a884c54155ddde48f4d
+waiting for /lio/odom publisher ...
+play_rc=0 node_rc=0 record_rc=0
+fatal_marker_grep_rc=1 (1 = none found)
+node_log: /tmp/p14_ntu_runtime/p14_nya_02_B0/node.log

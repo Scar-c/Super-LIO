@@ -1,0 +1,79 @@
+eva:
+  timer: true
+extrinsic:
+  lidar_imu:
+  - -0.05
+  - 0
+  - 0.055
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  odom_robo:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+hash_map:
+  hash_capacity: 100000000
+  vox_resolution: 0.5
+kf:
+  kf_align_gravity: true
+  kf_max_iterations: 4
+  kf_quit_eps: 0.001
+  kf_type: 0
+map:
+  ds_size: 0.3
+  if_filter: false
+  map_name: map.pcd
+  save_interval: 500
+  save_map: false
+  save_map_dir: map
+offline:
+  bag: /home/lc/super_livo/bag/NTU/nya_03/nya_03.bag
+  out_dir: /tmp/p14_ntu_runtime/p14_nya_03_P5-ACTIVE
+output:
+  dense: true
+  map: true
+  plan_env_body: false
+  plan_env_world: false
+  planner: false
+  pub_step: 3
+  robot: false
+prob_lio:
+  assoc_sigma_num: 3.0
+  association_mode: prob_livo2
+  association_pose_cov_model: livo2_compat
+  association_sensor_cov_model: livo2_active_compat
+  cov_enable: true
+  cov_validation_mode: light
+  map_cov_storage_precision: double
+  map_pose_cov_model: livo2_compat
+  p2p_weight_mode: prob_livo2
+  prob_assoc_shadow_enable: false
+  qr_plane_cov_enable: true
+ros:
+  imu_topic: /imu/imu
+  lidar_topic: /os1_cloud_node1/points
+sensor:
+  beam_err: 0.01
+  blind: 2.0
+  dept_err: 0.02
+  enable_downsample: true
+  filter_rate: 3.0
+  gravity_norm: 9.7946
+  imu_na: 0.1
+  imu_nba: 0.0001
+  imu_nbg: 0.0001
+  imu_ng: 0.1
+  imu_type: 0
+  lidar_type: 7
+  maxrange: 150.0
+  voxel_fliter_size: 0.5

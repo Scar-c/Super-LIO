@@ -1,0 +1,11 @@
+git HEAD: UNKNOWN
+script path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+arguments: /tmp/p14_oxford_runtime/p14_College_03_P5-BOTH-CORR/trajectory.tum /home/lc/super_livo/bag/OXFORD/College_03/gt-tum.txt --out /tmp/p14_oxford_runtime/p14_College_03_P5-BOTH-CORR/evaluation.txt --max-diff 0.05
+comparison frame: body
+alignment type: SE(3), no scale
+association max_diff: 0.050000 s
+matched count: 2860
+trajectory_overlap_duration: 285.172 s
+matched_duration: 285.144 s
+association |dt| s: P50=0.0019 P90=0.0205 P95=0.0226 P99=0.0245 max=0.0496
+translation APE (m): RMSE=0.1096 mean=0.0979 median=0.0870 max=0.3002 P90=0.1685 P95=0.1842

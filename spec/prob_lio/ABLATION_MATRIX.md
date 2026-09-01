@@ -13,18 +13,18 @@ repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
 | Dataset | Sequence | GT type | Primary metric (unit) | Evaluator | B0 | P4-LC | P4-RC | P5-ACTIVE | P5-SENSOR-CORR | P5-BOTH-CORR | Status / notes |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---|
 | NTU VIRAL | eee_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.118875639 | 0.088831554 | 0.089745655 | 1.190814611 | 1.190814611 | 1.225502411 | all six `CANONICAL_VALID`; P4-LC byte parity and all three exact isolation checks PASS |
-| NTU VIRAL | eee_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
-| NTU VIRAL | eee_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | eee_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.075770330 | 0.073801018 | 0.073092215 | 0.078197208 | 0.078197208 | 0.079946275 | all six `CANONICAL_VALID`; compact evidence `p14_eee_02_*` |
+| NTU VIRAL | eee_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.117899073 | 0.114283691 | 0.114102813 | 0.123261794 | 0.123261794 | 0.128217964 | all six `CANONICAL_VALID`; compact evidence `p14_eee_03_*` |
 | NTU VIRAL | nya_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.062926634 | 0.060714509 | 0.060846956 | 0.064154094 | 0.064154094 | 0.064981117 | all six `CANONICAL_VALID`; P5 ACTIVE/SENSOR byte identity under `R_LI=I` |
-| NTU VIRAL | nya_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
-| NTU VIRAL | nya_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | nya_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.107934373 | 0.094912502 | 0.094764876 | 0.101307717 | 0.101307717 | 0.099758527 | all six `CANONICAL_VALID`; compact evidence `p14_nya_02_*` |
+| NTU VIRAL | nya_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.102930682 | 0.101499848 | 0.101435111 | 0.123532738 | 0.123532738 | 0.117887031 | all six `CANONICAL_VALID`; compact evidence `p14_nya_03_*` |
 | NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.084422872 | 0.083957108 | 0.083900662 | 0.618501810 | 0.618501810 | 0.653594851 | all six `CANONICAL_VALID`; 2813 matches; NTU family config/evaluator contract audited |
-| NTU VIRAL | sbs_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
-| NTU VIRAL | sbs_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | sbs_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.074793271 | 0.071388967 | 0.071047816 | 0.082401594 | 0.082401594 | 0.094437424 | all six `CANONICAL_VALID`; compact evidence `p14_sbs_02_*` |
+| NTU VIRAL | sbs_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.084217541 | 0.077053219 | 0.077111424 | 1.045976881 | 1.045976881 | 1.055413642 | all six `CANONICAL_VALID`; compact evidence `p14_sbs_03_*` |
 | Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | reused after Prompt14 LIVO-cache parity |
-| Oxford Spires | Church_05 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
-| Oxford Spires | College_03 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
-| Oxford Spires | Palace_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
+| Oxford Spires | Church_05 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.2909 | 0.2597 | 0.2610 | 0.3056 | 0.3250 | 0.3344 | all six `CANONICAL_VALID`; LZ4 cache parity PASS |
+| Oxford Spires | College_03 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0955 | 0.0882 | 0.0871 | 0.0892 | 0.1098 | 0.1096 | all six `CANONICAL_VALID`; LZ4 cache parity PASS |
+| Oxford Spires | Palace_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.1535 | 0.2688 | 0.2743 | 2.8695 | 1.3346 | 1.3405 | all six `CANONICAL_VALID`; LZ4 cache parity PASS |
 
 `BLOCKED(...)`, `NOT_RUN`, `DIVERGED`, and `INVALID` are deliberate cell
 states. A numerical cell is valid only when its run manifest is
@@ -34,6 +34,34 @@ Prompt14 active totals are 13 sequences / 78 cells: 24 reused cells and 54
 new cells (36 NTU and 18 Oxford). MCD and M3DGR are historical/out-of-active-
 scope and are excluded from active aggregate statistics; their detailed
 Prompt13 evidence remains below and in `EVIDENCE_INDEX.md`.
+
+## Prompt14 completed new-run ledger
+
+The 54 new cells are all whole-bag `CANONICAL_VALID` runs from committed
+source HEAD `3c347cdeb7cf62da03cb85df063457e2a725773f`, with
+`run_git_dirty=false`, production tree OID
+`b2a96caeb02a7f72c20faff263f74f8d56f2fe83`, light covariance validation, P5
+shadow OFF, and heavy diagnostics OFF. Each linked compact manifest carries
+the run/meta identity, bag and GT identity, evaluator path/hash, effective
+config snapshot/hash, variant, completion/RC, primary metric/output,
+trajectory hash/rows, runtime, and `CANONICAL_VALID` classification.
+
+| Dataset | Sequence | Variant order: B0 / P4-LC / P4-RC / P5-ACTIVE / P5-SENSOR-CORR / P5-BOTH-CORR | Primary metric values (m), same order | Rows / matched (each) | Evidence prefix |
+|---|---|---|---|---:|---|
+| NTU VIRAL | eee_02 | six variants | 0.075770330 / 0.073801018 / 0.073092215 / 0.078197208 / 0.078197208 / 0.079946275 | 3203 / 2779 | [`p14_eee_02_*`](../../results/prob_lio/evidence/) |
+| NTU VIRAL | eee_03 | six variants | 0.117899073 / 0.114283691 / 0.114102813 / 0.123261794 / 0.123261794 / 0.128217964 | 1807 / 1501 | [`p14_eee_03_*`](../../results/prob_lio/evidence/) |
+| NTU VIRAL | nya_02 | six variants | 0.107934373 / 0.094912502 / 0.094764876 / 0.101307717 / 0.101307717 / 0.099758527 | 4280 / 3857 | [`p14_nya_02_*`](../../results/prob_lio/evidence/) |
+| NTU VIRAL | nya_03 | six variants | 0.102930682 / 0.101499848 / 0.101435111 / 0.123532738 / 0.123532738 / 0.117887031 | 4088 / 3891 | [`p14_nya_03_*`](../../results/prob_lio/evidence/) |
+| NTU VIRAL | sbs_02 | six variants | 0.074793271 / 0.071388967 / 0.071047816 / 0.082401594 / 0.082401594 / 0.094437424 | 3726 / 3056 | [`p14_sbs_02_*`](../../results/prob_lio/evidence/) |
+| NTU VIRAL | sbs_03 | six variants | 0.084217541 / 0.077053219 / 0.077111424 / 1.045976881 / 1.045976881 / 1.055413642 | 3886 / 2909 | [`p14_sbs_03_*`](../../results/prob_lio/evidence/) |
+| Oxford Spires | Church_05 | six variants | 0.2909 / 0.2597 / 0.2610 / 0.3056 / 0.3250 / 0.3344 | 8001 / 7762 | [`p14_Church_05_*`](../../results/prob_lio/evidence/) |
+| Oxford Spires | College_03 | six variants | 0.0955 / 0.0882 / 0.0871 / 0.0892 / 0.1098 / 0.1096 | 2861 / 2860 | [`p14_College_03_*`](../../results/prob_lio/evidence/) |
+| Oxford Spires | Palace_01 | six variants | 0.1535 / 0.2688 / 0.2743 / 2.8695 / 1.3346 / 1.3405 | 4046 / 4046 | [`p14_Palace_01_*`](../../results/prob_lio/evidence/) |
+
+All 27 Prompt14 exact isolation reports pass. NTU P5-ACTIVE and
+P5-SENSOR-CORR trajectories are byte-identical for all six new NTU
+sequences; Oxford uses its measured cache-based outputs and does not infer
+trajectory identity from the NTU result.
 
 ## Historical / out-of-active-scope matrix
 

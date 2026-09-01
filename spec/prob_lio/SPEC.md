@@ -32,7 +32,7 @@ remain Super-LIO's own.
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** |
 | P5 | Probabilistic Association (optional / second stage) | **EXPERIMENTAL / NON-CANONICAL** |
-| Generalization | Cross-dataset ablation | **ACTIVE / IN PROGRESS — Prompt14 NTU VIRAL + Oxford Spires** |
+| Generalization | Cross-dataset ablation | **ACTIVE / CLOSED — Prompt14 NTU VIRAL + Oxford Spires** |
 
 ## 4. Authoritative seam IDs (S0–S13)
 
@@ -95,7 +95,7 @@ Round-history sections below are records and may quote superseded claims
 | P3 | CLOSED / OWNER VERIFIED |
 | P4 | CLOSED / OWNER VERIFIED |
 | P5 | EXPERIMENTAL / NON-CANONICAL |
-| Generalization | Prompt14 ACTIVE / IN PROGRESS for NTU VIRAL + Oxford Spires; MCD/M3DGR are historical/out-of-active-scope |
+| Generalization | Prompt14 ACTIVE / CLOSED for NTU VIRAL + Oxford Spires; MCD/M3DGR are historical/out-of-active-scope |
 
 P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
 the recommended default.
@@ -364,7 +364,7 @@ Outdoor01/04 are `CONFIG_PROVENANCE_BLOCKED` and Corridor01/02 remain
 
 ### 5A.14 Prompt14 active benchmark scope and transport authority
 
-Prompt14 is the current generalization authority. The active benchmark family
+Prompt14 is the current generalization authority and is closed. The active benchmark family
 is limited to **NTU VIRAL** and **Oxford Spires**. The active sequence set is:
 
 ```text
@@ -394,10 +394,20 @@ copy with LZ4 bag compression; it performs no image decode/re-encode or sensor
 timestamp transformation. Cache parity and original/cache estimator parity
 are required before canonical Oxford runs.
 
-Prompt14 requires 78 active six-variant cells in total: 24 reused cells from
-the existing NTU/Oxford ledger and 54 new cells in this round (36 NTU and 18
-Oxford). Canonical runs retain light covariance
-validation, P5 shadow OFF, and all heavy diagnostics OFF.
+Prompt14 closes with 78 active six-variant cells in total: 24 reused cells
+from the existing NTU/Oxford ledger and 54 new cells in this round (36 NTU
+and 18 Oxford). All 54 new cells are `CANONICAL_VALID` from clean committed
+source with light covariance validation, P5 shadow OFF, and all heavy
+diagnostics OFF. The per-cell compact evidence and 27 exact isolation reports
+are indexed in `spec/prob_lio/ABLATION_MATRIX.md` and
+`spec/prob_lio/EVIDENCE_INDEX.md`.
+
+The four Oxford persistent LIVO caches are LZ4 containers containing exactly
+the Hesai lidar, Alphasense IMU, and official cam0 compressed-image stream.
+All cache manifests report source/cache ordering, timestamp, and serialized
+payload parity PASS. Quarter_01 original-vs-cache B0 produced byte-identical
+trajectories (2888 rows) and identical registered ATE (0.0630 m), so the
+three new Oxford sequences were evaluated from their persistent caches.
 
 ## 6. Baseline (frozen)
 

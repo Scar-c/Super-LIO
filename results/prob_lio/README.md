@@ -12,14 +12,20 @@ Oxford canonical transport inputs are persistent dataset artifacts named
 stream. These bags are outside Git; only compact cache manifests and run
 evidence are tracked.
 
-Do not fabricate results. Each future dataset/sequence run appends one row
-below once it has clean committed-source evidence. Rule:
+Prompt14 completed the 54 new rows in the authoritative matrix; each has
+clean committed-source evidence. The rule remains:
 `modify → test → commit → clean → canonical run → evaluate`.
 
 Since Prompt12, full runtime output is written outside the checkout under
 `/home/lc/super_livo/results/prob_lio_runtime/`. Git tracks only compact
 exports under [`evidence/`](evidence/); trajectories and logs remain local and
 are represented by hashes/row counts in each manifest.
+
+The new cells are NTU `eee_02/03`, `nya_02/03`, `sbs_02/03` and Oxford
+`Church_05`, `College_03`, `Palace_01`, each with B0, P4-LC, P4-RC,
+P5-ACTIVE, P5-SENSOR-CORR, and P5-BOTH-CORR. All 54 are
+`CANONICAL_VALID`; Oxford cache/source parity evidence is under
+`evidence/p14_oxford_cache/`.
 
 ## Ledger template
 

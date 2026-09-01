@@ -26,10 +26,28 @@ canonical effective configs explicitly use `dept_err=0.05 m` and
 `/alphasense_driver_ros/cam0/debayered/image/compressed` in LZ4 containers;
 cam1/cam2 are excluded and no image decode/re-encode occurs.
 
-Prompt14 new-run evidence and cache parity manifests will be appended here
-only after their hard gates pass. The reusable cache builder is
-`tools/prob_lio/cache_livo_topics.py`; full runtime artifacts remain outside
-Git.
+Prompt14 cache parity manifests are under
+[`results/prob_lio/evidence/p14_oxford_cache/`](../../results/prob_lio/evidence/p14_oxford_cache/), including the cam0 authority record and the
+Quarter_01 original/cache B0 parity smoke. The reusable cache builder is
+`tools/prob_lio/cache_livo_topics.py`; the four LIVO bags remain outside Git.
+
+All 54 new Prompt14 cells are `CANONICAL_VALID` and are indexed in
+[`ABLATION_MATRIX.md`](ABLATION_MATRIX.md). Their compact evidence directories
+are named `p14_<sequence>_<variant>` under
+[`results/prob_lio/evidence/`](../../results/prob_lio/evidence/), with six
+bounded files per run: `meta.txt`, `run_manifest.yaml`, `preflight.yaml`,
+`requested_effective_config.yaml`, `effective_rosparams.yaml`, and evaluator
+output. The run manifests contain bag/GT/evaluator/config/effective-config
+hashes, run HEAD, algorithm commit, production tree/code OIDs,
+`run_git_dirty`, variant, completion/RC, primary metric, trajectory hash and
+rows, runtime, and classification. All 27 exact isolation reports pass;
+all 54 evidence directories pass the evidence-hygiene checker.
+
+| New active cells | Count | Primary metric units | Run/evidence status |
+|---|---:|---|---|
+| NTU VIRAL: eee_02/03, nya_02/03, sbs_02/03 × six variants | 36 | translation ATE RMSE (m) | 36/36 `CANONICAL_VALID` |
+| Oxford Spires: Church_05, College_03, Palace_01 × six variants | 18 | TUM translation APE RMSE (m) | 18/18 `CANONICAL_VALID` |
+| Prompt14 new total | 54 | family-specific registered metrics | 54/54 `CANONICAL_VALID` |
 
 ## 1. Prompt13 historical generalization evidence
 

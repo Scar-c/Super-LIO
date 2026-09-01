@@ -1,0 +1,10 @@
+schema_version: 1
+left: /tmp/p14_ntu_runtime/p14_sbs_02_P5-ACTIVE/effective_rosparams.yaml
+right: /tmp/p14_ntu_runtime/p14_sbs_02_P5-SENSOR-CORR/effective_rosparams.yaml
+allowed_keys:
+- lio/prob_lio/association_sensor_cov_model
+differences:
+- key: lio/prob_lio/association_sensor_cov_model
+  left: livo2_active_compat
+  right: extrinsic_consistent
+status: PASS

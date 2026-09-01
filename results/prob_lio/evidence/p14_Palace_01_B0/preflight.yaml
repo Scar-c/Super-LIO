@@ -1,0 +1,149 @@
+schema_version: 1
+status: PREFLIGHT_OK
+dataset: OXFORD-SPIRES
+sequence: Palace_01
+variant: B0
+duration: null
+ground_truth_type: FULL_TRAJECTORY
+primary_metric: OXFORD_TUM_TRANSLATION_APE_RMSE_M
+unit: m
+bag:
+  path: /home/lc/super_livo/bag/OXFORD/Palace_01/Palace_01_LIVO.bag
+  exists: true
+  size_bytes: 4722792709
+  sha256: 38d5b3d960134447f1965de8e568e76c0ed0352c7c45ec94a8ff696e0b3a4cfc
+source_original_bag:
+  path: /home/lc/super_livo/bag/OXFORD/Palace_01/Palace_01.bag
+  exists: true
+  size_bytes: 6325760912
+  sha256: 377ab4e5535ea3f15de121f67e19128a6d2c308c4df9bbd69ec997e4160a2958
+cache_parity_manifest:
+  path: /home/lc/super_livo/src/Super-LIO/results/prob_lio/evidence/p14_oxford_cache/Palace_01_LIVO_cache.yaml
+  exists: true
+  size_bytes: 4847
+  sha256: 49cf4f16bdff5e0be4ce63b4405f3f01b5e54f721aac8a5d91ebe88f6bb2f102
+topics:
+  /alphasense_driver_ros/cam0/debayered/image/compressed:
+    type: sensor_msgs/CompressedImage
+    messages: 8041
+    frequency: null
+  /alphasense_driver_ros/imu:
+    type: sensor_msgs/Imu
+    messages: 161400
+    frequency: null
+  /hesai/pandar:
+    type: sensor_msgs/PointCloud2
+    messages: 4052
+    frequency: null
+required_topics:
+- /hesai/pandar
+- /alphasense_driver_ros/imu
+missing_topics: []
+calibration:
+- path: /home/lc/super_livo/bag/OXFORD/Calibration/cam-lidar-imu.yaml
+  exists: true
+  size_bytes: 1820
+  sha256: edfb624b2c49bb4d441740b9d1de46fa90e80547779f6ea56db955f56b09e7d1
+- path: /home/lc/super_livo/bag/OXFORD/Calibration/imu.yaml
+  exists: true
+  size_bytes: 338
+  sha256: 2a5122ae40c5730ef4877cef1a298ea6b07cac5aeb6509812dfca9071ee26b68
+ground_truth:
+  path: /home/lc/super_livo/bag/OXFORD/Palace_01/gt-tum.txt
+  exists: true
+  size_bytes: 1604665
+  sha256: 94c3453abfc6acbf72fda4ffc4de1a55b2de6367f7a321277ed24c085d36d2f4
+config:
+  path: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/oxford_quarter01.yaml
+  exists: true
+  size_bytes: 1486
+  sha256: d832bf793502f7632e409f06a471d51687ec292aa91ff364f33783f65751c6a4
+evaluator:
+  path: /home/lc/super_livo/src/Super-LIO/eval/prob_lio/eval_tum_translation.py
+  exists: true
+  size_bytes: 8604
+  sha256: 23468e3187394827d3a0851c192e976a1ef1ace43e5d9797c77fa9918dfbfa6d
+evaluator_provenance:
+  profile: oxford_quarter01_full_trajectory
+  kind: tum_translation
+  upstream:
+    source: origin/super-livo evaluator port
+    tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
+  frame_transform: 'LIO output is the IMU/body W_T_B trajectory.  The supplied Oxford
+    TUM reference is evaluated in its published world frame with rigid SE3 Umeyama
+    alignment and no scale; the LIO-only path does not use camera poses or a camera-to-body
+    lever-arm correction.
+
+    '
+  timestamp_policy: 'gt-tum.txt is strict-increasing TUM; one-to-one nearest timestamp
+    association is limited to max_diff=0.05 s.
+
+    '
+  alignment_policy: SE3 Umeyama, no scale
+config_provenance:
+  old_branch_config: configs/super_livo/reference_base/oxford_quarter01.yaml
+  old_branch_lineage: configs/super_livo/reference_base/oxford_quarter01.lineage.yaml
+  current_config: src/super_lio/config/oxford_quarter01.yaml
+  current_config_source: origin/super-livo:src/super_lio/config/oxford_quarter01.yaml
+  authority: SUPER_LIO_DATASET_CONFIG_DERIVED_FROM_OFFICIAL_CALIBRATION
+  official_benchmark_repository: https://github.com/ori-drs/oxford_spires_dataset
+  official_benchmark_revision: b456e1e2f263a79c19b6ed4052390eba609011d4
+  official_fast_livo2_repository: https://github.com/ori-drs/FAST-LIVO2
+  official_fast_livo2_branch: config-used-OSD
+  official_fast_livo2_revision: f2c9abb72f82359bcb9190e31b8faa6b6b7b9a64
+  official_config_path: config/oxford_spires.yaml
+  official_config_git_blob: 50134830b16edee61282aaa0d5cfd7373feb883e
+  official_config_sha256: 195a512df13734c69535c25ebd1bc3e033112c434796b8c2c4b5b4050c589db4
+  official_voxel_source_path: src/voxel_map.cpp
+  official_voxel_source_git_blob: 01923ccac6e10dec4f800e10d548c7a620d98942
+  official_voxel_source_sha256: 9b5ee8914d6cc0cb96e2ba75ec034401370e38bed397442f49eb687dc6b9b856
+  omitted_covariance_keys:
+  - lio/dept_err
+  - lio/beam_err
+  omitted_key_defaults:
+    dept_err_m: 0.05
+    beam_err_deg: 0.02
+  covariance_provenance: OXFORD_FASTLIVO2_BENCHMARK_DEFAULT
+  official_camera_topic: /alphasense_driver_ros/cam0/color/image
+  persistent_cache_topics:
+  - /hesai/pandar
+  - /alphasense_driver_ros/imu
+  - /alphasense_driver_ros/cam0/debayered/image/compressed
+  persistent_cache_compression: lz4
+  note: 'Existing Super-LIO Oxford topics, calibration, filtering, and IESKF settings
+    are retained; only the two omitted covariance values are made explicit in the
+    effective Super-LIO config.
+
+    '
+algorithm:
+  branch: prob-lio
+  head: 3c347cdeb7cf62da03cb85df063457e2a725773f
+  dirty: false
+  status_short: ''
+  production_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+variant_overrides:
+  /lio/prob_lio/cov_enable: 'false'
+  /lio/prob_lio/cov_validation_mode: light
+  /lio/prob_lio/map_pose_cov_model: livo2_compat
+  /lio/prob_lio/map_cov_storage_precision: double
+  /lio/prob_lio/qr_plane_cov_enable: 'false'
+  /lio/prob_lio/p2p_weight_mode: fixed_1000
+  /lio/prob_lio/association_mode: super_legacy
+  /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+  /lio/prob_lio/association_pose_cov_model: inherit_map
+  /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
+effective_config_snapshot:
+  base_config: /home/lc/super_livo/src/Super-LIO/src/super_lio/config/oxford_quarter01.yaml
+  base_config_sha256: d832bf793502f7632e409f06a471d51687ec292aa91ff364f33783f65751c6a4
+  requested_overrides:
+    /lio/prob_lio/cov_enable: 'false'
+    /lio/prob_lio/cov_validation_mode: light
+    /lio/prob_lio/map_pose_cov_model: livo2_compat
+    /lio/prob_lio/map_cov_storage_precision: double
+    /lio/prob_lio/qr_plane_cov_enable: 'false'
+    /lio/prob_lio/p2p_weight_mode: fixed_1000
+    /lio/prob_lio/association_mode: super_legacy
+    /lio/prob_lio/prob_assoc_shadow_enable: 'false'
+    /lio/prob_lio/association_pose_cov_model: inherit_map
+    /lio/prob_lio/association_sensor_cov_model: extrinsic_consistent
