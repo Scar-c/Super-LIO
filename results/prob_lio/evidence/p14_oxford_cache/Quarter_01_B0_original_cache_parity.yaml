@@ -1,0 +1,31 @@
+schema_version: 1
+prompt: Prompt14
+dataset: Oxford Spires
+sequence: Quarter_01
+variant: B0
+source_original_bag: /home/lc/super_livo/bag/OXFORD/Quarter_01/Quarter_01.bag
+cache_bag: /home/lc/super_livo/bag/OXFORD/Quarter_01/Quarter_01_LIVO.bag
+cache_manifest: Quarter_01_LIVO_cache.yaml
+original_run_dir: /tmp/p14_oxford_parity_original/p14_quarter01_b0_original
+cache_run_dir: /tmp/p14_oxford_parity_cache/p14_quarter01_b0_cache
+trajectory:
+  original_sha256: 4fc6c57614f75e611d20968d93373069ceb36db744f2e9879bafad13db90cea8
+  cache_sha256: 4fc6c57614f75e611d20968d93373069ceb36db744f2e9879bafad13db90cea8
+  original_rows: 2888
+  cache_rows: 2888
+  byte_identity: PASS
+evaluation:
+  evaluator: eval/prob_lio/eval_tum_translation.py
+  primary_metric: OXFORD_TUM_TRANSLATION_APE_RMSE_M
+  unit: m
+  original_value: 0.0630
+  cache_value: 0.0630
+  metric_identity: PASS
+  matched_count: 2887
+run:
+  cache_status: CANONICAL_VALID
+  run_git_head: b64a83ae77b68a8f1a4b1f189976e1f117ba6f75
+  run_git_dirty: false
+  production_code_tree_oid: b2a96caeb02a7f72c20faff263f74f8d56f2fe83
+  production_code_oid: 36684ccd950aa7a912b43703fc4eb471b76159d4be566af2d0bc7bc67f84da62
+status: PASS
