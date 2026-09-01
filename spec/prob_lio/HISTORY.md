@@ -21,7 +21,7 @@ current truth and must not be cited as such.
 | prompt10 | docs | documentation consolidation / canonicalization | docs commit | CLOSED |
 | prompt12 | generalization/evidence | runtime/evidence hygiene; NTU `sbs_01`; Oxford port; M3DGR provenance/exclusions | `c8f512c` through final Prompt12 range | CLOSED with Outdoor01/04 provenance blocked and Corridor01/02 owner-excluded |
 | prompt13 | covariance/generalization | MCD covariance authority, corrected MCD day10/night08 cells, Oxford official FAST-LIVO2 covariance semantics | `78209b9` through `b636054` | CLOSED; historical/out-of-active-scope after Prompt14 freeze |
-| prompt14 | generalization/cache/evidence | NTU + Oxford active scope, persistent Oxford LIVO caches, new six-variant matrices | pending | IN PROGRESS |
+| prompt14 | generalization/cache/evidence | NTU + Oxford active scope, persistent Oxford LIVO caches, new six-variant matrices | `b723f8b`, `b64a83a`, `3c347cd`, `e322654`, final docs commit | CLOSED; 78 active cells, 54 new cells |
 
 ## Superseded / invalidated conclusions
 
