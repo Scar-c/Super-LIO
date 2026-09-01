@@ -1,35 +1,52 @@
 # Prob-LIO Generalization Ablation Matrix
 
-This is the authoritative cross-dataset screening ledger. Values are reported
-under the registered **PRIMARY METRIC** for each ground-truth contract; this is
-not an ATE table. Prompt11 uses one clean deterministic screening run
-(`n=1`) per sequence and variant. Prompt12 adds the NTU `sbs_01` row and
-Oxford screening. Prompt13 corrects MCD Mid-70 covariance authority, adds the
-MCD `ntu_day_10` row, and republishes the affected MCD/Oxford cells with
-compact evidence. New compact evidence is under
+This is the authoritative **active** cross-dataset screening ledger. Active
+scope is frozen by Prompt14 to NTU VIRAL and Oxford Spires only. Values are
+reported under the registered **PRIMARY METRIC** for each ground-truth
+contract; this is not an ATE table. Existing valid cells may be reused only
+after the Prompt14 cache/source parity gates pass. New compact evidence is under
 `results/prob_lio/evidence/`; full runtime artifacts remain outside the
 repository under `/home/lc/super_livo/results/prob_lio_runtime/`.
 
-## Required compact matrix
+## Active compact matrix — Prompt14
 
 | Dataset | Sequence | GT type | Primary metric (unit) | Evaluator | B0 | P4-LC | P4-RC | P5-ACTIVE | P5-SENSOR-CORR | P5-BOTH-CORR | Status / notes |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| MCD | ntu_day_10 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 0.716300 | 1.197000 | 1.091200 | 1.068900 | 1.095000 | 0.821200 | all six Prompt13 `CANONICAL_VALID`; legacy day10 LIO cache audit PASS |
-| MCD | ntu_night_08 | FULL_TRAJECTORY | MCD_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_tum_translation.py` + `prepare_mcd_gt.py` | 1.021000 | 2.002200 | 1.655500 | 2.307300 | 1.930100 | 1.724600 | all six Prompt13 `CANONICAL_VALID`; Mid-70 covariance proxy explicit; Prompt11 probability cells superseded |
 | NTU VIRAL | eee_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.118875639 | 0.088831554 | 0.089745655 | 1.190814611 | 1.190814611 | 1.225502411 | all six `CANONICAL_VALID`; P4-LC byte parity and all three exact isolation checks PASS |
+| NTU VIRAL | eee_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | eee_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
 | NTU VIRAL | nya_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.062926634 | 0.060714509 | 0.060846956 | 0.064154094 | 0.064154094 | 0.064981117 | all six `CANONICAL_VALID`; P5 ACTIVE/SENSOR byte identity under `R_LI=I` |
+| NTU VIRAL | nya_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | nya_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
 | NTU VIRAL | sbs_01 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | 0.084422872 | 0.083957108 | 0.083900662 | 0.618501810 | 0.618501810 | 0.653594851 | all six `CANONICAL_VALID`; 2813 matches; NTU family config/evaluator contract audited |
-| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | all six Prompt13 `CANONICAL_VALID`; strict original→LIO-cache parity PASS; 2887 matches |
-| M3DGR | Outdoor01 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
-| M3DGR | Outdoor04 | FULL_TRAJECTORY | M3DGR_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | BLOCKED(CONFIG_PROVENANCE_BLOCKED) | no exact Super-LIO Outdoor config in current/old audited trees |
-| M3DGR | Corridor01 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
-| M3DGR | Corridor02 | FINAL_RELATIVE_POSE | M3DGR_ARUCO_FIRST_TO_LAST_RELATIVE_TRANSLATION_ERROR_M (m) | `eval_m3dgr_aruco.py` | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | EXCLUDED_BY_OWNER | Prompt12 owner exclusion; do not run |
+| NTU VIRAL | sbs_02 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| NTU VIRAL | sbs_03 | FULL_TRAJECTORY | NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M (m) | `eval_ntu_viral_official.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 |
+| Oxford Spires | Quarter_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | 0.0630 | 0.0514 | 0.0519 | 0.0796 | 0.0812 | 0.0812 | reused after Prompt14 LIVO-cache parity |
+| Oxford Spires | Church_05 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
+| Oxford Spires | College_03 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
+| Oxford Spires | Palace_01 | FULL_TRAJECTORY | OXFORD_TUM_TRANSLATION_APE_RMSE_M (m) | `eval_tum_translation.py` | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING | Prompt14 LIVO cache required |
 
 `BLOCKED(...)`, `NOT_RUN`, `DIVERGED`, and `INVALID` are deliberate cell
 states. A numerical cell is valid only when its run manifest is
 `CANONICAL_VALID`.
 
-## Prompt13 corrected authority and current numeric run ledger
+Prompt14 active totals are 13 sequences / 78 cells: 24 reused cells and 54
+new cells (36 NTU and 18 Oxford). MCD and M3DGR are historical/out-of-active-
+scope and are excluded from active aggregate statistics; their detailed
+Prompt13 evidence remains below and in `EVIDENCE_INDEX.md`.
+
+## Historical / out-of-active-scope matrix
+
+The Prompt13 MCD rows remain preserved as historical evidence:
+
+| Dataset | Sequence | B0 | P4-LC | P4-RC | P5-ACTIVE | P5-SENSOR-CORR | P5-BOTH-CORR | Status |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| MCD | ntu_day_10 | 0.716300 | 1.197000 | 1.091200 | 1.068900 | 1.095000 | 0.821200 | historical |
+| MCD | ntu_night_08 | 1.021000 | 2.002200 | 1.655500 | 2.307300 | 1.930100 | 1.724600 | historical; corrected Prompt13 |
+| M3DGR | Outdoor01/04 | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED | config provenance blocked |
+| M3DGR | Corridor01/02 | EXCLUDED | EXCLUDED | EXCLUDED | EXCLUDED | EXCLUDED | EXCLUDED | owner excluded |
+
+## Prompt13 historical corrected authority and numeric run ledger
 
 Prompt13 did not change estimator mathematics. It made the omitted MCD
 Mid-70 sensor values explicit in `src/super_lio/config/MCD_ATH.yaml` as a

@@ -1,5 +1,17 @@
 # Prob-LIO Generalization Result Ledger
 
+## Prompt14 active scope
+
+The active generalization benchmark is limited to **NTU VIRAL** and
+**Oxford Spires**. MCD and M3DGR artifacts remain preserved as historical
+evidence and are excluded from active aggregate statistics.
+
+Oxford canonical transport inputs are persistent dataset artifacts named
+`<Sequence>_LIVO.bag` under `bag/OXFORD/<Sequence>/`. They contain exactly
+`/hesai/pandar`, `/alphasense_driver_ros/imu`, and the official cam0 compressed
+stream. These bags are outside Git; only compact cache manifests and run
+evidence are tracked.
+
 Do not fabricate results. Each future dataset/sequence run appends one row
 below once it has clean committed-source evidence. Rule:
 `modify → test → commit → clean → canonical run → evaluate`.

@@ -29,6 +29,9 @@ Prompt11 orchestration:
 - `cache_lio_topics.py` — copies selected serialized ROS1 records into an
   outside-Git LZ4 LIO-only cache without camera messages or estimator-side
   preprocessing.
+- `cache_livo_topics.py` — creates the persistent Oxford LIVO-ready LZ4 cache
+  with LiDAR, IMU, and official cam0 `CompressedImage` records, plus strict
+  per-topic payload/order/timestamp parity manifest generation.
 - `compare_rosbag_topics.py` — compares selected bag record order, timestamps,
   and serialized payloads with a compact YAML parity report.
 

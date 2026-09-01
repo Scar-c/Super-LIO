@@ -9,7 +9,29 @@ unless explicitly labeled. Trajectory hashes are sha256 prefixes of the
 local runtime `trajectory.tum`; Prompt12 compact evidence never copies the
 large trajectory into Git.
 
-## 0. Prompt13 current generalization evidence
+## 0. Prompt14 current active-scope evidence
+
+Prompt14 freezes the active generalization scope to NTU VIRAL and Oxford
+Spires. The active sequence set is NTU `eee_01/02/03`, `nya_01/02/03`,
+`sbs_01/02/03` plus Oxford `Quarter_01`, `Church_05`, `College_03`, and
+`Palace_01`. MCD and M3DGR evidence remains historical/out-of-active-scope
+and is excluded from active aggregate statistics.
+
+NTU canonical effective configs explicitly use `dept_err=0.02 m` and
+`beam_err=0.01 deg` from the official FAST-LIVO2 NTU VIRAL authority. Oxford
+canonical effective configs explicitly use `dept_err=0.05 m` and
+`beam_err=0.02 deg` from the official FAST-LIVO2 `config-used-OSD`
+`config/oxford_spires.yaml` defaults. Oxford cache inputs retain exactly
+`/hesai/pandar`, `/alphasense_driver_ros/imu`, and
+`/alphasense_driver_ros/cam0/debayered/image/compressed` in LZ4 containers;
+cam1/cam2 are excluded and no image decode/re-encode occurs.
+
+Prompt14 new-run evidence and cache parity manifests will be appended here
+only after their hard gates pass. The reusable cache builder is
+`tools/prob_lio/cache_livo_topics.py`; full runtime artifacts remain outside
+Git.
+
+## 1. Prompt13 historical generalization evidence
 
 Prompt13 is the current generalization authority for MCD and Oxford. It
 published 18 `CANONICAL_VALID` cells: six MCD `ntu_day_10`, six corrected MCD

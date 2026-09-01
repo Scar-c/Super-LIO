@@ -272,6 +272,14 @@ def main(argv=None):
     parser.add_argument("--gt-topic")
     parser.add_argument("--required-topic", action="append", default=[])
     parser.add_argument("--calibration", action="append", default=[])
+    parser.add_argument(
+        "--source-original-bag",
+        help="optional original source bag when --bag is a persistent cache",
+    )
+    parser.add_argument(
+        "--cache-manifest",
+        help="optional cache parity manifest associated with --bag",
+    )
     parser.add_argument("--canonical", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument(
@@ -292,6 +300,10 @@ def main(argv=None):
         )
     profile_status = profile.get("status", "ACTIVE")
 
+    def profile_path(key, default=None):
+        per_sequence = profile.get(f"{key}s", {})
+        return per_sequence.get(args.sequence, profile.get(key, default))
+
     bag = resolve(args.bag)
     config = resolve(args.config)
     evaluator = resolve(profile["evaluator_path"])
@@ -308,10 +320,14 @@ def main(argv=None):
     required_topics = args.required_topic or profile.get("required_topics", [])
     missing_topics = [topic for topic in required_topics if topic not in topics]
     calibration = [resolve(path) for path in args.calibration]
+    source_original_bag = (
+        resolve(args.source_original_bag) if args.source_original_bag else None
+    )
+    cache_manifest = resolve(args.cache_manifest) if args.cache_manifest else None
     gt_source = profile.get("gt_source")
     gt = None
     if gt_source in ("external_csv", "external_tum", "external_reference"):
-        gt = resolve(args.gt or profile.get("gt_path"))
+        gt = resolve(args.gt or profile_path("gt_path"))
         if not gt.is_file():
             print(f"preflight GT missing: {gt}", file=sys.stderr)
             return 2
@@ -331,6 +347,12 @@ def main(argv=None):
         "primary_metric": profile["primary_metric"],
         "unit": profile["unit"],
         "bag": identity(bag),
+        "source_original_bag": (
+            identity(source_original_bag) if source_original_bag is not None else None
+        ),
+        "cache_parity_manifest": (
+            identity(cache_manifest) if cache_manifest is not None else None
+        ),
         "topics": topics,
         "required_topics": required_topics,
         "missing_topics": missing_topics,
@@ -485,6 +507,12 @@ def main(argv=None):
         "evaluator": identity(evaluator),
         "evaluator_provenance": preflight["evaluator_provenance"],
         "bag": identity(bag),
+        "source_original_bag": (
+            identity(source_original_bag) if source_original_bag is not None else None
+        ),
+        "cache_parity_manifest": (
+            identity(cache_manifest) if cache_manifest is not None else None
+        ),
         "ground_truth": (
             {"source": "bag_topic", "topic": args.gt_topic or profile["gt_topic"],
              "derived_tum": (

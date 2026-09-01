@@ -32,7 +32,7 @@ remain Super-LIO's own.
 | P3 | Super-native QR Plane Uncertainty | **CLOSED / OWNER VERIFIED** |
 | P4 | Probabilistic P2P Weighting | **CLOSED / OWNER VERIFIED** |
 | P5 | Probabilistic Association (optional / second stage) | **EXPERIMENTAL / NON-CANONICAL** |
-| Generalization | Cross-dataset ablation | **READY / NOT STARTED** (becomes ACTIVE / IN PROGRESS when Prompt11 real runs begin) |
+| Generalization | Cross-dataset ablation | **ACTIVE / IN PROGRESS — Prompt14 NTU VIRAL + Oxford Spires** |
 
 ## 4. Authoritative seam IDs (S0–S13)
 
@@ -95,7 +95,7 @@ Round-history sections below are records and may quote superseded claims
 | P3 | CLOSED / OWNER VERIFIED |
 | P4 | CLOSED / OWNER VERIFIED |
 | P5 | EXPERIMENTAL / NON-CANONICAL |
-| Generalization | Prompt13 CLOSED for the authorized scope: MCD `ntu_day_10`, corrected MCD `ntu_night_08`, and Oxford `Quarter_01` six-cell matrices complete; M3DGR Outdoor01/04 provenance-blocked; Corridor01/02 owner-excluded |
+| Generalization | Prompt14 ACTIVE / IN PROGRESS for NTU VIRAL + Oxford Spires; MCD/M3DGR are historical/out-of-active-scope |
 
 P5 must not be described as `OWNER VERIFIED`, `CLOSED/PASS`, canonical, or
 the recommended default.
@@ -321,7 +321,7 @@ method-author trees. M3DGR Corridor01 and Corridor02 are
 `EXCLUDED_BY_OWNER`; neither corridor bag was run. This status does not
 authorize any follow-on config design or noise-tuning round.
 
-### 5A.13 Prompt13 covariance-authority and generalization status
+### 5A.13 Prompt13 historical covariance-authority and generalization status
 
 Prompt13 made dataset covariance authority explicit without changing
 estimator mathematics. For MCD, the shared `MCD_ATH.yaml` now records the
@@ -344,7 +344,7 @@ is now resolved for this LIO-only contract: body/IMU trajectory, supplied TUM
 world frame, rigid SE3 Umeyama, no scale, and one-to-one nearest timestamps
 with `max_diff=0.05 s`.
 
-The current matrix contains 18 `CANONICAL_VALID` cells: six for MCD
+The Prompt13 closure matrix contained 18 `CANONICAL_VALID` cells: six for MCD
 `ntu_day_10`, six corrected cells for MCD `ntu_night_08`, and six for Oxford
 `Quarter_01`. Every manifest records `run_git_head`,
 `run_git_dirty=false`, `production_code_tree_oid`, bag/GT/evaluator/config
@@ -361,6 +361,43 @@ recorded in `results/prob_lio/evidence/p13_m3dgr_avia_authority.yaml`, but the
 exact current Super-LIO Outdoor configuration remains unavailable, so
 Outdoor01/04 are `CONFIG_PROVENANCE_BLOCKED` and Corridor01/02 remain
 `EXCLUDED_BY_OWNER`. No M3DGR numeric run was performed.
+
+### 5A.14 Prompt14 active benchmark scope and transport authority
+
+Prompt14 is the current generalization authority. The active benchmark family
+is limited to **NTU VIRAL** and **Oxford Spires**. The active sequence set is:
+
+```text
+NTU:    eee_01, eee_02, eee_03, nya_01, nya_02, nya_03, sbs_01, sbs_02, sbs_03
+Oxford: Quarter_01, Church_05, College_03, Palace_01
+```
+
+MCD and M3DGR evidence is preserved as historical/out-of-active-scope
+material. Neither family is included in Prompt14 active aggregate statistics
+or rerun by this round.
+
+The frozen sensor covariance authorities are explicit in every canonical
+effective configuration:
+
+```text
+NTU VIRAL:      dept_err=0.02 m, beam_err=0.01 deg
+Oxford Spires:  dept_err=0.05 m, beam_err=0.02 deg
+```
+
+Oxford's official FAST-LIVO2 camera authority is cam0:
+`/alphasense_driver_ros/cam0/color/image`. The persistent Oxford transport
+cache retains exactly the source compressed stream
+`/alphasense_driver_ros/cam0/debayered/image/compressed`, together with
+`/hesai/pandar` and `/alphasense_driver_ros/imu`. It excludes cam1, cam2,
+diagnostics, estimator outputs, and GT. Cache construction is raw serialized
+copy with LZ4 bag compression; it performs no image decode/re-encode or sensor
+timestamp transformation. Cache parity and original/cache estimator parity
+are required before canonical Oxford runs.
+
+Prompt14 requires 78 active six-variant cells in total: 24 reused cells from
+the existing NTU/Oxford ledger and 54 new cells in this round (36 NTU and 18
+Oxford). Canonical runs retain light covariance
+validation, P5 shadow OFF, and all heavy diagnostics OFF.
 
 ## 6. Baseline (frozen)
 

@@ -1,11 +1,11 @@
 schema_version: 1
 description: >
-  Prob-LIO Prompt13 evaluator registry. Metric names are profile-specific;
+  Prob-LIO Prompt14 evaluator registry. Metric names are profile-specific;
   FINAL_RELATIVE_POSE profiles must never be routed through trajectory ATE.
 profiles:
   ntu_viral_full_trajectory:
     dataset_family: NTU VIRAL
-    sequences: [eee_01, nya_01, sbs_01]
+    sequences: [eee_01, eee_02, eee_03, nya_01, nya_02, nya_03, sbs_01, sbs_02, sbs_03]
     ground_truth_type: FULL_TRAJECTORY
     primary_metric: NTU_VIRAL_DATASET_TRANSLATION_ATE_RMSE_M
     unit: m
@@ -34,10 +34,14 @@ profiles:
       old_branch_lineage: configs/super_livo/reference_base/ntu_{sequence}.lineage.yaml
       authority: SUPER_LIO_DATASET_CONFIG plus DATASET_AUTHOR_SENSOR calibration
       family_extension: >
-        sbs_01 has the same NTU VIRAL sensor contract: the local
-        dataset-author files provide the same topics, Leica prism lever arm,
-        and identity lidar-to-IMU extrinsic as the accepted eee_01/nya_01
-        contract; no sequence-specific estimator config is substituted.
+        All Prompt14 NTU sequences have the same dataset-author sensor
+        contract: /os1_cloud_node1/points, /imu/imu, /leica/pose/relative,
+        the same Leica prism lever arm, and identity lidar-to-IMU extrinsic.
+        The local dataset-author files are independently preflighted for each
+        sequence; no sequence-specific estimator config is substituted.
+      covariance_authority: FAST-LIVO2 official NTU_VIRAL.yaml
+      effective_dept_err_m: 0.02
+      effective_beam_err_deg: 0.01
     calibration_source: DATASET_AUTHOR_SENSOR files beside each NTU bag
 
   mcd_night08_full_trajectory:
@@ -121,7 +125,7 @@ profiles:
 
   oxford_quarter01_full_trajectory:
     dataset_family: Oxford Spires
-    sequences: [Quarter_01]
+    sequences: [Quarter_01, Church_05, College_03, Palace_01]
     ground_truth_type: FULL_TRAJECTORY
     primary_metric: OXFORD_TUM_TRANSLATION_APE_RMSE_M
     unit: m
@@ -132,6 +136,11 @@ profiles:
       tier: PROJECT_WRAPPER_AROUND_RIGID_TUM_EVALUATION
     gt_source: external_tum
     gt_path: ../../bag/OXFORD/Quarter_01/gt-tum.txt
+    gt_paths:
+      Quarter_01: ../../bag/OXFORD/Quarter_01/gt-tum.txt
+      Church_05: ../../bag/OXFORD/Church_05/gt-tum.txt
+      College_03: ../../bag/OXFORD/College_03/gt-tum.txt
+      Palace_01: ../../bag/OXFORD/Palace_01/gt-tum.txt
     required_topics:
       - /hesai/pandar
       - /alphasense_driver_ros/imu
@@ -166,6 +175,12 @@ profiles:
       omitted_covariance_keys: [lio/dept_err, lio/beam_err]
       omitted_key_defaults: {dept_err_m: 0.05, beam_err_deg: 0.02}
       covariance_provenance: OXFORD_FASTLIVO2_BENCHMARK_DEFAULT
+      official_camera_topic: /alphasense_driver_ros/cam0/color/image
+      persistent_cache_topics:
+        - /hesai/pandar
+        - /alphasense_driver_ros/imu
+        - /alphasense_driver_ros/cam0/debayered/image/compressed
+      persistent_cache_compression: lz4
       note: >
         Existing Super-LIO Oxford topics, calibration, filtering, and IESKF
         settings are retained; only the two omitted covariance values are
