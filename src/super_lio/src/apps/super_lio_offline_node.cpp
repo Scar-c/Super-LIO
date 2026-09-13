@@ -4,9 +4,13 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <memory>
+#include <thread>
 #include <vector>
 
 #include <ros/ros.h>
+#include <tbb/global_control.h>
+#include <tbb/task_arena.h>
 
 #include "lio/super_lio.h"
 #include "offline/OfflineReader.h"
@@ -50,6 +54,12 @@ int main(int argc, char** argv) {
   nh.getParam("/lio/offline/bag", options.bag_path);
   nh.getParam("/lio/offline/start_offset", options.start_offset);
   nh.getParam("/lio/offline/duration", options.duration);
+  int requested_threads = static_cast<int>(std::thread::hardware_concurrency());
+  nh.param("/lio/offline/threads", requested_threads, requested_threads);
+  if (requested_threads < 1) requested_threads = 1;
+  const int tbb_default_concurrency = tbb::this_task_arena::max_concurrency();
+  auto tbb_control = std::make_unique<tbb::global_control>(
+      tbb::global_control::max_allowed_parallelism, requested_threads);
   options.lidar_topic = g_lidar_topic;
   options.imu_topic = g_imu_topic;
   if (options.bag_path.empty()) {
@@ -59,6 +69,10 @@ int main(int argc, char** argv) {
 
   std::printf("[offline_node] bag=%s start_offset=%.3f duration=%.3f\n",
               options.bag_path.c_str(), options.start_offset, options.duration);
+  std::printf("[offline_node] requested_threads=%d tbb_default_concurrency=%d "
+              "configured_max_allowed_parallelism=%d effective_tbb_concurrency=%d\n",
+              requested_threads, tbb_default_concurrency, requested_threads,
+              tbb::this_task_arena::max_concurrency());
   auto wrapper = std::make_shared<ROSWrapper>();
   auto lio = std::make_shared<SuperLIO>();
   lio->setROSWrapper(wrapper);

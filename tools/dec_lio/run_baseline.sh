@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prompt00R runner for the native ROS1 Super-LIO baseline.
+# Dec-LIO runner for native ROS1 Super-LIO baselines.
 set -Eeuo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -9,13 +9,15 @@ source /opt/ros/noetic/setup.bash
 [ -f "$CATKIN_WS/devel/setup.bash" ] && source "$CATKIN_WS/devel/setup.bash"
 
 MODE="online"
+SEQUENCE="bridge01"
 BAG=""
 CONFIG="$REPO_ROOT/src/super_lio/config/geode_alpha.yaml"
 OUT="$RUNTIME_ROOT"
 RUN_ID=""
 RATE="1.0"
 DURATION=""
-THREADS="32"
+THREADS="$(nproc)"
+D1_SHADOW="false"
 PLAY_TOPICS="/velodyne_points,/imu/data"
 RECORD_TOPICS="/lio/odom"
 
@@ -23,6 +25,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --mode) MODE="$2"; shift 2 ;;
     --offline) MODE="offline"; shift ;;
+    --sequence) SEQUENCE="$2"; shift 2 ;;
     --bag) BAG="$2"; shift 2 ;;
     --config) CONFIG="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
@@ -30,6 +33,7 @@ while [ "$#" -gt 0 ]; do
     --rate) RATE="$2"; shift 2 ;;
     --duration) DURATION="$2"; shift 2 ;;
     --threads) THREADS="$2"; shift 2 ;;
+    --d1-shadow) D1_SHADOW="true"; shift ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
@@ -45,9 +49,9 @@ fi
 if [ ! -f "$CONFIG" ]; then
   echo "ERR: missing config: $CONFIG" >&2; exit 2
 fi
-GROUND_TRUTH="$(dirname "$BAG")/bridge01.txt"
+GROUND_TRUTH="$(dirname "$BAG")/$SEQUENCE.txt"
 python3 "$REPO_ROOT/tools/dec_lio/validate_input.py" \
-  --bag "$BAG" --config "$CONFIG" --ground-truth "$GROUND_TRUTH" >/dev/null
+  --sequence "$SEQUENCE" --bag "$BAG" --config "$CONFIG" --ground-truth "$GROUND_TRUTH" >/dev/null
 if [ -z "$RUN_ID" ]; then RUN_ID="${MODE}_$(date -u +%Y%m%dT%H%M%SZ)"; fi
 if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
   echo "ERR: invalid run ID" >&2; exit 2
@@ -91,6 +95,7 @@ trap cleanup EXIT
   echo "repository_root: $REPO_ROOT"
   echo "catkin_workspace: $CATKIN_WS"
   echo "mode: $MODE"
+  echo "sequence: $SEQUENCE"
   echo "run_id: $RUN_ID"
   echo "git_head: $(git -C "$REPO_ROOT" rev-parse HEAD)"
   echo "git_status: clean"
@@ -101,6 +106,8 @@ trap cleanup EXIT
   echo "duration: ${DURATION:-whole-bag}"
   echo "rate: $RATE"
   echo "requested_threads: $THREADS"
+  echo "nproc: $(nproc)"
+  echo "d1_shadow: $D1_SHADOW"
   echo "effective_thread_policy: one sequential temporal epoch; native TBB backend"
   echo "play_topics: $PLAY_TOPICS"
   echo "record_topics: $RECORD_TOPICS"
@@ -123,6 +130,11 @@ rosparam load "$CONFIG"
 rosparam set /lio/offline/bag "$BAG"
 rosparam set /lio/offline/start_offset -1.0
 rosparam set /lio/offline/duration "${DURATION:--1.0}"
+rosparam set /lio/offline/threads "$THREADS"
+rosparam set /lio/dec_lio/d1_shadow/enabled "$D1_SHADOW"
+rosparam set /lio/dec_lio/d1_shadow/condition_threshold "10.0"
+rosparam set /lio/dec_lio/d1_shadow/output_csv "$RUN_DIR/dcreg_shadow.csv"
+rosparam set /lio/dec_lio/d1_shadow/frame_summary_csv "$RUN_DIR/dcreg_frame_summary.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio
 echo "effective_rosparams_sha256: $(sha256sum "$RUN_DIR/effective_rosparams.yaml" | awk '{print $1}')" >> "$META"
