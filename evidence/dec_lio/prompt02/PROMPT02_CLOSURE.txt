@@ -1,4 +1,6 @@
-Prompt02 closure (pending final commit identity)
+Prompt02 closure
+
+evidence baseline commit: 703c7182aeb4e5f52ea5dcf50d9c0697634902fb
 
 Prompt02 scope:
   D1 used-residual count correction, raw-EVD weak-projector stability,
