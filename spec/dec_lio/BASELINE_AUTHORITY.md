@@ -8,9 +8,8 @@ The implementation source of truth descends directly from the clean ROS1 branch:
 
 ```text
 origin/ros1 = 60b57aaac8dc397f80c56364e7ccb008c300cc29
-HEAD       = 2ea2c8a4f4a2468f62e606d5bc7f3f81459643cc (Prompt03 D2 shadow
-           calibration implementation; canonical runtime gates recorded under
-           evidence/dec_lio/prompt03/)
+HEAD       = final Prompt03 closure commit (recorded in the final report;
+           canonical runtime gates are recorded under evidence/dec_lio/prompt03/)
 ```
 
 The native estimator math remains the `origin/ros1` implementation. Prompt00R
