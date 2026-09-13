@@ -1,0 +1,25 @@
+Prompt04 Tunnel2 evaluation (fixed association max diff = 0.1 s)
+
+Internal fixed evaluator:
+  alignment=single SE(3) Umeyama, no scale, no crop
+  matched=591
+  overlap_s=210.02
+  rmse_m=6.45067165
+  mean_m=4.50284249
+  median_m=2.78326647
+  p90_m=16.98469490
+  p95_m=17.20008750
+  max_m=17.40506453
+
+EVO APE translation part, `--align --t_max_diff 0.1`:
+  rmse=6.45067165
+  mean=4.50284249
+  median=2.78326647
+  min=0.20916694
+  max=17.40506453
+  std=4.61904474
+  sse=24592.19839597
+
+The default EVO association was not used for the reported result.  The
+reference GT is the official-distributed preprocessed position reference
+recorded in `TUNNEL2_GT_AUTHORITY.md`.

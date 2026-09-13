@@ -1,0 +1,22 @@
+Prompt04 source boundary audit
+
+Allowed source-side additions:
+  - D2 shadow-only coupled Schur zeta computation and CSV fields
+  - evaluation-layer Tunnel2 strict timestamp serialization hygiene
+  - evaluation-only Prompt04 analysis and regression tests
+  - Tunnel2 Alpha config/identity registration
+  - Bridge owner-only RViz inspection launch/config
+
+Forbidden estimator boundaries were not changed:
+  H modified: NO
+  b modified: NO
+  P modified: NO
+  gamma applied: NO
+  Schmidt/gain projection modified: NO
+  PCG modified: NO
+  correspondence/gating/map semantics modified: NO
+  Prob-LIO estimator implementation inherited or copied: NO
+
+The native trajectory SHA is unchanged by the full D1/D2/zeta shadow run.
+The definitive repository audit is the final `git diff origin/ros1` and the
+production-identity/evidence-hygiene checks recorded at closure.

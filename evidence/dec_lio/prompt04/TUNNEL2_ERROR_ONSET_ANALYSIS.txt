@@ -1,0 +1,50 @@
+Prompt04 Tunnel2 local-error and onset analysis
+
+Local errors use the same single global SE(3) alignment and 0.1 s association.
+The following are overlapping/non-overlapping translation local-error
+summaries (median; p95; max; count):
+
+  1 s: 0.123976 / 0.561097 / 1.171704 m, n=607;
+      non-overlap 0.123417 / 0.606921 / 1.092767 m, n=114
+  5 s: 0.319271 / 3.315189 / 4.492248 m, n=623;
+      non-overlap 0.273979 / 3.511037 / 4.425085 m, n=36
+ 10 s: 0.459261 / 6.372431 / 8.910956 m, n=621;
+      non-overlap 0.404556 / 3.782408 / 8.685410 m, n=19
+
+Documented onset rule:
+  - high error = top 10% of non-overlapping 5 s translation windows;
+  - sustained = >=3 consecutive non-overlapping 5 s windows above
+    sequence median + 3*MAD;
+  - median=0.27397910 m, MAD=0.12944741 m, threshold=0.66232133 m;
+  - top-10 cut=1.84284615 m.
+
+The first sustained interval is:
+  1706584541.8281176 .. 1706584579.0297546, six windows.
+
+Top-10 windows are:
+  1706584553.1281931..1706584558.2181382 (2.670936 m)
+  1706584563.5579116..1706584568.5377352 (4.425085 m)
+  1706584568.8284898..1706584573.7310010 (4.098584 m)
+  1706584574.0307527..1706584579.0297546 (3.315189 m)
+
+Pre-onset versus onset medians from overlapping 1 s windows:
+
+| lead | mode | kappa | lambda_min | XICP Lc/Ls | mu_min | eta | zeta | N_used |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 s | trans | 5.414 | 105087.8 | 160.7/108.5 | 0.5365 | N/A | N/A | 1034 -> 1053 |
+| 1 s | onset trans | 5.579 | 112161.9 | 171.7/112.3 | 0.5485 | N/A | N/A |  |
+| 3 s | trans | 5.575 | 100844.9 | 152.1/101.2 | 0.5272 | N/A | N/A | 1027.5 -> 1053 |
+| 3 s | onset trans | 5.579 | 112161.9 | 171.7/112.3 | 0.5485 | N/A | N/A |  |
+| 5 s | trans | 5.912 | 91639.3 | 145.7/90.5 | 0.5272 | N/A | N/A | 1024.5 -> 1053 |
+| 5 s | onset trans | 5.579 | 112161.9 | 171.7/112.3 | 0.5485 | N/A | N/A |  |
+| 1 s | rot | 68.387 | 1082818.6 | 880.9/808.5 | 0.5365 | 10.322 | 4.969 |  |
+| 1 s | onset rot | 74.754 | 1153694.9 | 933.8/856.5 | 0.5485 | 10.919 | 4.375 |  |
+| 5 s | rot | 68.565 | 1108765.1 | 879.9/818.6 | 0.5272 | 10.486 | 4.604 |  |
+| 5 s | onset rot | 74.754 | 1153694.9 | 933.8/856.5 | 0.5485 | 10.919 | 4.375 |  |
+
+Tunnel2 rotation local error is not defined: all matched GT quaternion
+components are zero.  The table therefore does not claim a rotational onset.
+The translational signals change only modestly and contemporaneously; there is
+no clean pre-onset zeta/eta warning.  Notably the 5 s pre-window has higher
+translation kappa than the onset window, so a monotone kappa trigger is not
+supported.

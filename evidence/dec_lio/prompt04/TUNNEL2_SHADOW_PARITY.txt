@@ -1,0 +1,18 @@
+Prompt04 Tunnel2 full shadow parity
+
+run=/home/lc/dec_lio/runtime/prompt04/tunnel2_shadow/tunnel2_shadow_01
+RC=0
+trajectory_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+native_canonical_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+trajectory_cmp=0
+dcreg_raw_schema=2 data_rows=9141
+dcreg_frame_summary_data_rows=2739
+d2_schema=3 data_rows=2739 iteration=0 only
+dcreg_shadow_sha256=2e00f39c36d724131e3b07f787d040875b017194c4cf0ce9a381f723af1d055a
+d2_frame_summary_sha256=103b92e0d5ad4064103fad5ac0df320b8843c225c0d63dccd2ebc580b1a8928d
+d1_valid=2739/2739
+prior_invalid=0
+zeta_invalid=0 for every emitted coupled direction
+
+No shadow output is consumed by the estimator, and no H/b/P/gamma/PCG or
+Prob-LIO implementation is present in this run.

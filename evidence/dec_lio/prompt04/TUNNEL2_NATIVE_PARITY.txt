@@ -1,0 +1,13 @@
+Prompt04 Tunnel2 native parity
+
+run1=/home/lc/dec_lio/runtime/prompt04/tunnel2_native_strict/tunnel2_native_01/trajectory.tum
+run2=/home/lc/dec_lio/runtime/prompt04/tunnel2_native_strict/tunnel2_native_02/trajectory.tum
+run1_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+run2_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+run1_rows=2739
+run2_rows=2739
+cmp=0
+canonical_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+
+The shadow trajectory also has this canonical SHA.  Native and shadow
+trajectories are byte-identical; D1/D2/zeta are diagnostics only.

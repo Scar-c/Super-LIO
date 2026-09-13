@@ -1,0 +1,30 @@
+Prompt04 Tunnel2 Alpha native baseline
+
+Dataset:
+  bag=/home/lc/dec_lio/bag/GEODE/Tunneling_tunnel2_alpha.bag
+  bag_sha256=08a4a32f660b3d2df3d2adb053fe86d310505a1689e9d37b3f87a6a20768498e
+  duration_s=282.2054714
+  lidar=/velodyne_points sensor_msgs/PointCloud2 VELO16
+  imu=/imu/data sensor_msgs/Imu
+  gt=/home/lc/dec_lio/bag/GEODE/Tunneling_tunnel2.txt
+  gt_sha256=b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a
+  gt_rows=618
+  gt_time_range=1706584536.660000309..1706584746.680000005
+  bag_gt_overlap_s=210.020000005
+  gt_attitude=position-only; quaternion columns are all zero
+
+Config:
+  src/super_lio/config/geode_tunneling2_alpha.yaml
+  config_sha256=1e081c1e414e251a1284dbef9688bc74955d86a7c029687f779ba5b9f0540c04
+  native Alpha settings; no Tunnel2 tuning against ATE
+  d1_shadow=OFF d2_shadow=OFF
+
+Native runs:
+  tunnel2_native_01: RC=0 rows=2739 trajectory_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30 fatal_marker=NONE
+  tunnel2_native_02: RC=0 rows=2739 trajectory_sha256=3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30 fatal_marker=NONE
+  trajectory_bytes=449428
+  strict_timestamp_nonpositive_dt=0
+
+The TUM timestamp normalization is evaluation-layer serialization hygiene for
+Tunnel2 only.  It retains every native row and does not alter estimator state,
+poses, or source-side timing.

@@ -1,0 +1,14 @@
+Prompt04 zeta synthetic tests
+
+Implemented tests cover:
+  Z1 direction scale invariance
+  Z2 block-diagonal analytic case
+  Z3 coupled A/B/D analytic case
+  Z4 coordinate-rescaling invariance with consistent H/P transform
+  P1 invalid P fail-open
+  P2 invalid Schur solve fail-open
+
+Observed result:
+  D2 shadow synthetic tests X1-X6/P1-P6/Z1-Z4: PASS
+
+The tests exercise the shadow analyzer and do not authorize estimator use.

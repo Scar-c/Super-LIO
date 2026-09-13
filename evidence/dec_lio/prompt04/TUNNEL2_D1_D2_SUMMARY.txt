@@ -1,0 +1,27 @@
+Prompt04 Tunnel2 D1/D2 summary
+
+All 2739 D2 frame rows are native iteration 0 and D1-valid.
+
+DCReg Schur / absolute lambda / lambda per used:
+  rotation: kappa median=59.43667083 p95=89.16137182 max=119.33647283;
+            lambda_min median=1095978.20267 p95=2396495.50258;
+            lambda_min/N_used median=1218.234254
+  translation: kappa median=1.82325313 p95=5.47766655 max=8.39972943;
+              lambda_min median=175381.95841 p95=268566.71252;
+              lambda_min/N_used median=221.840739
+
+X-ICP on native super-residuals:
+  rotation: FULL/PARTIAL/NONE = 1.000000/0.000000/0.000000;
+            Lc median=4283.42141, Ls median=4272.73429
+  translation: FULL/PARTIAL/NONE = 0.917001/0.082999/0.000000;
+              Lc median=400.00109, Ls median=296.94193
+
+Prior-relative signals:
+  mu_min median=0.63949467, p95=0.75402176, max=179.97785386
+  rotation eta_weak median=10.54682812, zeta_weak median=4.77306660
+  translation eta_weak=undefined and zeta_weak=undefined because rank_t=0
+  N_used median=888, p2.5=675.45, p95=1086
+
+There is no translation weak direction in Tunnel2.  Therefore its large
+translation local error cannot be described as a translation weak-direction
+positive under this D1 definition.

@@ -1,0 +1,24 @@
+Prompt04 closure status
+
+Completed:
+  - Prompt04 archived and startup/branch authority preserved
+  - Bridge native ROS/RViz interface verified through the owner gate
+  - Tunnel2 Alpha official input triplet identified and hashed
+  - two strict native runs completed with byte-identical trajectories
+  - fixed internal and EVO APE completed with 0.1 s association
+  - D1/D2/zeta full shadow completed with native trajectory parity
+  - coupled-Schur zeta implementation and synthetic tests completed
+  - Tunnel2 1/5/10 s local-error and documented onset analysis completed
+  - Bridge/Stairs/Tunnel2 matched κ analysis completed
+  - Gamma bags inventoried only; no Gamma full execution
+  - primary classification C and D2-C recommendation recorded
+
+Open owner-dependent item:
+  The owner released the Bridge visual gate but did not provide qualitative
+  observation wording or approximate interval.  `BRIDGE_OWNER_VISUAL_OBSERVATION.md`
+  records this honestly and does not infer a category.  Therefore the overall
+  Prompt04 status remains PARTIAL until that owner observation is appended.
+
+Final boundary:
+  H/b/P/gamma/PCG/Prob-LIO estimator changes: NONE.
+  Prompt04 does not implement a D2 estimator gate.
