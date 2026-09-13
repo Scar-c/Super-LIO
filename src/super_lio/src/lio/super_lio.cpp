@@ -439,7 +439,8 @@ void SuperLIO::DownSample(){
 struct ThreadACC{
   M6d HTVH = M6d::Zero();
   V6d HTVr = V6d::Zero();
-  ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()) {}
+  std::size_t used_residual_count = 0;
+  ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()), used_residual_count(0) {}
 };
 
 
@@ -510,21 +511,25 @@ void SuperLIO::Observe(){
       
             local_acc.HTVH += J * 1000 * J.transpose();
             local_acc.HTVr -= J * 1000 * error;
+            ++local_acc.used_residual_count;
           }
         }
     });
 
     M6d sum_HTVH = M6d::Zero();
     V6d sum_HTVr = V6d::Zero();
+    std::size_t used_residual_count = 0;
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
+      used_residual_count += local_acc.used_residual_count;
     }
 
     if (d1_analyzer_) {
       d1_analyzer_->observe(static_cast<std::uint64_t>(frame_num_),
                             current_shadow_iteration, measures_.lidar.end_time,
-                            need_converge, effect_knn_num_, sum_HTVH, sum_HTVr);
+                            need_converge, effect_knn_num_, used_residual_count,
+                            sum_HTVH, sum_HTVr);
     }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();

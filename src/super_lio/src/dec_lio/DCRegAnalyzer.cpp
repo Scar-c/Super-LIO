@@ -15,6 +15,8 @@ namespace {
 
 constexpr double kEpsilon = 1e-12;
 
+double quietNan() { return std::numeric_limits<double>::quiet_NaN(); }
+
 double conditionFromEigenvalues(const Vector3d& values) {
   const double largest = values.maxCoeff();
   const double smallest = values.minCoeff();
@@ -29,6 +31,28 @@ Vector3d normalizeEigenvalues(const Vector3d& values) {
   const double largest = values.maxCoeff();
   if (!std::isfinite(largest) || largest <= kEpsilon) return Vector3d::Zero();
   return values / largest;
+}
+
+double normalizedGap(const Vector3d& values, int lower_index) {
+  const double scale = std::max(std::abs(values.maxCoeff()), kEpsilon);
+  return (values(lower_index + 1) - values(lower_index)) / scale;
+}
+
+void makeWeakProjector(const Matrix3d& raw_basis, const Vector3d& normalized,
+                       double threshold, int& rank, Matrix3d& projector,
+                       Matrix3d& basis) {
+  rank = 0;
+  projector.setZero();
+  basis.setZero();
+  const double weak_limit = 1.0 / threshold;
+  for (int index = 0; index < 3; ++index) {
+    if (normalized(index) < weak_limit) {
+      const Vector3d vector = raw_basis.col(index);
+      projector.noalias() += vector * vector.transpose();
+      basis.col(rank) = vector;
+      ++rank;
+    }
+  }
 }
 
 void alignBasis(const Matrix3d& raw, Matrix3d& aligned,
@@ -78,6 +102,10 @@ void makeParent(const std::string& path) {
   }
 }
 
+void writeStabilityValue(std::ofstream& stream, double value, bool available) {
+  stream << (available ? value : quietNan()) << ',';
+}
+
 }  // namespace
 
 Characterization DCRegAnalyzer::characterize(const Matrix6d& h,
@@ -116,7 +144,8 @@ Characterization DCRegAnalyzer::characterize(const Matrix6d& h,
 
   Eigen::SelfAdjointEigenSolver<Matrix3d> rot_solver(schur_rot);
   Eigen::SelfAdjointEigenSolver<Matrix3d> trans_solver(schur_trans);
-  if (rot_solver.info() != Eigen::Success || trans_solver.info() != Eigen::Success ||
+  if (rot_solver.info() != Eigen::Success ||
+      trans_solver.info() != Eigen::Success ||
       !rot_solver.eigenvalues().allFinite() ||
       !trans_solver.eigenvalues().allFinite()) {
     result.factorization_ok = false;
@@ -129,8 +158,23 @@ Characterization DCRegAnalyzer::characterize(const Matrix6d& h,
   result.normalized_lambda_trans = normalizeEigenvalues(result.lambda_trans);
   result.cond_rot = conditionFromEigenvalues(result.lambda_rot);
   result.cond_trans = conditionFromEigenvalues(result.lambda_trans);
+  result.eigengap_rot_01 = normalizedGap(result.lambda_rot, 0);
+  result.eigengap_rot_12 = normalizedGap(result.lambda_rot, 1);
+  result.eigengap_trans_01 = normalizedGap(result.lambda_trans, 0);
+  result.eigengap_trans_12 = normalizedGap(result.lambda_trans, 1);
   result.raw_rot_basis = rot_solver.eigenvectors();
   result.raw_trans_basis = trans_solver.eigenvectors();
+
+  const double threshold = condition_threshold > 0.0 ? condition_threshold : 10.0;
+  makeWeakProjector(result.raw_rot_basis, result.normalized_lambda_rot, threshold,
+                    result.weak_rank_rot, result.weak_projector_rot,
+                    result.weak_basis_rot);
+  makeWeakProjector(result.raw_trans_basis, result.normalized_lambda_trans,
+                    threshold, result.weak_rank_trans,
+                    result.weak_projector_trans, result.weak_basis_trans);
+
+  // Axis alignment and its contribution matrix are retained only as secondary
+  // diagnostics. The raw-EVD weak projector above is the stability authority.
   alignBasis(result.raw_rot_basis, result.aligned_rot_basis,
              result.rot_source_indices);
   alignBasis(result.raw_trans_basis, result.aligned_trans_basis,
@@ -140,7 +184,6 @@ Characterization DCRegAnalyzer::characterize(const Matrix6d& h,
   result.trans_axis_contribution =
       result.aligned_trans_basis.cwiseProduct(result.aligned_trans_basis);
 
-  const double threshold = condition_threshold > 0.0 ? condition_threshold : 10.0;
   const double weak_limit = 1.0 / threshold;
   for (int axis = 0; axis < 3; ++axis) {
     const int rot_source = result.rot_source_indices[axis];
@@ -185,19 +228,30 @@ DCRegAnalyzer::DCRegAnalyzer(const std::string& csv_path,
 DCRegAnalyzer::~DCRegAnalyzer() { finalize(); }
 
 void DCRegAnalyzer::writeRawHeader() {
-  csv_ << "frame,iteration,lidar_end_time,need_converge,effective_correspondences,"
-          "symmetry_error,trace,b_norm,valid,factorization_ok,eigensolver_ok,"
+  if (!csv_) return;
+  csv_ << "schema_version,frame,iteration,timestamp,need_converge,"
+          "candidate_count,used_residual_count,used_residual_ratio,"
+          "valid,factorization_ok,eigensolver_ok,symmetry_error,trace,b_norm,"
           "cond_full,cond_rot,cond_trans,"
           "lambda_rot_0,lambda_rot_1,lambda_rot_2,"
           "lambda_trans_0,lambda_trans_1,lambda_trans_2,"
           "normalized_lambda_rot_0,normalized_lambda_rot_1,normalized_lambda_rot_2,"
           "normalized_lambda_trans_0,normalized_lambda_trans_1,normalized_lambda_trans_2,"
+          "weak_rank_rot,weak_rank_trans,eigengap_rot_01,eigengap_rot_12,"
+          "eigengap_trans_01,eigengap_trans_12,rank_changed_rot,rank_changed_trans,"
+          "projector_distance_rot,projector_distance_trans,"
+          "principal_angle_max_rot,principal_angle_mean_rot,"
+          "principal_angle_max_trans,principal_angle_mean_trans,"
           "axis_strength_rot_0,axis_strength_rot_1,axis_strength_rot_2,"
           "axis_strength_trans_0,axis_strength_trans_1,axis_strength_trans_2,"
           "rot_source_0,rot_source_1,rot_source_2,"
           "trans_source_0,trans_source_1,trans_source_2,"
           "diagnostic_rot_0,diagnostic_rot_1,diagnostic_rot_2,"
           "diagnostic_trans_0,diagnostic_trans_1,diagnostic_trans_2,";
+  const std::array<const char*, 2> projector_prefixes{{"P_weak_rot_", "P_weak_trans_"}};
+  for (const char* prefix : projector_prefixes) {
+    for (int index = 0; index < 9; ++index) csv_ << prefix << index << ',';
+  }
   const std::array<const char*, 6> prefixes{{
       "raw_rot_basis_", "raw_trans_basis_", "aligned_rot_basis_",
       "aligned_trans_basis_", "rot_contribution_", "trans_contribution_"}};
@@ -210,26 +264,50 @@ void DCRegAnalyzer::writeRawHeader() {
 }
 
 void DCRegAnalyzer::writeRawRow(std::uint64_t frame, int iteration,
-                                double lidar_end_time, bool need_converge,
-                                std::size_t effective_correspondences,
-                                const Characterization& c) {
+                                double timestamp, bool need_converge,
+                                std::size_t candidate_count,
+                                std::size_t used_residual_count,
+                                const Characterization& c,
+                                const StabilitySample& stability) {
   if (!csv_) return;
-  csv_ << frame << ',' << iteration << ',' << lidar_end_time << ','
-       << (need_converge ? 1 : 0) << ',' << effective_correspondences << ','
-       << c.symmetry_error << ',' << c.trace << ',' << c.b_norm << ','
-       << (c.valid ? 1 : 0) << ',' << (c.factorization_ok ? 1 : 0) << ','
-       << (c.eigensolver_ok ? 1 : 0) << ',' << c.cond_full << ',' << c.cond_rot
-       << ',' << c.cond_trans << ',';
+  const double ratio = candidate_count == 0
+                           ? 0.0
+                           : static_cast<double>(used_residual_count) /
+                                 static_cast<double>(candidate_count);
+  csv_ << 2 << ',' << frame << ',' << iteration << ',' << timestamp << ','
+       << (need_converge ? 1 : 0) << ',' << candidate_count << ','
+       << used_residual_count << ',' << ratio << ',' << (c.valid ? 1 : 0) << ','
+       << (c.factorization_ok ? 1 : 0) << ',' << (c.eigensolver_ok ? 1 : 0)
+       << ',' << c.symmetry_error << ',' << c.trace << ',' << c.b_norm << ','
+       << c.cond_full << ',' << c.cond_rot << ',' << c.cond_trans << ',';
   writeVector(csv_, c.lambda_rot);
   writeVector(csv_, c.lambda_trans);
   writeVector(csv_, c.normalized_lambda_rot);
   writeVector(csv_, c.normalized_lambda_trans);
+  csv_ << c.weak_rank_rot << ',' << c.weak_rank_trans << ','
+       << c.eigengap_rot_01 << ',' << c.eigengap_rot_12 << ','
+       << c.eigengap_trans_01 << ',' << c.eigengap_trans_12 << ','
+       << (stability.has_previous && stability.rank_changed_rot ? 1 : 0) << ','
+       << (stability.has_previous && stability.rank_changed_trans ? 1 : 0) << ',';
+  writeStabilityValue(csv_, stability.projector_distance_rot,
+                      stability.has_previous);
+  writeStabilityValue(csv_, stability.projector_distance_trans,
+                      stability.has_previous);
+  writeStabilityValue(csv_, stability.principal_angle_max_rot,
+                      stability.has_previous && !stability.rank_changed_rot);
+  writeStabilityValue(csv_, stability.principal_angle_mean_rot,
+                      stability.has_previous && !stability.rank_changed_rot);
+  writeStabilityValue(csv_, stability.principal_angle_max_trans,
+                      stability.has_previous && !stability.rank_changed_trans);
+  writeStabilityValue(csv_, stability.principal_angle_mean_trans,
+                      stability.has_previous && !stability.rank_changed_trans);
   writeVector(csv_, c.axis_strength_rot);
   writeVector(csv_, c.axis_strength_trans);
   for (int value : c.rot_source_indices) csv_ << value << ',';
   for (int value : c.trans_source_indices) csv_ << value << ',';
-  for (int axis = 0; axis < 3; ++axis) csv_ << (c.diagnostic_mask[axis] ? 1 : 0) << ',';
-  for (int axis = 3; axis < 6; ++axis) csv_ << (c.diagnostic_mask[axis] ? 1 : 0) << ',';
+  for (bool value : c.diagnostic_mask) csv_ << (value ? 1 : 0) << ',';
+  writeMatrix(csv_, c.weak_projector_rot);
+  writeMatrix(csv_, c.weak_projector_trans);
   writeMatrix(csv_, c.raw_rot_basis);
   writeMatrix(csv_, c.raw_trans_basis);
   writeMatrix(csv_, c.aligned_rot_basis);
@@ -241,14 +319,19 @@ void DCRegAnalyzer::writeRawRow(std::uint64_t frame, int iteration,
 
 void DCRegAnalyzer::writeSummaryHeader() {
   if (!summary_) return;
-  summary_ << "frame,iteration,lidar_end_time,effective_correspondences,valid,"
+  summary_ << "schema_version,frame,iteration,timestamp,need_converge,"
+              "candidate_count,used_residual_count,used_residual_ratio,valid,"
               "factorization_ok,eigensolver_ok,cond_full,cond_rot,cond_trans,"
               "lambda_rot_0,lambda_rot_1,lambda_rot_2,"
               "lambda_trans_0,lambda_trans_1,lambda_trans_2,"
-              "axis_strength_rot_0,axis_strength_rot_1,axis_strength_rot_2,"
-              "axis_strength_trans_0,axis_strength_trans_1,axis_strength_trans_2,"
+              "weak_rank_rot,weak_rank_trans,eigengap_rot_01,eigengap_rot_12,"
+              "eigengap_trans_01,eigengap_trans_12,"
               "diagnostic_rot_0,diagnostic_rot_1,diagnostic_rot_2,"
-              "diagnostic_trans_0,diagnostic_trans_1,diagnostic_trans_2\n";
+              "diagnostic_trans_0,diagnostic_trans_1,diagnostic_trans_2,";
+  for (int index = 0; index < 9; ++index) summary_ << "P_weak_rot_" << index << ',';
+  for (int index = 0; index < 9; ++index) {
+    summary_ << "P_weak_trans_" << index << (index == 8 ? '\n' : ',');
+  }
 }
 
 void DCRegAnalyzer::writeSummaryRows() {
@@ -256,49 +339,114 @@ void DCRegAnalyzer::writeSummaryRows() {
   for (const auto& entry : frame_samples_) {
     const FrameSample& sample = entry.second;
     const Characterization& c = sample.characterization;
-    summary_ << entry.first << ',' << sample.iteration << ','
-             << sample.lidar_end_time << ',' << sample.effective_correspondences
-             << ',' << (sample.authority_valid ? 1 : 0) << ','
+    const double ratio = sample.candidate_count == 0
+                             ? 0.0
+                             : static_cast<double>(sample.used_residual_count) /
+                                   static_cast<double>(sample.candidate_count);
+    summary_ << 2 << ',' << entry.first << ',' << sample.iteration << ','
+             << sample.timestamp << ',' << (sample.need_converge ? 1 : 0) << ','
+             << sample.candidate_count << ',' << sample.used_residual_count << ','
+             << ratio << ',' << (sample.authority_valid ? 1 : 0) << ','
              << (c.factorization_ok ? 1 : 0) << ','
              << (c.eigensolver_ok ? 1 : 0) << ',' << c.cond_full << ','
              << c.cond_rot << ',' << c.cond_trans << ',';
     writeVector(summary_, c.lambda_rot);
     writeVector(summary_, c.lambda_trans);
-    writeVector(summary_, c.axis_strength_rot);
-    writeVector(summary_, c.axis_strength_trans);
-    for (int axis = 0; axis < 3; ++axis)
+    summary_ << c.weak_rank_rot << ',' << c.weak_rank_trans << ','
+             << c.eigengap_rot_01 << ',' << c.eigengap_rot_12 << ','
+             << c.eigengap_trans_01 << ',' << c.eigengap_trans_12 << ',';
+    for (int axis = 0; axis < 3; ++axis) {
       summary_ << (sample.authority_valid && c.diagnostic_mask[axis] ? 1 : 0)
                << ',';
-    for (int axis = 3; axis < 6; ++axis)
-      summary_ << (sample.authority_valid && c.diagnostic_mask[axis] ? 1 : 0)
-               << (axis == 5 ? '\n' : ',');
+    }
+    for (int axis = 3; axis < 6; ++axis) summary_ << (sample.authority_valid && c.diagnostic_mask[axis] ? 1 : 0) << ',';
+    writeMatrix(summary_, c.weak_projector_rot);
+    writeMatrix(summary_, c.weak_projector_trans, true);
+    summary_ << '\n';
   }
 }
 
 void DCRegAnalyzer::observe(std::uint64_t frame, int iteration,
-                            double lidar_end_time, bool need_converge,
-                            std::size_t effective_correspondences,
+                            double timestamp, bool need_converge,
+                            std::size_t candidate_count,
+                            std::size_t used_residual_count,
                             const Matrix6d& h, const Vector6d& b) {
   const Characterization characterization =
       characterize(h, b, condition_threshold_);
-  writeRawRow(frame, iteration, lidar_end_time, need_converge,
-              effective_correspondences, characterization);
+  StabilitySample stability;
+  const auto previous_it = previous_samples_.find(frame);
+  if (characterization.valid && previous_it != previous_samples_.end() &&
+      previous_it->second.characterization.valid) {
+    const Characterization& previous = previous_it->second.characterization;
+    stability.has_previous = true;
+    stability.rank_changed_rot =
+        previous.weak_rank_rot != characterization.weak_rank_rot;
+    stability.rank_changed_trans =
+        previous.weak_rank_trans != characterization.weak_rank_trans;
+    stability.projector_distance_rot =
+        (characterization.weak_projector_rot - previous.weak_projector_rot).norm();
+    stability.projector_distance_trans =
+        (characterization.weak_projector_trans - previous.weak_projector_trans).norm();
+
+    auto principal_angles = [](const Matrix3d& old_basis,
+                               const Matrix3d& new_basis, int rank,
+                               double& max_angle, double& mean_angle) {
+      if (rank == 0) {
+        max_angle = 0.0;
+        mean_angle = 0.0;
+        return;
+      }
+      const auto overlap = old_basis.leftCols(rank).transpose() *
+                           new_basis.leftCols(rank);
+      Eigen::JacobiSVD<Eigen::MatrixXd> svd(overlap);
+      double sum = 0.0;
+      max_angle = 0.0;
+      for (int index = 0; index < svd.singularValues().size(); ++index) {
+        const double cosine = std::clamp(svd.singularValues()(index), 0.0, 1.0);
+        const double angle = std::acos(cosine);
+        max_angle = std::max(max_angle, angle);
+        sum += angle;
+      }
+      mean_angle = sum / static_cast<double>(rank);
+    };
+    if (!stability.rank_changed_rot) {
+      principal_angles(previous.weak_basis_rot, characterization.weak_basis_rot,
+                       characterization.weak_rank_rot,
+                       stability.principal_angle_max_rot,
+                       stability.principal_angle_mean_rot);
+    }
+    if (!stability.rank_changed_trans) {
+      principal_angles(previous.weak_basis_trans,
+                       characterization.weak_basis_trans,
+                       characterization.weak_rank_trans,
+                       stability.principal_angle_max_trans,
+                       stability.principal_angle_mean_trans);
+    }
+  }
+  writeRawRow(frame, iteration, timestamp, need_converge, candidate_count,
+              used_residual_count, characterization, stability);
 
   auto [entry, inserted] = frame_samples_.try_emplace(frame);
   FrameSample& sample = entry->second;
   if (inserted) {
     sample.iteration = iteration;
-    sample.lidar_end_time = lidar_end_time;
-    sample.effective_correspondences = effective_correspondences;
+    sample.timestamp = timestamp;
+    sample.need_converge = need_converge;
+    sample.candidate_count = candidate_count;
+    sample.used_residual_count = used_residual_count;
     sample.characterization = characterization;
   }
+  // Authority is the first valid non-converged observation in each frame.
   if (!need_converge && characterization.valid && !sample.authority_valid) {
     sample.authority_valid = true;
+    sample.need_converge = false;
     sample.iteration = iteration;
-    sample.lidar_end_time = lidar_end_time;
-    sample.effective_correspondences = effective_correspondences;
+    sample.timestamp = timestamp;
+    sample.candidate_count = candidate_count;
+    sample.used_residual_count = used_residual_count;
     sample.characterization = characterization;
   }
+  previous_samples_[frame] = PreviousSample{iteration, characterization};
 }
 
 void DCRegAnalyzer::finalize() {

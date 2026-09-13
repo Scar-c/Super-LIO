@@ -2,10 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <set>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
@@ -73,6 +79,36 @@ void requireOneWeakAxis(const Characterization& result, int offset,
   int count = 0;
   for (int axis = 0; axis < 3; ++axis) count += result.diagnostic_mask[offset + axis];
   require(count == 1, message);
+}
+
+std::vector<std::string> split(const std::string& line) {
+  std::vector<std::string> fields;
+  std::stringstream stream(line);
+  std::string field;
+  while (std::getline(stream, field, ',')) fields.push_back(field);
+  return fields;
+}
+
+std::map<std::string, std::string> readRow(const std::string& path,
+                                           std::size_t row_number) {
+  std::ifstream stream(path);
+  require(static_cast<bool>(stream), "analyzer CSV opens");
+  std::string header_line;
+  require(static_cast<bool>(std::getline(stream, header_line)),
+          "analyzer CSV header");
+  const std::vector<std::string> headers = split(header_line);
+  std::string row_line;
+  for (std::size_t index = 0; index <= row_number; ++index) {
+    require(static_cast<bool>(std::getline(stream, row_line)),
+            "analyzer CSV row");
+  }
+  const std::vector<std::string> fields = split(row_line);
+  require(headers.size() == fields.size(), "v2 header/data column parity");
+  std::map<std::string, std::string> row;
+  for (std::size_t index = 0; index < headers.size(); ++index) {
+    row.emplace(headers[index], fields[index]);
+  }
+  return row;
 }
 
 }  // namespace
@@ -164,6 +200,83 @@ int main() {
           "G non-finite matrix invalid");
   for (bool value : g_result.diagnostic_mask) require(!value, "G no mask on failure");
 
-  std::cout << "D1 synthetic tests A-G: PASS\n";
+  // H: raw-EVD projector is invariant to the choice of basis signs and has
+  // the expected projector algebra for a two-dimensional weak subspace.
+  Matrix3d weak_plane = Matrix3d::Identity();
+  weak_plane.diagonal() << 0.01, 0.02, 10.0;
+  const Matrix3d plane_rotation =
+      Eigen::AngleAxisd(0.41, Vector3d::UnitZ()).toRotationMatrix() *
+      Eigen::AngleAxisd(-0.29, Vector3d::UnitY()).toRotationMatrix();
+  const Characterization h_result = DecLIO::DCRegAnalyzer::characterize(
+      blockDiagonal(plane_rotation * weak_plane * plane_rotation.transpose(),
+                    weak_plane),
+      b, 10.0);
+  require(h_result.weak_rank_rot == 2 && h_result.weak_rank_trans == 2,
+          "H weak projector ranks");
+  close((h_result.weak_projector_rot - h_result.weak_projector_rot.transpose()).norm(),
+        0.0, "H projector symmetry");
+  close((h_result.weak_projector_rot * h_result.weak_projector_rot -
+         h_result.weak_projector_rot).norm(),
+        0.0, "H projector idempotence");
+  close(h_result.weak_projector_rot.trace(), 2.0, "H projector trace");
+  Matrix3d signed_basis = h_result.raw_rot_basis;
+  signed_basis.col(0) *= -1.0;
+  signed_basis.col(1) *= -1.0;
+  Matrix3d signed_projector = Matrix3d::Zero();
+  signed_projector.noalias() += signed_basis.col(0) * signed_basis.col(0).transpose();
+  signed_projector.noalias() += signed_basis.col(1) * signed_basis.col(1).transpose();
+  close((signed_projector - h_result.weak_projector_rot).norm(), 0.0,
+        "H projector sign invariance");
+
+  // I: schema v2 and temporal subspace diagnostics. A rotating rank-one
+  // weak subspace has a finite principal angle; a rank transition is explicit
+  // and suppresses the incomparable principal-angle value.
+  const std::string csv_path = "/tmp/dec_lio_dcreg_synthetic_v2.csv";
+  const std::string summary_path = "/tmp/dec_lio_dcreg_synthetic_v2_summary.csv";
+  std::remove(csv_path.c_str());
+  std::remove(summary_path.c_str());
+  Matrix6d first = Matrix6d::Identity();
+  first.diagonal() << 10.0, 10.0, 10.0, 10.0, 10.0, 0.01;
+  Matrix6d rotated_weak = Matrix6d::Identity();
+  const Matrix3d ninety =
+      Eigen::AngleAxisd(0.5 * std::acos(-1.0), Vector3d::UnitY()).toRotationMatrix();
+  rotated_weak.block<3, 3>(3, 3) =
+      ninety * (10.0 * Matrix3d::Identity() -
+                9.99 * Vector3d::UnitZ() * Vector3d::UnitZ().transpose()) *
+      ninety.transpose();
+  Matrix6d no_weak = Matrix6d::Identity();
+  {
+    DecLIO::DCRegAnalyzer analyzer(csv_path, summary_path, 10.0);
+    analyzer.observe(7, 0, 1.0, false, 100, 80, first, b);
+    analyzer.observe(7, 1, 1.1, false, 101, 79, rotated_weak, b);
+    analyzer.observe(7, 2, 1.2, false, 102, 78, no_weak, b);
+    analyzer.finalize();
+  }
+  const std::map<std::string, std::string> first_row = readRow(csv_path, 0);
+  const std::map<std::string, std::string> rotated_row = readRow(csv_path, 1);
+  const std::map<std::string, std::string> changed_row = readRow(csv_path, 2);
+  require(first_row.at("schema_version") == "2", "I raw schema version");
+  require(first_row.at("candidate_count") == "100" &&
+              first_row.at("used_residual_count") == "80",
+          "I count fields");
+  close(std::stod(first_row.at("used_residual_ratio")), 0.8,
+        "I residual ratio");
+  require(rotated_row.at("rank_changed_trans") == "0",
+          "I same-rank transition");
+  require(std::stod(rotated_row.at("principal_angle_max_trans")) > 1.4,
+          "I principal angle");
+  require(changed_row.at("rank_changed_trans") == "1",
+          "I rank-change flag");
+  require(changed_row.at("principal_angle_max_trans") == "nan",
+          "I rank-change angle is undefined");
+  const std::map<std::string, std::string> summary_row =
+      readRow(summary_path, 0);
+  require(summary_row.at("schema_version") == "2" &&
+              summary_row.at("need_converge") == "0",
+          "I authority summary schema");
+  std::remove(csv_path.c_str());
+  std::remove(summary_path.c_str());
+
+  std::cout << "D1 synthetic tests A-I: PASS\n";
   return 0;
 }
