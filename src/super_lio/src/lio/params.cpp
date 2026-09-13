@@ -57,6 +57,9 @@ namespace LI2Sup{
   std::string g_d1_output_csv;
   std::string g_d1_frame_summary_csv;
 
+  bool g_d2_shadow_enabled = false;
+  std::string g_d2_output_csv;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;

@@ -75,6 +75,10 @@ namespace LI2Sup{
   extern std::string g_d1_output_csv;
   extern std::string g_d1_frame_summary_csv;
 
+  /// Dec-LIO D2 shadow calibration. This switch is intentionally off by default.
+  extern bool g_d2_shadow_enabled;
+  extern std::string g_d2_output_csv;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

@@ -89,6 +89,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            std::string());
   nh.param("/lio/dec_lio/d1_shadow/frame_summary_csv",
            g_d1_frame_summary_csv, std::string());
+  nh.param("/lio/dec_lio/d2_shadow/enabled", g_d2_shadow_enabled, false);
+  nh.param("/lio/dec_lio/d2_shadow/output_csv", g_d2_output_csv,
+           std::string());
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);

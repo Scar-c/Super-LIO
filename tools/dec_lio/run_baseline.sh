@@ -18,6 +18,7 @@ RATE="1.0"
 DURATION=""
 THREADS="$(nproc)"
 D1_SHADOW="false"
+D2_SHADOW="false"
 PLAY_TOPICS="/velodyne_points,/imu/data"
 RECORD_TOPICS="/lio/odom"
 
@@ -34,6 +35,7 @@ while [ "$#" -gt 0 ]; do
     --duration) DURATION="$2"; shift 2 ;;
     --threads) THREADS="$2"; shift 2 ;;
     --d1-shadow) D1_SHADOW="true"; shift ;;
+    --d2-shadow) D2_SHADOW="true"; shift ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
@@ -108,6 +110,7 @@ trap cleanup EXIT
   echo "requested_threads: $THREADS"
   echo "nproc: $(nproc)"
   echo "d1_shadow: $D1_SHADOW"
+  echo "d2_shadow: $D2_SHADOW"
   echo "effective_thread_policy: one sequential temporal epoch; native TBB backend"
   echo "play_topics: $PLAY_TOPICS"
   echo "record_topics: $RECORD_TOPICS"
@@ -135,6 +138,8 @@ rosparam set /lio/dec_lio/d1_shadow/enabled "$D1_SHADOW"
 rosparam set /lio/dec_lio/d1_shadow/condition_threshold "10.0"
 rosparam set /lio/dec_lio/d1_shadow/output_csv "$RUN_DIR/dcreg_shadow.csv"
 rosparam set /lio/dec_lio/d1_shadow/frame_summary_csv "$RUN_DIR/dcreg_frame_summary.csv"
+rosparam set /lio/dec_lio/d2_shadow/enabled "$D2_SHADOW"
+rosparam set /lio/dec_lio/d2_shadow/output_csv "$RUN_DIR/d2_frame_summary.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio
 echo "effective_rosparams_sha256: $(sha256sum "$RUN_DIR/effective_rosparams.yaml" | awk '{print $1}')" >> "$META"

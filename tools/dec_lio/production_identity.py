@@ -18,6 +18,8 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/apps/super_lio_offline_node.cpp",
     "src/super_lio/include/dec_lio/DCRegAnalyzer.h",
     "src/super_lio/src/dec_lio/DCRegAnalyzer.cpp",
+    "src/super_lio/include/dec_lio/D2ShadowAnalyzer.h",
+    "src/super_lio/src/dec_lio/D2ShadowAnalyzer.cpp",
     "src/super_lio/include/lio/params.h",
     "src/super_lio/include/lio/super_lio.h",
     "src/super_lio/src/lio/params.cpp",

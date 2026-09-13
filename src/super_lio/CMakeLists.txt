@@ -58,7 +58,8 @@ catkin_package(
 )
 
 # LIO library source files
-file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/dec_lio/*.cpp")
+file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/dec_lio/*.cpp"
+  "src/dec_lio/D2ShadowAnalyzer.cpp")
 
 file(GLOB_RECURSE LIO_LIB_HEADERS "include/lio/*.hpp" "include/lio/*.h"
   "include/dec_lio/*.hpp" "include/dec_lio/*.h")
@@ -123,3 +124,15 @@ target_include_directories(dec_lio_dcreg_synthetic_test PRIVATE
   ${EIGEN3_INCLUDE_DIRS}
 )
 add_test(NAME dec_lio_dcreg_synthetic_test COMMAND dec_lio_dcreg_synthetic_test)
+
+add_executable(dec_lio_d2_shadow_synthetic_test
+  ../../tests/dec_lio/d2_shadow_synthetic_test.cpp
+  src/dec_lio/DCRegAnalyzer.cpp
+  src/dec_lio/D2ShadowAnalyzer.cpp
+)
+target_include_directories(dec_lio_d2_shadow_synthetic_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+)
+add_test(NAME dec_lio_d2_shadow_synthetic_test
+  COMMAND dec_lio_d2_shadow_synthetic_test)
