@@ -177,6 +177,7 @@ def audit_bag(path: Path, topic: str, reservoir_size: int) -> dict:
             }
         array = array_for(message, dtype)
         stats = point_stats(array)
+        strided_stats = point_stats(array[::3])
         time_summary = summarize_time(array)
         merge_counts(raw_counts, stats)
         if "ring" in array.dtype.names:
@@ -195,6 +196,13 @@ def audit_bag(path: Path, topic: str, reservoir_size: int) -> dict:
             "points": int(len(array)),
             "time": time_summary,
             "N_finite": stats["N_finite"],
+            "N_finite_after_raw_stride3": strided_stats["N_finite"],
+            "N_after_finite_then_stride3": int(np.ceil(stats["N_finite"] / 3.0)),
+            "N_after_raw_stride3": len(array[::3]),
+            "N_after_raw_stride3_blind_1p5": strided_stats["N_after_blind_1p5"],
+            "N_after_raw_stride3_blind_2p0": strided_stats["N_after_blind_2p0"],
+            "N_after_raw_stride3_upper_100": strided_stats["N_gt_100p0"],
+            "N_after_raw_stride3_upper_150": strided_stats["N_gt_150p0"],
             "N_after_blind_1p5": stats["N_after_blind_1p5"],
             "N_after_blind_2p0": stats["N_after_blind_2p0"],
             "N_gt_100p0": stats["N_gt_100p0"],
@@ -225,18 +233,24 @@ def audit_bag(path: Path, topic: str, reservoir_size: int) -> dict:
         sum(frame["points"] // 3 + (1 if frame["points"] % 3 else 0)
             for frame in frame_summaries))
     raw_counts["N_after_raw_stride3_finite"] = int(
-        sum(int(np.ceil(frame["N_finite"] / 3.0)) for frame in frame_summaries))
+        sum(frame["N_finite_after_raw_stride3"] for frame in frame_summaries))
+    raw_counts["N_after_finite_then_stride3"] = int(
+        sum(frame["N_after_finite_then_stride3"] for frame in frame_summaries))
     # A finite-then-stride implementation is equivalent on this input only if
     # no non-finite points exist; the exact finite-then-stride count is computed
     # above as a conservative per-frame audit statistic.
     raw_counts["N_after_blind_1p5_then_stride3"] = int(
-        sum(int(np.ceil(frame["N_after_blind_1p5"] / 3.0)) for frame in frame_summaries))
+        sum(frame["N_after_raw_stride3_blind_1p5"] for frame in frame_summaries))
     raw_counts["N_after_blind_2p0_then_stride3"] = int(
-        sum(int(np.ceil(frame["N_after_blind_2p0"] / 3.0)) for frame in frame_summaries))
+        sum(frame["N_after_raw_stride3_blind_2p0"] for frame in frame_summaries))
     raw_counts["N_after_stride3_then_blind_1p5"] = int(
-        sum(int(np.ceil(frame["N_after_blind_1p5"] / 3.0)) for frame in frame_summaries))
+        sum(frame["N_after_raw_stride3_blind_1p5"] for frame in frame_summaries))
     raw_counts["N_after_stride3_then_blind_2p0"] = int(
-        sum(int(np.ceil(frame["N_after_blind_2p0"] / 3.0)) for frame in frame_summaries))
+        sum(frame["N_after_raw_stride3_blind_2p0"] for frame in frame_summaries))
+    raw_counts["N_after_raw_stride3_gt_100p0"] = int(
+        sum(frame["N_after_raw_stride3_upper_100"] for frame in frame_summaries))
+    raw_counts["N_after_raw_stride3_gt_150p0"] = int(
+        sum(frame["N_after_raw_stride3_upper_150"] for frame in frame_summaries))
 
     return {
         "bag": str(path),
