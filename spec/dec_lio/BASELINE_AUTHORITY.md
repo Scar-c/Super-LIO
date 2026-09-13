@@ -8,7 +8,7 @@ The implementation source of truth descends directly from the clean ROS1 branch:
 
 ```text
 origin/ros1 = 60b57aaac8dc397f80c56364e7ccb008c300cc29
-HEAD       = e34389cfb3c46f4117c42b245319336cd344361e (Prompt01 documentation
+HEAD       = 87c2b894548462f9d8189853fd8bc782f57cfcec (Prompt01 documentation
            closure; runtime gates ran at
            367b54ad6555b8233996ebd0219af07cc58c3246)
 ```
