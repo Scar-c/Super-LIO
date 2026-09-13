@@ -59,10 +59,12 @@ void writeVector(std::ofstream& stream, const Vector3d& vector) {
   stream << vector(0) << ',' << vector(1) << ',' << vector(2) << ',';
 }
 
-void writeMatrix(std::ofstream& stream, const Matrix3d& matrix) {
+void writeMatrix(std::ofstream& stream, const Matrix3d& matrix,
+                 bool final_matrix = false) {
   for (int row = 0; row < 3; ++row) {
     for (int column = 0; column < 3; ++column) {
-      stream << matrix(row, column) << ',';
+      stream << matrix(row, column);
+      if (!final_matrix || row != 2 || column != 2) stream << ',';
     }
   }
 }
@@ -117,6 +119,7 @@ Characterization DCRegAnalyzer::characterize(const Matrix6d& h,
   if (rot_solver.info() != Eigen::Success || trans_solver.info() != Eigen::Success ||
       !rot_solver.eigenvalues().allFinite() ||
       !trans_solver.eigenvalues().allFinite()) {
+    result.factorization_ok = false;
     return result;
   }
   result.eigensolver_ok = true;
@@ -195,12 +198,15 @@ void DCRegAnalyzer::writeRawHeader() {
           "trans_source_0,trans_source_1,trans_source_2,"
           "diagnostic_rot_0,diagnostic_rot_1,diagnostic_rot_2,"
           "diagnostic_trans_0,diagnostic_trans_1,diagnostic_trans_2,";
-  for (const char* prefix : {"raw_rot_basis_", "raw_trans_basis_",
-                             "aligned_rot_basis_", "aligned_trans_basis_",
-                             "rot_contribution_", "trans_contribution_"}) {
-    for (int index = 0; index < 9; ++index) csv_ << prefix << index << ',';
+  const std::array<const char*, 6> prefixes{{
+      "raw_rot_basis_", "raw_trans_basis_", "aligned_rot_basis_",
+      "aligned_trans_basis_", "rot_contribution_", "trans_contribution_"}};
+  for (std::size_t prefix_index = 0; prefix_index < prefixes.size(); ++prefix_index) {
+    for (int index = 0; index < 9; ++index) {
+      const bool final_field = prefix_index + 1 == prefixes.size() && index == 8;
+      csv_ << prefixes[prefix_index] << index << (final_field ? '\n' : ',');
+    }
   }
-  csv_ << '\n';
 }
 
 void DCRegAnalyzer::writeRawRow(std::uint64_t frame, int iteration,
@@ -229,7 +235,7 @@ void DCRegAnalyzer::writeRawRow(std::uint64_t frame, int iteration,
   writeMatrix(csv_, c.aligned_rot_basis);
   writeMatrix(csv_, c.aligned_trans_basis);
   writeMatrix(csv_, c.rot_axis_contribution);
-  writeMatrix(csv_, c.trans_axis_contribution);
+  writeMatrix(csv_, c.trans_axis_contribution, true);
   csv_ << '\n';
 }
 
@@ -265,8 +271,7 @@ void DCRegAnalyzer::writeSummaryRows() {
                << ',';
     for (int axis = 3; axis < 6; ++axis)
       summary_ << (sample.authority_valid && c.diagnostic_mask[axis] ? 1 : 0)
-               << ',';
-    summary_ << '\n';
+               << (axis == 5 ? '\n' : ',');
   }
 }
 

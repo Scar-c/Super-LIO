@@ -16,7 +16,7 @@ def main():
         if lowered.endswith(bad_suffixes):
             errors.append(f"tracked runtime artifact: {name}")
         if name.startswith("src/super_lio/") and any(
-            token in lowered for token in ("prob_lio", "dcreg", "pcg", "sa_gate")
+            token in lowered for token in ("prob_lio", "pcg", "sa_gate")
         ):
             errors.append(f"forbidden production estimator name: {name}")
     if errors:

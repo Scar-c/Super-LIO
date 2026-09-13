@@ -6,3 +6,5 @@ capture. `eval_tum_translation.py` reports rigid SE(3)-aligned translation APE
 against the supplied GEODE reference; it does not crop or scale. The supplied
 GEODE text reference is non-monotonic, so the evaluator records its stable
 timestamp sort explicitly while leaving the estimate in native output order.
+`summarize_dcreg.py` summarizes D1 per-frame condition ratios, validity,
+diagnostic masks, and longest weak-axis windows.
