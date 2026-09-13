@@ -8,6 +8,15 @@ import unittest
 
 
 class InputIdentityTest(unittest.TestCase):
+    def test_tunnel2_sequence_is_registered(self):
+        repo = pathlib.Path(__file__).resolve().parents[2]
+        script = repo / "tools/dec_lio/validate_input.py"
+        result = subprocess.run(
+            ["python3", str(script), "--help"], text=True, capture_output=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("tunneling_tunnel2", result.stdout)
+
     def test_wrong_dataset_is_rejected(self):
         repo = pathlib.Path(__file__).resolve().parents[2]
         script = repo / "tools/dec_lio/validate_input.py"

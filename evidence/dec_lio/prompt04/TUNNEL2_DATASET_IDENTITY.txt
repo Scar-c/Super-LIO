@@ -1,0 +1,42 @@
+Prompt04 Tunnel2 Alpha dataset identity
+
+bag: /home/lc/dec_lio/bag/GEODE/Tunneling_tunnel2_alpha.bag
+bag_sha256: 08a4a32f660b3d2df3d2adb053fe86d310505a1689e9d37b3f87a6a20768498e
+bag_duration_s: 282.2054714 (rosbag info: 4:42)
+bag_first_timestamp: 1706584494.1358569
+bag_last_timestamp: 1706584776.3413284
+bag_message_count: 35551
+
+topics:
+  /velodyne_points: 2750 x sensor_msgs/PointCloud2
+  /imu/data: 27308 x sensor_msgs/Imu
+  /left_camera/compressed: 2747 x sensor_msgs/CompressedImage
+  /right_camera/compressed: 2746 x sensor_msgs/CompressedImage
+
+first LiDAR message:
+  record/header timestamp: 1706584494.1358569
+  frame_id: velodyne
+  width x height: 16 x 1800
+  fields: x/y/z/intensity (FLOAT32), ring (UINT16), time (FLOAT32)
+  point_step: 22
+  row_step: 352
+  is_dense: false
+
+first IMU message:
+  record/header timestamp: 1706584494.1683352
+  frame_id: imu_link
+
+first camera messages:
+  left: 1706584494.1361237, frame_id=left_camera
+  right: 1706584494.136472, frame_id=right_camera
+
+ground_truth: /home/lc/dec_lio/bag/GEODE/Tunneling_tunnel2.txt
+ground_truth_sha256: b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a
+ground_truth_rows: 618
+ground_truth_first_timestamp: 1706584536.660000309
+ground_truth_last_timestamp: 1706584746.680000005
+time_overlap_s: 210.020000005
+
+sensor identity: Alpha / Velodyne VLP-16 / Xsens IMU
+identity basis: GEODE Alpha topic/calibration convention plus observed
+16-channel Velodyne-style PointCloud2 ring field and /imu/data stream.

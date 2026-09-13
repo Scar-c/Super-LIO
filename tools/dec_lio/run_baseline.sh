@@ -51,7 +51,11 @@ fi
 if [ ! -f "$CONFIG" ]; then
   echo "ERR: missing config: $CONFIG" >&2; exit 2
 fi
-GROUND_TRUTH="$(dirname "$BAG")/$SEQUENCE.txt"
+if [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
+  GROUND_TRUTH="$(dirname "$BAG")/Tunneling_tunnel2.txt"
+else
+  GROUND_TRUTH="$(dirname "$BAG")/$SEQUENCE.txt"
+fi
 python3 "$REPO_ROOT/tools/dec_lio/validate_input.py" \
   --sequence "$SEQUENCE" --bag "$BAG" --config "$CONFIG" --ground-truth "$GROUND_TRUTH" >/dev/null
 if [ -z "$RUN_ID" ]; then RUN_ID="${MODE}_$(date -u +%Y%m%dT%H%M%SZ)"; fi

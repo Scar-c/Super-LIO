@@ -18,6 +18,11 @@ EXPECTED = {
         "config": "12d22a80abd21050d6e7b4984edd51f09f2e65d46bcaadb853a4c75a04a97d3b",
         "ground_truth": "94b2cb2d9e3f4e4bbfde0932ed3adf6b314b649b690c9e13d6f610c719d750f6",
     },
+    "tunneling_tunnel2": {
+        "bag": "08a4a32f660b3d2df3d2adb053fe86d310505a1689e9d37b3f87a6a20768498e",
+        "config": "1e081c1e414e251a1284dbef9688bc74955d86a7c029687f779ba5b9f0540c04",
+        "ground_truth": "b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a",
+    },
 }
 
 
