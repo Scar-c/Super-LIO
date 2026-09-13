@@ -197,6 +197,12 @@ echo "play_rc: ${PLAY_RC:-not-applicable}" >> "$META"
 echo "record_rc: ${RECORD_RC:-not-applicable}" >> "$META"
 echo "trajectory: $RUN_DIR/trajectory.tum" >> "$META"
 if [ -f "$RUN_DIR/trajectory.tum" ]; then
+  if [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
+    python3 "$REPO_ROOT/eval/dec_lio/normalize_tum_timestamps.py" \
+      --input "$RUN_DIR/trajectory.tum" \
+      --output "$RUN_DIR/trajectory.strict.tum"
+    mv "$RUN_DIR/trajectory.strict.tum" "$RUN_DIR/trajectory.tum"
+  fi
   echo "trajectory_sha256: $(sha256sum "$RUN_DIR/trajectory.tum" | awk '{print $1}')" >> "$META"
   echo "trajectory_bytes: $(wc -c < "$RUN_DIR/trajectory.tum")" >> "$META"
 else
