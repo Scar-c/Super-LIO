@@ -62,6 +62,13 @@ struct PriorRelativeResult {
   std::array<double, 6> weak_overlap_trans{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
 };
 
+struct CoupledSchurPriorResult {
+  std::array<bool, 3> valid_rot{{false, false, false}};
+  std::array<bool, 3> valid_trans{{false, false, false}};
+  Eigen::Vector3d zeta_rot = Eigen::Vector3d::Zero();
+  Eigen::Vector3d zeta_trans = Eigen::Vector3d::Zero();
+};
+
 class D2ShadowAnalyzer {
  public:
   D2ShadowAnalyzer(const std::string& csv_path, double condition_threshold);
@@ -73,6 +80,9 @@ class D2ShadowAnalyzer {
   static XICPResult computeXICP(const std::vector<Vector6d>& accepted,
                                 const Matrix6d& native_h);
   static PriorRelativeResult computePriorRelative(
+      const Matrix6d& native_h, const Matrix18d& propagated_covariance,
+      const Characterization& d1);
+  static CoupledSchurPriorResult computeCoupledSchurPriorRelative(
       const Matrix6d& native_h, const Matrix18d& propagated_covariance,
       const Characterization& d1);
 
@@ -88,7 +98,8 @@ class D2ShadowAnalyzer {
   void writeRow(std::uint64_t frame, double timestamp,
                 std::size_t candidate_count, std::size_t used_residual_count,
                 const Characterization& d1, const XICPResult& xicp,
-                const PriorRelativeResult& prior);
+                const PriorRelativeResult& prior,
+                const CoupledSchurPriorResult& coupled_prior);
 
   std::ofstream csv_;
   double condition_threshold_ = 10.0;

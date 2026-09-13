@@ -8,6 +8,7 @@
 
 #include <Eigen/Cholesky>
 #include <Eigen/Eigenvalues>
+#include <Eigen/LU>
 
 namespace DecLIO {
 namespace {
@@ -280,6 +281,67 @@ PriorRelativeResult D2ShadowAnalyzer::computePriorRelative(
   return result;
 }
 
+CoupledSchurPriorResult D2ShadowAnalyzer::computeCoupledSchurPriorRelative(
+    const Matrix6d& native_h, const Matrix18d& propagated_covariance,
+    const Characterization& d1) {
+  CoupledSchurPriorResult result;
+  setNaN(result.zeta_rot);
+  setNaN(result.zeta_trans);
+  if (!d1.valid || !native_h.allFinite() || !propagated_covariance.allFinite()) {
+    return result;
+  }
+
+  Matrix6d pose_covariance = propagated_covariance.block<6, 6>(0, 0);
+  double symmetry_error = 0.0;
+  if (!finiteAndSymmetric(pose_covariance, symmetry_error)) return result;
+  pose_covariance = 0.5 * (pose_covariance + pose_covariance.transpose());
+  if ((pose_covariance.diagonal().array() <= 0.0).any()) return result;
+  Eigen::LLT<Matrix6d> prior_llt(pose_covariance);
+  if (prior_llt.info() != Eigen::Success) return result;
+
+  const Matrix3d h_rr = native_h.block<3, 3>(0, 0);
+  const Matrix3d h_rt = native_h.block<3, 3>(0, 3);
+  const Matrix3d h_tr = native_h.block<3, 3>(3, 0);
+  const Matrix3d h_tt = native_h.block<3, 3>(3, 3);
+  Eigen::FullPivLU<Matrix3d> lu_rr(h_rr);
+  Eigen::FullPivLU<Matrix3d> lu_tt(h_tt);
+  if (!lu_rr.isInvertible() || !lu_tt.isInvertible()) return result;
+
+  const auto evaluate = [&](const Eigen::Matrix<double, 6, 1>& direction,
+                            double& zeta) {
+    if (!direction.allFinite() || direction.norm() <= kEpsilon) return false;
+    const Eigen::Matrix<double, 6, 1> normalized = direction.normalized();
+    const Eigen::Matrix<double, 6, 1> prior_direction =
+        prior_llt.solve(normalized);
+    const double prior_information = normalized.dot(prior_direction);
+    const double lidar_information = normalized.dot(native_h * normalized);
+    if (!std::isfinite(prior_information) ||
+        !std::isfinite(lidar_information) || prior_information <= kEpsilon) {
+      return false;
+    }
+    zeta = lidar_information / prior_information;
+    return std::isfinite(zeta);
+  };
+
+  for (int mode = 0; mode < 3; ++mode) {
+    const Vector3d u_rot = d1.raw_rot_basis.col(mode);
+    const Vector3d u_trans = d1.raw_trans_basis.col(mode);
+    if (!u_rot.allFinite() || !u_trans.allFinite()) continue;
+
+    const Vector3d translation_tail = lu_tt.solve(h_tr * u_rot);
+    Eigen::Matrix<double, 6, 1> direction_rot;
+    direction_rot << u_rot, -translation_tail;
+    result.valid_rot[mode] = evaluate(direction_rot, result.zeta_rot(mode));
+
+    const Vector3d rotation_head = lu_rr.solve(h_rt * u_trans);
+    Eigen::Matrix<double, 6, 1> direction_trans;
+    direction_trans << -rotation_head, u_trans;
+    result.valid_trans[mode] =
+        evaluate(direction_trans, result.zeta_trans(mode));
+  }
+  return result;
+}
+
 D2ShadowAnalyzer::D2ShadowAnalyzer(const std::string& csv_path,
                                    double condition_threshold)
     : condition_threshold_(condition_threshold > 0.0 ? condition_threshold : 10.0) {
@@ -330,6 +392,12 @@ void D2ShadowAnalyzer::writeHeader() {
   for (const char* prefix : {"eta_rot_", "eta_trans_"}) {
     for (int index = 0; index < 3; ++index) csv_ << prefix << index << ',';
   }
+  for (const char* prefix : {"zeta_valid_rot_", "zeta_valid_trans_"}) {
+    for (int index = 0; index < 3; ++index) csv_ << prefix << index << ',';
+  }
+  for (const char* prefix : {"zeta_rot_", "zeta_trans_"}) {
+    for (int index = 0; index < 3; ++index) csv_ << prefix << index << ',';
+  }
   for (int index = 0; index < 6; ++index) {
     csv_ << "weak_overlap_mu_rot_" << index << ',';
   }
@@ -341,7 +409,8 @@ void D2ShadowAnalyzer::writeHeader() {
 void D2ShadowAnalyzer::writeRow(
     std::uint64_t frame, double timestamp, std::size_t candidate_count,
     std::size_t used_residual_count, const Characterization& d1,
-    const XICPResult& xicp, const PriorRelativeResult& prior) {
+    const XICPResult& xicp, const PriorRelativeResult& prior,
+    const CoupledSchurPriorResult& coupled_prior) {
   if (!csv_) return;
   const double ratio = candidate_count == 0
                            ? 0.0
@@ -383,6 +452,14 @@ void D2ShadowAnalyzer::writeRow(
        << prior.trace_mu << ',';
   writeVector3(csv_, prior.eta_rot);
   writeVector3(csv_, prior.eta_trans);
+  for (int index = 0; index < 3; ++index) {
+    csv_ << (coupled_prior.valid_rot[index] ? 1 : 0) << ',';
+  }
+  for (int index = 0; index < 3; ++index) {
+    csv_ << (coupled_prior.valid_trans[index] ? 1 : 0) << ',';
+  }
+  writeVector3(csv_, coupled_prior.zeta_rot);
+  writeVector3(csv_, coupled_prior.zeta_trans);
   writeArray6(csv_, prior.weak_overlap_rot);
   for (int index = 0; index < 6; ++index) {
     csv_ << prior.weak_overlap_trans[index] << (index == 5 ? '\n' : ',');
@@ -400,8 +477,10 @@ void D2ShadowAnalyzer::observe(
   const XICPResult xicp = computeXICP(accepted, native_h);
   const PriorRelativeResult prior =
       computePriorRelative(native_h, propagated_covariance, d1);
+  const CoupledSchurPriorResult coupled_prior =
+      computeCoupledSchurPriorRelative(native_h, propagated_covariance, d1);
   writeRow(frame, timestamp, candidate_count, used_residual_count, d1, xicp,
-           prior);
+           prior, coupled_prior);
 }
 
 void D2ShadowAnalyzer::finalize() {

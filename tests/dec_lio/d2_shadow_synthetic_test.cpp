@@ -176,11 +176,84 @@ void testPriorRelative() {
   require(finite_overlap >= 2, "P6 prior-whitened weak overlap");
 }
 
+void testCoupledSchurPriorRelative() {
+  Matrix6d h = Matrix6d::Zero();
+  h.diagonal() << 4.0, 5.0, 6.0, 10.0, 11.0, 12.0;
+  h.block<3, 3>(0, 3).diagonal() << 1.0, 2.0, 3.0;
+  h.block<3, 3>(3, 0) = h.block<3, 3>(0, 3).transpose();
+  Matrix18d p = Matrix18d::Identity();
+  p.block<3, 3>(0, 0).diagonal() << 2.0, 3.0, 4.0;
+  p.block<3, 3>(3, 3).diagonal() << 5.0, 6.0, 7.0;
+  const Characterization d1 =
+      DecLIO::DCRegAnalyzer::characterize(h, Vector6d::Ones(), 10.0);
+  require(d1.valid, "Z1 coupled D1 characterization");
+  const DecLIO::CoupledSchurPriorResult zeta =
+      D2ShadowAnalyzer::computeCoupledSchurPriorRelative(h, p, d1);
+  for (int index = 0; index < 3; ++index) {
+    require(zeta.valid_rot[index] && zeta.valid_trans[index],
+            "Z1 coupled zeta valid");
+    const double b = static_cast<double>(index + 1);
+    const double a = static_cast<double>(index + 4);
+    const double d = static_cast<double>(index + 10);
+    const double rot_lambda = a - b * b / d;
+    const double trans_lambda = d - b * b / a;
+    const double rot_prior = 1.0 / p(index, index) +
+                             (b / d) * (b / d) / p(index + 3, index + 3);
+    const double trans_prior = 1.0 / p(index + 3, index + 3) +
+                               (b / a) * (b / a) / p(index, index);
+    close(zeta.zeta_rot(index), rot_lambda / rot_prior,
+          "Z1 coupled rotational analytic zeta");
+    close(zeta.zeta_trans(index), trans_lambda / trans_prior,
+          "Z1 coupled translational analytic zeta");
+  }
+
+  Matrix6d scale = Matrix6d::Identity();
+  scale.diagonal() << 2.0, 3.0, 4.0, 0.5, 0.75, 1.25;
+  Matrix18d scale18 = Matrix18d::Identity();
+  scale18.block<6, 6>(0, 0) = scale;
+  const Matrix6d scaled_h = scale.transpose() * h * scale;
+  const Matrix18d scaled_p =
+      scale18.inverse() * p * scale18.inverse().transpose();
+  const Characterization scaled_d1 =
+      DecLIO::DCRegAnalyzer::characterize(scaled_h, Vector6d::Ones(), 10.0);
+  const DecLIO::CoupledSchurPriorResult scaled =
+      D2ShadowAnalyzer::computeCoupledSchurPriorRelative(scaled_h, scaled_p,
+                                                          scaled_d1);
+  for (int index = 0; index < 3; ++index) {
+    require(scaled.valid_rot[index] && scaled.valid_trans[index],
+            "Z2 coordinate-scaled zeta valid");
+    close(scaled.zeta_rot(index), zeta.zeta_rot(index),
+          "Z2 rotational coordinate scaling invariance", 1e-9);
+    close(scaled.zeta_trans(index), zeta.zeta_trans(index),
+          "Z2 translational coordinate scaling invariance", 1e-9);
+  }
+
+  Matrix6d singular_d = h;
+  singular_d.block<3, 3>(3, 3)(0, 0) = 0.0;
+  const DecLIO::CoupledSchurPriorResult singular =
+      D2ShadowAnalyzer::computeCoupledSchurPriorRelative(singular_d, p, d1);
+  for (int index = 0; index < 3; ++index) {
+    require(!singular.valid_rot[index] && !singular.valid_trans[index],
+            "Z3 invalid Schur solve fail-open");
+  }
+
+  Matrix18d bad_p = p;
+  bad_p(0, 0) = -1.0;
+  const DecLIO::CoupledSchurPriorResult invalid_prior =
+      D2ShadowAnalyzer::computeCoupledSchurPriorRelative(h, bad_p, d1);
+  for (int index = 0; index < 3; ++index) {
+    require(!invalid_prior.valid_rot[index] &&
+                !invalid_prior.valid_trans[index],
+            "Z4 invalid prior fail-open");
+  }
+}
+
 }  // namespace
 
 int main() {
   testXICPClasses();
   testPriorRelative();
-  std::cout << "D2 shadow synthetic tests X1-X6/P1-P6: PASS\n";
+  testCoupledSchurPriorRelative();
+  std::cout << "D2 shadow synthetic tests X1-X6/P1-P6/Z1-Z4: PASS\n";
   return 0;
 }
