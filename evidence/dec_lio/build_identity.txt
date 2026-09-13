@@ -1,0 +1,16 @@
+Prompt00R ROS1 build evidence
+
+Command:
+  source /opt/ros/noetic/setup.bash
+  catkin_make -C /home/lc/dec_lio -j4
+
+Result: PASS (exit code 0)
+Workspace: /home/lc/dec_lio
+Build type: native Release configuration
+Targets verified executable:
+  /home/lc/dec_lio/devel/lib/super_lio/super_lio_node
+  /home/lc/dec_lio/devel/lib/super_lio/super_lio_offline_node
+  /home/lc/dec_lio/devel/lib/super_lio/relocation_node
+
+The build emitted pre-existing PCL/VTK developer warnings but no errors.
+The offline target links the existing lio library and catkin rosbag support.

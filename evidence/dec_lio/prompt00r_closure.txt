@@ -1,0 +1,23 @@
+Prompt00R closure gate matrix
+
+independent_workspace: PASS
+bootstrap_HEAD_equals_merge_base_equals_origin_ros1: PASS
+native_estimator_implementation_unchanged: PASS
+prob_lio_estimator_contamination: PASS (none found)
+runtime_git_hygiene: PASS
+exact_GEODE_bag_config_ground_truth_identity: PASS
+PointCloud2_VELO16_and_IMU_schema: PASS
+catkin_make_j4: PASS
+full_online_run: PASS (3814 rows, rc 0)
+full_offline_run_01: PASS (42066 relevant messages, rc 0)
+full_offline_run_02: PASS (42066 relevant messages, rc 0)
+raw_SHA256_parity: PASS (3 equal files, cmp=0)
+ground_truth_evaluation_after_parity: PASS
+roadmap_authority_D0_to_D5: PASS (D5 not authorized)
+
+STATUS: CLOSED
+
+Runtime artifacts are intentionally outside Git under:
+  /home/lc/dec_lio/runtime/prompt00r/
+The historical Prob-LIO workspace and its artifacts were not deleted, moved,
+or stashed.

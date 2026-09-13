@@ -1,0 +1,22 @@
+Prompt00R full offline run 01
+
+run_id: offline_full_01
+mode: offline native super_lio_offline_node
+git_head: 5521a5546e30406a759b93190b0278ab54d67589
+bag_sha256: 1fb14937289172c1fa694a817430c142568b205a1535e16a2d0406f7c471b7b6
+config_sha256: 1f039b0c70b4d7a2a63d420587b8e05ff4653f0385d2aa95db1eb7ccbfaa3558
+requested_threads: 32
+temporal_policy: one sequential offline temporal epoch; no split/reorder
+bag_relevant_messages: 42066
+lidar_read: 3821
+imu_read: 38245
+other_relevant_view_messages: 0
+sensor_duration_s: 382.447144
+wall_processing_s: 18.510769
+speed_factor: 20.661x
+node_rc: 0
+fatal_marker: NONE
+trajectory_rows: 3814
+trajectory_bytes: 622301
+trajectory_sha256: 6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+runtime_dir: /home/lc/dec_lio/runtime/prompt00r/full/offline_full_01

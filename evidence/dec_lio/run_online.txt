@@ -1,0 +1,19 @@
+Prompt00R full online run
+
+run_id: online_full
+mode: online native super_lio_node + rosbag play
+git_head: 5521a5546e30406a759b93190b0278ab54d67589
+bag_sha256: 1fb14937289172c1fa694a817430c142568b205a1535e16a2d0406f7c471b7b6
+config_sha256: 1f039b0c70b4d7a2a63d420587b8e05ff4653f0385d2aa95db1eb7ccbfaa3558
+play_topics: /velodyne_points,/imu/data
+record_topics: /lio/odom
+requested_threads: 32
+temporal_policy: one sequential native online epoch
+play_rc: 0
+node_rc: 0
+record_rc: 0
+fatal_marker: NONE
+trajectory_rows: 3814
+trajectory_bytes: 622301
+trajectory_sha256: 6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+runtime_dir: /home/lc/dec_lio/runtime/prompt00r/full/online_full

@@ -1,0 +1,34 @@
+Prompt00R repository and native-boundary audit
+
+Independent checkout:
+  /home/lc/dec_lio/src/Super-LIO
+Historical Prob-LIO checkout preserved separately:
+  /home/lc/prob_lio/src/Super-LIO
+
+Bootstrap ancestry gate before scaffold:
+  HEAD == merge-base == origin/ros1
+  60b57aaac8dc397f80c56364e7ccb008c300cc29
+
+Final Dec-LIO HEAD:
+  8b63f74b5e97b74643ad64e07c976fab3c3ec07c
+Final merge-base with origin/ros1:
+  60b57aaac8dc397f80c56364e7ccb008c300cc29
+
+The final HEAD descends from the exact ROS1 base. The source diff against
+origin/ros1 is restricted to:
+  src/super_lio/CMakeLists.txt
+  src/super_lio/config/geode_alpha.yaml
+  src/super_lio/offline/OfflineReader.cpp
+  src/super_lio/offline/OfflineReader.h
+  src/super_lio/package.xml
+  src/super_lio/src/apps/super_lio_offline_node.cpp
+
+Estimator core audit:
+  git diff origin/ros1 -- src/super_lio/src/lio src/super_lio/include/lio
+  => empty
+  production_identity.py => IDENTITY_PASS
+  check_evidence_hygiene.py => HYGIENE_PASS
+
+The full-run code commit was 5521a5546e30406a759b93190b0278ab54d67589;
+the later 8b63f74 commit changes only guards/evaluation disclosure and does
+not change estimator or offline execution code.

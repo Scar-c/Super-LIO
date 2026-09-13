@@ -1,0 +1,42 @@
+Prompt00R dataset identity — GEODE Bridge01 Alpha
+
+Authoritative input files:
+  bag: /home/lc/dec_lio/bag/GEODE/bridge01.bag
+  source config: /home/lc/dec_lio/bag/GEODE/alpha_config.yaml
+  ground truth: /home/lc/dec_lio/bag/GEODE/bridge01.txt
+
+SHA256:
+  bridge01.bag      1fb14937289172c1fa694a817430c142568b205a1535e16a2d0406f7c471b7b6
+  alpha_config.yaml b5749fcc59ad57b33136c82769c635cd9c4e6f28318c191920abde2f564d8802
+  bridge01.txt      0b68151c9c4c9a1978bf2d8fdef8294d22cff5f53b8f62f401a7ab9e11ce5e39
+  native config     1f039b0c70b4d7a2a63d420587b8e05ff4653f0385d2aa95db1eb7ccbfaa3558
+
+rosbag info bridge01.bag:
+  version 2.0; duration 382.519340 s; start 1693023232.697963;
+  end 1693023615.217304; 49716 messages; uncompressed; 3915/3915 chunks.
+  sensor_msgs/CompressedImage: 7650 total
+  sensor_msgs/Imu: 38245
+  sensor_msgs/PointCloud2: 3821
+  /imu/data: 38245 sensor_msgs/Imu
+  /left_camera/compressed: 3825 sensor_msgs/CompressedImage
+  /right_camera/compressed: 3825 sensor_msgs/CompressedImage
+  /velodyne_points: 3821 sensor_msgs/PointCloud2
+
+Relevant header/record timing inspection:
+  /imu/data: first 1693023232.7701602; last 1693023615.2133577
+  /velodyne_points: first 1693023233.2311931; last 1693023615.2173038
+  record order and header order matched for both relevant topics.
+
+First VLP-16 PointCloud2:
+  frame_id=velodyne; width=16; height=1800; point_step=22; little-endian.
+  fields: x@0 FLOAT32, y@4 FLOAT32, z@8 FLOAT32,
+          intensity@12 FLOAT32, ring@16 UINT16, time@18 FLOAT32.
+First IMU: frame_id=imu_link; type=sensor_msgs/Imu.
+
+Native mapping:
+  lidar_type=3 (VELO16); topics=/velodyne_points,/imu/data; no camera path.
+  T_IMU_LiDAR from the supplied Alpha config was mapped to native
+  extrinsic.lidar_imu as translation plus row-major rotation.
+
+The supplied GEODE page identifies Bridge01 as alpha vehicle data with a
+Velodyne VLP-16 and Xsens IMU: https://thisparticle.github.io/geode/

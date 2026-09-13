@@ -1,0 +1,18 @@
+Prompt00R GEODE evaluation (run only after exact parity passed)
+
+estimate: online_full/trajectory.tum
+ground_truth: /home/lc/dec_lio/bag/GEODE/bridge01.txt
+association max |dt|: 0.05 s
+alignment: rigid SE(3), no scale, no crop
+matched: 3763
+overlap_s: 381.096175
+RMSE translation APE (m): 38.8016958
+mean translation APE (m): 33.443459
+median translation APE (m): 35.9579134
+P90 translation APE (m): 57.4774302
+P95 translation APE (m): 63.161279
+max translation APE (m): 91.8649639
+
+The supplied GEODE reference has unique but non-monotonic timestamps. The
+evaluator records a stable timestamp sort of the reference only; the native
+estimate remains in output order and is not sorted or cropped.

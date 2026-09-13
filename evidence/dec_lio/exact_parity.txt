@@ -1,0 +1,21 @@
+Prompt00R raw trajectory exact parity
+
+Authority trajectory:
+  /home/lc/dec_lio/runtime/prompt00r/full/online_full/trajectory.tum
+  bytes=622301
+  sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+
+Compared trajectories:
+  /home/lc/dec_lio/runtime/prompt00r/full/offline_full_01/trajectory.tum
+    bytes=622301 sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+  /home/lc/dec_lio/runtime/prompt00r/full/offline_full_02/trajectory.tum
+    bytes=622301 sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+
+All three trajectories: 3814 rows, non-empty, strictly increasing timestamps.
+cmp online/offline_01: 0 (PASS)
+cmp offline_01/offline_02: 0 (PASS)
+exact_parity.py: PARITY_PASS
+
+No sorting, cropping, timestamp rewrite, tolerance, or post-hoc repair was
+used for this gate. The same shared TUM formatting is used by online bag
+conversion and offline in-process capture.
