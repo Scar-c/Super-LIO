@@ -1,0 +1,21 @@
+<launch>
+  <!-- Prompt04 Phase 0: native GEODE Alpha production path plus RViz only. -->
+  <arg name="rviz" default="true" />
+
+  <!-- Canonical Bridge01 Alpha estimator configuration. -->
+  <rosparam file="$(find super_lio)/config/geode_alpha.yaml" command="load" />
+
+  <!-- Visualization-only override: enable the existing native world-cloud
+       publication path. No estimator or correspondence parameter changes. -->
+  <param name="/lio/output/map" value="true" />
+  <param name="/lio/output/dense" value="false" />
+  <param name="/lio/output/pub_step" value="1" />
+
+  <node pkg="super_lio" type="super_lio_node" name="super_lio_node" output="screen" />
+
+  <group if="$(arg rviz)">
+    <node pkg="rviz" type="rviz" name="dec_lio_bridge_inspect"
+          args="-d $(find super_lio)/rviz/dec_lio_bridge_inspect.rviz"
+          output="screen" />
+  </group>
+</launch>
