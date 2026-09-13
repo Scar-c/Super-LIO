@@ -25,3 +25,10 @@ Summary (threshold=10 diagnostic only):
   cond_trans median/p95/max=3.1719/9.1060/19.3235
   weak-axis counts rot=[89,7,1], trans=[64,77,2]
   longest weak runs rot=[14,2,1], trans=[24,15,1]
+
+Inner-iteration stability (8355 adjacent pairs in raw CSV):
+  aligned-basis worst-axis angle median/p95/max=0.664/8.262/89.235 deg
+  cond_rot relative change median/p95/max=0.00765/0.08287/1.057
+  Interpretation: most Bridge inner iterations are stable; the isolated
+  large maxima are diagnostic basis/condition transitions, not estimator
+  actions.

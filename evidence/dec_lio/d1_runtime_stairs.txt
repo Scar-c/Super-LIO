@@ -27,6 +27,13 @@ Summary (threshold=10 diagnostic only):
   longest weak runs rot=[165,38,0], trans=[0,0,20]
   longest rot_0 window=165 frames / 16.3976 s
 
+Inner-iteration stability (8876 adjacent pairs in raw CSV):
+  aligned-basis worst-axis angle median/p95/max=1.911/43.148/89.962 deg
+  cond_rot relative change median/p95/max=0.02344/0.25374/7.573
+  Interpretation: Stairs has materially larger within-frame basis and
+  condition variation, consistent with persistent rotational degeneracy;
+  these remain diagnostics only.
+
 Official Stairs Alpha GT evaluation (D1 ON; D1 OFF is byte-identical):
   /home/lc/dec_lio/runtime/prompt01/final_stairs/stairs_d1_on/evaluation.txt
   alignment=rigid SE(3), no scale, no crop; matched=3439; overlap_s=344.479428
