@@ -65,3 +65,9 @@ lio:
       condition_threshold: 10.0
       output_csv: ""
       frame_summary_csv: ""
+    d2_shadow:
+      enabled: false
+      output_csv: ""
+    consistency_shadow:
+      enabled: false
+      output_csv: ""

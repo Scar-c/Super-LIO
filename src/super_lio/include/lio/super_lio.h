@@ -24,6 +24,7 @@
 #include "ros/ROSWrapper.h"
 #include "dec_lio/DCRegAnalyzer.h"
 #include "dec_lio/D2ShadowAnalyzer.h"
+#include "dec_lio/ConsistencyAnalyzer.h"
 
 namespace LI2Sup{
 
@@ -61,6 +62,7 @@ protected:
   ESKF::Ptr kf_;
   std::unique_ptr<DecLIO::DCRegAnalyzer> d1_analyzer_;
   std::unique_ptr<DecLIO::D2ShadowAnalyzer> d2_analyzer_;
+  std::unique_ptr<DecLIO::ConsistencyAnalyzer> consistency_analyzer_;
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;

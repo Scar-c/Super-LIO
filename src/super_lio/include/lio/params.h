@@ -79,6 +79,10 @@ namespace LI2Sup{
   extern bool g_d2_shadow_enabled;
   extern std::string g_d2_output_csv;
 
+  /// Dec-LIO Prompt05 pre-update consistency shadow.
+  extern bool g_consistency_shadow_enabled;
+  extern std::string g_consistency_output_csv;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

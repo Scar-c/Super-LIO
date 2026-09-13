@@ -1,0 +1,2167 @@
+# Dec-LIO Prompt05 — Pre-Update Consistency / Innovation Shadow / Weak-Mode Forcing
+
+## 0. Owner authority
+
+Repository:
+
+```text
+https://github.com/Scar-c/Super-LIO
+```
+
+Workspace:
+
+```text
+/home/lc/dec_lio/src/Super-LIO
+```
+
+Branch:
+
+```text
+Dec-LIO
+```
+
+Expected starting HEAD:
+
+```text
+f7564474e3b7f305b2f325d96ec8af96cab9c873
+```
+
+Native ancestry authority:
+
+```text
+origin/ros1
+60b57aaac8dc397f80c56364e7ccb008c300cc29
+```
+
+Prompt04 estimator work is accepted as shadow-only and trajectory-preserving.
+
+Prompt05 is also:
+
+```text
+SHADOW ONLY
+```
+
+It MUST NOT implement:
+
+```text
+gamma
+H scaling
+b scaling
+P modification
+Schmidt update
+gain projection
+state freeze
+PCG
+Prob-LIO
+association changes
+map changes
+residual/gate changes
+```
+
+---
+
+# 1. Owner corrective authority from Prompt04
+
+Before new experiments, correct Prompt04 interpretation.
+
+## 1.1 Bridge visual observation
+
+The Owner now explicitly states:
+
+```text
+Bridge 属于特征稀少，确实很你前面的判断类似。
+```
+
+Preserve this Owner wording in:
+
+```text
+evidence/dec_lio/prompt04/BRIDGE_OWNER_VISUAL_OBSERVATION.md
+```
+
+Do not embellish it into claims the Owner did not make.
+
+Allowed interpretation:
+
+```text
+SPARSE_GEOMETRIC_SUPPORT / FEATURE-POOR ENVIRONMENT
+```
+
+Do NOT claim:
+
+```text
+parallel duplicate surfaces observed
+abrupt correspondence jump observed
+repetitive-structure ambiguity visually confirmed
+```
+
+unless separately evidenced.
+
+---
+
+## 1.2 Tunnel2 scientific classification correction
+
+Prompt04 previously classified:
+
+```text
+C — TUNNEL2_IS_BRIDGE_LIKE_AMBIGUITY_OR_BIASED_ASSOCIATION
+```
+
+This is too strong.
+
+Observed facts:
+
+```text
+translation kappa:
+    median 1.823
+    p95 5.478
+    weak rank = 0
+
+rotation kappa:
+    median 59.437
+    p95 89.161
+    sustained weak rotation
+
+position APE:
+    6.450672 m
+
+GT attitude:
+    unavailable / invalid
+```
+
+Therefore:
+
+```text
+translation degeneracy is NOT supported
+```
+
+but:
+
+```text
+rotational-degeneracy-induced pose drift CANNOT be ruled out
+```
+
+because no attitude GT exists.
+
+Correct Prompt04 primary classification to:
+
+```text
+F — INCONCLUSIVE
+```
+
+with explicit annotation:
+
+```text
+STRONG SUSTAINED ROTATIONAL-DEGENERACY CANDIDATE
+```
+
+Do not rewrite historical raw evidence; add a corrective authority note.
+
+---
+
+## 1.3 Current three-scene roles
+
+Use these semantics going into Prompt05:
+
+```text
+Stairs Alpha:
+    high rotational anisotropy
+    low estimation error
+    degeneracy-positive / failure-negative control
+
+Bridge01 Alpha:
+    sparse geometric support
+    severe drift
+    low absolute directional information in bad intervals
+
+Tunnel2 Alpha:
+    sustained strong rotational Schur degeneracy
+    severe position drift
+    no attitude GT
+    candidate rotational-degeneracy failure case
+```
+
+Bridge and Tunnel2 are NOT yet proven to share the same failure cause.
+
+---
+
+# 2. Prompt05 scientific question
+
+Prompt01–04 studied mainly:
+
+```text
+Hessian geometry
+```
+
+through:
+
+```text
+kappa
+lambda
+lambda/N
+XICP
+mu
+eta
+zeta
+```
+
+Those quantities answer mostly:
+
+> How strong / anisotropic is the LiDAR geometry?
+
+They do NOT fully answer:
+
+> Is the current LiDAR update consistent with the propagated filter prior?
+
+Prompt05 must add the second half:
+
+```text
+OBSERVABILITY
++
+PRE-UPDATE CONSISTENCY
+```
+
+The key questions are:
+
+1. How far does the LiDAR-only optimum want to move the current prior?
+2. How much of that requested correction lies in DCReg weak directions?
+3. How much does the fused prior suppress that correction?
+4. After prior suppression, how much LiDAR residual remains unexplained?
+5. Do Bridge/Tunnel2 harmful intervals show abnormal forcing/conflict while Stairs does not?
+
+---
+
+# 3. Startup gate
+
+Run:
+
+```bash
+cd /home/lc/dec_lio/src/Super-LIO
+
+git fetch --all --prune
+git status --porcelain=v1
+git rev-parse HEAD
+git rev-parse origin/Dec-LIO
+git merge-base HEAD origin/ros1
+```
+
+Required:
+
+```text
+HEAD == origin/Dec-LIO
+HEAD == f7564474...
+merge-base == 60b57aa...
+worktree clean
+```
+
+Otherwise:
+
+```text
+STOP — PROMPT05_START_STATE_MISMATCH
+```
+
+Do not reset/stash/clean unknown work.
+
+Archive this Prompt verbatim:
+
+```text
+prompts/dec_lio/PROMPT05_CONSISTENCY_INNOVATION_SHADOW.md
+```
+
+---
+
+# 4. Frame authority
+
+All new Prompt05 metrics use:
+
+```text
+FIRST NATIVE IESKF MEASUREMENT ITERATION ONLY
+```
+
+i.e.:
+
+```text
+iteration == 0
+need_converge == false
+```
+
+At this point:
+
+```math
+dx_prior = 0
+```
+
+and:
+
+```math
+P_k=P_{pred}.
+```
+
+This is mandatory.
+
+No Prompt05 harmfulness metric may use:
+
+```text
+posterior Qk
+later IESKF iterations
+next-frame covariance
+```
+
+unless explicitly labeled secondary diagnostic.
+
+Primary analysis is strictly pre-update.
+
+---
+
+# 5. Input authority
+
+For every frame use the exact native:
+
+```math
+H_L
+```
+
+and:
+
+```math
+b_L
+```
+
+generated by the accepted Super-LIO residual set.
+
+Also use:
+
+```math
+P^-=P_{pred}
+```
+
+captured read-only before `UpdateObserve()`.
+
+Continue using the exact same accepted residual population as Prompt03/04.
+
+No second matcher.
+
+No second plane fit.
+
+No reconstructed alternate Hessian.
+
+---
+
+# 6. Preserve accepted residual error values
+
+Prompt05 needs the scalar residual energy before correction.
+
+For every point that reaches the exact native accumulation path:
+
+```cpp
+local_acc.HTVH += J * 1000 * J.transpose();
+local_acc.HTVr -= J * 1000 * error;
+```
+
+the Prompt05 shadow path may store:
+
+```text
+accepted_J[idx]
+accepted_error[idx]
+accepted_used[idx]
+```
+
+for iteration 0 only.
+
+Use deterministic point-index serial gathering after native parallel evaluation.
+
+Do not change native floating reduction.
+
+Forbidden:
+
+```text
+atomic floating estimator accumulation
+parallel diagnostic push_back
+sorting native residuals
+changing H/b reduction order
+```
+
+---
+
+# 7. Weighted residual energy E0
+
+Native LiDAR weight is:
+
+```math
+w=1000.
+```
+
+For the exact accepted iteration-0 residual population define:
+
+```math
+\boxed{
+E_0
+=
+1000\sum_i r_i^2
+}
+```
+
+where `r_i` is the same scalar `error` used to build native `b_L`.
+
+Compute Prompt05 `E0` deterministically from stored per-index residuals.
+
+Record:
+
+```text
+E0
+E0 / N_used
+sqrt(E0 / N_used)
+```
+
+These are diagnostic weighted energies.
+
+Do NOT call them calibrated chi-square unless the measurement noise model justifies that interpretation.
+
+---
+
+# 8. LiDAR-only linearized optimum
+
+Native linearized LiDAR objective has information pair:
+
+```math
+H_L,\;b_L.
+```
+
+Define the minimum-norm LiDAR-only correction:
+
+```math
+\boxed{
+\delta x_L
+=
+H_L^\dagger b_L
+}
+```
+
+Use a symmetric eigendecomposition.
+
+Pseudoinverse tolerance must be numerical, not tuned to dataset performance.
+
+Use a documented rule such as:
+
+```math
+\tau
+=
+\max(
+10^{-12},
+\epsilon_{\rm machine}\cdot 6\cdot\lambda_{\max}
+).
+```
+
+Eigenvalue:
+
+```math
+\lambda_i\le\tau
+```
+
+is treated as numerical nullspace only.
+
+This threshold is NOT the DCReg degeneracy threshold.
+
+Record:
+
+```text
+H numerical rank
+pseudoinverse threshold
+delta_x_L[6]
+```
+
+If decomposition is invalid:
+
+```text
+lidar_only_valid=false
+```
+
+No estimator effect.
+
+---
+
+# 9. Exact first-iteration fused shadow correction
+
+At iteration 0 native ESKF solves:
+
+```math
+A
+=
+(P^-)^{-1}+H_L
+```
+
+and because:
+
+```math
+dx_{prior}=0,
+```
+
+the first-iteration correction is:
+
+```math
+\boxed{
+\delta x_F
+=
+A^{-1}b_L
+}
+```
+
+Compute this independently in the Prompt05 shadow using linear solves.
+
+Do not modify native ESKF.
+
+Call it:
+
+```text
+SHADOW_FIRST_ITER_FUSED_CORRECTION
+```
+
+not the final frame correction.
+
+Record:
+
+```text
+delta_x_F[6]
+```
+
+---
+
+# 10. Native-formula seam test
+
+Prompt05 must prove the shadow first-iteration formula matches native `UpdateObserve()` semantics.
+
+At minimum:
+
+- source audit against `ESKF.cpp`;
+- synthetic test using exact native formula;
+- production invariant:
+
+```math
+A=(P^-)^{-1}+H_L
+```
+
+with iteration-0 `dx_prior=0`.
+
+If a production read-only debug hook is added to expose the actual iteration-0 `dx_`, it MUST:
+
+```text
+copy only
+be optional/guarded
+not alter solve/order/state
+```
+
+and trajectory SHA must remain exact.
+
+A production hook is optional; estimator math changes are forbidden.
+
+---
+
+# 11. Prior-normalized correction coordinates
+
+Let:
+
+```math
+P^-_{pose}=LL^T.
+```
+
+For any pose correction:
+
+```math
+\delta x=Lz.
+```
+
+Define:
+
+```math
+z_L=L^{-1}\delta x_L
+```
+
+and:
+
+```math
+z_F=L^{-1}\delta x_F.
+```
+
+Then:
+
+```math
+\boxed{
+C_L=\|z_L\|
+}
+```
+
+and:
+
+```math
+\boxed{
+C_F=\|z_F\|
+}
+```
+
+are dimensionless prior-normalized correction magnitudes.
+
+Interpretation:
+
+```text
+C ~= number of propagated-prior standard deviations requested
+```
+
+only as a local Gaussian diagnostic.
+
+Do not call this a formal innovation test yet.
+
+---
+
+# 12. Prior suppression ratio
+
+Define:
+
+```math
+\boxed{
+S_{\rm prior}
+=
+\frac{\|z_F\|}
+{\|z_L\|}
+}
+```
+
+when:
+
+```math
+\|z_L\|>0.
+```
+
+Interpretation:
+
+```text
+near 1:
+    prior allows most LiDAR-only correction
+
+near 0:
+    prior strongly suppresses LiDAR-only correction
+```
+
+Also record:
+
+```math
+\Delta C
+=
+\|z_L-z_F\|.
+```
+
+This measures disagreement between LiDAR-only optimum and fused first iteration in prior-normalized coordinates.
+
+---
+
+# 13. LiDAR linearized residual after corrections
+
+For any correction `dx`, predicted linearized weighted residual energy is:
+
+```math
+E(dx)
+=
+E_0
+-
+2b_L^Tdx
++
+dx^TH_Ldx.
+```
+
+Compute:
+
+```math
+E_L
+=
+E(\delta x_L)
+```
+
+and:
+
+```math
+E_F
+=
+E(\delta x_F).
+```
+
+Numerical tolerance may clamp tiny negative roundoff to zero only if:
+
+```text
+|negative| <= documented floating tolerance.
+```
+
+Large negative values are a hard failure.
+
+---
+
+# 14. Explained-residual fractions
+
+Define:
+
+```math
+R_L
+=
+\frac{E_0-E_L}{E_0}
+```
+
+and:
+
+```math
+R_F
+=
+\frac{E_0-E_F}{E_0}.
+```
+
+Also define prior-conflict residual gap:
+
+```math
+\boxed{
+G
+=
+\frac{E_F-E_L}{E_0}
+}
+```
+
+when `E0>0`.
+
+Interpretation:
+
+- `R_L`: how much the LiDAR-only linear model can explain.
+- `R_F`: how much the prior-constrained first update explains.
+- `G`: how much extra LiDAR residual remains because the prior prevents the LiDAR-only optimum.
+
+This is a central Prompt05 consistency diagnostic.
+
+Do NOT call `G` a formal statistical NIS.
+
+---
+
+# 15. Absolute conflict energy
+
+Also record:
+
+```math
+G_{\rm abs}=E_F-E_L
+```
+
+and:
+
+```math
+G_N
+=
+\frac{E_F-E_L}{N_{\rm used}}.
+```
+
+This avoids relying only on normalized fractions when `E0` changes strongly with residual count.
+
+---
+
+# 16. Schur RHS authority
+
+Prompt05 must explicitly compute the correctly decoupled Schur RHS.
+
+Partition:
+
+```math
+H=
+\begin{bmatrix}
+A&B\\
+B^T&D
+\end{bmatrix},
+\qquad
+b=
+\begin{bmatrix}
+b_R\\
+b_t
+\end{bmatrix}.
+```
+
+Then:
+
+```math
+\boxed{
+c_R
+=
+b_R-BD^{-1}b_t
+}
+```
+
+and:
+
+```math
+\boxed{
+c_t
+=
+b_t-B^TA^{-1}b_R.
+}
+```
+
+Use linear solves, never explicit inverse.
+
+These correspond to the DCReg Schur systems:
+
+```math
+S_R\delta_R=c_R
+```
+
+and:
+
+```math
+S_t\delta_t=c_t.
+```
+
+This is mandatory.
+
+Do NOT project raw `b_R/b_t` and call that weak-direction forcing.
+
+---
+
+# 17. Schur modal forcing
+
+For each DCReg Schur eigenpair:
+
+```math
+S_Ru_{R,i}
+=
+\lambda_{R,i}u_{R,i}
+```
+
+define:
+
+```math
+g_{R,i}
+=
+u_{R,i}^Tc_R.
+```
+
+Likewise:
+
+```math
+g_{t,i}
+=
+u_{t,i}^Tc_t.
+```
+
+Record signed and absolute values.
+
+---
+
+# 18. Schur modal correction amplitude
+
+For numerically valid eigenvalues:
+
+```math
+\boxed{
+a_{R,i}
+=
+\frac{g_{R,i}}{\lambda_{R,i}}
+}
+```
+
+and:
+
+```math
+\boxed{
+a_{t,i}
+=
+\frac{g_{t,i}}{\lambda_{t,i}}.
+}
+```
+
+These are the LiDAR-only Schur correction amplitudes in the corresponding decoupled eigenmodes.
+
+This directly tests:
+
+> Is the weak mode merely weak, or is the residual actually demanding a large correction along it?
+
+This is one of the most important Prompt05 metrics.
+
+---
+
+# 19. Coupled Schur direction forcing
+
+Reuse Prompt04 coupled directions.
+
+Rotation:
+
+```math
+d_{R,i}
+=
+\begin{bmatrix}
+u_{R,i}\\
+-D^{-1}B^Tu_{R,i}
+\end{bmatrix}.
+```
+
+Translation:
+
+```math
+d_{t,i}
+=
+\begin{bmatrix}
+-A^{-1}Bu_{t,i}\\
+u_{t,i}
+\end{bmatrix}.
+```
+
+For each valid coupled mode compute:
+
+```math
+h_i=d_i^TH_Ld_i
+```
+
+```math
+q_i=d_i^Tb_L.
+```
+
+The scalar LiDAR-only optimum along that coupled direction is:
+
+```math
+\boxed{
+\alpha_i
+=
+\frac{q_i}{h_i}
+}
+```
+
+when `h_i` is positive and valid.
+
+---
+
+# 20. Prior-normalized coupled-mode pull
+
+Define prior information along the same direction:
+
+```math
+p_i
+=
+d_i^T(P^-_{pose})^{-1}d_i.
+```
+
+Then define:
+
+```math
+\boxed{
+\chi_i
+=
+|\alpha_i|
+\sqrt{p_i}
+}
+```
+
+This is dimensionless.
+
+Interpretation:
+
+> Along this specific DCReg coupled mode, how many propagated-prior standard deviations away is the LiDAR-only scalar optimum?
+
+This is more relevant to consistency than `zeta` alone.
+
+Recall Prompt04:
+
+```math
+\zeta_i
+=
+\frac{h_i}{p_i}
+```
+
+describes relative information strength.
+
+Prompt05:
+
+```math
+\chi_i
+```
+
+describes correction demand.
+
+Both are needed.
+
+---
+
+# 21. Coupled modal forcing score
+
+Also record:
+
+```math
+\boxed{
+\psi_i
+=
+\frac{|q_i|}
+{\sqrt{h_i}}
+}
+```
+
+for valid positive `h_i`.
+
+This is a scale-invariant linearized forcing score under direction rescaling.
+
+It is still tied to native fixed weight `1000`.
+
+Do not call it a calibrated statistical z-score.
+
+---
+
+# 22. Weak-mode primary statistics
+
+For each frame, among modes classified weak by D1, report separately for rotation and translation:
+
+```text
+max |a_i|
+median |a_i|
+
+max chi_i
+median chi_i
+
+max psi_i
+median psi_i
+```
+
+If weak rank is zero:
+
+```text
+weak-mode metrics = undefined
+```
+
+not zero.
+
+---
+
+# 23. Weak-projector correction content
+
+For `delta_x_L` and `delta_x_F` split:
+
+```text
+rotation tangent 0:3
+world translation 3:6
+```
+
+Compute:
+
+```math
+w_{L,R}
+=
+\|P_{weak,R}\delta R_L\|
+```
+
+```math
+w_{F,R}
+=
+\|P_{weak,R}\delta R_F\|
+```
+
+```math
+w_{L,t}
+=
+\|P_{weak,t}\delta t_L\|
+```
+
+```math
+w_{F,t}
+=
+\|P_{weak,t}\delta t_F\|.
+```
+
+Also strong complements:
+
+```math
+(I-P_{weak})\delta.
+```
+
+Record ratios where denominator is nonzero.
+
+Do not combine radians and meters into one raw Euclidean magnitude.
+
+---
+
+# 24. Correction-direction alignment
+
+In prior-whitened coordinates compute:
+
+```math
+\cos\theta_{LF}
+=
+\frac{z_L^Tz_F}
+{\|z_L\|\|z_F\|}.
+```
+
+This answers whether prior mostly:
+
+```text
+shrinks the LiDAR correction
+```
+
+or:
+
+```text
+changes its direction substantially.
+```
+
+Record:
+
+```text
+cos_LF
+angle_LF_deg
+```
+
+---
+
+# 25. Do NOT use final posterior as causal input
+
+Prompt05 primary metrics MUST be derivable from:
+
+```text
+P_pred
+H_L
+b_L
+accepted residuals
+D1 decomposition
+```
+
+before applying current LiDAR correction.
+
+The following may not be used as the cause-side harmfulness score:
+
+```text
+Qk posterior
+final frame P
+next-frame P
+future GT error
+later residuals
+```
+
+GT is used only for evaluation/correlation.
+
+---
+
+# 26. Prompt05 frame schema
+
+Create a new frame-level schema, e.g.:
+
+```text
+schema_version = 4
+```
+
+One row per LiDAR frame.
+
+At minimum include:
+
+```text
+frame
+timestamp
+N_candidate
+N_used
+
+# Prompt04 geometry
+kappa_R
+kappa_t
+lambda_R[3]
+lambda_t[3]
+weak_rank_R
+weak_rank_t
+Pweak_R
+Pweak_t
+mu_min
+eta
+zeta
+XICP diagnostics
+
+# residual energy
+E0
+E0_per_used
+rms_weighted_residual
+
+# corrections
+delta_L[6]
+delta_F[6]
+C_L
+C_F
+S_prior
+delta_C
+cos_LF
+angle_LF
+
+# residual fit
+E_L
+E_F
+R_L
+R_F
+G
+G_abs
+G_per_used
+
+# Schur RHS
+c_R[3]
+c_t[3]
+g_R[3]
+g_t[3]
+a_R[3]
+a_t[3]
+
+# coupled forcing
+alpha_R[3]
+alpha_t[3]
+chi_R[3]
+chi_t[3]
+psi_R[3]
+psi_t[3]
+
+# weak correction projections
+weak_dxL_R
+weak_dxF_R
+strong_dxL_R
+strong_dxF_R
+weak_dxL_t
+weak_dxF_t
+strong_dxL_t
+strong_dxF_t
+```
+
+Large raw arrays stay in runtime artifacts.
+
+Git stores summaries.
+
+---
+
+# 27. Synthetic test suite — linear objective
+
+Required tests.
+
+## C1 — 1D analytic case
+
+For:
+
+```math
+H=h,\quad b=g,\quad P=p
+```
+
+verify:
+
+```math
+dx_L=g/h
+```
+
+```math
+dx_F=g/(h+1/p)
+```
+
+```math
+C_L=|dx_L|/\sqrt p
+```
+
+and residual-energy formulas analytically.
+
+---
+
+## C2 — prior agrees / small pull
+
+Construct strong prior-compatible correction.
+
+Require:
+
+```text
+small C_L
+small G
+```
+
+---
+
+## C3 — strong LiDAR/prior conflict
+
+Construct LiDAR optimum many prior sigmas away.
+
+Require:
+
+```text
+large C_L
+large delta_C
+large G
+```
+
+---
+
+## C4 — weak Hessian but zero weak forcing
+
+Construct:
+
+```text
+very small lambda_weak
+g_weak = 0
+```
+
+Expected:
+
+```text
+high kappa
+but a_weak = 0
+chi_weak = 0
+psi_weak = 0
+```
+
+This is a crucial Stairs-like conceptual case.
+
+---
+
+## C5 — weak Hessian with strong weak forcing
+
+Same small weak eigenvalue but nonzero weak RHS.
+
+Require:
+
+```text
+large |a_weak|
+large chi_weak
+```
+
+This is the candidate harmful-degeneracy case.
+
+---
+
+## C6 — strong geometry with biased correction
+
+Well-conditioned H but large b inconsistent with prior.
+
+Require:
+
+```text
+low kappa
+large C_L
+large G
+```
+
+This models an ambiguity/bias-like failure mode.
+
+---
+
+## C7 — coordinate rescaling
+
+Consistently transform:
+
+```text
+H
+b
+P
+```
+
+under rotation/translation state scaling.
+
+Require invariance for dimensionless:
+
+```text
+C_L
+C_F
+G
+chi
+```
+
+within tolerance.
+
+Raw `delta` and eigenvalues may change as expected.
+
+---
+
+## C8 — pseudoinverse nullspace
+
+Construct rank-deficient H.
+
+Require:
+
+```text
+minimum-norm delta_L
+no nullspace explosion
+numerical rank correct
+```
+
+---
+
+# 28. Production regression sequences
+
+Run full shadow Prompt05 on exactly:
+
+```text
+Bridge01 Alpha
+Stairs Alpha
+Tunneling_tunnel2_alpha
+```
+
+Do not add Gamma yet.
+
+Canonical expected SHAs:
+
+```text
+Bridge:
+6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+
+Stairs:
+26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+
+Tunnel2:
+3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30
+```
+
+Required for all:
+
+```text
+RC=0
+row count unchanged
+SHA exact
+cmp=0
+```
+
+Otherwise:
+
+```text
+STOP — PROMPT05_SHADOW_TRAJECTORY_MUTATION
+```
+
+---
+
+# 29. Build/runtime
+
+Compile:
+
+```text
+-j4
+```
+
+Offline runtime:
+
+```text
+configured CPU budget = 32 logical CPUs
+```
+
+Do not use `-j32` for compilation.
+
+---
+
+# 30. Statistical analysis contract
+
+Reuse Prompt03 robustness rules.
+
+For Bridge/Stairs/Tunnel2 position errors:
+
+```text
+1 s
+5 s
+10 s
+```
+
+Report:
+
+```text
+overlapping descriptive correlation
+non-overlapping correlation
+10 s block-bootstrap CI
+```
+
+For Tunnel2:
+
+```text
+rotation GT unavailable
+```
+
+so do NOT correlate rotational consistency metrics against rotational GT error.
+
+They may be analyzed temporally against position-error onset only.
+
+---
+
+# 31. Primary candidate harmfulness variables
+
+At minimum compare local error against:
+
+```text
+kappa
+lambda_min
+mu_min
+zeta_weak
+
+C_L
+C_F
+delta_C
+S_prior
+
+G
+G_per_used
+
+max weak |a|
+max weak chi
+max weak psi
+
+weak projected delta_L
+weak projected delta_F
+```
+
+Do not cherry-pick one metric after seeing the result.
+
+Report the complete candidate table.
+
+---
+
+# 32. Stairs key negative-control question
+
+Stairs has:
+
+```text
+high rotational kappa
+low error
+```
+
+Prompt05 must answer:
+
+> Does Stairs weak rotation have low forcing despite weak geometry?
+
+Specifically inspect:
+
+```text
+g_R weak
+a_R weak
+chi_R weak
+psi_R weak
+weak-projected delta_L rotation
+G
+C_L
+```
+
+Desired scientific distinction to test:
+
+```text
+weak eigenvalue alone
+vs
+weak eigenvalue + strong residual forcing
+```
+
+Do NOT assume Stairs will have low forcing.
+
+---
+
+# 33. Tunnel2 key question
+
+Tunnel2 has:
+
+```text
+rotation kappa ~ 59 median
+rotation weak all sequence
+position drift large
+no attitude GT
+```
+
+Prompt05 must inspect whether before / during position-error growth:
+
+```text
+weak rotational g_R increases
+weak rotational |a_R| increases
+chi_R increases
+psi_R increases
+C_L increases
+G increases
+```
+
+If these change materially before position drift, that supports:
+
+```text
+ROTATIONAL_DEGENERACY_WITH_INCONSISTENT_FORCING
+```
+
+If they remain benign, then rotational degeneracy alone becomes less plausible as the drift cause.
+
+---
+
+# 34. Bridge key question
+
+Owner observation:
+
+```text
+feature sparse / geometric support sparse
+```
+
+Bridge analysis must determine whether its failure looks like:
+
+### Type S — sparse information
+
+```text
+lambda low
+N_used low
+but forcing/conflict not abnormal
+```
+
+or:
+
+### Type B — biased/inconsistent pull
+
+```text
+C_L high
+G high
+weak/modal forcing high
+```
+
+or:
+
+### Type M — mixed
+
+```text
+both low information and strong inconsistent pull
+```
+
+This distinction matters.
+
+Do not automatically call Bridge ambiguity.
+
+---
+
+# 35. Three-scene consistency table
+
+Create matched tables comparing:
+
+```text
+Bridge
+Stairs
+Tunnel2
+```
+
+for similar:
+
+```text
+kappa bands
+lambda bands where practical
+```
+
+Report medians/P90 of:
+
+```text
+C_L
+C_F
+G
+G_per_used
+max weak chi
+max weak psi
+weak-projected correction
+```
+
+We want to know:
+
+> At similar apparent degeneracy, does actual LiDAR forcing/consistency separate harmful and harmless cases?
+
+---
+
+# 36. Event analysis
+
+For each sequence identify:
+
+```text
+top 10% local 5 s translation error
+bottom 50% local 5 s translation error
+```
+
+Compare activation/distributions of candidate consistency signals.
+
+For Tunnel2 also reuse sustained onset:
+
+```text
+1706584541.828 ... 1706584579.030
+```
+
+but do not hand-tune thresholds around it.
+
+Use it only as a pre-declared episode from Prompt04.
+
+---
+
+# 37. Pre-onset analysis
+
+For Tunnel2 compare:
+
+```text
+5 s before onset
+3 s before onset
+1 s before onset
+onset
+```
+
+for:
+
+```text
+C_L
+C_F
+G
+G_per_used
+weak rotational |a|
+weak rotational chi
+weak rotational psi
+weak projected rotation correction
+```
+
+This is more important than post-onset correlation.
+
+A useful detector should change before or at onset, not only after trajectory is already bad.
+
+---
+
+# 38. Candidate consistency classifiers — shadow only
+
+Evaluate diagnostic thresholds, but do NOT authorize production policy.
+
+Use percentile-based thresholds within each sequence first:
+
+```text
+P90
+P95
+P99
+```
+
+for:
+
+```text
+C_L
+G
+max weak chi
+max weak psi
+```
+
+Then test whether any fixed absolute dimensionless threshold looks transferable across scenes.
+
+For dimensional/raw metrics, do not claim cross-sequence thresholds unless units/config support it.
+
+---
+
+# 39. Important composite hypotheses
+
+Evaluate at minimum:
+
+### H0 — geometry only
+
+```text
+high kappa
+```
+
+### H1 — weak geometry + weak forcing
+
+```text
+high kappa
+AND
+low weak chi
+```
+
+Expected potentially harmless.
+
+### H2 — weak geometry + strong forcing
+
+```text
+high kappa
+AND
+high weak chi
+```
+
+Candidate harmful degeneracy.
+
+### H3 — geometry not weak + strong prior conflict
+
+```text
+kappa moderate
+AND
+high G / high C_L
+```
+
+Candidate biased-association / inconsistency failure.
+
+### H4 — sparse information
+
+```text
+low absolute lambda
+low N_used
+without strong G
+```
+
+Candidate Bridge sparse-support mode.
+
+Do not force these hypotheses to succeed.
+
+---
+
+# 40. Innovation wording discipline
+
+Prompt05 does not have a classical measurement-space innovation covariance:
+
+```math
+S=HPH^T+R
+```
+
+for the full point set.
+
+Therefore do NOT label Prompt05 metrics as formal:
+
+```text
+NIS
+innovation chi-square
+statistically calibrated consistency test
+```
+
+unless actually derived and justified.
+
+Preferred terms:
+
+```text
+pre-update consistency
+prior-normalized correction demand
+linearized residual conflict
+weak-mode forcing
+```
+
+---
+
+# 41. Optional measurement-space follow-up
+
+If Prompt05 information-form consistency proves promising, the final report may recommend a later formal innovation/NIS implementation.
+
+Do NOT implement it now.
+
+Reason:
+
+```text
+point-level measurement-space dimension is large
+correlations/noise semantics need separate authority
+```
+
+---
+
+# 42. Source boundary
+
+Allowed:
+
+```text
+iteration-0 residual error shadow capture
+consistency analyzer
+analysis scripts
+Prompt04 corrective docs
+tests/evidence
+```
+
+Allowed read-only quantities:
+
+```text
+H_L
+b_L
+P_pred
+accepted J
+accepted scalar residual
+D1 decomposition
+```
+
+Forbidden:
+
+```text
+estimator H modification
+estimator b modification
+estimator P modification
+residual modification
+gate modification
+association modification
+map modification
+IMU modification
+IESKF update formula modification
+```
+
+---
+
+# 43. Evidence structure
+
+Create:
+
+```text
+evidence/dec_lio/prompt05/
+```
+
+At minimum:
+
+```text
+PROMPT05_START_STATE.txt
+PROMPT04_CORRECTIVE_AUTHORITY.md
+PROMPT05_SOURCE_DIFF.txt
+PROMPT05_TESTS.txt
+
+CONSISTENCY_MATH.md
+CONSISTENCY_SYNTHETIC_TESTS.txt
+
+BRIDGE_CONSISTENCY_SUMMARY.txt
+STAIRS_CONSISTENCY_SUMMARY.txt
+TUNNEL2_CONSISTENCY_SUMMARY.txt
+
+TUNNEL2_PREONSET_CONSISTENCY.txt
+THREE_SCENE_CONSISTENCY_COMPARISON.md
+WEAK_MODE_FORCING_ANALYSIS.md
+
+BRIDGE_SHA_REGRESSION.txt
+STAIRS_SHA_REGRESSION.txt
+TUNNEL2_SHA_REGRESSION.txt
+
+D2_CONSISTENCY_RECOMMENDATION.md
+PROMPT05_CLOSURE.txt
+```
+
+Runtime:
+
+```text
+/home/lc/dec_lio/runtime/prompt05/
+```
+
+---
+
+# 44. Primary scientific classification
+
+Prompt05 must end with exactly ONE:
+
+```text
+A — WEAK_GEOMETRY_PLUS_STRONG_FORCING_SEPARATES_FAILURE
+```
+
+```text
+B — PRIOR_CONFLICT_SEPARATES_FAILURE_BETTER_THAN_GEOMETRY
+```
+
+```text
+C — SPARSE_INFORMATION_EXPLAINS_BRIDGE_BUT_NOT_TUNNEL2
+```
+
+```text
+D — TUNNEL2_SUPPORTS_ROTATIONAL_DEGENERACY_CAUSAL_CHAIN
+```
+
+```text
+E — DIFFERENT_FAILURE_MODES_REQUIRE_SEPARATE DETECTORS
+```
+
+```text
+F — CONSISTENCY_SIGNALS_STILL_NOT_TRANSFERABLE
+```
+
+```text
+G — EVIDENCE_CONTRADICTS_DIRECTIONAL_D2_GATE
+```
+
+Do not force A/B/D.
+
+---
+
+# 45. D2 recommendation outcome
+
+After classification choose one:
+
+```text
+D2-1:
+Proceed to shadow gamma design using geometry + consistency.
+```
+
+```text
+D2-2:
+Separate geometric-degeneracy gate and inconsistency/ambiguity detector.
+```
+
+```text
+D2-3:
+Target only proven geometric-degeneracy failure mode;
+Bridge-like sparse-support handled separately.
+```
+
+```text
+D2-4:
+Do not implement estimator gate yet.
+```
+
+No estimator gate is implemented in Prompt05.
+
+---
+
+# 46. Hard CLOSE criteria
+
+Only report:
+
+```text
+PROMPT05 CLOSED
+```
+
+if ALL hold.
+
+## Corrective authority
+
+```text
+Bridge Owner observation amended faithfully
+Tunnel2 Prompt04 C classification corrected
+```
+
+## Math
+
+```text
+E0 verified
+delta_L verified
+delta_F verified
+prior-normalized pull verified
+E_L/E_F/G verified
+Schur RHS verified
+weak modal forcing verified
+chi/psi verified
+```
+
+## Synthetic
+
+```text
+C1-C8 PASS
+including weak-but-zero-forcing negative control
+and well-conditioned-but-biased conflict case
+```
+
+## Runtime
+
+```text
+Bridge exact canonical SHA
+Stairs exact canonical SHA
+Tunnel2 exact canonical SHA
+cmp=0 all
+```
+
+## Analysis
+
+```text
+Stairs negative control analyzed
+Bridge sparse-support analysis complete
+Tunnel2 pre-onset analysis complete
+three-scene comparison complete
+one scientific classification selected
+one D2 recommendation selected
+```
+
+## Boundary
+
+```text
+H modified: NO
+b modified: NO
+P modified: NO
+gamma applied: NO
+PCG: NO
+Prob-LIO: NO
+```
+
+## Git
+
+```text
+HEAD == origin/Dec-LIO
+worktree clean
+```
+
+---
+
+# 47. Mandatory final report
+
+```text
+PROMPT05 STATUS:
+
+Git:
+- start HEAD:
+- final HEAD:
+- origin/Dec-LIO:
+- merge-base/origin/ros1:
+- worktree clean:
+
+Prompt04 corrective:
+- Bridge Owner raw observation:
+- Bridge interpretation:
+- Tunnel2 old classification:
+- Tunnel2 corrected classification:
+- corrective evidence file:
+
+Consistency implementation:
+- frame authority:
+- P source:
+- H/b source:
+- residual source:
+- posterior used:
+- pseudoinverse rule:
+- numerical failures:
+
+Synthetic tests:
+- C1:
+- C2:
+- C3:
+- C4:
+- C5:
+- C6:
+- C7:
+- C8:
+
+Bridge:
+- C_L:
+- C_F:
+- S_prior:
+- G:
+- G/N:
+- weak forcing:
+- weak chi:
+- weak psi:
+- weak projected correction:
+- relation to 1/5/10 s error:
+- sparse-support Type S/B/M classification:
+
+Stairs:
+- C_L:
+- C_F:
+- G:
+- rotational weak forcing:
+- rotational weak chi:
+- rotational weak psi:
+- does high kappa have low forcing:
+- why high-kappa remains harmless:
+
+Tunnel2:
+- C_L:
+- C_F:
+- G:
+- rotational weak forcing:
+- rotational weak chi:
+- rotational weak psi:
+- pre-onset 5/3/1 s behavior:
+- evidence for/against rotational-degeneracy causal chain:
+
+Three-scene comparison:
+- strongest harmfulness separator:
+- weakest separator:
+- geometry-only result:
+- consistency result:
+- sparse-information result:
+
+Candidate hypotheses:
+- H0:
+- H1:
+- H2:
+- H3:
+- H4:
+
+Scientific classification:
+- A/B/C/D/E/F/G:
+- reasoning:
+
+D2 recommendation:
+- D2-1/2/3/4:
+- geometric signal retained:
+- consistency signal retained:
+- sparse-support treatment:
+- ambiguity treatment:
+- whether formal NIS is now justified:
+- next experiment:
+
+Canonical regression:
+- Bridge SHA expected/actual/cmp:
+- Stairs SHA expected/actual/cmp:
+- Tunnel2 SHA expected/actual/cmp:
+
+Boundary:
+- H modified: MUST BE NO
+- b modified: MUST BE NO
+- P modified: MUST BE NO
+- gamma applied: MUST BE NO
+- PCG: MUST BE NO
+- Prob-LIO: MUST BE NO
+
+STATUS:
+CLOSED / PARTIAL / exact STOP reason
+```
+
+Final reminder to Origin:
+
+> Prompt05 remains pre-update, information-form, shadow-only consistency analysis. Its central distinction is no longer merely “weak eigenvalue”, but whether the current LiDAR residual actually demands a large correction along weak geometry and whether that demand conflicts with the propagated filter prior. No estimator gating is authorized by Prompt05.

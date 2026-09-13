@@ -1,5 +1,10 @@
 # Prompt04 D2 recommendation
 
+> Superseded by Prompt05 corrective authority: the primary classification is
+> `F — INCONCLUSIVE`, annotated `STRONG SUSTAINED ROTATIONAL-DEGENERACY
+> CANDIDATE`.  The original C/D2-C text below is retained as the historical
+> Prompt04 interpretation and is not the current authority.
+
 Primary Tunnel2 classification:
 
 **C — TUNNEL2_IS_BRIDGE_LIKE_AMBIGUITY_OR_BIASED_ASSOCIATION**

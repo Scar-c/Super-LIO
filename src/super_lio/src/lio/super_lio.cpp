@@ -2,6 +2,7 @@
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
+#include <limits>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/concurrent_vector.h>
@@ -13,6 +14,7 @@ using namespace BASIC;
 namespace LI2Sup{
 
 SuperLIO::~SuperLIO(){
+  if (consistency_analyzer_) consistency_analyzer_->finalize();
   if (d2_analyzer_) d2_analyzer_->finalize();
   if (d1_analyzer_) d1_analyzer_->finalize();
 }
@@ -104,6 +106,14 @@ void SuperLIO::init(){
               << g_d2_output_csv << RESET;
   } else {
     LOG(INFO) << GREEN << " ---> [Dec-LIO D2]: shadow=OFF" << RESET;
+  }
+  if (g_consistency_shadow_enabled) {
+    consistency_analyzer_.reset(new DecLIO::ConsistencyAnalyzer(
+        g_consistency_output_csv, g_d1_condition_threshold));
+    LOG(INFO) << GREEN << " ---> [Dec-LIO consistency]: shadow=ON output="
+              << g_consistency_output_csv << RESET;
+  } else {
+    LOG(INFO) << GREEN << " ---> [Dec-LIO consistency]: shadow=OFF" << RESET;
   }
 
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
@@ -456,15 +466,19 @@ struct ThreadACC{
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
   const bool d2_enabled = d2_analyzer_ != nullptr;
+  const bool consistency_enabled = consistency_analyzer_ != nullptr;
+  const bool shadow_capture = d2_enabled || consistency_enabled;
   // This is a read-only copy taken immediately before the native update call.
   // It is the ESKF propagated covariance, not a posterior or a mutable state.
   M18d p_pred_shadow = M18d::Zero();
-  if (d2_enabled) p_pred_shadow = kf_->GetCov().cast<double>();
+  if (shadow_capture) p_pred_shadow = kf_->GetCov().cast<double>();
   std::vector<V6d> d2_jacobians;
   std::vector<unsigned char> d2_used;
-  if (d2_enabled) {
+  std::vector<double> consistency_errors;
+  if (shadow_capture) {
     d2_jacobians.resize(ptsize, V6d::Zero());
     d2_used.assign(ptsize, 0);
+    consistency_errors.assign(ptsize, std::numeric_limits<double>::quiet_NaN());
   }
   
   static std::vector<float> _lengths;
@@ -532,10 +546,11 @@ void SuperLIO::Observe(){
             local_acc.HTVH += J * 1000 * J.transpose();
             local_acc.HTVr -= J * 1000 * error;
             ++local_acc.used_residual_count;
-            if (d2_enabled && current_shadow_iteration == 0 &&
+            if (shadow_capture && current_shadow_iteration == 0 &&
                 !need_converge) {
               d2_jacobians[idx] = J;
               d2_used[idx] = 1;
+              consistency_errors[idx] = static_cast<double>(error);
             }
           }
         }
@@ -556,16 +571,29 @@ void SuperLIO::Observe(){
                             need_converge, effect_knn_num_, used_residual_count,
                             sum_HTVH, sum_HTVr);
     }
-    if (d2_enabled && current_shadow_iteration == 0 && !need_converge) {
+    if (shadow_capture && current_shadow_iteration == 0 && !need_converge) {
       std::vector<V6d> accepted;
+      std::vector<double> accepted_errors;
       accepted.reserve(used_residual_count);
+      accepted_errors.reserve(used_residual_count);
       for (size_t index = 0; index < ptsize; ++index) {
-        if (d2_used[index]) accepted.push_back(d2_jacobians[index]);
+        if (d2_used[index]) {
+          accepted.push_back(d2_jacobians[index]);
+          accepted_errors.push_back(consistency_errors[index]);
+        }
       }
-      d2_analyzer_->observe(static_cast<std::uint64_t>(frame_num_),
-                            measures_.lidar.end_time, effect_knn_num_,
-                            used_residual_count, sum_HTVH, sum_HTVr,
-                            p_pred_shadow, accepted);
+      if (d2_analyzer_) {
+        d2_analyzer_->observe(static_cast<std::uint64_t>(frame_num_),
+                              measures_.lidar.end_time, effect_knn_num_,
+                              used_residual_count, sum_HTVH, sum_HTVr,
+                              p_pred_shadow, accepted);
+      }
+      if (consistency_analyzer_) {
+        consistency_analyzer_->observe(
+            static_cast<std::uint64_t>(frame_num_), measures_.lidar.end_time,
+            effect_knn_num_, used_residual_count, sum_HTVH, sum_HTVr,
+            p_pred_shadow, accepted, accepted_errors);
+      }
     }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
