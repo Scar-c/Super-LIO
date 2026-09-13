@@ -1,0 +1,18 @@
+Prompt04 startup gate
+
+Repository: https://github.com/Scar-c/Super-LIO
+Workspace: /home/lc/dec_lio/src/Super-LIO
+Branch: Dec-LIO
+Prompt04 archive SHA256:
+06c2f2e40d4102840063abd7e0f2c21786d2950e983ac2ba9697e1a040914a5a
+
+start HEAD: 295a141904cc69f151306cc2d271126931544c55
+origin/Dec-LIO: 295a141904cc69f151306cc2d271126931544c55
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+merge-base HEAD origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+worktree at startup: clean
+
+Prompt03 status: CLOSED
+Prompt04 phase: Phase 0 complete; waiting for Owner visual inspection
+
+No Tunneling2 experiment has been started.
