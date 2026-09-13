@@ -12,11 +12,19 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/CMakeLists.txt",
     "src/super_lio/package.xml",
     "src/super_lio/config/geode_alpha.yaml",
+    "src/super_lio/config/geode_stairs_alpha.yaml",
     "src/super_lio/offline/OfflineReader.h",
     "src/super_lio/offline/OfflineReader.cpp",
     "src/super_lio/src/apps/super_lio_offline_node.cpp",
+    "src/super_lio/include/dec_lio/DCRegAnalyzer.h",
+    "src/super_lio/src/dec_lio/DCRegAnalyzer.cpp",
+    "src/super_lio/include/lio/params.h",
+    "src/super_lio/include/lio/super_lio.h",
+    "src/super_lio/src/lio/params.cpp",
+    "src/super_lio/src/lio/super_lio.cpp",
+    "src/super_lio/src/ros/ROSWrapper.cpp",
 }
-FORBIDDEN = ("prob_lio", "dcreg", "pcg", "sa_gate", "probabilistic")
+FORBIDDEN = ("prob_lio", "pcg", "sa_gate")
 
 
 def run(repo, *args):

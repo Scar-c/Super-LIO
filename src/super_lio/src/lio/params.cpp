@@ -52,6 +52,11 @@ namespace LI2Sup{
   bool g_kf_align_gravity = true;
   double g_kf_quit_eps;
 
+  bool g_d1_shadow_enabled = false;
+  double g_d1_condition_threshold = 10.0;
+  std::string g_d1_output_csv;
+  std::string g_d1_frame_summary_csv;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;

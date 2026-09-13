@@ -12,6 +12,10 @@ using namespace BASIC;
 
 namespace LI2Sup{
 
+SuperLIO::~SuperLIO(){
+  if (d1_analyzer_) d1_analyzer_->finalize();
+}
+
 inline bool calc_plane_coeff(const int N, const std::array<V3, 5>& points, std::array<double, 4>& abcd)
 {
   Eigen::Vector3d normvec;
@@ -82,6 +86,16 @@ void SuperLIO::init(){
   voxel_grid_fliter_.setLeafSize(g_voxel_fliter_size);
 
   state_fn_ = &SuperLIO::stateWaitKFInit;
+
+  if (g_d1_shadow_enabled) {
+    d1_analyzer_.reset(new DecLIO::DCRegAnalyzer(
+        g_d1_output_csv, g_d1_frame_summary_csv, g_d1_condition_threshold));
+    LOG(INFO) << GREEN << " ---> [Dec-LIO D1]: shadow=ON threshold="
+              << g_d1_condition_threshold << " output=" << g_d1_output_csv
+              << RESET;
+  } else {
+    LOG(INFO) << GREEN << " ---> [Dec-LIO D1]: shadow=OFF" << RESET;
+  }
 
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
 }
@@ -447,8 +461,10 @@ void SuperLIO::Observe(){
 
   ivox_->reset_max_group();
   int iter_num = 0;
+  int shadow_iteration = 0;
 
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
+    const int current_shadow_iteration = shadow_iteration++;
     const SE3 pose = kf_state.pose;
     const bool need_converge = kf_state.need_converge;
     const M3d R_transpose = (pose.R_.transpose()).cast<double>();
@@ -503,6 +519,12 @@ void SuperLIO::Observe(){
     for(const auto& local_acc : tls_acc){
       sum_HTVH += local_acc.HTVH;
       sum_HTVr += local_acc.HTVr;
+    }
+
+    if (d1_analyzer_) {
+      d1_analyzer_->observe(static_cast<std::uint64_t>(frame_num_),
+                            current_shadow_iteration, measures_.lidar.end_time,
+                            need_converge, effect_knn_num_, sum_HTVH, sum_HTVr);
     }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();

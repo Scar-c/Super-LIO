@@ -82,6 +82,14 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/kf/kf_align_gravity", g_kf_align_gravity);
   nh.getParam("/lio/kf/kf_quit_eps", g_kf_quit_eps);
 
+  nh.param("/lio/dec_lio/d1_shadow/enabled", g_d1_shadow_enabled, false);
+  nh.param("/lio/dec_lio/d1_shadow/condition_threshold",
+           g_d1_condition_threshold, 10.0);
+  nh.param("/lio/dec_lio/d1_shadow/output_csv", g_d1_output_csv,
+           std::string());
+  nh.param("/lio/dec_lio/d1_shadow/frame_summary_csv",
+           g_d1_frame_summary_csv, std::string());
+
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);
   nh.getParam("/lio/submap/submap_capacity", g_submap_capacity);

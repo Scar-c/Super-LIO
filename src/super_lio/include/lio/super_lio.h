@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <memory>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
@@ -21,13 +22,14 @@
 #include "OctVoxMap/OctVoxMap.hpp"
 #include "OctVoxMap/VoxelGridFilter.h"
 #include "ros/ROSWrapper.h"
+#include "dec_lio/DCRegAnalyzer.h"
 
 namespace LI2Sup{
 
 class SuperLIO{
 public:
   SuperLIO(){};
-  ~SuperLIO(){};
+  ~SuperLIO();
 
   void setROSWrapper(const ROSWrapper::Ptr& wrapper){
     data_wrapper_ = wrapper;
@@ -56,6 +58,7 @@ protected:
   using KNNHeapType = KNNHeap<5, BASIC::V3>;
   StateFn state_fn_;
   ESKF::Ptr kf_;
+  std::unique_ptr<DecLIO::DCRegAnalyzer> d1_analyzer_;
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;
@@ -86,5 +89,3 @@ protected:
 } // namespace END.
 
 #endif
-
-

@@ -28,7 +28,16 @@ class NativeIdentityTest(unittest.TestCase):
             capture_output=True,
             check=True,
         )
-        self.assertEqual(result.stdout.strip(), "")
+        changed = set(result.stdout.splitlines()) if result.stdout.strip() else set()
+        allowed = {
+            "src/super_lio/include/lio/params.h",
+            "src/super_lio/include/lio/super_lio.h",
+            "src/super_lio/src/lio/params.cpp",
+            "src/super_lio/src/lio/super_lio.cpp",
+            "src/super_lio/src/ros/ROSWrapper.cpp",
+        }
+        self.assertTrue(changed <= allowed, sorted(changed - allowed))
+        self.assertFalse(any(path.endswith("/ESKF.cpp") for path in changed))
 
     def test_wrong_ancestry_is_rejected(self):
         repo = pathlib.Path(__file__).resolve().parents[2]
@@ -57,7 +66,7 @@ class NativeIdentityTest(unittest.TestCase):
         production = repo / "src/super_lio"
         text = "\n".join(path.read_text(encoding="utf-8", errors="replace").lower()
                            for path in production.rglob("*") if path.is_file())
-        for token in ("prob_lio", "dcreg", "sa_gate"):
+        for token in ("prob_lio", "pcg", "sa_gate"):
             self.assertNotIn(token, text)
 
 

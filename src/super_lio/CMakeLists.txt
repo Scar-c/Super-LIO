@@ -113,3 +113,13 @@ target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
 )
+
+add_executable(dec_lio_dcreg_synthetic_test
+  ../../tests/dec_lio/dcreg_synthetic_test.cpp
+  src/dec_lio/DCRegAnalyzer.cpp
+)
+target_include_directories(dec_lio_dcreg_synthetic_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+)
+add_test(NAME dec_lio_dcreg_synthetic_test COMMAND dec_lio_dcreg_synthetic_test)
