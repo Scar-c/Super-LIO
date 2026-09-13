@@ -1,0 +1,13 @@
+Prompt07 closure candidate
+
+Startup gate: PASS.
+GEODE pinned authority: PASS.
+Point-time gate: T2, resolved by explicit physical-seconds corrective T/AT semantics.
+Raw population and stride-order audit: PASS; NaN order is not equivalent and no compatibility mode was added.
+N/V/B/R/A1/A2: PASS, both scenes; A1/A2 deterministic.
+Prompt06 corrective axis authority: PASS.
+Science classification: E with observation attribution D; D2 observation authority D2-OBS-3.
+Estimator gate: MUST BE NO.
+Boundary: H NO, b NO, P NO, map algorithm NO, gamma NO, PCG NO, Prob-LIO NO.
+Tests, production identity and evidence hygiene: PASS.
+Final git/push identity is recorded in the Prompt07 final submission report.

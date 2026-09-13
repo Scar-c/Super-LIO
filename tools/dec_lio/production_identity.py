@@ -29,6 +29,7 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/dec_lio/WeakAxisAnalyzer.cpp",
     "src/super_lio/include/lio/params.h",
     "src/super_lio/include/lio/super_lio.h",
+    "src/super_lio/include/common/ds.h",
     "src/super_lio/src/lio/params.cpp",
     "src/super_lio/src/lio/super_lio.cpp",
     "src/super_lio/src/ros/ROSWrapper.cpp",

@@ -1,0 +1,9 @@
+PROMPT07 hard-negative tests
+
+PASS det_range is map-edge/FOV maintenance, not raw maxrange.
+PASS wrong point-time declaration detected; physical-seconds T control is explicit.
+PASS projector comparison uses subspace overlap/Frobenius/rank-one angle, not eigenvector sign/component equality.
+PASS A keeps KF max iterations=4; GEODE's 10 is not applied.
+PASS canonical YAML files were not overwritten; arms use runner overrides.
+PASS A upper cutoff is zero-effect because both bags have zero >150 m points.
+PASS no finite-then-stride compatibility mode was added; native seam is stride-before-finite.

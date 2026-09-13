@@ -255,7 +255,7 @@ def scene_arm(runtime, scene, arm, gt, native_rows, reference_rows):
         "trajectory": ape(traj, gt),
         "trajectory_sha256": sha(traj),
         "trajectory_rows": sum(1 for line in traj.read_text().splitlines() if line.strip()),
-        "axis_rows": len(axis), "d2_rows": len(d2),
+        "axis_rows": len(axis), "d2_rows": len(d2), "dcreg_rows": len(dcreg),
         "N_vs_arm_projector": matched_projectors(native_rows, axis),
     }
     if scene == "tunnel2":
@@ -371,11 +371,6 @@ def main(argv=None):
     write(evidence / "OBSERVATION_ARM_TABLES.md",
           "# Prompt07 arm tables\n\n## Stairs\n\n" + table(reports["stairs"]) +
           "\n\n## Tunnel2\n\n" + table(reports["tunnel2"]))
-    for scene in ("stairs", "tunnel2"):
-        for arm in ARMS:
-            path = evidence / f"{scene}_{arm}_SUMMARY.json"
-            path.write_text(json.dumps(clean(reports[scene][arm]), indent=2, sort_keys=True) + "\n",
-                            encoding="utf-8")
     print(f"PROMPT07_ANALYSIS_PASS scenes=stairs,tunnel2 arms={','.join(ARMS)}")
     return 0
 

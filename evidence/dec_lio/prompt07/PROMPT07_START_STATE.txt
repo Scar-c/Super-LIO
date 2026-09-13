@@ -1,0 +1,11 @@
+Prompt07 startup authority
+
+expected_start_HEAD: e90df48592e1620b7f46e5b8b89def90359a71cc
+expected_origin_Dec-LIO: e90df48592e1620b7f46e5b8b89def90359a71cc
+origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+startup_gate: PASS before Prompt07 work
+prompt_archive: prompts/dec_lio/PROMPT07_GEODE_OBSERVATION_SEMANTICS.md
+prompt_archive_sha256: 42f303b174dc1fc05901e3a4c066443ffd5e7a9261250ca8e9130f658336734a
+runtime_experiment_commit: 7ba4079e50436aa4a292ccab2b03c48bfce04b9d
+runtime_worktree_at_run: clean
+historical_Prob-LIO_artifacts: preserved; not deleted, moved, or stashed
