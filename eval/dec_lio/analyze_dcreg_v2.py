@@ -149,6 +149,50 @@ def _gamma_for(row, mode, index, reference):
     return min(1.0, math.sqrt(reference * normalized))
 
 
+def _basis_matrix(row, mode):
+    return [
+        [number(row, f"raw_{mode}_basis_{3 * row_index + column}")
+         for column in range(3)]
+        for row_index in range(3)
+    ]
+
+
+def eigenbasis_gauge_events(rows, mode):
+    """Count large signed raw-basis jumps hidden by a stable projector.
+
+    This is deliberately secondary. A gauge event is defined as a >45 degree
+    signed column jump while the corresponding weak projector moves by less
+    than 1e-8; it is not treated as physical subspace motion.
+    """
+    previous = None
+    events = 0
+    transitions = 0
+    angles = []
+    for row in rows:
+        if row.get("valid") != "1":
+            previous = None
+            continue
+        current_projector = number(row, f"projector_distance_{mode}")
+        if previous is not None and math.isfinite(current_projector):
+            old_basis = previous
+            new_basis = _basis_matrix(row, mode)
+            column_angles = []
+            for column in range(3):
+                dot = sum(old_basis[index][column] * new_basis[index][column]
+                          for index in range(3))
+                dot = max(-1.0, min(1.0, dot))
+                column_angles.append(math.degrees(math.acos(dot)))
+            max_angle = max(column_angles)
+            angles.append(max_angle)
+            transitions += 1
+            if current_projector < 1e-8 and max_angle > 45.0:
+                events += 1
+        previous = _basis_matrix(row, mode)
+    return {"count": events, "transitions": transitions,
+            "rate": events / transitions if transitions else 0.0,
+            "max_signed_basis_angle_deg": max(angles) if angles else None}
+
+
 def summarize(path, references=(3.0, 5.0, 10.0, 20.0)):
     rows = rows_from_csv(path)
     valid = [row for row in rows if row.get("valid") == "1"]
@@ -184,11 +228,7 @@ def summarize(path, references=(3.0, 5.0, 10.0, 20.0)):
             for mode in MODES
         },
         "eigenbasis_gauge_events": {
-            mode: sum(
-                number(row, f"projector_distance_{mode}") < 1e-8 and
-                number(row, f"principal_angle_max_{mode}") > 1e-6
-                for row in valid
-            ) for mode in MODES
+            mode: eigenbasis_gauge_events(rows, mode) for mode in MODES
         },
         "gamma_study": {
             str(int(reference)): {

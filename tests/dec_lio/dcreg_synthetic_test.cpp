@@ -227,6 +227,22 @@ int main() {
   signed_projector.noalias() += signed_basis.col(1) * signed_basis.col(1).transpose();
   close((signed_projector - h_result.weak_projector_rot).norm(), 0.0,
         "H projector sign invariance");
+  Matrix3d permuted_basis;
+  permuted_basis.col(0) = h_result.raw_rot_basis.col(1);
+  permuted_basis.col(1) = h_result.raw_rot_basis.col(0);
+  permuted_basis.col(2) = h_result.raw_rot_basis.col(2);
+  const Vector3d permuted_normalized(h_result.normalized_lambda_rot(1),
+                                     h_result.normalized_lambda_rot(0),
+                                     h_result.normalized_lambda_rot(2));
+  Matrix3d permuted_projector = Matrix3d::Zero();
+  for (int index = 0; index < 3; ++index) {
+    if (permuted_normalized(index) < 0.1) {
+      permuted_projector.noalias() += permuted_basis.col(index) *
+                                      permuted_basis.col(index).transpose();
+    }
+  }
+  close((permuted_projector - h_result.weak_projector_rot).norm(), 0.0,
+        "H projector permutation invariance");
 
   // I: schema v2 and temporal subspace diagnostics. A rotating rank-one
   // weak subspace has a finite principal angle; a rank transition is explicit
