@@ -20,3 +20,10 @@
    evaluation. Evaluation never gates parity.
 9. D1 is runtime-disabled by default. When enabled, it logs only diagnostic
    CSVs and fail-open validity/masks; it cannot alter the native trajectory.
+10. D2 shadow is runtime-disabled by default. When enabled, it copies the
+    propagated covariance before `UpdateObserve`, captures only accepted native
+    iteration-0 Jacobians, and writes frame-level diagnostics; it never writes
+    estimator H, b, P, residuals, weights, solver state, or map state.
+11. D2 prior-relative information is computed from the 6x6 pose block of the
+    propagated IMU covariance and is a diagnostic proxy, not an estimator gain
+    or a full correlated-state decomposition.

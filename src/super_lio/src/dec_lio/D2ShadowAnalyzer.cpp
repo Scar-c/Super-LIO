@@ -310,7 +310,7 @@ void D2ShadowAnalyzer::writeHeader() {
   csv_ << "raw_block_kappa_rot,raw_block_kappa_trans,"
           "raw_lambda_rot_0,raw_lambda_rot_1,raw_lambda_rot_2,"
           "raw_lambda_trans_0,raw_lambda_trans_1,raw_lambda_trans_2,"
-          "xicp_block_equivalence_rot,xicp_block_equivalence_trans,";
+          "xicp_valid,xicp_block_equivalence_rot,xicp_block_equivalence_trans,";
   for (const char* prefix : {"xicp_lc_rot_", "xicp_ls_rot_", "xicp_lc_trans_",
                              "xicp_ls_trans_"}) {
     for (int index = 0; index < 3; ++index) csv_ << prefix << index << ',';
@@ -347,7 +347,7 @@ void D2ShadowAnalyzer::writeRow(
                            ? 0.0
                            : static_cast<double>(used_residual_count) /
                                  static_cast<double>(candidate_count);
-  const bool fusion_valid = d1.valid && prior.valid;
+  const bool fusion_valid = d1.valid && prior.valid && xicp.valid;
   csv_ << 3 << ',' << frame << ',' << timestamp << ",0," << candidate_count << ','
        << used_residual_count << ',' << ratio << ',' << (fusion_valid ? 1 : 0)
        << ',' << (d1.valid ? 1 : 0) << ',' << (d1.factorization_ok ? 1 : 0)
@@ -363,7 +363,8 @@ void D2ShadowAnalyzer::writeRow(
   csv_ << xicp.kappa_rot_raw << ',' << xicp.kappa_trans_raw << ',';
   writeVector3(csv_, xicp.lambda_rot_raw);
   writeVector3(csv_, xicp.lambda_trans_raw);
-  csv_ << xicp.block_equivalence_rot << ',' << xicp.block_equivalence_trans << ',';
+  csv_ << (xicp.valid ? 1 : 0) << ',' << xicp.block_equivalence_rot << ','
+       << xicp.block_equivalence_trans << ',';
   writeVector3(csv_, xicp.lc_rot);
   writeVector3(csv_, xicp.ls_rot);
   writeVector3(csv_, xicp.lc_trans);

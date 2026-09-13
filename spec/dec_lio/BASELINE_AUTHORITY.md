@@ -8,15 +8,16 @@ The implementation source of truth descends directly from the clean ROS1 branch:
 
 ```text
 origin/ros1 = 60b57aaac8dc397f80c56364e7ccb008c300cc29
-HEAD       = 87c2b894548462f9d8189853fd8bc782f57cfcec (Prompt01 documentation
-           closure; runtime gates ran at
-           367b54ad6555b8233996ebd0219af07cc58c3246)
+HEAD       = 0ad39c821aa80961209ddfc1b41524f563fbd86e (Prompt03 D2 shadow
+           calibration implementation; canonical runtime gates recorded under
+           evidence/dec_lio/prompt03/)
 ```
 
 The native estimator math remains the `origin/ros1` implementation. Prompt00R
 added only the algorithm-neutral offline transport; Prompt01 adds a read-only
-D1 diagnostic hook at the post-reduction/pre-delivery seam. No update,
-gating, scaling, solver, or preconditioner is authorized here. The historical
+D1 diagnostic hook at the post-reduction/pre-delivery seam; Prompt03 adds a
+read-only D2 shadow at the native update boundary. No update, gating, scaling,
+solver, or preconditioner is authorized here. The historical
 Prob-LIO workspace at
 `/home/lc/prob_lio` is not an input tree for this checkout and must not be
 deleted, moved, stashed, or modified.

@@ -5,6 +5,7 @@
 | `prompt00r/` | Prompt00R | Bridge native baseline, input/build identity, exact parity, evaluation, closure |
 | `prompt01/` | Prompt01 | Stairs Alpha authority, D0 repeatability, D1 shadow baseline, source and closure records |
 | `prompt02/` | Prompt02 | D1 counter correction, schema-v2 projector stability, official-style GT cross-check, local-error correlation, shadow gamma study, D2 design decision |
+| `prompt03/` | Prompt03 | D2 frame-level shadow calibration, Prompt02 corrective recomputation, X-ICP localizability, prior-relative information, robust windows, persistence and closure |
 
 Large runtime artifacts stay outside Git under `/home/lc/dec_lio/runtime/` and
 are referenced by path and SHA256. The top-level evidence directory contains

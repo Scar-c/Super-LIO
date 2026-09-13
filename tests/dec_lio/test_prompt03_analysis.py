@@ -7,6 +7,7 @@ import unittest
 from eval.dec_lio.prompt03_analysis import (
     bootstrap_correlations,
     corrected_prompt02,
+    empirical_thresholds,
     make_windows,
     spearman,
 )
@@ -52,6 +53,19 @@ class Prompt03AnalysisTest(unittest.TestCase):
 
     def test_spearman_constant_series_is_undefined(self):
         self.assertIsNone(spearman([1, 1, 1], [1, 2, 3])["rho"])
+
+    def test_empirical_report_contains_both_xicp_targets(self):
+        rows = []
+        for index, label in enumerate(("FULL", "PARTIAL", "NONE")):
+            row = {"dcreg_schur_kappa_rot": str(index + 1)}
+            row.update({f"xicp_class_rot_{mode}": label if mode == 0 else "FULL"
+                        for mode in range(3)})
+            rows.append(row)
+        targets = empirical_thresholds(rows, "rot")["schur"]
+        self.assertEqual(set(targets), {"nonfull", "none"})
+        raw_rows = [{**row, "raw_block_kappa_rot": row["dcreg_schur_kappa_rot"]}
+                    for row in rows]
+        self.assertEqual(set(empirical_thresholds(raw_rows, "rot", raw=True)), {"raw"})
 
 
 if __name__ == "__main__":

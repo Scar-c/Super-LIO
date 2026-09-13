@@ -8,7 +8,7 @@ semantics and extends D1 with shadow-only characterization.
 |---|---|---|---|
 | D0 | Native ROS1 Super-LIO baseline: Bridge01 and Stairs Alpha offline baselines | CLOSED | Prompt00R Bridge authority plus Prompt01 Stairs repeatability |
 | D1 | DCReg LiDAR-only 6DoF shadow degeneracy characterization | CLOSED — CORRECTED | Prompt01 OFF/ON parity plus Prompt02 used-residual correction, raw-EVD projector stability, and local-error evidence |
-| D2 | DCReg + paired SA-style LiDAR information gate | PLANNED — DESIGN EVIDENCE AVAILABLE | Prompt02 recommends gate inputs and frame-freeze experiment; no estimator gate is implemented |
+| D2 | DCReg + paired SA-style LiDAR information gate | PLANNED — SHADOW CALIBRATION COMPLETE | Prompt03 D2 shadow evidence is complete; no estimator gate is implemented or authorized |
 | D3 | PCG solver-equivalence and DCReg numerical preconditioner | PLANNED | Exact native solve-equivalence evidence |
 | D4 | Combined Dec-LIO (D1 characterization + D2 gate + D3 PCG) | PLANNED | Separate approved implementation authority |
 | D5 | Prob-LIO extension | NOT AUTHORIZED | Requires explicit future Owner authority |
@@ -48,5 +48,9 @@ preconditioning, or frame freezing in the estimator.
 
 ## Explicitly deferred
 
-D2 information gating, D3 PCG/preconditioning, D4 combined Dec-LIO, and D5
-Prob-LIO remain unimplemented or unauthorized after Prompt01.
+D2 estimator gating, D3 PCG/preconditioning, D4 combined Dec-LIO, and D5
+Prob-LIO remain unimplemented or unauthorized after Prompt03.
+
+Prompt03 adds only a frame-level, read-only D2 shadow calibration. It does not
+modify estimator H, b, P, residual weights, solve behavior, or map state. D2
+remains planned until the Owner reviews the calibration decision.

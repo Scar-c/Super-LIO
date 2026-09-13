@@ -46,7 +46,15 @@ def integer(row, name):
 
 
 def finite(values):
-    return [float(value) for value in values if math.isfinite(float(value))]
+    result = []
+    for value in values:
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value):
+            result.append(value)
+    return result
 
 
 def percentile(values, fraction):
@@ -268,6 +276,11 @@ def rotation_error_degrees(est_start, est_end, gt_start, gt_end):
     return float(np.degrees(np.arccos(cosine)))
 
 
+def weak_eta_values(row, mode):
+    rank = max(0, integer(row, f"d1_weak_rank_{mode}"))
+    return finite([number(row, f"eta_{mode}_{index}") for index in range(min(3, rank))])
+
+
 def row_window_geometry(rows, start, end):
     interval = [row for row in rows if start - 1e-9 <= number(row, "timestamp") <= end + 1e-9]
     if not interval:
@@ -303,8 +316,7 @@ def row_window_geometry(rows, start, end):
             mus = finite([number(row, f"mu_{index}") for index in range(6)])
             if mus:
                 mu_min.append(min(mus)); mu_median.append(statistics.median(mus)); mu_max.append(max(mus))
-            rank = integer(row, f"d1_weak_rank_{mode}")
-            eta_weak.extend(finite([number(row, f"eta_{mode}_{index}") for index in range(max(0, rank))]))
+            eta_weak.extend(weak_eta_values(row, mode))
         result.update({
             f"max_log_kappa_{mode}": max([math.log(max(value, 1e-300)) for value in kappas], default=math.nan),
             f"mean_log_kappa_{mode}": statistics.mean([math.log(max(value, 1e-300)) for value in kappas]) if kappas else math.nan,
@@ -467,6 +479,7 @@ def frame_event_persistence(rows, pair_time, position_error, pair_est_rot, pair_
         for name, active in definitions.items():
             times = np.asarray([item["time"] for item in frame_rows])
             report = {"active_frames": sum(active), "run_lengths": run_summary(active, times)}
+            report["persistence"] = {}
             for persistence in (2, 3, 5):
                 persistent = [False] * len(active)
                 cursor = 0
@@ -484,7 +497,7 @@ def frame_event_persistence(rows, pair_time, position_error, pair_est_rot, pair_
                 low_n = max(1, int(math.ceil(len(finite_indices) * 0.50))) if finite_indices else 0
                 low = set(sorted(finite_indices, key=lambda i: errors[i])[:low_n])
                 active_indices = {i for i, value in enumerate(persistent) if value}
-                mode_result[f"persist_{persistence}"] = {
+                report["persistence"][str(persistence)] = {
                     "frames": len(active_indices), "false_positives": len(active_indices - high),
                     "high_error_coverage": len(active_indices & high) / len(high) if high else None,
                     "bottom50_activation": len(active_indices & low) / len(low) if low else None,
@@ -524,7 +537,7 @@ def empirical_roc(samples, target):
 
 def empirical_thresholds(rows, mode, raw=False):
     suffix = "raw_block_kappa" if raw else "dcreg_schur_kappa"
-    result = {}
+    result = {"raw" if raw else "schur": {}}
     for target_name, target_label in (("nonfull", lambda row, i: row.get(f"xicp_class_{mode}_{i}") != "FULL"),
                                       ("none", lambda row, i: row.get(f"xicp_class_{mode}_{i}") == "NONE")):
         report = {}
@@ -547,7 +560,7 @@ def empirical_thresholds(rows, mode, raw=False):
                     best = {"threshold": threshold, **metrics}
             report[target_name] = {"best_descriptive_threshold": best, **curve,
                                    "label": "EMPIRICAL_XICP_EQUIVALENT_KAPPA; not analytical or transferable"}
-        result["schur" if not raw else "raw"] = report
+        result["raw" if raw else "schur"].update(report)
     return result
 
 
@@ -589,8 +602,10 @@ def analyze_sequence(name, estimate_path, ground_truth_path, d2_path, d1_raw_pat
             "dcreg_schur_kappa"),
         "x_icp": {}, "prior_relative": {}, "windows": {}, "persistence": {},
         "empirical_xicp_equivalent_kappa": {
-            "rot": empirical_thresholds(rows, "rot"),
-            "trans": empirical_thresholds(rows, "trans"),
+            "rot": {**empirical_thresholds(rows, "rot"),
+                    **empirical_thresholds(rows, "rot", raw=True)},
+            "trans": {**empirical_thresholds(rows, "trans"),
+                      **empirical_thresholds(rows, "trans", raw=True)},
         },
     }
     for mode in ("rot", "trans"):
@@ -611,8 +626,10 @@ def analyze_sequence(name, estimate_path, ground_truth_path, d2_path, d1_raw_pat
                                          if finite([number(row, f"mu_{index}") for index in range(6)]) else math.nan
                                          for row in rows]),
             "mu_max": summary_stats([number(row, "mu_max") for row in rows]),
-            "eta_weak_min": summary_stats([number(row, f"eta_weak_min_{mode}") for row in rows]),
-            "eta_weak_max": summary_stats([number(row, f"eta_weak_max_{mode}") for row in rows]),
+            "eta_weak_min": summary_stats([min(weak_eta_values(row, mode), default=math.nan)
+                                            for row in rows]),
+            "eta_weak_max": summary_stats([max(weak_eta_values(row, mode), default=math.nan)
+                                            for row in rows]),
             "valid_fraction": sum(integer(row, "prior_relative_valid") == 1 for row in rows) / len(rows) if rows else None,
         }
     for delta in DELTAS:
@@ -703,18 +720,21 @@ def matched_kappa_report(reports, delta="5.0"):
         bin_report = {}
         for name, report in reports.items():
             samples = report["windows"].get(delta, {}).get("window_samples", [])
-            selected = [sample for sample in samples
-                        if math.isfinite(sample.get("kappa_trans", math.nan)) and
-                        lower < sample["kappa_trans"] <= upper]
-            bin_report[name] = {
-                "window_count": len(selected),
-                "translation_error_m": summary_stats([sample["translation_error_m"] for sample in selected]),
-                "rotation_error_deg": summary_stats([sample["rotation_error_deg"] for sample in selected]),
-                "xicp_nonfull_fraction_trans": summary_stats(
-                    [sample["xicp_nonfull_fraction_trans"] for sample in selected]),
-                "mu_min": summary_stats([sample["mu_min"] for sample in selected]),
-                "eta_weak_min_trans": summary_stats([sample["eta_weak_min_trans"] for sample in selected]),
-            }
+            mode_report = {}
+            for mode in ("rot", "trans"):
+                selected = [sample for sample in samples
+                            if math.isfinite(sample.get(f"kappa_{mode}", math.nan)) and
+                            lower < sample[f"kappa_{mode}"] <= upper]
+                mode_report[mode] = {
+                    "window_count": len(selected),
+                    "translation_error_m": summary_stats([sample["translation_error_m"] for sample in selected]),
+                    "rotation_error_deg": summary_stats([sample["rotation_error_deg"] for sample in selected]),
+                    "xicp_nonfull_fraction_trans": summary_stats(
+                        [sample["xicp_nonfull_fraction_trans"] for sample in selected]),
+                    "mu_min": summary_stats([sample["mu_min"] for sample in selected]),
+                    "eta_weak_min_trans": summary_stats([sample["eta_weak_min_trans"] for sample in selected]),
+                }
+            bin_report[name] = mode_report
         result["bins"][label] = {"lower_exclusive": lower, "upper_inclusive": upper,
                                   "sequences": bin_report}
     return result
