@@ -190,7 +190,7 @@ def axis_summary(rows):
         result[name] = stats([number(row, name) for row in valid_rows])
     counts = {}
     for row in valid_rows:
-        label = row.get("classification", "")
+        label = row.get("offline_classification", row.get("classification", ""))
         counts[label] = counts.get(label, 0) + 1
     result["classification_counts"] = counts
     result["dominant_interpretation"] = (
@@ -275,7 +275,7 @@ def course_records(axis_rows, est_time, est_pos, gt_time, gt_pos,
         gt_fit = fit_velocity(gt_time, gt_pos, timestamp, half_window)
         est_fit = fit_velocity(est_time, est_pos, timestamp, half_window)
         gravity = vector3(row, "gravity_world")
-        if gt_fit is None or est_fit is None or not gravity.allFinite() or \
+        if gt_fit is None or est_fit is None or not np.isfinite(gravity).all() or \
                 np.linalg.norm(gravity) <= 1.0e-12:
             continue
         gt_in_estimator = alignment_rotation.T @ gt_fit["velocity"]
@@ -334,14 +334,13 @@ def add_offline_axis_fields(rows, records):
     output = []
     for row in rows:
         record = by_frame.get(integer(row, "frame"))
-        if record is None:
-            continue
         enriched = dict(row)
-        enriched["O_yaw"] = record["occupancy"][0]
-        enriched["O_long"] = record["occupancy"][1]
-        enriched["O_lat"] = record["occupancy"][2]
-        enriched["offline_classification"] = classify(record["occupancy"],
-                                                       record["weak_rank_R"])
+        if record is not None:
+            enriched["O_yaw"] = record["occupancy"][0]
+            enriched["O_long"] = record["occupancy"][1]
+            enriched["O_lat"] = record["occupancy"][2]
+            enriched["offline_classification"] = classify(
+                record["occupancy"], record["weak_rank_R"])
         output.append(enriched)
     return output
 
@@ -391,10 +390,9 @@ def merge_row_metrics(rows, local):
     output = []
     for row in rows:
         item = local_by_frame.get(integer(row, "frame"))
-        if item is None:
-            continue
         merged = dict(row)
-        merged.update(item)
+        if item is not None:
+            merged.update(item)
         output.append(merged)
     return output
 
@@ -560,7 +558,6 @@ def analyze_scene(name, estimate_path, gt_path, axis_path):
     local = local_errors(axis_rows, est_time, est_pos, gt_time, gt_pos, est_quat,
                          gt_quat, alignment_rotation, alignment_translation,
                          gt_attitude)
-    merged = merge_row_metrics(axis_rows, local)
     records = []
     for half in WINDOWS:
         for threshold in SPEED_THRESHOLDS:
@@ -570,6 +567,13 @@ def analyze_scene(name, estimate_path, gt_path, axis_path):
                 item["speed_threshold_mps"] = threshold
                 records.append(item)
     primary_records = course_by_window(records)
+    invariant_errors = [item["invariant_error"] for item in records]
+    max_invariant_error = max(invariant_errors, default=0.0)
+    if max_invariant_error > 1.0e-5:
+        raise ValueError("PROMPT06_AXIS_DECOMPOSITION_INVARIANT_FAILURE: "
+                         f"max_error={max_invariant_error}")
+    offline_axis_rows = add_offline_axis_fields(axis_rows, primary_records)
+    merged = merge_row_metrics(offline_axis_rows, local)
     physical = {"full": physical_summary(merged)}
     if name == "tunnel2":
         windows = onset_windows(merged)
@@ -605,6 +609,10 @@ def analyze_scene(name, estimate_path, gt_path, axis_path):
             "onset": forcing_summary(interval(merged, ONSET[0], ONSET[1])),
         },
         "course_proxy": course_report(records, axis_rows),
+        "axis_decomposition_invariant": {
+            "max_abs_sum_minus_rank": max_invariant_error,
+            "records": len(invariant_errors), "tolerance": 1.0e-5,
+            "marker_on_failure": "PROMPT06_AXIS_DECOMPOSITION_INVARIANT_FAILURE"},
         "causal_timeline": timeline(merged, primary_records, gate),
         "stairs_orientation_control": stairs_orientation(merged, local) if name == "stairs" else None,
         "rows": merged,

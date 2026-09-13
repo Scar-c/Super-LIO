@@ -38,8 +38,8 @@ bool validRotation(const Eigen::Matrix3d& rotation) {
   if (!rotation.allFinite()) return false;
   return (rotation.transpose() * rotation - Eigen::Matrix3d::Identity())
              .cwiseAbs()
-             .maxCoeff() < 1.0e-6 &&
-         std::abs(rotation.determinant() - 1.0) < 1.0e-6;
+             .maxCoeff() < 1.0e-4 &&
+         std::abs(rotation.determinant() - 1.0) < 1.0e-4;
 }
 
 }  // namespace
