@@ -58,3 +58,10 @@ lio:
 
   eva:
     timer: false
+
+  dec_lio:
+    d1_shadow:
+      enabled: false
+      condition_threshold: 10.0
+      output_csv: ""
+      frame_summary_csv: ""
