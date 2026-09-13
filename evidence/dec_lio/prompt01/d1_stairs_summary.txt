@@ -1,0 +1,6 @@
+Stairs Alpha D1 summary (threshold=10 diagnostic only):
+  valid_frame_ratio=1.0, factorization_failures=0
+  kappa_R median/P95/max=14.5889/61.1176/183.5956
+  kappa_t median/P95/max=3.5589/8.6224/20.2595
+  weak counts rot=[2011,290,0], trans=[0,0,113]
+  longest weak interval=rot_0, 165 frames / 16.3976 s

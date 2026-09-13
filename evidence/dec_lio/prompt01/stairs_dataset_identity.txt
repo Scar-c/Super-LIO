@@ -1,0 +1,5 @@
+See ../stairs_dataset_identity.txt for the complete identity record.
+  bag_sha256=71cea6a30573ac6144776d873a6232707c04ee977a6a59e63bfdd2bce42fedb1
+  config_sha256=12d22a80abd21050d6e7b4984edd51f09f2e65d46bcaadb853a4c75a04a97d3b
+  gt_sha256=94b2cb2d9e3f4e4bbfde0932ed3adf6b314b649b690c9e13d6f610c719d750f6
+  classification=OFFICIAL_TRAJECTORY_GT (Alpha PALoc-to-GT-map reference)

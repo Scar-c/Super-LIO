@@ -15,6 +15,11 @@ Prompt01 additions:
 - `prompt01_build_identity.txt`, `prompt01_closure.txt`: build, ancestry,
   source-boundary, and final Prompt01 gate records.
 
+The Prompt01 lightweight report namespace is `evidence/dec_lio/prompt01/`;
+its files mirror the required authority, baseline, D1, regression, summary,
+and closure sections. Large raw logs and CSVs remain outside Git under
+`/home/lc/dec_lio/runtime/prompt01/`.
+
 - `dataset_identity.txt`: rosbag metadata, topic/type/count/time inspection,
   input/config/ground-truth hashes.
 - `repository_identity.txt`: branch, ancestry, remote heads, and source diff

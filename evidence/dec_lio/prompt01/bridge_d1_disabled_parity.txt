@@ -1,0 +1,4 @@
+Bridge01 D1 disabled:
+  trajectory_sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+  bytes=622301, rows=3814, node_rc=0, fatal_marker=NONE
+  equals Prompt00R canonical: PASS

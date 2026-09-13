@@ -1,0 +1,10 @@
+D1 tests:
+  Python unittest discovery: 7 tests OK
+  synthetic A full-rank: PASS
+  synthetic B weak translation: PASS
+  synthetic C weak rotation: PASS
+  synthetic D coupled Schur: PASS
+  synthetic E sign/permutation basis: PASS
+  synthetic F factorization fail-open: PASS
+  synthetic G non-finite fail-open: PASS
+  independent reference Schur/EVD parity: PASS within 1e-10

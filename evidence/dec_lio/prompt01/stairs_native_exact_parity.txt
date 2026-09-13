@@ -1,0 +1,5 @@
+Stairs native D0 exact parity:
+  run_01 SHA=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+  run_02 SHA=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+  bytes=557579 for both; cmp=0 (PASS)
+  canonical SHA=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11

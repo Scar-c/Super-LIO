@@ -1,0 +1,8 @@
+D1 reference identity:
+  repository=JokerJohn/DCReg
+  commit=8ce8451b15491a4bbe17cf85ab02a8bed6696861
+  URL=https://github.com/JokerJohn/DCReg/tree/8ce8451b15491a4bbe17cf85ab02a8bed6696861
+  reused=none
+  adapted=Schur/EVD/axis-alignment characterization concepts
+  reimplemented=Dec-LIO analyzer and independent synthetic oracle
+  source-copy=none; inspected tree contained no license file

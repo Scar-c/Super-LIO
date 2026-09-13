@@ -1,0 +1,5 @@
+Bridge01 D1 enabled:
+  trajectory_sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+  dcreg_shadow_sha256=eaf0eef75424343369bdb7b9df95d3acad29ea0cacc6c1283838949e75868725
+  frame_summary_sha256=8b7c9ea7319a4832e6bf094580bc66e0c94922646c018f75e6d90ab11021f1e1
+  equals D1 disabled: PASS

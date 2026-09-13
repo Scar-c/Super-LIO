@@ -1,0 +1,4 @@
+Stairs Alpha D1 disabled:
+  trajectory_sha256=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+  bytes=557579, rows=3446, node_rc=0, fatal_marker=NONE
+  equals Stairs D0 canonical: PASS

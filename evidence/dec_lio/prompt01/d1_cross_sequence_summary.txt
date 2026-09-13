@@ -1,0 +1,9 @@
+Cross-sequence D1 interpretation:
+  Bridge: mostly stable with intermittent weak-axis reports.
+  Stairs: persistent rotational weakness and larger condition/basis variation.
+  adjacent-iteration basis worst-angle median/P95/max degrees:
+    Bridge=0.664/8.262/89.235; Stairs=1.911/43.148/89.962
+  adjacent-iteration kappa_R relative change median/P95/max:
+    Bridge=0.00765/0.08287/1.057; Stairs=0.02344/0.25374/7.573
+  Recommendation: Owner review these spectra/persistence before D2; no D2
+  implementation is authorized by Prompt01.

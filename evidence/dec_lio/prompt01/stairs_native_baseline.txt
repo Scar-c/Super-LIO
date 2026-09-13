@@ -1,0 +1,8 @@
+Stairs Alpha native D0:
+  runs=stairs_native_offline_01,stairs_native_offline_02
+  sensor_duration_s=345.527792
+  wall_processing_s=9.616159,9.498523
+  speed_factor=35.932,36.377
+  relevant=38012, lidar=3456, imu=34556
+  rows=3446, trajectory_bytes=557579
+  canonical_sha256=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11

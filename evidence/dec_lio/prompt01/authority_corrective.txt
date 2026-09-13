@@ -1,0 +1,6 @@
+Canonical Prompt01 authority corrective evidence is recorded at:
+  ../prompt00r_authority_correction.txt
+  corrective commit=ec7d963
+  evidence commit=01ed37c
+Prompt00R computational evidence remains preserved; only roadmap semantics
+were superseded.

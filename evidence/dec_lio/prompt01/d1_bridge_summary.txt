@@ -1,0 +1,6 @@
+Bridge D1 summary (threshold=10 diagnostic only):
+  valid_frame_ratio=1.0, factorization_failures=0
+  kappa_R median/P95/max=3.6120/8.8314/17.0965
+  kappa_t median/P95/max=3.1719/9.1060/19.3235
+  weak counts rot=[89,7,1], trans=[64,77,2]
+  longest weak interval=trans_0, 24 frames / 2.303698 s

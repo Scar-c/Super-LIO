@@ -1,0 +1,8 @@
+D1 source boundary audit:
+  allowed: minimal post-reduction shadow hook, analyzer module, runtime
+    configuration plumbing, offline TBB control
+  native H_L/b_L: not modified
+  ESKF update/propagation/covariance: not modified mathematically
+  forbidden estimator changes: no residual/Jacobian/association/map/gate/
+    scale/PCG/preconditioner changes
+  no ESKF.cpp or ESKF.h diff from origin/ros1

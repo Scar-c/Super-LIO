@@ -1,0 +1,2 @@
+See ../prompt01_closure.txt for the authoritative Prompt01 gate matrix.
+Final status: PROMPT01 CLOSED
