@@ -7,3 +7,19 @@ install
 .catkin_workspace
 .catkin_tools
 src/CMakeLists.txt
+
+# Dec-LIO runtime hygiene: large execution artifacts stay outside Git.
+__pycache__/
+*.py[cod]
+**/*.bag
+**/node.log
+**/roscore*.log
+**/roslaunch*.log
+**/stdout.log
+**/stderr.log
+**/play.log
+**/record.log
+**/ros_log/
+**/trajectory.tum
+**/ground_truth.tum
+**/raw_dump*
