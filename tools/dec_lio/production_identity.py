@@ -25,6 +25,8 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/dec_lio/D2ShadowAnalyzer.cpp",
     "src/super_lio/include/dec_lio/ConsistencyAnalyzer.h",
     "src/super_lio/src/dec_lio/ConsistencyAnalyzer.cpp",
+    "src/super_lio/include/dec_lio/WeakAxisAnalyzer.h",
+    "src/super_lio/src/dec_lio/WeakAxisAnalyzer.cpp",
     "src/super_lio/include/lio/params.h",
     "src/super_lio/include/lio/super_lio.h",
     "src/super_lio/src/lio/params.cpp",

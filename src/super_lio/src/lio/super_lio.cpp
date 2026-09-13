@@ -14,6 +14,7 @@ using namespace BASIC;
 namespace LI2Sup{
 
 SuperLIO::~SuperLIO(){
+  if (axis_analyzer_) axis_analyzer_->finalize();
   if (consistency_analyzer_) consistency_analyzer_->finalize();
   if (d2_analyzer_) d2_analyzer_->finalize();
   if (d1_analyzer_) d1_analyzer_->finalize();
@@ -114,6 +115,14 @@ void SuperLIO::init(){
               << g_consistency_output_csv << RESET;
   } else {
     LOG(INFO) << GREEN << " ---> [Dec-LIO consistency]: shadow=OFF" << RESET;
+  }
+  if (g_axis_shadow_enabled) {
+    axis_analyzer_.reset(new DecLIO::WeakAxisAnalyzer(
+        g_axis_output_csv, g_d1_condition_threshold));
+    LOG(INFO) << GREEN << " ---> [Dec-LIO Prompt06 axis]: shadow=ON output="
+              << g_axis_output_csv << RESET;
+  } else {
+    LOG(INFO) << GREEN << " ---> [Dec-LIO Prompt06 axis]: shadow=OFF" << RESET;
   }
 
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
@@ -467,11 +476,18 @@ void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
   const bool d2_enabled = d2_analyzer_ != nullptr;
   const bool consistency_enabled = consistency_analyzer_ != nullptr;
-  const bool shadow_capture = d2_enabled || consistency_enabled;
+  const bool axis_enabled = axis_analyzer_ != nullptr;
+  const bool shadow_capture = d2_enabled || consistency_enabled || axis_enabled;
   // This is a read-only copy taken immediately before the native update call.
   // It is the ESKF propagated covariance, not a posterior or a mutable state.
   M18d p_pred_shadow = M18d::Zero();
   if (shadow_capture) p_pred_shadow = kf_->GetCov().cast<double>();
+  M3d preupdate_R_shadow = M3d::Identity();
+  V3d gravity_world_shadow = V3d::Zero();
+  if (axis_enabled) {
+    preupdate_R_shadow = kf_->GetSE3().R_.cast<double>();
+    gravity_world_shadow = kf_->GetGravity().cast<double>();
+  }
   std::vector<V6d> d2_jacobians;
   std::vector<unsigned char> d2_used;
   std::vector<double> consistency_errors;
@@ -593,6 +609,16 @@ void SuperLIO::Observe(){
             static_cast<std::uint64_t>(frame_num_), measures_.lidar.end_time,
             effect_knn_num_, used_residual_count, sum_HTVH, sum_HTVr,
             p_pred_shadow, accepted, accepted_errors);
+      }
+      if (axis_analyzer_) {
+        const DecLIO::ConsistencyResult consistency =
+            DecLIO::ConsistencyAnalyzer::compute(
+                sum_HTVH, sum_HTVr, p_pred_shadow, accepted, accepted_errors,
+                g_d1_condition_threshold);
+        axis_analyzer_->observe(
+            static_cast<std::uint64_t>(frame_num_), measures_.lidar.end_time,
+            preupdate_R_shadow, gravity_world_shadow, p_pred_shadow,
+            consistency.d1, consistency);
       }
     }
     HTVH = sum_HTVH.cast<scalar>();

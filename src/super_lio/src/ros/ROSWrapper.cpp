@@ -96,6 +96,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_consistency_shadow_enabled, false);
   nh.param("/lio/dec_lio/consistency_shadow/output_csv",
            g_consistency_output_csv, std::string());
+  nh.param("/lio/dec_lio/axis_shadow/enabled", g_axis_shadow_enabled, false);
+  nh.param("/lio/dec_lio/axis_shadow/output_csv", g_axis_output_csv,
+           std::string());
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);

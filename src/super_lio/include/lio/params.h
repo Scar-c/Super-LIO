@@ -83,6 +83,10 @@ namespace LI2Sup{
   extern bool g_consistency_shadow_enabled;
   extern std::string g_consistency_output_csv;
 
+  /// Dec-LIO Prompt06 physical weak-axis shadow. This is analysis-only.
+  extern bool g_axis_shadow_enabled;
+  extern std::string g_axis_output_csv;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

@@ -149,3 +149,17 @@ target_include_directories(dec_lio_consistency_synthetic_test PRIVATE
 )
 add_test(NAME dec_lio_consistency_synthetic_test
   COMMAND dec_lio_consistency_synthetic_test)
+
+add_executable(dec_lio_weak_axis_synthetic_test
+  ../../tests/dec_lio/weak_axis_synthetic_test.cpp
+  src/dec_lio/WeakAxisAnalyzer.cpp
+  src/dec_lio/DCRegAnalyzer.cpp
+  src/dec_lio/D2ShadowAnalyzer.cpp
+  src/dec_lio/ConsistencyAnalyzer.cpp
+)
+target_include_directories(dec_lio_weak_axis_synthetic_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+)
+add_test(NAME dec_lio_weak_axis_synthetic_test
+  COMMAND dec_lio_weak_axis_synthetic_test)

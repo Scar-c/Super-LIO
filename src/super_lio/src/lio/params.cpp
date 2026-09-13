@@ -63,6 +63,9 @@ namespace LI2Sup{
   bool g_consistency_shadow_enabled = false;
   std::string g_consistency_output_csv;
 
+  bool g_axis_shadow_enabled = false;
+  std::string g_axis_output_csv;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;
