@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Prompt00R runner for the native ROS1 Super-LIO baseline.
+set -Eeuo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CATKIN_WS="${DEC_LIO_CATKIN_WS:-$(cd "$REPO_ROOT/../.." && pwd)}"
+RUNTIME_ROOT="${DEC_LIO_RUNTIME_ROOT:-$(cd "$REPO_ROOT/../.." && pwd)/runtime/prompt00r}"
+source /opt/ros/noetic/setup.bash
+[ -f "$CATKIN_WS/devel/setup.bash" ] && source "$CATKIN_WS/devel/setup.bash"
+
+MODE="online"
+BAG=""
+CONFIG="$REPO_ROOT/src/super_lio/config/geode_alpha.yaml"
+OUT="$RUNTIME_ROOT"
+RUN_ID=""
+RATE="1.0"
+DURATION=""
+THREADS="32"
+PLAY_TOPICS="/velodyne_points,/imu/data"
+RECORD_TOPICS="/lio/odom"
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --mode) MODE="$2"; shift 2 ;;
+    --offline) MODE="offline"; shift ;;
+    --bag) BAG="$2"; shift 2 ;;
+    --config) CONFIG="$2"; shift 2 ;;
+    --out) OUT="$2"; shift 2 ;;
+    --run-id) RUN_ID="$2"; shift 2 ;;
+    --rate) RATE="$2"; shift 2 ;;
+    --duration) DURATION="$2"; shift 2 ;;
+    --threads) THREADS="$2"; shift 2 ;;
+    --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
+    --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
+    *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ "$MODE" != online && "$MODE" != offline ]]; then
+  echo "ERR: --mode must be online or offline" >&2; exit 2
+fi
+if [ -z "$BAG" ] || [ ! -f "$BAG" ]; then
+  echo "ERR: --bag must point to an existing rosbag" >&2; exit 2
+fi
+if [ ! -f "$CONFIG" ]; then
+  echo "ERR: missing config: $CONFIG" >&2; exit 2
+fi
+if [ -z "$RUN_ID" ]; then RUN_ID="${MODE}_$(date -u +%Y%m%dT%H%M%SZ)"; fi
+if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+  echo "ERR: invalid run ID" >&2; exit 2
+fi
+
+if [ -n "$(git -C "$REPO_ROOT" status --short)" ]; then
+  echo "ERR: canonical run requires a clean Dec-LIO worktree" >&2; exit 3
+fi
+
+RUN_DIR="$OUT/$RUN_ID"
+if [ -e "$RUN_DIR" ]; then
+  echo "ERR: refusing to overwrite $RUN_DIR" >&2; exit 2
+fi
+mkdir -p "$RUN_DIR/ros_log"
+export ROS_LOG_DIR="$RUN_DIR/ros_log"
+export TBB_NUM_THREADS="$THREADS" OMP_NUM_THREADS="$THREADS" OPENBLAS_NUM_THREADS="$THREADS"
+NODE_LOG="$RUN_DIR/node.log"
+CORE_LOG="$RUN_DIR/roscore.log"
+PLAY_LOG="$RUN_DIR/play.log"
+RECORD_LOG="$RUN_DIR/record.log"
+META="$RUN_DIR/meta.txt"
+RESULT_BAG="$RUN_DIR/online_odom.bag"
+
+CORE_PID=""; NODE_PID=""; RECORD_PID=""; PLAY_PID=""
+stop_group() {
+  local pid="$1"
+  [ -n "$pid" ] || return 0
+  kill -INT -- "-$pid" 2>/dev/null || true
+  sleep 1
+  kill -TERM -- "-$pid" 2>/dev/null || true
+}
+cleanup() {
+  stop_group "$PLAY_PID"
+  stop_group "$RECORD_PID"
+  stop_group "$NODE_PID"
+  stop_group "$CORE_PID"
+}
+trap cleanup EXIT
+
+{
+  echo "repository_root: $REPO_ROOT"
+  echo "catkin_workspace: $CATKIN_WS"
+  echo "mode: $MODE"
+  echo "run_id: $RUN_ID"
+  echo "git_head: $(git -C "$REPO_ROOT" rev-parse HEAD)"
+  echo "git_status: clean"
+  echo "bag: $BAG"
+  echo "bag_sha256: $(sha256sum "$BAG" | awk '{print $1}')"
+  echo "config: $CONFIG"
+  echo "config_sha256: $(sha256sum "$CONFIG" | awk '{print $1}')"
+  echo "duration: ${DURATION:-whole-bag}"
+  echo "rate: $RATE"
+  echo "requested_threads: $THREADS"
+  echo "effective_thread_policy: one sequential temporal epoch; native TBB backend"
+  echo "play_topics: $PLAY_TOPICS"
+  echo "record_topics: $RECORD_TOPICS"
+  echo "start_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$META"
+
+MASTER_PORT=$((11311 + RANDOM % 200))
+export ROS_MASTER_URI="http://127.0.0.1:${MASTER_PORT}"
+echo "ros_master_uri: $ROS_MASTER_URI" >> "$META"
+setsid rosmaster -p "$MASTER_PORT" > "$CORE_LOG" 2>&1 & CORE_PID=$!
+for _ in $(seq 1 60); do
+  if timeout 2 rosnode list >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! timeout 2 rosnode list >/dev/null 2>&1; then
+  echo "ERR: rosmaster did not start" >&2; exit 4
+fi
+
+rosparam load "$CONFIG"
+rosparam set /lio/offline/bag "$BAG"
+rosparam set /lio/offline/start_offset -1.0
+rosparam set /lio/offline/duration "${DURATION:--1.0}"
+if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
+rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio
+echo "effective_rosparams_sha256: $(sha256sum "$RUN_DIR/effective_rosparams.yaml" | awk '{print $1}')" >> "$META"
+
+if [ "$MODE" = offline ]; then
+  setsid rosrun super_lio super_lio_offline_node __name:=lio_offline > "$NODE_LOG" 2>&1 & NODE_PID=$!
+  set +e
+  wait "$NODE_PID"
+  NODE_RC=$?
+  set -e
+  RUN_RC="$NODE_RC"
+else
+  setsid rosrun super_lio super_lio_node __name:=super_lio_node > "$NODE_LOG" 2>&1 & NODE_PID=$!
+  for _ in $(seq 1 90); do
+    if rostopic list 2>/dev/null | grep -qx /lio/odom; then break; fi
+    sleep 1
+  done
+  IFS=',' read -r -a RECORD_ARRAY <<< "$RECORD_TOPICS"
+  setsid rosbag record -O "$RESULT_BAG" "${RECORD_ARRAY[@]}" > "$RECORD_LOG" 2>&1 & RECORD_PID=$!
+  sleep 3
+  IFS=',' read -r -a PLAY_ARRAY <<< "$PLAY_TOPICS"
+  PLAY_ARGS=(rosbag play "$BAG" --rate "$RATE")
+  if [ -n "$DURATION" ]; then PLAY_ARGS+=(--duration "$DURATION"); fi
+  PLAY_ARGS+=(--topics "${PLAY_ARRAY[@]}")
+  set +e
+  "${PLAY_ARGS[@]}" > "$PLAY_LOG" 2>&1
+  PLAY_RC=$?
+  set -e
+  stop_group "$NODE_PID"
+  set +e
+  wait "$NODE_PID"
+  NODE_RC=$?
+  set -e
+  stop_group "$RECORD_PID"
+  set +e
+  wait "$RECORD_PID"
+  RECORD_RC=$?
+  set -e
+  RUN_RC="$PLAY_RC"
+  [ "$NODE_RC" -eq 0 ] || RUN_RC="$NODE_RC"
+  if [ "$RECORD_RC" -gt 1 ]; then RUN_RC="$RECORD_RC"; fi
+  if [ "$RUN_RC" -eq 0 ]; then
+    python3 "$REPO_ROOT/eval/dec_lio/pose_bag_to_tum.py" \
+      --bag "$RESULT_BAG" --topic /lio/odom --output "$RUN_DIR/trajectory.tum" \
+      > "$RUN_DIR/trajectory_convert.log" 2>&1 || RUN_RC=$?
+  fi
+fi
+
+echo "node_rc: ${NODE_RC:-$RUN_RC}" >> "$META"
+echo "play_rc: ${PLAY_RC:-not-applicable}" >> "$META"
+echo "record_rc: ${RECORD_RC:-not-applicable}" >> "$META"
+echo "trajectory: $RUN_DIR/trajectory.tum" >> "$META"
+if [ -f "$RUN_DIR/trajectory.tum" ]; then
+  echo "trajectory_sha256: $(sha256sum "$RUN_DIR/trajectory.tum" | awk '{print $1}')" >> "$META"
+  echo "trajectory_bytes: $(wc -c < "$RUN_DIR/trajectory.tum")" >> "$META"
+else
+  echo "trajectory_sha256: MISSING" >> "$META"
+  RUN_RC=1
+fi
+if grep -Eiq 'fatal|segmentation fault|assertion failed|nan.*nan' "$NODE_LOG" 2>/dev/null; then
+  echo "fatal_marker: PRESENT" >> "$META"; RUN_RC=1
+else
+  echo "fatal_marker: NONE" >> "$META"
+fi
+echo "end_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$META"
+echo "__DEC_LIO_RUN_DONE_RC=$RUN_RC"
+exit "$RUN_RC"

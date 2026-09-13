@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   basic
   pcl_ros
+  rosbag
   std_msgs
   geometry_msgs
   sensor_msgs
@@ -51,7 +52,7 @@ include_directories(
 
 # Package setup for catkin
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime
+  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy rosbag std_msgs message_runtime
   DEPENDS EIGEN3 PCL
   INCLUDE_DIRS include
 )
@@ -94,6 +95,20 @@ target_link_libraries(super_lio_node
 
 add_executable(relocation_node src/apps/relocation_node.cpp)
 target_link_libraries(relocation_node
+  lio
+  ${catkin_LIBRARIES}
+)
+
+# Algorithm-neutral offline transport adapter. It feeds the same ROSWrapper
+# and SuperLIO library as super_lio_node; it contains no estimator logic.
+add_executable(super_lio_offline_node
+  src/apps/super_lio_offline_node.cpp
+  offline/OfflineReader.cpp
+)
+target_include_directories(super_lio_offline_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(super_lio_offline_node
   lio
   ${catkin_LIBRARIES}
 )
