@@ -8,7 +8,7 @@ The implementation source of truth descends directly from the clean ROS1 branch:
 
 ```text
 origin/ros1 = 60b57aaac8dc397f80c56364e7ccb008c300cc29
-HEAD       = 0ad39c821aa80961209ddfc1b41524f563fbd86e (Prompt03 D2 shadow
+HEAD       = 3916769cdcb1569bbf267a56447054c07ac29b91 (Prompt03 D2 shadow
            calibration implementation; canonical runtime gates recorded under
            evidence/dec_lio/prompt03/)
 ```
