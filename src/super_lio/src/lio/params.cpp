@@ -30,6 +30,8 @@ namespace LI2Sup{
   int    g_filter_rate;
   bool   g_enable_downsample;
   float  g_voxel_fliter_size;
+  double g_point_time_scale = 1.0;
+  std::string g_observation_stage_output_csv;
 
   int    g_imu_type;
   double g_gravity_norm = 9.7946;

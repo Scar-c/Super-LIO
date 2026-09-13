@@ -21,6 +21,11 @@ D1_SHADOW="false"
 D2_SHADOW="false"
 CONSISTENCY_SHADOW="false"
 AXIS_SHADOW="false"
+BLIND_OVERRIDE=""
+FILTER_RATE_OVERRIDE=""
+VOXEL_OVERRIDE=""
+MAXRANGE_OVERRIDE=""
+POINT_TIME_SCALE_OVERRIDE=""
 PLAY_TOPICS="/velodyne_points,/imu/data"
 RECORD_TOPICS="/lio/odom"
 
@@ -40,6 +45,11 @@ while [ "$#" -gt 0 ]; do
     --d2-shadow) D2_SHADOW="true"; shift ;;
     --consistency-shadow) CONSISTENCY_SHADOW="true"; shift ;;
     --axis-shadow) AXIS_SHADOW="true"; shift ;;
+    --blind) BLIND_OVERRIDE="$2"; shift 2 ;;
+    --filter-rate) FILTER_RATE_OVERRIDE="$2"; shift 2 ;;
+    --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
+    --maxrange) MAXRANGE_OVERRIDE="$2"; shift 2 ;;
+    --point-time-scale) POINT_TIME_SCALE_OVERRIDE="$2"; shift 2 ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
@@ -140,6 +150,11 @@ if ! timeout 2 rosnode list >/dev/null 2>&1; then
 fi
 
 rosparam load "$CONFIG"
+if [ -n "$BLIND_OVERRIDE" ]; then rosparam set /lio/sensor/blind "$BLIND_OVERRIDE"; fi
+if [ -n "$FILTER_RATE_OVERRIDE" ]; then rosparam set /lio/sensor/filter_rate "$FILTER_RATE_OVERRIDE"; fi
+if [ -n "$VOXEL_OVERRIDE" ]; then rosparam set /lio/sensor/voxel_fliter_size "$VOXEL_OVERRIDE"; fi
+if [ -n "$MAXRANGE_OVERRIDE" ]; then rosparam set /lio/sensor/maxrange "$MAXRANGE_OVERRIDE"; fi
+if [ -n "$POINT_TIME_SCALE_OVERRIDE" ]; then rosparam set /lio/sensor/point_time_scale "$POINT_TIME_SCALE_OVERRIDE"; fi
 rosparam set /lio/offline/bag "$BAG"
 rosparam set /lio/offline/start_offset -1.0
 rosparam set /lio/offline/duration "${DURATION:--1.0}"
@@ -154,6 +169,7 @@ rosparam set /lio/dec_lio/consistency_shadow/enabled "$CONSISTENCY_SHADOW"
 rosparam set /lio/dec_lio/consistency_shadow/output_csv "$RUN_DIR/consistency_frame_summary.csv"
 rosparam set /lio/dec_lio/axis_shadow/enabled "$AXIS_SHADOW"
 rosparam set /lio/dec_lio/axis_shadow/output_csv "$RUN_DIR/axis_frame_summary.csv"
+rosparam set /lio/dec_lio/observation_stage_csv "$RUN_DIR/observation_stage.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio
 echo "effective_rosparams_sha256: $(sha256sum "$RUN_DIR/effective_rosparams.yaml" | awk '{print $1}')" >> "$META"

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 
 #include <pcl/io/pcd_io.h>
@@ -51,6 +52,8 @@ protected:
   void Propagation_Undistort();
   void DownSample();
   void Observe();
+  void writeObservationStage(std::size_t candidate_count,
+                             std::size_t used_count);
   virtual void UpdateMap();
   virtual void Output();
   void caceData();
@@ -88,6 +91,7 @@ protected:
   std::vector<std::pair<BASIC::M6, BASIC::V6>> H_R_;
   std::vector<std::array<double, 4>> abcd_vec_;
   int pcd_index_ = -1;
+  std::ofstream observation_stage_csv_;
 
   Timer time_record_;
 };

@@ -125,6 +125,20 @@ void SuperLIO::init(){
     LOG(INFO) << GREEN << " ---> [Dec-LIO Prompt06 axis]: shadow=OFF" << RESET;
   }
 
+  if (!g_observation_stage_output_csv.empty()) {
+    const std::filesystem::path path(g_observation_stage_output_csv);
+    std::error_code error;
+    if (path.has_parent_path())
+      std::filesystem::create_directories(path.parent_path(), error);
+    observation_stage_csv_.open(g_observation_stage_output_csv);
+    if (observation_stage_csv_) {
+      observation_stage_csv_
+          << "schema_version,frame,timestamp,N_raw,N_finite,N_after_raw_stride,"
+             "N_after_blind,N_after_upper_range,N_undistorted,N_after_voxel,"
+             "N_candidate,N_used\n";
+    }
+  }
+
   LOG(INFO) << GREEN << " ---> [SuperLIO]: initialized." << RESET;
 }
 
@@ -463,6 +477,19 @@ void SuperLIO::DownSample(){
   voxel_grid_fliter_.filter(ds_undistort_);
 }
 
+void SuperLIO::writeObservationStage(std::size_t candidate_count,
+                                     std::size_t used_count) {
+  if (!observation_stage_csv_) return;
+  const auto& stage = measures_.lidar.stage;
+  observation_stage_csv_ << 1 << ',' << frame_num_ << ','
+                         << measures_.lidar.end_time << ',' << stage.raw << ','
+                         << stage.finite << ',' << stage.after_raw_stride << ','
+                         << stage.after_blind << ',' << stage.after_upper_range
+                         << ',' << scan_undistort_full_->size() << ','
+                         << ds_undistort_->size() << ',' << candidate_count << ','
+                         << used_count << '\n';
+}
+
 
 struct ThreadACC{
   M6d HTVH = M6d::Zero();
@@ -474,6 +501,8 @@ struct ThreadACC{
 
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
+  const std::size_t first_candidate_count = ptsize;
+  std::size_t first_used_count = 0;
   const bool d2_enabled = d2_analyzer_ != nullptr;
   const bool consistency_enabled = consistency_analyzer_ != nullptr;
   const bool axis_enabled = axis_analyzer_ != nullptr;
@@ -581,6 +610,8 @@ void SuperLIO::Observe(){
       used_residual_count += local_acc.used_residual_count;
     }
 
+    if (current_shadow_iteration == 0) first_used_count = used_residual_count;
+
     if (d1_analyzer_) {
       d1_analyzer_->observe(static_cast<std::uint64_t>(frame_num_),
                             current_shadow_iteration, measures_.lidar.end_time,
@@ -639,6 +670,8 @@ void SuperLIO::Observe(){
 
     iter_num++;
   });
+
+  writeObservationStage(first_candidate_count, first_used_count);
 
   frame_num_++;
 }

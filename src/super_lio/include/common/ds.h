@@ -4,6 +4,7 @@
 
 #include <queue>
 #include <deque>
+#include <cstddef>
 #include <string>
 
 #include "basic/alias.h"
@@ -124,6 +125,13 @@ struct LidarData
   double start_time = 0.0;
   double end_time = 0.0;
   pcl::PointCloud<LI2Sup::PointXTZIT>::Ptr pc{nullptr};
+  struct ObservationStageCounts {
+    std::size_t raw = 0;
+    std::size_t finite = 0;
+    std::size_t after_raw_stride = 0;
+    std::size_t after_blind = 0;
+    std::size_t after_upper_range = 0;
+  } stage;
 };
 
 

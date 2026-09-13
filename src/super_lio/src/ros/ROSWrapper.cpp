@@ -5,6 +5,8 @@
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
+#include <cmath>
+
 using namespace BASIC;
 
 namespace LI2Sup{
@@ -35,6 +37,9 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/sensor/filter_rate", g_filter_rate);
   nh.getParam("/lio/sensor/enable_downsample", g_enable_downsample);
   nh.getParam("/lio/sensor/voxel_fliter_size", g_voxel_fliter_size);
+  nh.param("/lio/sensor/point_time_scale", g_point_time_scale, 1.0);
+  nh.param("/lio/dec_lio/observation_stage_csv",
+           g_observation_stage_output_csv, std::string());
 
   nh.getParam("/lio/sensor/gravity_norm", g_gravity_norm);
   nh.getParam("/lio/sensor/imu_type", g_imu_type);
@@ -320,14 +325,28 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
   {
     pcl::PointCloud<velodyne_ros::Point> pl_orig;
     pcl::fromROSMsg(*msg, pl_orig);
+    lidar_data.stage.raw = pl_orig.size();
+    for (const auto& pt : pl_orig.points) {
+      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
+        ++lidar_data.stage.finite;
+    }
     lidar_data.pc->reserve(pl_orig.size() / g_filter_rate + 1);
     lidar_data.start_time = msg->header.stamp.toSec();
 
     for(std::size_t i = 0; i < pl_orig.size(); i += g_filter_rate){
       auto& pt = pl_orig.points[i];
+      ++lidar_data.stage.after_raw_stride;
+      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z)) {
+        const double d2 = static_cast<double>(pt.x) * pt.x +
+                          static_cast<double>(pt.y) * pt.y +
+                          static_cast<double>(pt.z) * pt.z;
+        if (d2 > g_blind2) ++lidar_data.stage.after_blind;
+        if (d2 > g_blind2 && d2 < g_maxrange2)
+          ++lidar_data.stage.after_upper_range;
+      }
       if (!validPoint(pt.x, pt.y, pt.z)) continue;
       lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, pt.time);
+          pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
     }
     lidar_data.end_time = lidar_data.start_time + lidar_data.pc->points.back().offset_time;
     break;
