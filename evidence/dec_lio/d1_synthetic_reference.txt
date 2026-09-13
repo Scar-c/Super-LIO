@@ -1,0 +1,24 @@
+Prompt01 D1 synthetic/reference gate
+
+Executable:
+  /home/lc/dec_lio/devel/lib/super_lio/dec_lio_dcreg_synthetic_test
+Result: D1 synthetic tests A-G: PASS
+
+Coverage:
+  A isotropic full-rank information
+  B weak translation axis
+  C weak rotation axis
+  D rotation/translation coupling changes the Schur condition
+  E sign/permutation-stable raw-to-aligned eigenbasis mapping
+  F singular factorization -> invalid, factorization_ok=false, all-false mask
+  G non-finite input -> invalid, factorization_ok=false, all-false mask
+  Independent reference oracle: FullPivLU Schur solves plus self-adjoint EVD;
+  spectra and condition ratios matched within 1e-10.
+
+Reference provenance:
+  DCReg concepts were inspected at commit
+  8ce8451b15491a4bbe17cf85ab02a8bed6696861:
+  https://github.com/JokerJohn/DCReg/tree/8ce8451b15491a4bbe17cf85ab02a8bed6696861
+  The Dec-LIO implementation is an independent reimplementation of the
+  characterization concepts. No upstream source file was copied; the checked
+  upstream tree contained no license file.

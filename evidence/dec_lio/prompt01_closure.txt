@@ -1,0 +1,17 @@
+Prompt01 closure gate
+
+  authority correction and spec/dec_lio layout: PASS
+  Stairs Alpha exact bag/config/reference identity: PASS
+  Stairs D0 two-run byte parity: PASS
+  D1 switch default OFF and explicit ON: PASS
+  D1 LiDAR-only 6x6 post-reduction/pre-delivery seam: PASS
+  D1 Schur/EVD/bases/contributions/masks and CSV outputs: PASS
+  D1 invalid/failure fail-open policy: PASS (synthetic F/G)
+  Bridge D1 OFF == Prompt00R canonical SHA: PASS
+  Bridge D1 OFF == D1 ON SHA: PASS
+  Stairs D0 == D1 OFF == D1 ON SHA: PASS
+  D1 runtime Bridge/Stairs diagnostics: PASS
+  official Stairs Alpha GT ATE: PASS, RMSE=0.197750264 m (3439 matches)
+  D2/D3/D4/D5: deferred; D5 remains NOT AUTHORIZED
+
+PROMPT01 CLOSED

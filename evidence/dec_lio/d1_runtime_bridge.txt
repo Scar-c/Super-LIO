@@ -1,0 +1,27 @@
+Prompt01 Bridge01 D1 runtime gate
+
+Final source:
+  git_head=367b54ad6555b8233996ebd0219af07cc58c3246
+  merge-base(HEAD,origin/ros1)=60b57aaac8dc397f80c56364e7ccb008c300cc29
+  requested_threads=32, nproc=32, fatal_marker=NONE, node_rc=0
+
+Trajectory parity:
+  D1 OFF and D1 ON each produced 3814 rows, 622301 bytes,
+  sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+  D1 OFF vs D1 ON cmp: 0 (PASS)
+  D1 OFF vs Prompt00R canonical cmp: 0 (PASS)
+
+D1 ON artifacts:
+  /home/lc/dec_lio/runtime/prompt01/final_bridge/bridge_d1_on/dcreg_shadow.csv
+    lines=12170 sha256=eaf0eef75424343369bdb7b9df95d3acad29ea0cacc6c1283838949e75868725
+  /home/lc/dec_lio/runtime/prompt01/final_bridge/bridge_d1_on/dcreg_frame_summary.csv
+    lines=3815 sha256=8b7c9ea7319a4832e6bf094580bc66e0c94922646c018f75e6d90ab11021f1e1
+  /home/lc/dec_lio/runtime/prompt01/final_bridge/bridge_d1_on/dcreg_summary.json
+    sha256=e8c0244fbfad57e4d42b93be880ddfa21f70c5fa1200f5cd28d7f14fd23ddb8e
+
+Summary (threshold=10 diagnostic only):
+  frames=3814, valid_frame_ratio=1.0, factorization_failures=0
+  cond_rot median/p95/max=3.6120/8.8314/17.0965
+  cond_trans median/p95/max=3.1719/9.1060/19.3235
+  weak-axis counts rot=[89,7,1], trans=[64,77,2]
+  longest weak runs rot=[14,2,1], trans=[24,15,1]

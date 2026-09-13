@@ -1,0 +1,31 @@
+Prompt01 Stairs Alpha dataset identity
+
+Local inputs:
+  bag: /home/lc/dec_lio/bag/GEODE/stairs_alpha.bag
+    sha256=71cea6a30573ac6144776d873a6232707c04ee977a6a59e63bfdd2bce42fedb1
+  local text reference: /home/lc/dec_lio/bag/GEODE/stairs_alpha.txt
+    sha256=94b2cb2d9e3f4e4bbfde0932ed3adf6b314b649b690c9e13d6f610c719d750f6
+  native config: src/super_lio/config/geode_stairs_alpha.yaml
+    sha256=12d22a80abd21050d6e7b4984edd51f09f2e65d46bcaadb853a4c75a04a97d3b
+  external Alpha calibration reference:
+    /home/lc/dec_lio/bag/GEODE/alpha_config.yaml
+    sha256=b5749fcc59ad57b33136c82769c635cd9c4e6f28318c191920abde2f564d8802
+
+rosbag info:
+  version=2.0, duration=5:45s (345s), start=1705542303.18,
+  end=1705542648.71, size=3.7 GB, messages=44922, compression=none,
+  chunks=3494/3494
+  /imu/data: 34556 sensor_msgs/Imu
+  /left_camera/compressed: 3455 sensor_msgs/CompressedImage
+  /right_camera/compressed: 3455 sensor_msgs/CompressedImage
+  /velodyne_points: 3456 sensor_msgs/PointCloud2
+  first LiDAR fields: x FLOAT32 @0, y FLOAT32 @4, z FLOAT32 @8,
+    intensity FLOAT32 @12, ring UINT16 @16, time FLOAT32 @18,
+    frame_id=velodyne
+
+Reference classification:
+  stairs_alpha.txt has 3447 ASCII rows and is the official Stairs Alpha
+  trajectory reference produced by GEODE's PALoc alignment with the GT map.
+  The GEODE README's gamma exception is specifically that Livox AVIA drift
+  prevents a gamma GT trajectory; it does not invalidate the Alpha reference.
+  Official source: https://github.com/PengYu-Team/GEODE_dataset#localization-evaluation

@@ -1,0 +1,35 @@
+Prompt01 Stairs Alpha D1 runtime gate
+
+Final source:
+  git_head=367b54ad6555b8233996ebd0219af07cc58c3246
+  merge-base(HEAD,origin/ros1)=60b57aaac8dc397f80c56364e7ccb008c300cc29
+  requested_threads=32, nproc=32, fatal_marker=NONE, node_rc=0
+
+Trajectory parity:
+  D0 repeat, D1 OFF, and D1 ON each produced 557579 bytes,
+  sha256=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+  D1 OFF vs D1 ON cmp: 0 (PASS)
+  D0 vs D1 OFF cmp: 0 (PASS)
+
+D1 ON artifacts:
+  /home/lc/dec_lio/runtime/prompt01/final_stairs/stairs_d1_on/dcreg_shadow.csv
+    lines=12323 sha256=a2b26d1708ba6c4200da8efbb4c1e095aa0c870748d9782b3ecac14756f2f155
+  /home/lc/dec_lio/runtime/prompt01/final_stairs/stairs_d1_on/dcreg_frame_summary.csv
+    lines=3447 sha256=75f2abd405dfe10a84b46c8e242dc293f8f4504a1617accfbad4854ceafb7f49
+  /home/lc/dec_lio/runtime/prompt01/final_stairs/stairs_d1_on/dcreg_summary.json
+    sha256=28e17e527b72dc5035a401b2547849653d04ac01410a9fc2acc2ecc09ae23826
+
+Summary (threshold=10 diagnostic only):
+  frames=3446, valid_frame_ratio=1.0, factorization_failures=0
+  cond_rot median/p95/max=14.5889/61.1176/183.5956
+  cond_trans median/p95/max=3.5589/8.6224/20.2595
+  weak-axis counts rot=[2011,290,0], trans=[0,0,113]
+  longest weak runs rot=[165,38,0], trans=[0,0,20]
+  longest rot_0 window=165 frames / 16.3976 s
+
+Official Stairs Alpha GT evaluation (D1 ON; D1 OFF is byte-identical):
+  /home/lc/dec_lio/runtime/prompt01/final_stairs/stairs_d1_on/evaluation.txt
+  alignment=rigid SE(3), no scale, no crop; matched=3439; overlap_s=344.479428
+  rmse_m=0.197750264, mean_m=0.186964688, median_m=0.183735553
+  p90_m=0.27398115, p95_m=0.304372851, max_m=0.375655891
+  evaluation.txt sha256=79d8f198c6b00acf00d6ccb2d9210d5140f12dac330c75a26db977adb76b1946

@@ -1,0 +1,21 @@
+Prompt01 build and boundary identity
+
+Build:
+  source /opt/ros/noetic/setup.bash && catkin_make -C /home/lc/dec_lio -j4
+  result: PASS; super_lio_node, super_lio_offline_node, relocation_node,
+  and dec_lio_dcreg_synthetic_test linked successfully.
+
+Tests:
+  python3 -m unittest discover -s tests/dec_lio -p 'test_*.py': 7 tests OK
+  D1 synthetic tests A-G: PASS
+  production_identity.py: IDENTITY_PASS
+  check_evidence_hygiene.py: HYGIENE_PASS
+  git diff --check: PASS
+
+Boundary:
+  origin/ros1=60b57aaac8dc397f80c56364e7ccb008c300cc29
+  HEAD=367b54ad6555b8233996ebd0219af07cc58c3246
+  merge-base=60b57aaac8dc397f80c56364e7ccb008c300cc29
+  HEAD descends directly from origin/ros1.
+  No ESKF.cpp/ESKF.h diff; no native solve, gate, scale, PCG, or
+  preconditioner modification. D1 is the post-reduction read-only hook.

@@ -1,0 +1,24 @@
+Prompt01 Stairs Alpha D0 exact repeatability
+
+Both runs used the clean infrastructure commit:
+  git_head=2d399bf2405f565ae684311d218418549611e98f
+  mode=offline, sequence=stairs_alpha, whole bag, requested_threads=32,
+  nproc=32, d1_shadow=false
+
+  /home/lc/dec_lio/runtime/prompt01/stairs_d0/stairs_native_offline_01/trajectory.tum
+    rows=3446 bytes=557579
+    sha256=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+  /home/lc/dec_lio/runtime/prompt01/stairs_d0/stairs_native_offline_02/trajectory.tum
+    rows=3446 bytes=557579
+    sha256=26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+
+cmp run_01/run_02: 0 (PASS)
+
+Official Stairs Alpha GT evaluation (after parity):
+  estimator: /home/lc/dec_lio/runtime/prompt01/stairs_d0/stairs_native_offline_01/trajectory.tum
+  ground truth: /home/lc/dec_lio/bag/GEODE/stairs_alpha.txt
+  alignment: rigid SE(3), no scale, no crop; max timestamp difference=0.05s
+  matched=3439, overlap_s=344.479428
+  rmse_m=0.197750264, mean_m=0.186964688, median_m=0.183735553
+  p90_m=0.27398115, p95_m=0.304372851, max_m=0.375655891
+  evaluation.txt sha256=79d8f198c6b00acf00d6ccb2d9210d5140f12dac330c75a26db977adb76b1946

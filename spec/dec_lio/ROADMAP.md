@@ -6,8 +6,8 @@ semantics and extends D1 with shadow-only characterization.
 
 | ID | Scope | Status | Authority / exit condition |
 |---|---|---|---|
-| D0 | Native ROS1 Super-LIO baseline: Bridge01 Alpha and exact online/offline parity | CLOSED | Prompt00R evidence and immutable Bridge SHA |
-| D1 | DCReg LiDAR-only 6DoF shadow degeneracy characterization | CLOSED | Prompt01 shadow parity and synthetic/reference tests |
+| D0 | Native ROS1 Super-LIO baseline: Bridge01 and Stairs Alpha offline baselines | CLOSED | Prompt00R Bridge authority plus Prompt01 Stairs repeatability |
+| D1 | DCReg LiDAR-only 6DoF shadow degeneracy characterization | CLOSED | Prompt01 OFF/ON parity, runtime summaries, and synthetic/reference tests |
 | D2 | DCReg + paired SA-style LiDAR information gate | PLANNED | Owner review after D1 spectra and persistence evidence |
 | D3 | PCG solver-equivalence and DCReg numerical preconditioner | PLANNED | Exact native solve-equivalence evidence |
 | D4 | Combined Dec-LIO (D1 characterization + D2 gate + D3 PCG) | PLANNED | Separate approved implementation authority |
@@ -32,6 +32,9 @@ complements, spectra, condition diagnostics, basis alignment, and weak-axis
 reports. It is shadow-only, defaults OFF, and cannot modify `H_L`, `b_L`, the
 native estimator, or its trajectory. Factorization failure is represented as
 `valid=false` and fail-open, never as an authoritative all-degenerate command.
+Prompt01 runtime evidence is in `evidence/dec_lio/d1_runtime_bridge.txt` and
+`evidence/dec_lio/d1_runtime_stairs.txt`; the machine-readable summaries stay
+under `/home/lc/dec_lio/runtime/prompt01/`.
 
 ## Explicitly deferred
 
