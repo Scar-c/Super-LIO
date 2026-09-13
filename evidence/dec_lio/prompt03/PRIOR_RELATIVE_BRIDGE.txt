@@ -1,0 +1,13 @@
+Bridge prior-relative result
+
+mu_min median [P2.5, P95, max] = 0.8343 [0.3025, 1.0872, 29.8292].
+Per-frame mu-median median [P2.5, P95] = 563.77 [38.0755, 1416.68].
+Weak translational eta (143 weak-direction frames) median [P2.5, P95, max]
+= 0.3279 [0.2148, 0.4387, 0.5451].
+
+At non-overlap Delta=5 s, translation-error rho is kappa +0.4239, absolute
+lambda -0.5836, mu_min -0.6316, and weak eta +0.4882 (only 16 defined
+windows). High-error Bridge windows therefore combine high anisotropy with
+low absolute/prior-normalized global information; weak eta is not a large-eta
+event. This supports retaining prior diagnostics but does not identify a
+standalone production gate.

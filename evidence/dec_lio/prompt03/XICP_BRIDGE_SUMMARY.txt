@@ -1,0 +1,17 @@
+Bridge01 XICP_ON_SUPER_RESIDUALS summary
+
+Frame rows: 3814; accepted residual population is iteration-0 native data.
+Class fractions across the three EVD modes: rot FULL/PARTIAL/NONE =
+1.000000/0/0; trans = 0.852036/0.093078/0.054886.
+
+Lc median [P2.5, P95]: rot 12401.0 [1512.10, 36964.9], trans 709.363
+[37.6743, 1994.80]. Ls median [P2.5, P95]: rot 12375.1 [1492.87,
+36926.1], trans 559.937 [26.0862, 1879.27].
+
+Raw-block kappa median [P95, max]: rot 3.30937 [7.36176, 14.7400], trans
+3.27643 [11.6365, 29.6996]. Schur kappa median [P95, max]: rot 3.61202
+[8.82643, 17.0965], trans 3.17190 [9.05983, 19.3235].
+
+The local-error correlations are stronger for absolute lambda and prior
+mu_min than for kappa: at non-overlap Delta=5 s, translation rho is kappa
+0.4239, lambda_min -0.5836, mu_min -0.6316; rotational kappa rho is 0.0295.

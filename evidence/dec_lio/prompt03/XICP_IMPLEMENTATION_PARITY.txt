@@ -1,0 +1,12 @@
+X-ICP implementation parity
+
+For each accepted native residual J, D2 forms raw blocks
+ARR += FR FR^T and Att += Ft Ft^T. Rotation vectors with norm < 0.01 are set
+to zero before projection; no other normalization is applied. Projection
+counts use strict `>` at cos(80°) and cos(60°), while the class thresholds use
+the frozen inclusive k1/k2/k3 comparisons.
+
+Synthetic tests X1-X6: PASS.
+Bridge block equivalence max absolute error: rot 4.19e-09, trans 7.73e-12.
+Stairs block equivalence max absolute error: rot 2.68e-09, trans 2.96e-12.
+Native identity tests and full build: PASS.

@@ -1,0 +1,12 @@
+Prompt03 source-boundary audit
+
+Allowed changes are the D2 analyzer, parameter/ROS plumbing, the read-only
+native residual seam, runner support, tests, and evidence/documentation.
+`src/super_lio/src/lio/ESKF.cpp` is unchanged. No estimator H, b, P, residual,
+weight, association, solve, map, or posterior path was modified.
+
+Production identity result: IDENTITY_PASS.
+Evidence hygiene result: HYGIENE_PASS.
+Runtime switches: D1 shadow default OFF; D2 shadow default OFF.
+The D2 hook copies `kf_->GetCov()` immediately before `UpdateObserve` and only
+captures accepted native iteration-0 Jacobians for analysis.

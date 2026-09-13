@@ -1,0 +1,14 @@
+Prompt03 start state
+
+Prompt source: /home/lc/dec_lio/prompts/Dec-LIO Prompt03 — D2 Shadow Calibration - X-ICP - Prior-Relative Information.md
+Prompt archive: prompts/dec_lio/PROMPT03_D2_SHADOW_CALIBRATION.md
+Prompt archive SHA256: 1e20d8c2adad598ae7b59658d82e490b31c9c984886d7c70f13681792f954784
+Branch: Dec-LIO
+Start HEAD: 03e8b3b9fdc54232a55b77b49d6f41ac3d886521
+Start origin/Dec-LIO: 03e8b3b9fdc54232a55b77b49d6f41ac3d886521
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start merge-base(HEAD, origin/ros1): 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean except the newly archived Prompt03 file before implementation
+
+The historical Prob-LIO workspace and its runtime artifacts were not deleted,
+moved, stashed, or used as a Dec-LIO estimator source.

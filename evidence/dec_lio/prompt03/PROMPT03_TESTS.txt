@@ -1,0 +1,12 @@
+Prompt03 verification
+
+- `catkin_make -C /home/lc/dec_lio -j4`: PASS.
+- D1 synthetic tests A-I: PASS.
+- D2 synthetic tests X1-X6/P1-P6: PASS.
+- Python Dec-LIO tests: 13 PASS.
+- `python3 tools/dec_lio/production_identity.py --repo-root`: IDENTITY_PASS.
+- `python3 tools/dec_lio/check_evidence_hygiene.py`: HYGIENE_PASS.
+- Prompt03 analysis: Bridge and Stairs complete; non-overlap Delta 1/5/10,
+  deterministic bootstrap seed 20260913 with 1000 replicates, XICP empirical
+  targets, prior threshold sweeps, event families, persistence, and matched
+  kappa comparison all present in final runtime JSON.

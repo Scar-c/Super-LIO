@@ -1,0 +1,17 @@
+Stairs Alpha XICP_ON_SUPER_RESIDUALS summary
+
+Frame rows: 3446. Class fractions across the three EVD modes: rot
+FULL/PARTIAL/NONE = 0.946992/0.052815/0.000193; trans =
+0.367189/0.593055/0.039756.
+
+Lc median [P2.5, P95]: rot 1390.53 [143.739, 6298.36], trans 177.200
+[45.7495, 605.166]. Ls median [P2.5, P95]: rot 1374.12 [122.349,
+6252.13], trans 138.516 [29.8298, 509.735].
+
+Raw-block kappa median [P95, max]: rot 16.8884 [80.7722, 240.988], trans
+2.63958 [5.02433, 12.5846]. Schur kappa median [P95, max]: rot 14.5889
+[61.0856, 183.596], trans 3.55890 [8.62050, 20.2595].
+
+Stairs has much more translational XICP non-FULL than Bridge despite much
+smaller translation error. This rejects XICP class alone as a transferable
+directional-gating rule.

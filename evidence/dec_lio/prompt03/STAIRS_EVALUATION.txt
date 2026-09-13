@@ -1,0 +1,7 @@
+Prompt03 Stairs Alpha official-style evaluation
+
+Estimator: `/home/lc/dec_lio/runtime/prompt03/stairs_shadow_final/canonical/trajectory.tum`
+Ground truth: `/home/lc/dec_lio/bag/GEODE/stairs_alpha.txt`
+Association max diff: 0.1 s; global SE(3), no scale, no crop.
+matched=3442; RMSE=0.197724347 m; median=0.183732441 m; P95=0.30448885 m;
+max=0.37573905 m.

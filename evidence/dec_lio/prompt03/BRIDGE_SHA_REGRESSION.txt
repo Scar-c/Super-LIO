@@ -1,0 +1,12 @@
+Prompt03 Bridge canonical regression
+
+Run: `/home/lc/dec_lio/runtime/prompt03/bridge_shadow_final/canonical/`
+mode=offline, sequence=bridge01, whole bag, default nproc=32,
+D1 shadow=ON, D2 shadow=ON.
+
+Expected trajectory SHA256:
+6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+Actual trajectory SHA256:
+6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+cmp against Prompt02 canonical: 0
+node_rc=0; fatal_marker=NONE; D2 CSV rows including header=3815.

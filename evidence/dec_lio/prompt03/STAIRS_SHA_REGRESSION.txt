@@ -1,0 +1,12 @@
+Prompt03 Stairs Alpha canonical regression
+
+Run: `/home/lc/dec_lio/runtime/prompt03/stairs_shadow_final/canonical/`
+mode=offline, sequence=stairs_alpha, whole bag, default nproc=32,
+D1 shadow=ON, D2 shadow=ON.
+
+Expected trajectory SHA256:
+26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+Actual trajectory SHA256:
+26db17eb819d6e5f5e2cb0487621c80ca18c3a80567af9810b9551413fc78a11
+cmp against Prompt02 canonical: 0
+node_rc=0; fatal_marker=NONE; D2 CSV rows including header=3447.

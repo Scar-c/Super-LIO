@@ -1,0 +1,17 @@
+Prompt03 closure
+
+Prompt03 archive, start state, source boundary, Prompt02 corrections, robust
+statistics, X-ICP authority/parity, prior-relative implementation/tests,
+Bridge/Stairs canonical runtime, analysis, matched-kappa comparison, and
+persistence evidence are complete.
+
+D0: CLOSED.
+D1: CLOSED — CORRECTED.
+D2: PLANNED — SHADOW CALIBRATION COMPLETE; estimator gate is not implemented
+or authorized.
+D3: PLANNED.
+D4: PLANNED.
+D5: NOT AUTHORIZED.
+
+Prompt03 STATUS: CLOSED. The closure is for this shadow-calibration prompt;
+the next estimator implementation requires a separate Owner review/authority.

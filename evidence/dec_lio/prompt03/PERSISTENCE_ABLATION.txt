@@ -1,0 +1,19 @@
+Persistence shadow ablation
+
+Frame-level 1 s error targets are top-10% local error; false positives are
+active persistent frames outside that set. No estimator hysteresis is used.
+
+Bridge translational kappa>10: 143 active frames, median run 1, max 24;
+persistence >=2/3/5 gives frames 119/101/85, false positives 92/77/61, and
+high-error coverage 0.0711/0.0632/0.0632. Stairs translational kappa>10:
+113 active, median run 1, max 20; >=2/3/5 gives 93/87/61 frames, false
+positives 79/76/53, coverage 0.0407/0.0320/0.0233.
+
+Bridge translational XICP non-FULL is active for 1441 frames with median run
+77 and max 908; >=2/3/5 coverage is 0.4263/0.4263/0.4263 and bottom-50%
+activation is 0.2330/0.2330/0.2330. Stairs is active for 2981 frames with
+median run 10 and max 622; corresponding coverage is 0.8517/0.8517/0.8517
+and bottom-50% activation is 0.8243/0.8232/0.8197.
+
+Persistence removes isolated kappa events but does not produce a transferable
+high-error detector. It is therefore not retained as a D2 estimator policy.

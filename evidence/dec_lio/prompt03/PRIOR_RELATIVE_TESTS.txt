@@ -1,0 +1,12 @@
+Prior-relative synthetic and runtime tests
+
+P1 identity prior: PASS; mu matches H eigenvalues.
+P2 coordinate rescaling invariance: PASS; prior-whitened mu invariant.
+P3 known SPD covariance and LLT: PASS.
+P4 non-SPD/NaN covariance invalidates prior-relative result: PASS.
+P5 eta analytic lambda*sigma^2: PASS.
+P6 weak-projector overlap bounded and finite only when a weak direction exists: PASS.
+
+Runtime prior_relative_valid: Bridge 3814/3814; Stairs 3446/3446.
+Runtime D2 frame authority: Bridge 3814/3814 iteration-0 rows; Stairs
+3446/3446 iteration-0 rows; no invalid D1 rows.

@@ -1,0 +1,14 @@
+Stairs prior-relative result
+
+mu_min median [P2.5, P95, max] = 0.4325 [0.2289, 0.7673, 5.0065].
+Per-frame mu-median median [P2.5, P95] = 6.8819 [1.0245, 164.39].
+Weak rotational eta (2294 weak-direction frames) median [P2.5, P95, max]
+= 6.3686 [1.0112, 131.70, 2492.69]. Weak translational eta (113 frames)
+median [P2.5, P95, max] = 0.2805 [0.1196, 0.3552, 0.4100].
+
+Stairs rotational kappa is high (Schur median 14.589, P95 61.086) while
+translation local error remains small (5 s matched-kappa 10-20 median
+0.2084 m; >20 median 0.1700 m). The high rotational weak-direction eta
+indicates that LiDAR information can be large relative to the prior even when
+relative LiDAR geometry is anisotropic. This is a counterexample to using
+high kappa or XICP non-FULL as a direct harmfulness decision.
