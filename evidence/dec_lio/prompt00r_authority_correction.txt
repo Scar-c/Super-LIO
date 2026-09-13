@@ -1,0 +1,28 @@
+Prompt00R authority correction — Prompt01 Phase A
+
+Prompt00R computational closure remains valid.
+
+The historical closure entry:
+roadmap_authority_D0_to_D5: PASS
+
+is superseded for roadmap semantics by Prompt01 authority correction.
+
+No trajectory, runtime result, estimator implementation, dataset identity,
+or exact-parity evidence is invalidated.
+
+Bridge01 canonical trajectory SHA:
+6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+
+Prompt00R final HEAD:
+66abca779cfbe6bae5a5b79e7fb73236654b352b
+
+Prompt01 corrective commit SHA:
+ec7d963 (authority layout migration and D0–D5 roadmap correction)
+
+Canonical authority files now live under:
+spec/dec_lio/SPEC.md
+spec/dec_lio/ROADMAP.md
+spec/dec_lio/ARCHITECTURE_INVARIANTS.md
+spec/dec_lio/BASELINE_AUTHORITY.md
+spec/dec_lio/OFFLINE_PARITY_CONTRACT.md
+spec/dec_lio/HISTORY.md
