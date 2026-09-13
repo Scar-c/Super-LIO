@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 
-def load_tum(path):
+def load_tum(path, allow_unsorted=False):
     times, positions, quaternions = [], [], []
     with open(path, encoding="utf-8") as stream:
         for number, line in enumerate(stream, 1):
@@ -25,8 +25,13 @@ def load_tum(path):
     if not times:
         raise ValueError(f"{path}: no TUM rows")
     times = np.asarray(times)
-    if np.any(np.diff(times) <= 0):
+    if np.any(np.diff(times) <= 0) and not allow_unsorted:
         raise ValueError(f"{path}: timestamps are not strictly increasing")
+    if allow_unsorted:
+        order = np.argsort(times, kind="stable")
+        times = times[order]
+        positions = np.asarray(positions)[order]
+        quaternions = np.asarray(quaternions)[order]
     return times, np.asarray(positions), np.asarray(quaternions)
 
 
@@ -69,7 +74,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         et, ep, eq = load_tum(args.estimate)
-        gt, gp, _ = load_tum(args.ground_truth)
+        # The supplied GEODE text has unique but non-monotonic records. Keep
+        # the estimate strict and apply only a stable timestamp order to the
+        # reference for association; no estimate rows are cropped or sorted.
+        gt, gp, _ = load_tum(args.ground_truth, allow_unsorted=True)
         pairs = associate(et, gt, args.max_diff)
         if len(pairs) < args.min_matches:
             raise ValueError(f"insufficient matches: {len(pairs)}")
@@ -92,7 +100,9 @@ def main(argv=None):
             "p95_m": np.percentile(error, 95),
             "max_m": np.max(error),
         }
-        text = "\n".join(["alignment: SE(3), no scale, no crop"] +
+        text = "\n".join(["alignment: SE(3), no scale, no crop",
+                           "ground_truth_order: stable timestamp sort of supplied reference",
+                           "estimate_order: native output order, not sorted"] +
                            [f"{key}: {value:.9g}" if isinstance(value, float)
                             else f"{key}: {value}" for key, value in metrics.items()]) + "\n"
         print(text, end="")

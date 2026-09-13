@@ -45,6 +45,9 @@ fi
 if [ ! -f "$CONFIG" ]; then
   echo "ERR: missing config: $CONFIG" >&2; exit 2
 fi
+GROUND_TRUTH="$(dirname "$BAG")/bridge01.txt"
+python3 "$REPO_ROOT/tools/dec_lio/validate_input.py" \
+  --bag "$BAG" --config "$CONFIG" --ground-truth "$GROUND_TRUTH" >/dev/null
 if [ -z "$RUN_ID" ]; then RUN_ID="${MODE}_$(date -u +%Y%m%dT%H%M%SZ)"; fi
 if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
   echo "ERR: invalid run ID" >&2; exit 2
