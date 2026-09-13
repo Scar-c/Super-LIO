@@ -1,0 +1,18 @@
+Prompt06 Tunnel2 Alpha physical weak-axis summary
+
+Runtime: schema5, first native measurement iteration only, 2739 rows.  The
+primary course proxy yielded 876 valid course-axis records overall, 273 in
+the fixed onset interval.
+
+| interval | weak rank median/max | O_yaw median/max | O_long median/max | O_lat median/max |
+|---|---:|---:|---:|---:|
+| full | 1/2 | 0.000849664 / 0.999503 | 0.992275 / 0.999452 | 0.00531689 / 0.134935 |
+| pre5 | 1/1 | 0.000206499 / 0.000635398 | 0.925896 / 0.977370 | 0.0737108 / 0.0975907 |
+| pre3 | 1/1 | 0.000193526 / 0.000393183 | 0.931008 / 0.977370 | 0.0687986 / 0.0885423 |
+| pre1 | 1/1 | 0.000188244 / 0.000348738 | 0.964257 / 0.977370 | 0.0355551 / 0.0557168 |
+| onset | 1/2 | 0.00108847 / 0.999503 | 0.970379 / 0.999128 | 0.0261029 / 0.134935 |
+
+On course-valid rows the dominant classification was
+`LONGITUDINAL_ROLL_LIKE=875`; only one row was `YAW_LIKE`, with 26 mixed
+rows.  The full and onset physical axis are consequently directly
+non-yaw/longitudinal, not Euler-yaw degeneracy.

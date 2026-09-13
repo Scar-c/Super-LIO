@@ -65,6 +65,33 @@ def stats(values):
     }
 
 
+def spearman(x_values, y_values):
+    pairs = [(float(x), float(y)) for x, y in zip(x_values, y_values)
+             if math.isfinite(float(x)) and math.isfinite(float(y))]
+    if len(pairs) < 2:
+        return {"rho": None, "n": len(pairs)}
+    def ranks(values):
+        order = sorted(range(len(values)), key=lambda index: values[index])
+        output = [0.0] * len(values)
+        cursor = 0
+        while cursor < len(order):
+            end = cursor + 1
+            while end < len(order) and values[order[end]] == values[order[cursor]]:
+                end += 1
+            rank = 0.5 * (cursor + end - 1) + 1.0
+            for index in order[cursor:end]:
+                output[index] = rank
+            cursor = end
+        return output
+    x_rank = np.asarray(ranks([item[0] for item in pairs]), dtype=float)
+    y_rank = np.asarray(ranks([item[1] for item in pairs]), dtype=float)
+    x_rank -= x_rank.mean()
+    y_rank -= y_rank.mean()
+    denominator = np.linalg.norm(x_rank) * np.linalg.norm(y_rank)
+    return {"rho": float(x_rank.dot(y_rank) / denominator), "n": len(pairs)} \
+        if denominator > 0.0 else {"rho": None, "n": len(pairs)}
+
+
 def rotation_matrix(quaternion):
     x, y, z, w = np.asarray(quaternion, dtype=float)
     norm = np.linalg.norm([x, y, z, w])
@@ -211,9 +238,17 @@ def exact_runs(rows, predicate):
     longest = {"frames": 0, "start_frame": None, "end_frame": None,
                "start_time": None, "end_time": None, "duration_s": 0.0}
     current = []
+    positive_steps = [integer(right, "frame") - integer(left, "frame")
+                      for left, right in zip(rows, rows[1:])
+                      if integer(right, "frame") > integer(left, "frame")]
+    expected_step = int(round(statistics.median(positive_steps))) \
+        if positive_steps else 1
     for row in rows:
         if predicate(row) and (not current or
-                               integer(row, "frame") == integer(current[-1], "frame") + 1):
+                               (integer(row, "frame") ==
+                                integer(current[-1], "frame") + expected_step and
+                                number(row, "timestamp") -
+                                number(current[-1], "timestamp") <= 0.2)):
             current.append(row)
         else:
             if len(current) > longest["frames"]:
@@ -442,6 +477,7 @@ def course_report(records, axis_rows):
             "axis_rows": len(axis_rows),
             "valid_coverage": len(items) / len(axis_rows) if axis_rows else 0.0,
             "course_error_deg": stats(errors),
+            "absolute_course_error_deg": stats([item["abs_course_error_deg"] for item in items]),
             "fit_sample_count_gt": stats([item["gt_sample_count"] for item in items]),
             "fit_sample_count_est": stats([item["est_sample_count"] for item in items]),
             "gt_speed_mps": stats([item["gt_speed_mps"] for item in items]),
@@ -532,14 +568,10 @@ def stairs_orientation(rows, local):
             f"rotation_error_{int(delta)}s_deg", math.nan) for row in rows]
         result[f"{int(delta)}s"] = {
             "rotation_error_deg": stats(target),
-            "by_O_yaw": stats([number(row, "O_yaw") for row, value in zip(rows, target)
-                                if math.isfinite(value)]),
-            "by_Psi_weak_R": stats([number(row, "Psi_weak_R") for row, value in zip(rows, target)
-                                     if math.isfinite(value)]),
-            "by_weak_chi": stats([number(row, "weak_chi_max_R") for row, value in zip(rows, target)
-                                   if math.isfinite(value)]),
-            "by_kappa_R": stats([number(row, "dcreg_schur_kappa_R") for row, value in zip(rows, target)
-                                  if math.isfinite(value)]),
+            "correlations": {
+                metric: spearman([number(row, metric) for row in rows], target)
+                for metric in ("O_yaw", "Psi_weak_R", "C_yaw_L",
+                               "weak_chi_max_R", "dcreg_schur_kappa_R")},
         }
     return {"same_orientation_semantics": True, "windows": result}
 
@@ -658,6 +690,7 @@ def main(argv=None):
                                       "forcing_robustness": report["forcing_robustness"],
                                       "course_proxy": {key: value for key, value in report["course_proxy"].items()
                                                        if key != "records"},
+                                      "axis_decomposition_invariant": report["axis_decomposition_invariant"],
                                       "causal_timeline": report["causal_timeline"],
                                       "stairs_orientation_control": report["stairs_orientation_control"]}
                              for name, report in reports.items()}}

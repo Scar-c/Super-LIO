@@ -1,0 +1,15 @@
+Prompt06 axis synthetic seam tests
+
+A1 right/local tangent finite gravity-axis mapping: PASS
+A2 rank-1 projector parallel occupancy: PASS
+A3 rank-1 projector orthogonal occupancy: PASS
+A4 rank-2 occupancy sum: PASS
+A5 eigenvector sign flip invariance: PASS
+A6 eigenvector permutation invariance: PASS
+A7 repeated-eigenspace basis rotation invariance: PASS
+A8 straight course error: PASS
+A9 known course offset: PASS
+A10 reverse motion without pi ambiguity: PASS
+
+Executable output:
+Prompt06 axis synthetic tests A1-A10: PASS

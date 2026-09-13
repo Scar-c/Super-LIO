@@ -1,0 +1,13 @@
+Prompt06 startup authority
+
+start HEAD: 57a5ecb3264ca67dff04496dc67ce4d44ecaafa0
+start origin/Dec-LIO: 57a5ecb3264ca67dff04496dc67ce4d44ecaafa0
+start origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start merge-base: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start worktree: clean
+Prompt05: CLOSED and accepted
+D2 estimator gate at Prompt06 start: not authorized
+Prompt06 prompt archive SHA256: 47a5b50dd297257c822bec30facc51e25b6190217bcf818cd6f7b61d627b3e78
+
+The Prompt06 startup command was fetch/status/rev-parse/merge-base.  No
+Prob-LIO runtime artifact was deleted, moved, or stashed.

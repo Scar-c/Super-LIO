@@ -1,0 +1,31 @@
+Prompt06 closure
+
+Status: CLOSED
+
+Completed:
+  - startup HEAD/origin/ros1 gate recorded
+  - Prompt06 archived with exact SHA
+  - GEODE Tunnel2 Alpha/VLP-16/UGV authority recorded without motion inference
+  - ESKF gravity source and right/local tangent audited from source
+  - A1-A10 synthetic tests PASS
+  - schema5 first-native-iteration R/gravity/P/D1/consistency shadow added
+  - Stairs negative control and Tunnel2 Alpha canonical runs PASS
+  - physical-axis occupancy decomposition and hard invariant PASS
+  - full/pre5/pre3/pre1/onset forcing robustness recorded
+  - Stairs-vs-Tunnel2 orientation/axis control recorded
+  - Tunnel2 course proxy uses one global alignment and no GT attitude claim
+  - yaw causal gate explicitly FAILS with YAW_CAUSAL_CHAIN_NOT_AUTHORIZED
+  - causal timeline classified NOT_AUTHORIZED_BY_YAW_GATE
+  - scientific primary classification C
+  - D2-PHYS-2 selected; no estimator gate authorized
+  - future full-pose dataset handoff recorded; NTNU not run
+  - exact trajectory SHA/cmp parity recorded
+  - estimator boundary and hygiene checks required for final verification
+
+Boundary:
+  H modified: NO
+  b modified: NO
+  P modified: NO
+  gamma: NO
+  PCG: NO
+  Prob-LIO: NO

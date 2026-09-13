@@ -1,0 +1,24 @@
+Prompt06 Stairs Alpha physical weak-axis summary
+
+Runtime: schema5, first native measurement iteration only, 3446 rows.
+Course-axis rows use the primary 2.0 s centered fit (half-window 1.0 s,
+speed threshold 0.10 m/s); no attitude claim is needed for this control.
+
+| quantity | n | median | P90 | P95 | max |
+|---|---:|---:|---:|---:|---:|
+| weak_rank_R | 1105 | 1 | 1 | 1 | 2 |
+| O_yaw | 1105 | 0.00118403 | 0.0328258 | 0.0508828 | 0.102015 |
+| O_long | 984 | 0.885704 | 0.998362 | 0.999084 | 0.999824 |
+| O_lat | 984 | 0.00652365 | 0.961903 | 0.986483 | 0.998933 |
+
+Physical classification counts over core-valid runtime rows / course-valid
+rows: `LONGITUDINAL_ROLL_LIKE=536`, `LATERAL_TILT_LIKE=144`, `MIXED=175`,
+`NO_ROTATIONAL_WEAK_SUBSPACE=250`.
+
+The 1/5/10 s local rotational-error controls were computed with the same
+right/local orientation semantics.  Median / max errors were respectively
+0.644014 / 6.64266 deg, 1.75436 / 7.88198 deg, and 2.27965 / 7.88143 deg.
+Spearman rho against the reported physical/forcing diagnostics was weak or
+small: O_yaw 0.0252/0.1486/0.1797, Psi_weak_R -0.00373/-0.0623/-0.0237,
+C_yaw_L 0.0938/0.1453/0.1821, weak chi 0.2753/0.2010/0.1939, and kappa_R
+-0.0252/0.0415/0.1846 for 1/5/10 s.

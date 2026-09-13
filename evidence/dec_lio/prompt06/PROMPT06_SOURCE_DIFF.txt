@@ -1,0 +1,23 @@
+Prompt06 source boundary
+
+Added/changed only for shadow analysis, build wiring, parameters, tests and
+evaluation:
+
+  src/super_lio/CMakeLists.txt
+  src/super_lio/include/dec_lio/WeakAxisAnalyzer.h
+  src/super_lio/src/dec_lio/WeakAxisAnalyzer.cpp
+  src/super_lio/include/lio/params.h
+  src/super_lio/src/lio/params.cpp
+  src/super_lio/include/lio/super_lio.h
+  src/super_lio/src/lio/super_lio.cpp
+  src/super_lio/src/ros/ROSWrapper.cpp
+  tools/dec_lio/run_baseline.sh
+  tools/dec_lio/production_identity.py
+  tests/dec_lio/weak_axis_synthetic_test.cpp
+  eval/dec_lio/prompt06_analysis.py
+
+The only SuperLIO integration captures read-only pre-update R/gravity/P and
+calls an analysis-only CSV writer on the first native measurement iteration.
+The native HTVH/HTVr assignment, ESKF update, associations, residuals and map
+path are unchanged.  Production identity and native-lio diff checks are
+required at closure.
