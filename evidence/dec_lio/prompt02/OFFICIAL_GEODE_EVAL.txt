@@ -1,0 +1,25 @@
+Prompt02 official-style GEODE Stairs evaluation
+
+evaluator: evo 1.31.1 (`evo_ape`)
+command:
+  evo_ape tum /home/lc/dec_lio/runtime/prompt02/stairs_d1_on/canonical/trajectory.tum /home/lc/dec_lio/bag/GEODE/stairs_alpha.txt -va --t_max_diff 0.1 --t_offset 0
+
+association:
+  estimate_stamps: 3446
+  gt_stamps: 3447
+  matched: 3446
+  max_time_diff_s: 0.1
+  time_offset_s: 0.0
+  alignment: Umeyama SE(3), scale correction 1.0
+
+APE translation (m):
+  max: 0.375807
+  mean: 0.186868
+  median: 0.183697
+  min: 0.035337
+  rmse: 0.197687
+  sse: 134.670143
+  std: 0.064502
+
+This is an external-tool cross-check. The fixed internal evaluator remains a
+separate diagnostic and is not forced to agree with evo's association.

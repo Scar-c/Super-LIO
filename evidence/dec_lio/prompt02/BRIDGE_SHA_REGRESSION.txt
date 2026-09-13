@@ -1,0 +1,14 @@
+Prompt02 Bridge01 D1 ON exact regression
+
+command:
+  python3 eval/dec_lio/exact_parity.py \
+    /home/lc/dec_lio/runtime/prompt00r/full/offline_full_01/trajectory.tum \
+    /home/lc/dec_lio/runtime/prompt02/bridge_d1_on/canonical/trajectory.tum
+
+canonical Prompt00R: bytes=622301 sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+Prompt02 D1 ON:     bytes=622301 sha256=6b5dc117b86a1ff908261a2e3f0627c0e49a96d1fa2bfc0f45f95545bc5e2203
+cmp: 0 / PASS
+
+runtime D1 artifacts:
+  dcreg_shadow.csv bytes=21350191 sha256=5118f152063d734041620fe44e13e4dcdc1bdb553ca4198483a050ec329d9d03
+  dcreg_frame_summary.csv bytes=1442009 sha256=b810ae59bd71c307621bbc940145bab6e1920f90f52691406a2e28d7816412e5

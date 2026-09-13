@@ -1,0 +1,25 @@
+Prompt02 source-boundary audit
+
+allowed functional changes:
+  - diagnostic used-residual counter
+  - raw-EVD weak projector/rank/eigengap/stability diagnostics
+  - shadow CSV v2 and analysis scripts
+  - documentation and evidence organization
+
+audit command:
+  git diff origin/ros1 -- src/super_lio/src/lio src/super_lio/include/lio
+
+result:
+  source changes are limited to the already-authorized D1 plumbing in
+  `params.*`, `super_lio.h`, `super_lio.cpp`, and ROS parameter wrapper paths.
+  No `ESKF.cpp` or ESKF update mathematics changed. The exact native H/b
+  reduction order, residual/Jacobian, 1000 weight, association, map, IMU,
+  posterior, and estimator delivery remain untouched. `git diff --check`
+  passed.
+
+forbidden implementation status:
+  estimator H modified: NO
+  estimator b modified: NO
+  gamma applied: NO
+  PCG implemented: NO
+  Prob-LIO implemented: NO

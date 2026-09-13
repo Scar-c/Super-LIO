@@ -1,0 +1,24 @@
+Prompt02 closure (pending final commit identity)
+
+Prompt02 scope:
+  D1 used-residual count correction, raw-EVD weak-projector stability,
+  schema-v2 shadow output, exact Bridge/Stairs regression, official-style
+  Stairs GT cross-check, local-error correlation, and counterfactual gamma
+  analysis. D2 estimator implementation was not authorized and was not done.
+
+gates:
+  startup HEAD/merge-base gate: PASS
+  Prompt01 and Prompt02 verbatim archives: PASS
+  evidence migration and namespace hygiene: PASS
+  D1 counter/projector/schema tests: PASS
+  Bridge D1 ON SHA regression: PASS, cmp=0
+  Stairs D1 ON SHA regression: PASS, cmp=0
+  official-style evo Stairs APE: PASS, evo 1.31.1, 3446 matches
+  local error Delta=1/5/10 s: PASS, fixed max diff=0.1 s
+  source boundary / no ESKF math change: PASS
+  estimator contamination checks: PASS
+
+decision:
+  B — KAPPA_PLUS_ABSOLUTE_INFORMATION_NEEDED
+
+status: CLOSED

@@ -1,0 +1,35 @@
+Prompt02 Bridge01 raw D1 subspace summary
+
+input: /home/lc/dec_lio/runtime/prompt02/bridge_d1_on/canonical/dcreg_shadow.csv
+rows: 12169, valid: 12169, factorization failures: 0
+stability sample: valid consecutive raw observation rows; projector/angle
+statistics exclude the first row and undefined rank-change angles.
+
+weak-rank distribution (threshold=10, raw-EVD normalized eigenvalue < 0.1):
+  rotation: translation:
+    rank 0: 11830 / 11705
+    rank 1:   339 /   464
+    rank 2:     0 /     0
+
+rank-change rate:
+  rotation=0.00304051 (37/12169)
+  translation=0.00262963 (32/12169)
+
+projector Frobenius distance (finite transitions, n=8355 for each mode):
+  rotation: median=0, P95=0, max=1.000000
+  translation: median=0, P95=0, max=1.000000
+
+principal-angle maximum, degrees (same nonzero rank only):
+  rotation: n=8318, median=0, P95=0, max=8.361785
+  translation: n=8323, median=0, P95=0, max=6.790138
+
+secondary eigenbasis-gauge diagnostic:
+  definition: signed raw-basis column jump >45 degrees while projector
+  distance <1e-8; this is not a physical subspace-motion authority.
+  rotation: 912/8355=10.9156%, max signed basis angle=179.9971 degrees
+  translation: 756/8355=9.0485%, max signed basis angle=179.9897 degrees
+
+Interpretation: most adjacent weak projectors are unchanged, but raw basis
+sign/gauge changes are common enough to justify projector authority. The
+frame-level authority summary remains separate from these raw iteration
+stability diagnostics.

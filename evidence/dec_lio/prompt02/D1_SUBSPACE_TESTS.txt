@@ -1,0 +1,26 @@
+Prompt02 D1 projector/stability tests
+
+build command:
+  catkin_make -C /home/lc/dec_lio -j4
+
+synthetic executable:
+  /home/lc/dec_lio/devel/lib/super_lio/dec_lio_dcreg_synthetic_test
+  output: D1 synthetic tests A-I: PASS
+
+Covered cases:
+  - true used-residual counter fields and ratio
+  - projector symmetry, idempotence, and trace/rank
+  - eigenvector sign and eigenpair permutation invariance
+  - repeated-eigenvalue weak-subspace invariance
+  - principal-angle calculation for a same-rank rotation
+  - explicit rank-change flag with undefined (`nan`) principal angle
+  - raw/summary CSV schema v2 and exact header/data column parity
+
+Python test command:
+  python3 -m unittest discover -s tests/dec_lio -p 'test_*.py'
+  result after the Prompt02 test extension: 9 tests, PASS
+
+The Python tests additionally cover Spearman ranking, weak-projector
+coordinate transformation, a synthetic 1/5/10-second local-error trajectory,
+projector mutation rejection, and the existing negative timestamp/parity
+validator.

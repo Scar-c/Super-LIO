@@ -1,0 +1,34 @@
+Prompt02 D1 count corrective
+
+old semantic:
+  Prompt01 `effective_correspondences` was populated with `effect_knn_num_`.
+  That value is the candidate loop count, not the number of residuals that
+  reached the exact native `J * 1000 * J.transpose()` and
+  `J * 1000 * error` accumulation.
+
+corrected seam:
+  Each thread-local accumulator increments `used_residual_count` immediately
+  after both native H/b accumulation statements. Integer counters are summed
+  after the existing floating-point reduction in the existing order. The
+  analyzer receives `candidate_count=effect_knn_num_` and the independent
+  `used_residual_count`; no native H, b, residual, Jacobian, weight, map, or
+  estimator update is changed.
+
+schema:
+  D1 raw and frame-summary CSVs declare `schema_version=2` and contain
+  candidate_count, used_residual_count, used_residual_ratio, spectra,
+  raw-EVD weak ranks/projectors, eigengaps, stability fields, masks, and
+  secondary axis diagnostics.
+
+first-valid authority:
+  Frame-level analyses use the first valid non-converged IESKF iteration.
+
+frame-authority count statistics (n=3814 Bridge, n=3446 Stairs):
+
+| sequence | candidate median / min / max | used median / min / max | ratio median / min / max |
+|---|---:|---:|---:|
+| Bridge01 | 2409.5 / 460 / 3662 | 1880 / 295 / 3249 | 0.798643 / 0.421277 / 0.962785 |
+| Stairs Alpha | 483 / 110 / 2349 | 396 / 98 / 1966 | 0.811128 / 0.521197 / 0.982103 |
+
+Complete raw-row statistics and hashes are in the runtime v2 JSON/CSV under
+`/home/lc/dec_lio/runtime/prompt02/{bridge,stairs}_d1_on/canonical/`.

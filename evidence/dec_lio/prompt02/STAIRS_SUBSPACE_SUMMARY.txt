@@ -1,0 +1,35 @@
+Prompt02 Stairs Alpha raw D1 subspace summary
+
+input: /home/lc/dec_lio/runtime/prompt02/stairs_d1_on/canonical/dcreg_shadow.csv
+rows: 12322, valid: 12322, factorization failures: 0
+stability sample: valid consecutive raw observation rows; projector/angle
+statistics exclude the first row and undefined rank-change angles.
+
+weak-rank distribution (threshold=10, raw-EVD normalized eigenvalue < 0.1):
+  rotation: translation:
+    rank 0: 4267 / 11903
+    rank 1: 8033 /   419
+    rank 2:   22 /     0
+
+rank-change rate:
+  rotation=0.0190716 (235/12322)
+  translation=0.00275929 (34/12322)
+
+projector Frobenius distance (finite transitions, n=8876 for each mode):
+  rotation: median=0.000679060, P95=0.100501, max=1.414214
+  translation: median=0, P95=0, max=1.000000
+
+principal-angle maximum, degrees (same nonzero rank only):
+  rotation: n=8641, median=0.017762, P95=2.793452, max=30.552180
+  translation: n=8842, median=0, P95=0, max=3.895279
+
+secondary eigenbasis-gauge diagnostic:
+  definition: signed raw-basis column jump >45 degrees while projector
+  distance <1e-8; this is not a physical subspace-motion authority.
+  rotation: 716/8876=8.0667%, max signed basis angle=179.9983 degrees
+  translation: 639/8876=7.1992%, max signed basis angle=179.9896 degrees
+
+Interpretation: Stairs rotation has materially more within-sequence projector
+motion and rank variation than Bridge. A first-valid frame snapshot is useful
+for reproducible reporting, but these results do not justify freezing the
+projector as an estimator gate input without a dedicated persistence study.

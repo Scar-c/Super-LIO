@@ -1,0 +1,29 @@
+Prompt02 counterfactual shadow gamma study
+
+This is offline analysis only. For each valid raw Schur eigenmode:
+  gamma_i = min(1, sqrt(kappa_ref / kappa_i))
+  kappa_i = lambda_max / lambda_i = 1 / normalized_lambda_i
+
+No gamma value was applied to H, b, the estimator, or any trajectory. The
+complete machine-readable per-mode output is in:
+  `/home/lc/dec_lio/runtime/prompt02/bridge_d1_on/canonical/d1_v2_summary.json`
+  `/home/lc/dec_lio/runtime/prompt02/stairs_d1_on/canonical/d1_v2_summary.json`
+
+Each cell below is:
+  fraction(gamma<1) / fraction(gamma<0.75) / fraction(gamma<0.5) /
+  fraction(gamma<0.25); median / P10 / minimum; longest attenuation run
+  (frames, duration seconds).
+
+| sequence/ref | rot mode 0 | rot mode 1 | rot mode 2 | trans mode 0 | trans mode 1 | trans mode 2 |
+|---|---|---|---|---|---|---|
+| Bridge/3 | .7006/.2650/.0093/0; .9066/.6298/.4189; 1329,37.498 | .1157/.0040/0/0; 1/.9821/.6163; 53,1.702 | 0/0/0/0; 1/1/1; 0,0 | .5020/.2297/.0159/0; .9974/.6405/.3849; 1409,41.799 | .2745/.0127/0/0; 1/.8772/.5857; 400,10.800 | 0/0/0/0; 1/1/1; 0,0 |
+| Bridge/5 | .2979/.0521/0/0; 1/.8130/.5408; 268,8.000 | .0058/0/0/0; 1/1/.7956; 8,.104 | 0/0/0/0; 1/1/1; 0,0 | .2523/.0565/.0002/0; 1/.8269/.4969; 537,16.900 | .0200/0/0/0; 1/1/.7561; 47,1.097 | 0/0/0/0; 1/1/1; 0,0 |
+| Bridge/10 | .0279/0/0/0; 1/1/.7648; 51,1.300 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 | .0381/.0012/0/0; 1/1/.7027; 86,2.203 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 |
+| Bridge/20 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 | .0002/0/0/0; 1/1/.9938; 2,0 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 |
+| Stairs/3 | .9415/.8269/.5841/.0941; .4585/.2536/.1278; 1144,37.498 | .1444/.0171/.0014/0; 1/.9325/.3310; 247,11.399 | 0/0/0/0; 1/1/1; 0,0 | .6501/.2220/.0187/0; .9169/.6634/.3747; 1043,26.602 | .0227/.0008/0/0; 1/1/.6851; 60,1.700 | 0/0/0/0; 1/1/1; 0,0 |
+| Stairs/5 | .8406/.6966/.3479/.0158; .5920/.3274/.1650; 583,18.901 | .0245/.0020/.0006/0; 1/1/.4273; 24,.701 | 0/0/0/0; 1/1/1; 0,0 | .2605/.0486/.0003/0; 1/.8565/.4838; 308,7.690 | .0016/0/0/0; 1/1/.8844; 12,.303 | 0/0/0/0; 1/1/1; 0,0 |
+| Stairs/10 | .6537/.3935/.1350/.0001; .8372/.4630/.2334; 549,16.398 | .0018/.0008/0/0; 1/1/.6043; 15,.402 | .0/0/0/0; 1/1/1; 0,0 | .0340/.0014/0/0; 1/1/.6842; 76,1.801 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 |
+| Stairs/20 | .3479/.1617/.0158/0; 1/.6548/.3301; 460,14.700 | .0006/0/0/0; 1/1/.8546; 3,0 | 0/0/0/0; 1/1/1; 0,0 | .0003/0/0/0; 1/1/.9676; 3,0 | 0/0/0/0; 1/1/1; 0,0 | 0/0/0/0; 1/1/1; 0,0 |
+
+The all-mode output above is descriptive and counterfactual. It is not a
+threshold-selection result and does not authorize a D2 implementation.

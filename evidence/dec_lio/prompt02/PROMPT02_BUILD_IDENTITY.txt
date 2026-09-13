@@ -1,0 +1,27 @@
+Prompt02 build and test identity
+
+workspace: /home/lc/dec_lio
+repository: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Prompt02 implementation checkpoint: 4b08b95a3467c194d24a2e5eb45f0b3c06560167
+
+build command:
+  catkin_make -C /home/lc/dec_lio -j4
+result: PASS
+
+runtime command policy:
+  tools/dec_lio/run_baseline.sh --mode offline --sequence bridge01
+    --d1-shadow --bag .../bridge01.bag --config geode_alpha.yaml
+  tools/dec_lio/run_baseline.sh --mode offline --sequence stairs_alpha
+    --d1-shadow --bag .../stairs_alpha.bag --config geode_stairs_alpha.yaml
+  no --threads override; runner default nproc=32
+
+tests:
+  /home/lc/dec_lio/devel/lib/super_lio/dec_lio_dcreg_synthetic_test: PASS
+  python3 -m unittest discover -s tests/dec_lio -p 'test_*.py': 9 tests PASS
+
+Prompt01 archive SHA256:
+  e01a51a05cc69b6ab36e1a21f2d407f6ac0765a9f75bda36161e376f23eb9d54
+Prompt02 archive SHA256:
+  0a1189858dfb847b6cd89363d9e0e8e7cd882de19b7eddb1ca6a110723aafa31

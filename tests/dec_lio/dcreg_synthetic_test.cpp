@@ -243,6 +243,16 @@ int main() {
   }
   close((permuted_projector - h_result.weak_projector_rot).norm(), 0.0,
         "H projector permutation invariance");
+  const Matrix3d repeated =
+      plane_rotation * (Vector3d(0.01, 0.01, 10.0).asDiagonal()) *
+      plane_rotation.transpose();
+  const Characterization repeated_result =
+      DecLIO::DCRegAnalyzer::characterize(blockDiagonal(repeated, repeated), b, 10.0);
+  const Matrix3d repeated_expected =
+      plane_rotation * Vector3d(1.0, 1.0, 0.0).asDiagonal() *
+      plane_rotation.transpose();
+  close((repeated_result.weak_projector_rot - repeated_expected).norm(), 0.0,
+        "H repeated-eigenvalue subspace invariance");
 
   // I: schema v2 and temporal subspace diagnostics. A rotating rank-one
   // weak subspace has a finite principal angle; a rank transition is explicit

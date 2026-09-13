@@ -1,0 +1,72 @@
+Prompt02 local error correlation and high-error coverage
+
+Contract:
+  evaluator association max timestamp difference=0.1 s, offset=0.0 s;
+  one global SE(3) Umeyama alignment; no per-window realignment; rotational
+  error is the relative SO(3) error in degrees; weak drift uses
+  `R_A P_weak_trans R_A^T` in GT coordinates. The local analysis uses the
+  deterministic in-repo greedy association implementation and reports its
+  own match count.
+
+Machine-readable complete outputs:
+  `/home/lc/dec_lio/runtime/prompt02/bridge_d1_on/canonical/local_error_analysis.json`
+  `/home/lc/dec_lio/runtime/prompt02/stairs_d1_on/canonical/local_error_analysis.json`
+
+Local error statistics (median / P90 / max; translation in m, rotation in deg):
+
+| sequence | Delta | windows | E_t | E_R | weak projected drift (valid count) |
+|---|---:|---:|---:|---:|---:|
+| Bridge | 1 s | 3793 | 0.7291 / 1.8259 / 3.1481 | 0.7124 / 3.7354 / 27.4750 | 0.3066 / 0.7095 / 1.3369 (143) |
+| Bridge | 5 s | 3754 | 3.2656 / 9.0204 / 14.8797 | 2.1673 / 16.9277 / 125.6253 | 0.8115 / 2.8419 / 5.7947 (143) |
+| Bridge | 10 s | 3703 | 6.4528 / 18.7070 / 26.3068 | 3.2031 / 31.8678 / 179.7747 | 1.5279 / 4.1254 / 13.1948 (143) |
+| Stairs | 1 s | 3437 | 0.0463 / 0.1164 / 0.2487 | 0.6462 / 1.9315 / 7.6102 | 0.0350 / 0.1076 / 0.1359 (113) |
+| Stairs | 5 s | 3397 | 0.1386 / 0.2623 / 0.3935 | 1.7552 / 3.4360 / 7.8820 | 0.0847 / 0.1682 / 0.3649 (113) |
+| Stairs | 10 s | 3346 | 0.1951 / 0.2877 / 0.3893 | 2.2815 / 3.8219 / 7.8814 | 0.0843 / 0.1597 / 0.2267 (113) |
+
+Spearman rho (n is shown in the machine JSON; columns are max-log-kappa,
+mean-log-kappa, min absolute lambda, min absolute lambda/N_used, min
+normalized lambda, weak-frame fraction):
+
+| sequence / Delta | translation error vs trans geometry | rotation error vs rot geometry |
+|---|---|---|
+| Bridge / 1 s | +0.3373, +0.2881, -0.5708, -0.4265, -0.3373, +0.2428 | -0.0233, -0.0242, -0.2755, -0.1224, +0.0233, +0.0360 |
+| Bridge / 5 s | +0.4154, +0.3095, -0.5963, -0.5050, -0.4154, +0.3434 | +0.0169, -0.0774, -0.2531, -0.1436, -0.0169, +0.0332 |
+| Bridge / 10 s | +0.5015, +0.3345, -0.6268, -0.5626, -0.5015, +0.4234 | +0.0711, -0.0850, -0.2713, -0.1753, -0.0711, +0.0372 |
+| Stairs / 1 s | +0.2268, +0.1492, -0.2031, -0.2051, -0.2268, +0.1252 | +0.1522, +0.0017, -0.1869, -0.1170, -0.1522, -0.0917 |
+| Stairs / 5 s | +0.4531, +0.3487, -0.4894, -0.4392, -0.4531, +0.3311 | +0.3393, +0.0291, -0.3226, -0.2135, -0.3393, -0.1151 |
+| Stairs / 10 s | +0.3717, +0.2761, -0.4395, -0.3240, -0.3717, +0.3371 | +0.3588, +0.1102, -0.3387, -0.2000, -0.3588, -0.0204 |
+
+High-error event metrics use top 10% local error. Each tuple is
+`precision / recall / event-overlap(IoU) / false-positive-fraction`; R uses
+rotational kappa and T uses translational kappa. Complete values for all
+Delta/ref combinations are in both machine JSON files.
+
+| sequence / Delta | mode | k=3 | k=5 | k=10 | k=20 |
+|---|---|---|---|---|---|
+| Bridge / 1 s | R | .0794/.6684/.0764/.7764 | .0416/.1658/.0344/.3825 | .0417/.0395/.0207/.0910 | 0/0/0/0 |
+| Bridge / 1 s | T | .0958/.5526/.0889/.5225 | .0814/.2395/.0647/.2708 | .1756/.1553/.0898/.0730 | 0/0/0/0 |
+| Bridge / 5 s | R | .0917/.8537/.0903/.8468 | .0360/.1782/.0309/.4779 | .0408/.1011/.0299/.2381 | 0/0/0/0 |
+| Bridge / 5 s | T | .1140/.7261/.1093/.5650 | .0964/.3537/.0820/.3320 | .1215/.2553/.0897/.1849 | 0/0/0/0 |
+| Bridge / 10 s | R | .1028/.9865/.1027/.8623 | .0514/.2965/.0458/.5479 | .0382/.1240/.0301/.3124 | 0/0/0/0 |
+| Bridge / 10 s | T | .1376/.9461/.1366/.5938 | .1397/.6092/.1282/.3759 | .1513/.4340/.1264/.2439 | 0/0/0/0 |
+| Stairs / 1 s | R | .1011/1/.1011/.8897 | .1063/.9913/.1062/.8344 | .1182/.9680/.1177/.7230 | .1437/.8169/.1392/.4873 |
+| Stairs / 1 s | T | .1198/.9797/.1195/.7207 | .1381/.5785/.1255/.3614 | .1387/.1105/.0655/.0687 | 0/0/0/.0029 |
+| Stairs / 5 s | R | .1001/1/.1001/.8999 | .1012/1/.1012/.8890 | .1035/.9912/.1034/.8590 | .1091/.9588/.1086/.7836 |
+| Stairs / 5 s | T | .1088/1/.1088/.8195 | .1402/.8735/.1374/.5364 | .2193/.4676/.1755/.1666 | .2000/.0294/.0263/.0118 |
+| Stairs / 10 s | R | .1001/1/.1001/.8999 | .1001/1/.1001/.8999 | .1021/1/.1021/.8802 | .1043/1/.1043/.8598 |
+| Stairs / 10 s | T | .1059/1/.1059/.8452 | .1225/.8687/.1202/.6231 | .2237/.7493/.2081/.2603 | .5800/.1731/.1538/.0126 |
+
+Gate-vs-error coverage is recorded for every ref and every Delta in the
+machine JSON. The 10-second top10/bottom50 coverage highlights the design
+issue (top10 / bottom50):
+
+| sequence / mode | ref=3 | ref=5 | ref=10 | ref=20 |
+|---|---:|---:|---:|---:|
+| Bridge R | 0.9865 / 0.9903 | 0.2965 / 0.5956 | 0.1240 / 0.3618 | 0 / 0 |
+| Bridge T | 0.9461 / 0.5799 | 0.6092 / 0.2759 | 0.4340 / 0.1458 | 0 / 0 |
+| Stairs R | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 0.9605 | 1.0000 / 0.9199 |
+| Stairs T | 1.0000 / 0.8906 | 0.8687 / 0.6306 | 0.7493 / 0.2038 | 0.1731 / 0 |
+
+The Stairs rotation result is the decisive negative control: high relative
+conditioning is present for much of the sequence while local trajectory
+error remains small. Correlation is not causation.

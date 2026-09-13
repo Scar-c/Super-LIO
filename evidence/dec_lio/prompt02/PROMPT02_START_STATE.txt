@@ -1,0 +1,13 @@
+Prompt02 start state
+
+prompt: /home/lc/dec_lio/prompts/Dec-LIO Prompt02 — D1 Corrective and D2 Gate-Design Evidence.md
+expected_start_head: 198e9067a486296e4269191fb959443c8340550d
+start_branch: Dec-LIO
+origin_ros1_at_start: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_merge_base: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_worktree: clean
+prob_lio_workspace: preserved; no delete, move, or stash performed
+dec_lio_workspace: /home/lc/dec_lio/src/Super-LIO
+
+The Prompt02 archive is byte-for-byte copied from the supplied external
+prompt. Prompt01 is archived beside it for authority traceability.
