@@ -1,0 +1,39 @@
+Prompt05 fixed evaluator results
+
+Evaluator: eval/dec_lio/eval_tum_translation.py
+Association: max timestamp difference 0.1 s; one global SE(3), no scale, no crop
+
+Bridge:
+  estimate: /home/lc/dec_lio/runtime/prompt05/bridge/canonical/trajectory.tum
+  ground_truth: /home/lc/dec_lio/bag/GEODE/bridge01.txt
+  matched: 3804
+  rmse_m: 38.7403816
+  mean_m: 33.3625516
+  median_m: 35.9457023
+  p90_m: 57.4510259
+  p95_m: 62.8692444
+  max_m: 91.8325959
+
+Stairs Alpha:
+  estimate: /home/lc/dec_lio/runtime/prompt05/stairs/canonical/trajectory.tum
+  ground_truth: /home/lc/dec_lio/bag/GEODE/stairs_alpha.txt
+  matched: 3442
+  rmse_m: 0.197724347
+  mean_m: 0.186933911
+  median_m: 0.183732441
+  p90_m: 0.274092376
+  p95_m: 0.304488850
+  max_m: 0.375739050
+  reference_authority: OFFICIAL_TRAJECTORY_GT (Alpha PALoc-to-GT-map reference)
+
+Tunnel2:
+  estimate: /home/lc/dec_lio/runtime/prompt05/tunnel2/canonical/trajectory.tum
+  ground_truth: /home/lc/dec_lio/bag/GEODE/Tunneling_tunnel2.txt
+  matched: 591
+  rmse_m: 6.45067165
+  mean_m: 4.50284249
+  median_m: 2.78326647
+  p90_m: 16.9846949
+  p95_m: 17.2000875
+  max_m: 17.4050645
+  attitude_reference: UNAVAILABLE (supplied quaternion fields are zero)

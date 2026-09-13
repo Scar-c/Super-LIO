@@ -1,0 +1,18 @@
+Prompt05 source scope
+
+Added an estimator-independent ConsistencyAnalyzer shadow and a C1-C8
+synthetic executable.  The native capture is restricted to iteration==0 and
+need_converge==false, before native UpdateObserve changes the state.  It
+serially gathers the accepted per-index J and scalar error after the existing
+TBB accumulation, and passes a read-only P_pred/H/b copy to the analyzer.
+
+The native H/b reduction, IESKF update, association, map, residual, gate, IMU,
+and estimator state paths were not changed.  The shadow is disabled by
+default and writes only a schema-4 CSV when explicitly enabled by the runner.
+
+The canonical input YAML files retain their authority hashes.  Prompt05
+shadow parameters are supplied by runner rosparams after loading the canonical
+YAML, so enabling the shadow does not mutate the input identity.
+
+Forbidden estimator features absent: gamma, H/b/P modification, gain or
+Schmidt projection, state freeze, PCG, and any estimator gate.

@@ -1,0 +1,20 @@
+Prompt05 C1-C8 synthetic tests
+
+Executable:
+  /home/lc/dec_lio/devel/lib/super_lio/dec_lio_consistency_synthetic_test
+
+Result:
+  Prompt05 consistency synthetic tests C1-C8: PASS
+
+C1 1D analytic correction/energy identity: PASS
+C2 small prior pull: PASS
+C3 strong LiDAR/prior conflict: PASS
+C4 weak Hessian with zero weak forcing: PASS
+C5 weak Hessian with strong weak forcing: PASS
+C6 well-conditioned biased normal system: PASS
+C7 coordinate rescaling invariance: PASS
+C8 rank-deficient symmetric-EVD pseudoinverse: PASS
+
+Build:
+  catkin_make -C /home/lc/dec_lio -j4: PASS
+  native library and super_lio_offline_node: PASS

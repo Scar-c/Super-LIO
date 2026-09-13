@@ -1,0 +1,25 @@
+Prompt05 closure
+
+Completed:
+  - Prompt05 archived with exact SHA and start authority recorded
+  - Prompt04 Bridge owner wording amended with the exact supplied sentence
+  - Prompt04 primary Tunnel2 C corrected to F with rotational-candidate annotation
+  - schema-4 pre-update consistency shadow implemented
+  - first native measurement iteration authority and read-only P_pred capture enforced
+  - exact accepted J/error index capture added after existing TBB accumulation
+  - C1-C8 synthetic tests PASS
+  - Bridge/Stairs/Tunnel2 full shadow runs PASS with canonical trajectory SHA
+  - 1/5/10 s overlapping and non-overlapping analysis completed
+  - deterministic 10 s block bootstrap correlations completed
+  - top10/bottom50 event tables completed
+  - Tunnel2 fixed pre-declared onset comparison completed
+  - hypotheses H0-H4 and A-G classification recorded
+  - D2-2 diagnostic recommendation selected; D2-4 production boundary retained
+  - no Gamma execution and no estimator gate
+
+Boundary audit:
+  gamma/H/b/P/gain/Schmidt/state-freeze/PCG/association/map/residual/gate/IMU/
+  IESKF/Prob-LIO estimator changes: NONE.
+  Existing Prob-LIO artifacts were not deleted, moved, or stashed.
+
+Status: CLOSED

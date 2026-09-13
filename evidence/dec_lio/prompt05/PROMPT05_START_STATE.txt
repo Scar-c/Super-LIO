@@ -1,0 +1,16 @@
+Prompt05 start authority
+
+prompt: /home/lc/dec_lio/prompts/Dec-LIO Prompt05 — Pre-Update Consistency - Innovation Shadow.md
+archived: prompts/dec_lio/PROMPT05_CONSISTENCY_INNOVATION_SHADOW.md
+archive_sha256: af460ff1dc3d4b7bfbeeabac3a0749e91c144da148286758cdaa5623eb982877
+
+workspace: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+start_head: f7564474e3b7f305b2f325d96ec8af96cab9c873
+origin_dec_lio_at_start: f7564474e3b7f305b2f325d96ec8af96cab9c873
+origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+merge_base_start: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_worktree: CLEAN
+
+No Prob-LIO artifacts were deleted, moved, or stashed.  Runtime output stays
+outside the repository under /home/lc/dec_lio/runtime/prompt05.
