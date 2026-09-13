@@ -9,7 +9,7 @@ and Tunnel2 Alpha runs.  No threshold below is promoted to production.
 | H1 high kappa + low weak chi | Tunnel2 has low full-run median weak chi R 0.565 but its fixed onset reaches 66.355; Stairs remains low-error with high kappa and nonzero weak chi. | Not sufficient; onset candidate only. |
 | H2 high kappa + high weak chi | Tunnel2 onset combines rotational kappa up to 110.444 with weak chi R 66.355 and psi R 33.432. | Supported as a Tunnel2 candidate signature, not causal proof. |
 | H3 moderate kappa + high G/C_L | Bridge has moderate kappa and large C values, but median G is only 0.00642; its strong C is not a unique failure discriminator. | Not supported as a general explanation. |
-| H4 sparse low lambda/N without strong G | Stairs and Tunnel2 have lower rotational lambda/N than Bridge, while Bridge has the Owner's sparse-environment label; G is small in all medians. | Does not explain the three scenes as one mechanism. |
+| H4 sparse low lambda/N without strong G | Bridge 5 s high-error top10 is covered by bottom50 λ/N-R 75%, λ/N-t 87.5%, and N_used 100%, while bottom50 G covers 12.5%; its full-scene median N_used and λ/N are not globally low. | Supports Bridge failure-window Type S only; does not explain the three scenes as one mechanism. |
 
 ## A-G classification audit
 

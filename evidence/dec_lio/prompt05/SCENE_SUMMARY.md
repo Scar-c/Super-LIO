@@ -26,8 +26,10 @@ Interpretation is deliberately separated from the descriptive numbers:
   strongest onset weak forcing, but its supplied GT is position-only, so no
   rotation-error correlation is defined.
 * Bridge is classified by the Owner as sparse geometric support / feature-poor
-  environment.  Its high C values and moderate kappa do not reduce that owner
-  label to a low-lambda/N detector.
+  environment.  At the 5 s non-overlap translation top10, bottom50 λ/N-R,
+  λ/N-t, and N_used cover 75%, 87.5%, and 100% of the high-error windows,
+  respectively, while bottom50 G covers only 12.5%.  This is a failure-window
+  Type S signature, not a scene-wide or transferable threshold.
 
 Full per-frame and window-level values are in the runtime JSON files:
 
