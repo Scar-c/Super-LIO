@@ -1,0 +1,19 @@
+Prompt11 source diff summary against origin/ros1
+
+Added/modified source:
+* PairedAttenuation.h/.cpp: explicit four-state mode enum, paired control
+  construction from raw H/b, deterministic control audit fields, and separate
+  scalar-control timing CSV field.
+* ESKF.cpp: one control selection seam after the existing P1 diagnostic; only
+  the 6x6 LiDAR H block and 6x1 LiDAR b are replaceable.
+* params.h/.cpp and ROSWrapper.cpp: authoritative integer mode parameter,
+  default OFF.
+* run_baseline.sh: `--paired-mode off|p1|utrace|ugamma`, explicit metadata and
+  ROS parameter.
+* CMakeLists.txt and prompt11_uniform_control_test.cpp: T1-T10 executable.
+* eval/dec_lio/prompt11_analysis.py: fixed-contract evaluation only.
+
+Frozen boundaries: no P_pred, R_pred, p_pred, G_prior, Pk, Qk, Update(), quit
+criterion, covariance reset, map, correspondence, point preprocessing,
+threshold, PCG, harmfulness gate, GT runtime access, Prob-LIO, or vision change.
+Prompt10 P1 directional implementation and results were not modified.

@@ -1,0 +1,17 @@
+Prompt11 closure
+
+final_HEAD: 01b0d2c
+origin_Dec-LIO: 01b0d2c
+merge_base_origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+worktree: clean before evidence commit
+build: PASS
+python_tests: 19 PASS
+synthetic_T1_T10: PASS
+Prompt10_synthetic_T1_T20: PASS
+native_OFF_parity: Stairs/Tunnel2 PASS
+science_runs: 8/8 RC=0
+determinism: trajectory and main control CSV SHA PASS for all four pairs
+classification: P11-B / DIRECTIONALITY_PARTIALLY_SUPPORTED
+held_out_full_6DoF_next: YES
+threshold_tuning: NO
+status: CLOSED

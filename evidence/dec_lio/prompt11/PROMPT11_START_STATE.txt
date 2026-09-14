@@ -1,0 +1,19 @@
+Prompt11 start state
+
+prompt: Dec-LIO Prompt11 — Directionality Causal Ablation - Uniform Paired Controls
+repository: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+start_HEAD: de665d986b398db1822f8eaa2560814a4add4679
+start_origin_Dec-LIO: de665d986b398db1822f8eaa2560814a4add4679
+start_merge_base_origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_worktree: clean
+
+Prompt10 P1 authority reused without rerun:
+Stairs N/P1 translation RMSE: 0.197687 / 0.263417 m
+Tunnel2 N/P1 translation RMSE: 6.450672 / 4.691793 m
+
+Final source commits:
+4cfeb47 Dec-LIO Prompt11 uniform paired controls
+01b0d2c Dec-LIO Prompt11 timing and evaluator
+
+No Prob-LIO artifact was deleted, moved, or stashed.

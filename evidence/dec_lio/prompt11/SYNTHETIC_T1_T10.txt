@@ -1,0 +1,13 @@
+Prompt11 uniform control synthetic tests
+
+T1/T2 exact identity bypass: PASS
+T3 uniform paired minimizer: PASS
+T4/T5/T6 trace and uniform control invariants: PASS
+T7 directional-vs-uniform separation: PASS
+T8 U-gamma total-information comparison: PASS
+T9 invalid fail-open: PASS
+T10 source mode isolation (no GT/dataset branch): PASS
+
+Prompt11 uniform control synthetic tests T1-T10: PASS
+Prompt10 paired attenuation synthetic tests T1-T20: PASS
+Python tests: 19 PASS
