@@ -1,0 +1,13 @@
+Prompt07R startup authority
+
+expected_start_HEAD: 64d8cfa93030880556fa324f740220ad6730b97f
+start_HEAD: 64d8cfa93030880556fa324f740220ad6730b97f
+start_origin_Dec-LIO: 64d8cfa93030880556fa324f740220ad6730b97f
+origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_merge_base: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_worktree: CLEAN
+startup_gate: PASS before Prompt07R work
+prompt_archive: prompts/dec_lio/PROMPT07R_GEODE_EXACT_PREPROCESSING.md
+prompt_archive_sha256: 0d4ef21f2e8c0df528974f4f9f8a94c1abab0b175e1f0b19a073aa341def905d
+prompt07_authority_at_start: PARTIAL — OBSERVATION ALIGNMENT AUTHORITY INCOMPLETE
+external_geode_commit: 1f008a7249e36393a1752622de50660b77b5b7f4

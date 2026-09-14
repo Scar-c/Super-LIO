@@ -274,12 +274,12 @@ def main(argv=None):
         "old_prompt07_0p05_superseded": True,
     }
     combined["classification"] = {
-        "primary": "A — PROMPT06_07_CONCLUSIONS_ROBUST_TO_EXACT_GEODE_SCAN_INPUT_ALIGNMENT",
-        "supporting": "Finite-stride ordering changes selected points, information magnitude and trajectory metrics, but not the weak-subspace/course-axis interpretation.",
+        "primary": "B — FINITE_STRIDE_ORDER_MATERIALLY_CHANGES_WEAK_SUBSPACE",
+        "supporting": "The S stride-order-only isolation materially changes the Stairs weak-subspace geometry; the complete A* arm remains close to A_old in physical-axis interpretation.",
     }
     combined["d2_authority"] = {
-        "designation": "D2-OBS-R1",
-        "text": "Weak-subspace direction robust to exact preprocessing; magnitude/thresholds remain preprocessing-dependent.",
+        "designation": "D2-OBS-R2",
+        "text": "Weak-subspace direction itself depends materially on preprocessing; magnitude and thresholds remain preprocessing-dependent.",
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(compact_report(combined), indent=2, sort_keys=True) + "\n",

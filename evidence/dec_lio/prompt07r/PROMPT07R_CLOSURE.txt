@@ -1,0 +1,18 @@
+Prompt07R closure candidate
+
+Startup authority: PASS.
+Prompt07 supersession: PASS.
+GEODE given_offset_time source branch: PASS; PT-D mixed framewise classification.
+Raw-index Jaccard audit: PASS; count equality rejected.
+Finite-then-stride compatibility mode: PASS; default false; S1-S7 PASS.
+Native-OFF canonical parity: PASS for Stairs and Tunnel2.
+S stride-order-only: PASS; suspicious Stairs result reproduced exactly.
+A* exact scan-input alignment: PASS; both scenes deterministic.
+Canonical trajectory evaluation: PASS at max_diff=0.10 s; old 0.05 values superseded.
+Weak-subspace and physical-axis comparison: PASS; O_P and O_course meanings kept separate.
+Full H trace normalization: informative unavailable; no estimator mutation added.
+Scientific classification: B — FINITE_STRIDE_ORDER_MATERIALLY_CHANGES_WEAK_SUBSPACE.
+D2 authority: D2-OBS-R2.
+Estimator gate: MUST BE NO.
+Boundary: H NO, b NO, P NO, map algorithm NO, gamma NO, PCG NO, Prob-LIO NO.
+Tests, production identity and evidence hygiene remain required final gates.

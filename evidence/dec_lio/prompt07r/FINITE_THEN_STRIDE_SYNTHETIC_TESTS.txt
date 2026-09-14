@@ -1,0 +1,9 @@
+Prompt07R finite-then-stride synthetic tests
+
+PASS S1_no_nans_equal
+PASS S2_nan_index_1_differs
+PASS S3_multiple_nans_exact_compaction
+PASS S4_nan_first_exact_compaction
+PASS S5_nan_last_exact_compaction
+PASS S6_blind_does_not_change_stride_phase
+PASS S7 native compatibility mode OFF preserved canonical N SHA for both scenes.
