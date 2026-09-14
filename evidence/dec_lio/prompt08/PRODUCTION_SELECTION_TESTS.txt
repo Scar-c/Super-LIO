@@ -1,0 +1,18 @@
+P1 — PRODUCTION_BLIND_RANGE_ENFORCEMENT: PASS
+
+Production seam: dec_lio_point_selection_test
+Binary: /home/lc/dec_lio/devel/lib/super_lio/dec_lio_point_selection_test
+
+N1-N5 adversarial range cases: PASS
+  blind=1.5 m accepts exactly 1.6 m and 3.0 m
+  blind=2.0 m accepts exactly 3.0 m
+  0.5 m, 1.0 m, exact-blind, exact-maxrange, and >maxrange are rejected
+N6 native compatibility-off parity: PASS (see NATIVE_PARITY.md)
+N7 wrong point_time_scale=1e-6: BROKEN_GEODE_TIME_NEGATIVE_CONTROL
+N8 point_time_scale=1.0: PHYSICAL_0P1S_DESKEW_ACTIVE
+N9 last-selected < max-selected: end-time invariant catches the condition
+
+Direct production test output:
+  P1 — PRODUCTION_BLIND_RANGE_ENFORCEMENT: PASS
+  N1-N5 adversarial range cases: PASS
+  N7-N9 physical-time/end-time synthetic cases: PASS

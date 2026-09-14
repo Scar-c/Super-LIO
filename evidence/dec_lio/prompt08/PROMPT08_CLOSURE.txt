@@ -1,0 +1,17 @@
+PROMPT08 CLOSED
+
+Startup gate: PASS; start HEAD b323bb27a23d15f937be36f084fe9cde5b7d5047; merge-base 60b57aaac8dc397f80c56364e7ccb008c300cc29.
+Production P1 and N1-N9: PASS.
+Corrected SEC semantics, physical point-time, max-accepted-offset end_time,
+and approximately-0.1-s physical deskew: PASS.
+Native Stairs and Tunnel2 exact SHA parity: PASS.
+S_correct and A_correct Stairs/Tunnel2 duplicate runs: PASS.
+Canonical evaluator: 0.10 s association, one global SE(3), no scale/crop/window
+realignment: PASS.
+Science: classification A, D2-OBS-08A, threshold portability NOT_YET_KNOWN.
+Estimator gate: MUST BE NO.
+Boundary: H NO, b NO, P NO, map algorithm NO, gamma NO, PCG NO, Prob-LIO NO.
+
+The authority is GEODE scan-selection aligned with corrected physical time, not
+bug-compatible GEODE FAST-LIO execution and not full FAST-LIO equivalence.
+Report-generation checkout before final commit: e0d9375700a49e5aaacd9e816c45db8afae5c276.

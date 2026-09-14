@@ -1,0 +1,18 @@
+Prompt08 startup gate
+
+Expected start HEAD: b323bb27a23d15f937be36f084fe9cde5b7d5047
+Observed start HEAD: b323bb27a23d15f937be36f084fe9cde5b7d5047
+Observed start origin/Dec-LIO: b323bb27a23d15f937be36f084fe9cde5b7d5047
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+merge-base at startup: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+startup worktree: CLEAN
+startup gate: PASS
+
+Prompt archive: prompts/dec_lio/PROMPT08_GEODE_CORRECTED_PHYSICAL_TIME.md
+Prompt archive SHA256: 8b3c82cc1bc1a5baed046951d7b297b9742eadf25bc2b04818bb8ff98b40eabe
+External GEODE authority: https://github.com/thisparticle/GEODE_Evaluation
+External pinned commit: 1f008a7249e36393a1752622de50660b77b5b7f4
+
+The current report-generation checkout is e0d9375700a49e5aaacd9e816c45db8afae5c276; this includes the
+Prompt08 source and evidence closure changes. Current pre-commit status was
+observed as non-clean while rendering evidence.
