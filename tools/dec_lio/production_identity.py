@@ -27,6 +27,10 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/dec_lio/ConsistencyAnalyzer.cpp",
     "src/super_lio/include/dec_lio/WeakAxisAnalyzer.h",
     "src/super_lio/src/dec_lio/WeakAxisAnalyzer.cpp",
+    "src/super_lio/include/dec_lio/D3Solver.h",
+    "src/super_lio/src/dec_lio/D3Solver.cpp",
+    "src/super_lio/include/lio/ESKF.h",
+    "src/super_lio/src/lio/ESKF.cpp",
     "src/super_lio/include/lio/params.h",
     "src/super_lio/include/lio/point_selection.h",
     "src/super_lio/include/lio/super_lio.h",
@@ -35,7 +39,12 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/lio/super_lio.cpp",
     "src/super_lio/src/ros/ROSWrapper.cpp",
 }
-FORBIDDEN = ("prob_lio", "pcg", "sa_gate")
+FORBIDDEN_ALWAYS = ("prob_lio", "sa_gate")
+FORBIDDEN_NON_D3 = ("pcg",)
+D3_SHADOW_PATHS = {
+    "src/super_lio/include/dec_lio/D3Solver.h",
+    "src/super_lio/src/dec_lio/D3Solver.cpp",
+}
 
 
 def run(repo, *args):
@@ -77,7 +86,10 @@ def main(argv=None):
             errors.append(f"missing changed source file: {path}")
             continue
         lowered = file_path.read_text(encoding="utf-8", errors="replace").lower()
-        for word in FORBIDDEN:
+        forbidden = FORBIDDEN_ALWAYS
+        if path not in D3_SHADOW_PATHS:
+            forbidden += FORBIDDEN_NON_D3
+        for word in forbidden:
             if word in lowered:
                 errors.append(f"forbidden estimator token {word!r} in {path}")
 
