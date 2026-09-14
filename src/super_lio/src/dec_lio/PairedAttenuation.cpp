@@ -323,6 +323,7 @@ PairedAttenuationAudit::~PairedAttenuationAudit() { finalize(); }
 void PairedAttenuationAudit::writeHeader() {
   if (!csv_) return;
   csv_ << "schema_version,frame,ieskf_iteration,timestamp,N_used,shadow_only,"
+          "counterfactual_finite,"
           "dcreg_valid,cond_R,cond_t,weak_rank_R,weak_rank_t,rho_weak_min,"
           "gamma_w,lifted_weak_rank,Pweak_symmetry_error,"
           "Pweak_idempotence_error,H_asym_rel,H_lambda_min,H_lambda_max,"
@@ -344,7 +345,9 @@ void PairedAttenuationAudit::record(
   const PairedAttenuationResult& result = observation.result;
   csv_ << 1 << ',' << observation.frame << ',' << observation.ieskf_iteration
        << ',' << observation.timestamp << ',' << observation.n_used << ','
-       << (observation.shadow_only ? 1 : 0) << ',' << (result.dcreg_valid ? 1 : 0)
+       << (observation.shadow_only ? 1 : 0) << ','
+       << (observation.counterfactual_finite ? 1 : 0) << ','
+       << (result.dcreg_valid ? 1 : 0)
        << ',' << result.cond_rot << ',' << result.cond_trans << ','
        << result.weak_rank_rot << ',' << result.weak_rank_trans << ','
        << result.rho_weak_min << ',' << result.gamma_w << ','

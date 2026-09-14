@@ -1,5 +1,7 @@
 #include "lio/ESKF.h"
 
+#include <Eigen/QR>
+
 using namespace BASIC;
 
 namespace LI2Sup{
@@ -313,7 +315,10 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
                                             raw_HTVr.cast<double>(),
                                             g_d1_condition_threshold);
 
-      const DecLIO::Matrix18d lambda_d = Pk.cast<double>().inverse();
+      const DecLIO::Matrix18d identity_d = DecLIO::Matrix18d::Identity();
+      const Eigen::CompleteOrthogonalDecomposition<DecLIO::Matrix18d>
+          pk_solver(Pk.cast<double>());
+      const DecLIO::Matrix18d lambda_d = pk_solver.solve(identity_d);
       const DecLIO::Vector18d dx_prior_d = dx_prior.cast<double>();
       const auto fused_counterfactual =
           [&](const DecLIO::Matrix6d& h, const DecLIO::Vector6d& rhs) {
@@ -321,7 +326,9 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
                 DecLIO::Matrix18d::Zero();
             lidar_information.block<6, 6>(0, 0) = h;
             const DecLIO::Matrix18d a = lambda_d + lidar_information;
-            const DecLIO::Matrix18d q = a.inverse();
+            const Eigen::CompleteOrthogonalDecomposition<DecLIO::Matrix18d>
+                a_solver(a);
+            const DecLIO::Matrix18d q = a_solver.solve(identity_d);
             DecLIO::Vector18d b = DecLIO::Vector18d::Zero();
             b.head<6>() = rhs;
             return q * b + (q * lidar_information -
@@ -333,6 +340,9 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
           fused_counterfactual(paired.attenuated_H, paired.attenuated_b);
       const DecLIO::Vector18d delta =
           attenuated_counterfactual - raw_counterfactual;
+      const bool counterfactual_finite = raw_counterfactual.allFinite() &&
+                                          attenuated_counterfactual.allFinite() &&
+                                          delta.allFinite();
       const DecLIO::Matrix18d weak_lift =
           [&]() {
             DecLIO::Matrix18d matrix = DecLIO::Matrix18d::Identity();
@@ -348,15 +358,18 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       observation.ieskf_iteration = iter;
       observation.timestamp = d3_timestamp_;
       observation.n_used = d3_n_used_;
+      observation.counterfactual_finite = counterfactual_finite;
       observation.shadow_only = !g_paired_attenuation_enabled ||
                                 g_paired_attenuation_shadow_only;
-      observation.raw_fused_dx_norm = raw_counterfactual.norm();
-      observation.counterfactual_fused_dx_norm =
-          attenuated_counterfactual.norm();
-      observation.counterfactual_minus_raw_norm = delta.norm();
-      observation.weak_update_difference_norm = (weak_lift * delta).norm();
-      observation.complement_update_difference_norm =
-          (weak_complement * delta).norm();
+      if (counterfactual_finite) {
+        observation.raw_fused_dx_norm = raw_counterfactual.norm();
+        observation.counterfactual_fused_dx_norm =
+            attenuated_counterfactual.norm();
+        observation.counterfactual_minus_raw_norm = delta.norm();
+        observation.weak_update_difference_norm = (weak_lift * delta).norm();
+        observation.complement_update_difference_norm =
+            (weak_complement * delta).norm();
+      }
       observation.result = paired;
       paired_attenuation_audit_->record(observation);
 

@@ -66,6 +66,7 @@ struct PairedAttenuationObservation {
   double timestamp = 0.0;
   std::size_t n_used = 0;
   bool shadow_only = true;
+  bool counterfactual_finite = true;
   double raw_fused_dx_norm = 0.0;
   double counterfactual_fused_dx_norm = 0.0;
   double counterfactual_minus_raw_norm = 0.0;
