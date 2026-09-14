@@ -93,6 +93,7 @@ struct PairedAttenuationObservation {
   bool control_valid = true;
   bool control_applied = false;
   double control_scalar = 1.0;
+  double control_us = 0.0;
   double trace_control_H = 0.0;
   double trace_control_ratio = 1.0;
   double b_control_norm = 0.0;

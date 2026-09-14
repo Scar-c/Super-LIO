@@ -1,5 +1,6 @@
 #include "lio/ESKF.h"
 
+#include <chrono>
 #include <Eigen/QR>
 
 using namespace BASIC;
@@ -318,9 +319,12 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
           DecLIO::computePairedAttenuation(raw_HTVH.cast<double>(),
                                             raw_HTVr.cast<double>(),
                                             g_d1_condition_threshold);
+      const auto control_start = std::chrono::steady_clock::now();
       const DecLIO::PairedControlResult control =
           DecLIO::makePairedControl(paired_mode, raw_HTVH.cast<double>(),
                                     raw_HTVr.cast<double>(), paired);
+      const double control_us = std::chrono::duration<double, std::micro>(
+          std::chrono::steady_clock::now() - control_start).count();
 
       const DecLIO::Matrix18d identity_d = DecLIO::Matrix18d::Identity();
       const Eigen::CompleteOrthogonalDecomposition<DecLIO::Matrix18d>
@@ -374,6 +378,7 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       observation.control_valid = control.valid;
       observation.control_applied = control.applied;
       observation.control_scalar = control.scalar;
+      observation.control_us = control_us;
       observation.trace_control_H = control.trace_H;
       observation.trace_control_ratio = control.trace_ratio;
       observation.b_control_norm = control.b_norm;

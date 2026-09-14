@@ -378,7 +378,7 @@ PairedAttenuationAudit::PairedAttenuationAudit(const std::string& csv_path) {
   if (timing_csv_) {
     timing_csv_ << std::setprecision(17)
                 << "schema_version,frame,ieskf_iteration,timestamp,N_used,"
-                   "dcreg_us,lift_us,spectral_us,total_attenuation_us\n";
+                   "dcreg_us,lift_us,spectral_us,total_attenuation_us,control_us\n";
   }
 }
 
@@ -445,7 +445,7 @@ void PairedAttenuationAudit::record(
                 << observation.ieskf_iteration << ',' << observation.timestamp
                 << ',' << observation.n_used << ',' << result.dcreg_us << ','
                 << result.lift_us << ',' << result.spectral_us << ','
-                << result.total_us << '\n';
+                << result.total_us << ',' << observation.control_us << '\n';
   }
 }
 
