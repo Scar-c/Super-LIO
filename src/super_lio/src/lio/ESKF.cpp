@@ -259,8 +259,8 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
     d3_solver_audit_.reset(new DecLIO::D3SolverAudit(
         g_d3_solver_output_csv, g_d3_solver_snapshot_path));
   }
-  const bool paired_requested =
-      g_paired_attenuation_enabled || g_paired_attenuation_shadow_only;
+  const int paired_mode = g_paired_attenuation_mode;
+  const bool paired_requested = paired_mode != 0;
   if (paired_requested && !paired_attenuation_audit_) {
     paired_attenuation_audit_.reset(
         new DecLIO::PairedAttenuationAudit(g_paired_attenuation_output_csv));
@@ -318,6 +318,9 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
           DecLIO::computePairedAttenuation(raw_HTVH.cast<double>(),
                                             raw_HTVr.cast<double>(),
                                             g_d1_condition_threshold);
+      const DecLIO::PairedControlResult control =
+          DecLIO::makePairedControl(paired_mode, raw_HTVH.cast<double>(),
+                                    raw_HTVr.cast<double>(), paired);
 
       const DecLIO::Matrix18d identity_d = DecLIO::Matrix18d::Identity();
       const Eigen::CompleteOrthogonalDecomposition<DecLIO::Matrix18d>
@@ -367,6 +370,14 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       observation.ieskf_iteration = iter;
       observation.timestamp = d3_timestamp_;
       observation.n_used = d3_n_used_;
+      observation.mode = paired_mode;
+      observation.control_valid = control.valid;
+      observation.control_applied = control.applied;
+      observation.control_scalar = control.scalar;
+      observation.trace_control_H = control.trace_H;
+      observation.trace_control_ratio = control.trace_ratio;
+      observation.b_control_norm = control.b_norm;
+      observation.control_fail_reason = control.failure_reason;
       observation.counterfactual_finite = counterfactual_finite;
       observation.shadow_only = !g_paired_attenuation_enabled ||
                                 g_paired_attenuation_shadow_only;
@@ -382,10 +393,9 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       observation.result = paired;
       paired_attenuation_audit_->record(observation);
 
-      if (g_paired_attenuation_enabled && paired.attenuation_valid &&
-          paired.attenuation_applied) {
-        HTVH = paired.attenuated_H.cast<scalar>();
-        HTVr = paired.attenuated_b.cast<scalar>();
+      if (control.valid && control.applied) {
+        HTVH = control.H.cast<scalar>();
+        HTVr = control.b.cast<scalar>();
       }
     }
 

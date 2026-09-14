@@ -73,6 +73,7 @@ namespace LI2Sup{
   std::string g_d3_solver_output_csv;
   std::string g_d3_solver_snapshot_path;
 
+  int g_paired_attenuation_mode = 0;
   bool g_paired_attenuation_enabled = false;
   bool g_paired_attenuation_shadow_only = false;
   std::string g_paired_attenuation_output_csv;

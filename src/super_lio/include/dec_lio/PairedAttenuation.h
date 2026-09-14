@@ -13,6 +13,13 @@
 
 namespace DecLIO {
 
+enum PairedAttenuationMode {
+  kPairedModeOff = 0,
+  kPairedModeP1Directional = 1,
+  kPairedModeUTrace = 2,
+  kPairedModeUGamma = 3,
+};
+
 struct PairedAttenuationResult {
   bool dcreg_valid = false;
   bool attenuation_valid = false;
@@ -60,11 +67,36 @@ PairedAttenuationResult computePairedAttenuation(
     const Matrix6d& raw_H, const Vector6d& raw_b,
     double condition_threshold = 10.0);
 
+struct PairedControlResult {
+  int mode = kPairedModeOff;
+  bool valid = true;
+  bool applied = false;
+  double scalar = 1.0;
+  double trace_H = 0.0;
+  double trace_ratio = 1.0;
+  double b_norm = 0.0;
+  Matrix6d H = Matrix6d::Zero();
+  Vector6d b = Vector6d::Zero();
+  std::string failure_reason = "NONE";
+};
+
+PairedControlResult makePairedControl(
+    int mode, const Matrix6d& raw_H, const Vector6d& raw_b,
+    const PairedAttenuationResult& p1);
+
 struct PairedAttenuationObservation {
   std::uint64_t frame = 0;
   int ieskf_iteration = 0;
   double timestamp = 0.0;
   std::size_t n_used = 0;
+  int mode = kPairedModeOff;
+  bool control_valid = true;
+  bool control_applied = false;
+  double control_scalar = 1.0;
+  double trace_control_H = 0.0;
+  double trace_control_ratio = 1.0;
+  double b_control_norm = 0.0;
+  std::string control_fail_reason = "NONE";
   bool shadow_only = true;
   bool counterfactual_finite = true;
   double raw_fused_dx_norm = 0.0;

@@ -24,6 +24,7 @@ AXIS_SHADOW="false"
 D3_SOLVER_SHADOW="false"
 PAIRED_ATTENUATION="false"
 PAIRED_ATTENUATION_SHADOW="false"
+PAIRED_MODE="0"
 BLIND_OVERRIDE=""
 FILTER_RATE_OVERRIDE=""
 VOXEL_OVERRIDE=""
@@ -50,8 +51,17 @@ while [ "$#" -gt 0 ]; do
     --consistency-shadow) CONSISTENCY_SHADOW="true"; shift ;;
     --axis-shadow) AXIS_SHADOW="true"; shift ;;
     --d3-solver-shadow) D3_SOLVER_SHADOW="true"; shift ;;
-    --paired-attenuation) PAIRED_ATTENUATION="true"; shift ;;
-    --paired-attenuation-shadow) PAIRED_ATTENUATION_SHADOW="true"; shift ;;
+    --paired-attenuation) PAIRED_ATTENUATION="true"; PAIRED_MODE="1"; shift ;;
+    --paired-attenuation-shadow) PAIRED_ATTENUATION_SHADOW="true"; PAIRED_MODE="1"; shift ;;
+    --paired-mode)
+      case "$2" in
+        off|0) PAIRED_MODE="0" ;;
+        p1|directional|1) PAIRED_MODE="1" ;;
+        utrace|u-trace|trace|2) PAIRED_MODE="2" ;;
+        ugamma|u-gamma|gamma|3) PAIRED_MODE="3" ;;
+        *) echo "ERR: --paired-mode must be off, p1, utrace, or ugamma" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
     --blind) BLIND_OVERRIDE="$2"; shift 2 ;;
     --filter-rate) FILTER_RATE_OVERRIDE="$2"; shift 2 ;;
     --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
@@ -63,6 +73,8 @@ while [ "$#" -gt 0 ]; do
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+if [ "$PAIRED_MODE" != "0" ]; then PAIRED_ATTENUATION="true"; fi
 
 if [[ "$MODE" != online && "$MODE" != offline ]]; then
   echo "ERR: --mode must be online or offline" >&2; exit 2
@@ -142,6 +154,7 @@ trap cleanup EXIT
   echo "d3_solver_shadow: $D3_SOLVER_SHADOW"
   echo "paired_attenuation: $PAIRED_ATTENUATION"
   echo "paired_attenuation_shadow: $PAIRED_ATTENUATION_SHADOW"
+  echo "paired_attenuation_mode: $PAIRED_MODE"
   echo "blind_override: ${BLIND_OVERRIDE:-config/default}"
   echo "filter_rate_override: ${FILTER_RATE_OVERRIDE:-config/default}"
   echo "voxel_override: ${VOXEL_OVERRIDE:-config/default}"
@@ -192,6 +205,7 @@ rosparam set /lio/dec_lio/d3_solver_shadow/output_csv "$RUN_DIR/d3_solver_shadow
 rosparam set /lio/dec_lio/d3_solver_shadow/snapshot_path "$RUN_DIR/d3_solver_snapshots.bin"
 rosparam set /lio/dec_lio/paired_attenuation/enabled "$PAIRED_ATTENUATION"
 rosparam set /lio/dec_lio/paired_attenuation/shadow_only "$PAIRED_ATTENUATION_SHADOW"
+rosparam set /lio/dec_lio/paired_attenuation/mode "$PAIRED_MODE"
 rosparam set /lio/dec_lio/paired_attenuation/output_csv "$RUN_DIR/paired_attenuation_shadow.csv"
 rosparam set /lio/dec_lio/observation_stage_csv "$RUN_DIR/observation_stage.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi

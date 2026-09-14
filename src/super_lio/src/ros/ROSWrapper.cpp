@@ -113,6 +113,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_d3_solver_output_csv, std::string());
   nh.param("/lio/dec_lio/d3_solver_shadow/snapshot_path",
            g_d3_solver_snapshot_path, std::string());
+  nh.param("/lio/dec_lio/paired_attenuation/mode",
+           g_paired_attenuation_mode, 0);
   nh.param("/lio/dec_lio/paired_attenuation/enabled",
            g_paired_attenuation_enabled, false);
   nh.param("/lio/dec_lio/paired_attenuation/shadow_only",

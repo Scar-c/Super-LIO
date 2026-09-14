@@ -308,6 +308,61 @@ PairedAttenuationResult computePairedAttenuation(
   return result;
 }
 
+PairedControlResult makePairedControl(
+    int mode, const Matrix6d& raw_H, const Vector6d& raw_b,
+    const PairedAttenuationResult& p1) {
+  PairedControlResult control;
+  control.mode = mode;
+  control.H = raw_H;
+  control.b = raw_b;
+  control.trace_H = raw_H.trace();
+  control.b_norm = raw_b.norm();
+
+  if (mode == kPairedModeOff) return control;
+  if (mode < kPairedModeOff || mode > kPairedModeUGamma) {
+    control.valid = false;
+    control.failure_reason = "UNKNOWN_CONTROL_MODE";
+    return control;
+  }
+  if (!p1.attenuation_valid) {
+    control.valid = false;
+    control.failure_reason = p1.fail_open_reason;
+    return control;
+  }
+
+  if (mode == kPairedModeP1Directional) {
+    control.H = p1.attenuated_H;
+    control.b = p1.attenuated_b;
+    control.scalar = p1.gamma_w;
+    control.trace_ratio = p1.trace_ratio;
+  } else {
+    control.scalar = mode == kPairedModeUTrace ? p1.trace_ratio : p1.gamma_w;
+    control.trace_ratio = control.scalar;
+    if (!std::isfinite(control.scalar) || control.scalar < 0.0) {
+      control.valid = false;
+      control.failure_reason = "NONFINITE_UNIFORM_CONTROL_SCALAR";
+      return control;
+    }
+    control.H = control.scalar * raw_H;
+    control.b = control.scalar * raw_b;
+  }
+
+  control.trace_H = control.H.trace();
+  control.b_norm = control.b.norm();
+  control.applied = control.H != raw_H || control.b != raw_b;
+  if (!control.H.allFinite() || !control.b.allFinite() ||
+      !std::isfinite(control.trace_H) || !std::isfinite(control.b_norm)) {
+    control.valid = false;
+    control.applied = false;
+    control.H = raw_H;
+    control.b = raw_b;
+    control.trace_H = raw_H.trace();
+    control.b_norm = raw_b.norm();
+    control.failure_reason = "NONFINITE_CONTROL_INFORMATION";
+  }
+  return control;
+}
+
 PairedAttenuationAudit::PairedAttenuationAudit(const std::string& csv_path) {
   if (csv_path.empty()) return;
   makeParent(csv_path);
@@ -331,7 +386,9 @@ PairedAttenuationAudit::~PairedAttenuationAudit() { finalize(); }
 
 void PairedAttenuationAudit::writeHeader() {
   if (!csv_) return;
-  csv_ << "schema_version,frame,ieskf_iteration,timestamp,N_used,shadow_only,"
+  csv_ << "schema_version,frame,ieskf_iteration,timestamp,N_used,mode,"
+          "control_valid,control_applied,control_scalar,trace_control_H,"
+          "trace_control_ratio,b_control_norm,control_fail_reason,shadow_only,"
           "counterfactual_finite,"
           "dcreg_valid,cond_R,cond_t,weak_rank_R,weak_rank_t,rho_weak_min,"
           "gamma_w,lifted_weak_rank,Pweak_symmetry_error,"
@@ -353,6 +410,12 @@ void PairedAttenuationAudit::record(
   const PairedAttenuationResult& result = observation.result;
   csv_ << 1 << ',' << observation.frame << ',' << observation.ieskf_iteration
        << ',' << observation.timestamp << ',' << observation.n_used << ','
+       << observation.mode << ','
+       << (observation.control_valid ? 1 : 0) << ','
+       << (observation.control_applied ? 1 : 0) << ','
+       << observation.control_scalar << ',' << observation.trace_control_H << ','
+       << observation.trace_control_ratio << ',' << observation.b_control_norm
+       << ',' << observation.control_fail_reason << ','
        << (observation.shadow_only ? 1 : 0) << ','
        << (observation.counterfactual_finite ? 1 : 0) << ','
        << (result.dcreg_valid ? 1 : 0)

@@ -96,6 +96,9 @@ namespace LI2Sup{
   extern std::string g_d3_solver_snapshot_path;
 
   /// Prompt10 DCReg-guided paired H,b attenuation. Disabled unless explicitly enabled.
+  /// Prompt11 makes this an authoritative single mode: 0=OFF, 1=P1 directional,
+  /// 2=uniform trace, 3=uniform gamma.
+  extern int g_paired_attenuation_mode;
   extern bool g_paired_attenuation_enabled;
   extern bool g_paired_attenuation_shadow_only;
   extern std::string g_paired_attenuation_output_csv;
