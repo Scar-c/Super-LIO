@@ -2,6 +2,7 @@
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
+#include <cmath>
 #include <limits>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
@@ -136,7 +137,9 @@ void SuperLIO::init(){
           << "schema_version,frame,timestamp,N_raw,N_finite,N_after_raw_stride,"
              "N_after_stride_finite,stride_input_population,"
              "N_after_blind,N_after_upper_range,N_undistorted,N_after_voxel,"
-             "N_candidate,N_used\n";
+             "N_candidate,N_used,header_timestamp,min_accepted_offset,"
+             "max_accepted_offset,last_accepted_offset,min_query_timestamp,"
+             "max_query_timestamp,configured_lidar_end_time\n";
     }
   }
 
@@ -482,7 +485,25 @@ void SuperLIO::writeObservationStage(std::size_t candidate_count,
                                      std::size_t used_count) {
   if (!observation_stage_csv_) return;
   const auto& stage = measures_.lidar.stage;
-  observation_stage_csv_ << 2 << ',' << frame_num_ << ','
+  double min_offset = std::numeric_limits<double>::quiet_NaN();
+  double max_offset = std::numeric_limits<double>::quiet_NaN();
+  double last_offset = std::numeric_limits<double>::quiet_NaN();
+  if (!measures_.lidar.pc->empty()) {
+    min_offset = std::numeric_limits<double>::infinity();
+    max_offset = -std::numeric_limits<double>::infinity();
+    for (const auto& point : measures_.lidar.pc->points) {
+      min_offset = std::min(min_offset, point.offset_time);
+      max_offset = std::max(max_offset, point.offset_time);
+    }
+    last_offset = measures_.lidar.pc->points.back().offset_time;
+  }
+  const double min_query_timestamp =
+      std::isfinite(min_offset) ? measures_.lidar.start_time + min_offset
+                                : std::numeric_limits<double>::quiet_NaN();
+  const double max_query_timestamp =
+      std::isfinite(max_offset) ? measures_.lidar.start_time + max_offset
+                                : std::numeric_limits<double>::quiet_NaN();
+  observation_stage_csv_ << 3 << ',' << frame_num_ << ','
                          << measures_.lidar.end_time << ',' << stage.raw << ','
                          << stage.finite << ',' << stage.after_raw_stride << ','
                          << stage.after_stride_finite << ','
@@ -490,7 +511,10 @@ void SuperLIO::writeObservationStage(std::size_t candidate_count,
                          << ',' << stage.after_blind << ',' << stage.after_upper_range
                          << ',' << scan_undistort_full_->size() << ','
                          << ds_undistort_->size() << ',' << candidate_count << ','
-                         << used_count << '\n';
+                         << used_count << ',' << measures_.lidar.start_time << ','
+                         << min_offset << ',' << max_offset << ',' << last_offset
+                         << ',' << min_query_timestamp << ',' << max_query_timestamp
+                         << ',' << measures_.lidar.end_time << '\n';
 }
 
 

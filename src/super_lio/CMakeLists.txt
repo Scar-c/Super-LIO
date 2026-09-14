@@ -163,3 +163,10 @@ target_include_directories(dec_lio_weak_axis_synthetic_test PRIVATE
 )
 add_test(NAME dec_lio_weak_axis_synthetic_test
   COMMAND dec_lio_weak_axis_synthetic_test)
+
+add_executable(dec_lio_point_selection_test
+  ../../tests/dec_lio/point_selection_test.cpp)
+target_include_directories(dec_lio_point_selection_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_test(NAME dec_lio_point_selection_test
+  COMMAND dec_lio_point_selection_test)

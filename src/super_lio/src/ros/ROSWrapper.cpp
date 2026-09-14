@@ -1,5 +1,6 @@
 
 #include "ros/ROSWrapper.h"
+#include "lio/point_selection.h"
 #include "super_lio/CloudPose.h"
 #include "super_lio/CloudPose2.h"
 
@@ -269,11 +270,7 @@ void ROSWrapper::livoxHandler(const livox_ros_driver::CustomMsg::ConstPtr& msg){
 
 inline bool validPoint(double x, double y, double z)
 {
-  if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
-    return false;
-
-  double d2 = x * x + y * y + z * z;
-  return (d2 > g_blind2 && d2 < g_maxrange2);
+  return validPointWithinRange(x, y, z, g_blind2, g_maxrange2);
 }
 
 void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
@@ -345,38 +342,46 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
                             static_cast<double>(pt.y) * pt.y +
                             static_cast<double>(pt.z) * pt.z;
           if (d2 > g_blind2) ++lidar_data.stage.after_blind;
-          if (d2 > g_blind2 && d2 < g_maxrange2)
-            ++lidar_data.stage.after_upper_range;
         }
         if (!validPoint(pt.x, pt.y, pt.z)) continue;
+        ++lidar_data.stage.after_upper_range;
         lidar_data.pc->emplace_back(
             pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
       }
     } else {
-      std::vector<std::size_t> finite_indices;
-      finite_indices.reserve(lidar_data.stage.finite);
-      for (std::size_t i = 0; i < pl_orig.size(); ++i) {
+      const auto selection = selectFiniteThenStride(
+          pl_orig.points, static_cast<std::size_t>(g_filter_rate),
+          [](const auto& point) {
+            return std::isfinite(point.x) && std::isfinite(point.y) &&
+                   std::isfinite(point.z);
+          },
+          [](const auto& point) {
+            return validPoint(point.x, point.y, point.z);
+          });
+      lidar_data.stage.finite = selection.finite_indices.size();
+      lidar_data.stage.after_raw_stride = selection.stride_indices.size();
+      lidar_data.stage.after_stride_finite = selection.stride_indices.size();
+      for (const std::size_t i : selection.stride_indices) {
         const auto& pt = pl_orig.points[i];
-        if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
-          finite_indices.push_back(i);
-      }
-      for (std::size_t compact_i = 0;
-           compact_i < finite_indices.size(); compact_i += g_filter_rate) {
-        const std::size_t i = finite_indices[compact_i];
-        const auto& pt = pl_orig.points[i];
-        ++lidar_data.stage.after_raw_stride;
-        ++lidar_data.stage.after_stride_finite;
         const double d2 = static_cast<double>(pt.x) * pt.x +
                           static_cast<double>(pt.y) * pt.y +
                           static_cast<double>(pt.z) * pt.z;
         if (d2 > g_blind2) ++lidar_data.stage.after_blind;
-        if (d2 > g_blind2 && d2 < g_maxrange2)
-          ++lidar_data.stage.after_upper_range;
+      }
+      for (const std::size_t i : selection.accepted_indices) {
+        const auto& pt = pl_orig.points[i];
+        ++lidar_data.stage.after_upper_range;
         lidar_data.pc->emplace_back(
             pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
       }
     }
-    lidar_data.end_time = lidar_data.start_time + lidar_data.pc->points.back().offset_time;
+    if (lidar_data.pc->size() != lidar_data.stage.after_upper_range) {
+      LOG(FATAL) << "VELO16 selection invariant failed: pc="
+                 << lidar_data.pc->size() << " accepted="
+                 << lidar_data.stage.after_upper_range;
+    }
+    const double max_offset_time = maxPointOffset(lidar_data.pc->points);
+    lidar_data.end_time = lidar_data.start_time + max_offset_time;
     break;
   }
   case OUSTER:
