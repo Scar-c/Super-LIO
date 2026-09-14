@@ -1,0 +1,17 @@
+Prompt12 startup gate
+
+UTC/local execution date: 2026-09-14 Asia/Shanghai
+repository: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+HEAD: 00aa7d277b904869a4e0e9ba2a94dd7a7f1f43f8
+origin/Dec-LIO: 00aa7d277b904869a4e0e9ba2a94dd7a7f1f43f8
+merge-base(HEAD, origin/ros1): 60b57aaac8dc397f80c56364e7ccb008c300cc29
+worktree at startup: clean
+git fetch --all --prune: PASS
+rosversion -d: noetic
+gcc: 9.4.0
+cmake: 3.18.4
+uname: Linux robot 5.15.0-139-generic #149~20.04.1-Ubuntu SMP Wed Apr 16 08:29:56 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+Prompt12 authority gate: PASS.
+Execution stopped later at NTNU_EXTRINSIC_AUTHORITY_CONFLICT before conversion or estimator runs.
