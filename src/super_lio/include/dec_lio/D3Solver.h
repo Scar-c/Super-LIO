@@ -13,6 +13,7 @@
 namespace DecLIO {
 
 using Matrix18d = Eigen::Matrix<double, 18, 18>;
+using Vector6d = Eigen::Matrix<double, 6, 1>;
 using Vector18d = Eigen::Matrix<double, 18, 1>;
 
 struct PCGConfig {
@@ -37,6 +38,7 @@ struct ShadowInput {
   Matrix18d A = Matrix18d::Zero();
   Matrix18d lambda = Matrix18d::Zero();
   Matrix18d lidar_information = Matrix18d::Zero();
+  Vector6d lidar_rhs = Vector6d::Zero();
   Vector18d rhs = Vector18d::Zero();
   Vector18d dx_prior = Vector18d::Zero();
   Vector18d native_dx = Vector18d::Zero();

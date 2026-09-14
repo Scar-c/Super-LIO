@@ -89,6 +89,11 @@ void writeVector(std::ofstream& stream, const Vector18d& vector) {
                static_cast<std::streamsize>(sizeof(double) * 18));
 }
 
+void writeVector6(std::ofstream& stream, const Vector6d& vector) {
+  stream.write(reinterpret_cast<const char*>(vector.data()),
+               static_cast<std::streamsize>(sizeof(double) * 6));
+}
+
 void writeMatrix6(std::ofstream& stream, const Matrix6d& matrix) {
   stream.write(reinterpret_cast<const char*>(matrix.data()),
                static_cast<std::streamsize>(sizeof(double) * 6 * 6));
@@ -265,7 +270,7 @@ D3SolverAudit::D3SolverAudit(const std::string& csv_path,
     snapshot_.open(snapshot_path, std::ios::binary);
     if (snapshot_) {
       const char magic[8] = {'D', '3', 'S', 'N', 'A', 'P', '0', '1'};
-      const std::uint32_t version = 1;
+      const std::uint32_t version = 2;
       snapshot_.write(magic, sizeof(magic));
       snapshot_.write(reinterpret_cast<const char*>(&version), sizeof(version));
     }
@@ -296,9 +301,10 @@ void D3SolverAudit::writeHeader() {
 }
 
 void D3SolverAudit::record(const ShadowInput& input) {
-  const Matrix18d sym_A = 0.5 * (input.A + input.A.transpose());
   const double asym = (input.A - input.A.transpose()).norm() /
                       std::max(input.A.norm(), 1e-15);
+  const Matrix18d sym_A = 0.5 * (input.A + input.A.transpose());
+  const Matrix18d& pcg_A = asym <= 1e-12 ? sym_A : input.A;
   Eigen::SelfAdjointEigenSolver<Matrix18d> eigen_solver(sym_A);
   const bool eigen_ok = eigen_solver.info() == Eigen::Success &&
                         eigen_solver.eigenvalues().allFinite();
@@ -316,8 +322,10 @@ void D3SolverAudit::record(const ShadowInput& input) {
 
   const auto native_start = Clock::now();
   const Matrix18d Q = input.A.inverse();
+  Vector18d lidar_b = Vector18d::Zero();
+  lidar_b.head<6>() = input.lidar_rhs;
   const Vector18d native_rebuilt =
-      Q * (input.rhs + input.lambda * input.dx_prior) +
+      Q * lidar_b +
       (Q * input.lidar_information - Matrix18d::Identity()) *
           input.dx_prior;
   const double native_us = elapsedUs(native_start);
@@ -330,7 +338,7 @@ void D3SolverAudit::record(const ShadowInput& input) {
 
   const PCGConfig pcg_config;
   const auto cg_start = Clock::now();
-  const PCGResult cg = solvePCG(sym_A, input.rhs, identityPreconditioner(),
+  const PCGResult cg = solvePCG(pcg_A, input.rhs, identityPreconditioner(),
                                 pcg_config);
   const double cg_us = elapsedUs(cg_start);
 
@@ -338,11 +346,11 @@ void D3SolverAudit::record(const ShadowInput& input) {
   std::string jacobi_failure;
   const auto jacobi_setup_start = Clock::now();
   const bool jacobi_valid =
-      buildJacobiPreconditioner(sym_A, &jacobi, &jacobi_failure);
+      buildJacobiPreconditioner(pcg_A, &jacobi, &jacobi_failure);
   const double jacobi_setup_us = elapsedUs(jacobi_setup_start);
   const auto jacobi_solve_start = Clock::now();
   const PCGResult jacobi_result =
-      solvePCG(sym_A, input.rhs, jacobi, pcg_config);
+      solvePCG(pcg_A, input.rhs, jacobi, pcg_config);
   const double jacobi_solve_us = elapsedUs(jacobi_solve_start);
 
   Characterization characterization;
@@ -350,7 +358,7 @@ void D3SolverAudit::record(const ShadowInput& input) {
   std::string dcreg_failure;
   const auto dcreg_setup_start = Clock::now();
   const bool dcreg_valid = buildDCRegPreconditioner(
-      sym_A, input.lidar_information, input.rhs.head<6>(), 10.0, 10.0,
+      input.A, input.lidar_information, input.lidar_rhs, 10.0, 10.0,
       &dcreg, &characterization, &dcreg_failure);
   const double dcreg_setup_us = elapsedUs(dcreg_setup_start);
   if (!dcreg_valid) {
@@ -360,7 +368,7 @@ void D3SolverAudit::record(const ShadowInput& input) {
   }
   const auto dcreg_solve_start = Clock::now();
   const PCGResult dcreg_result =
-      solvePCG(sym_A, input.rhs, dcreg, pcg_config);
+      solvePCG(pcg_A, input.rhs, dcreg, pcg_config);
   const double dcreg_solve_us = elapsedUs(dcreg_solve_start);
 
   const auto rel = [&](const Vector18d& value) {
@@ -396,6 +404,7 @@ void D3SolverAudit::record(const ShadowInput& input) {
     writeMatrix(snapshot_, input.A);
     writeVector(snapshot_, input.rhs);
     writeMatrix6(snapshot_, input.lidar_information.block<6, 6>(0, 0));
+    writeVector6(snapshot_, input.lidar_rhs);
     writeVector(snapshot_, input.dx_prior);
     snapshot_.write(reinterpret_cast<const char*>(&characterization.cond_rot), sizeof(double));
     snapshot_.write(reinterpret_cast<const char*>(&characterization.cond_trans), sizeof(double));

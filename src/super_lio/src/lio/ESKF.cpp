@@ -303,7 +303,8 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
     HTRH.template block<6,6>(0,0) = HTVH;
 
     // information form
-    M18 A = Pk.inverse() + HTRH;
+    M18 Lambda = Pk.inverse();
+    M18 A = Lambda + HTRH;
     Qk = A.inverse();
 
     V18 b = V18::Zero();
@@ -321,9 +322,10 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       shadow.timestamp = d3_timestamp_;
       shadow.n_used = d3_n_used_;
       shadow.A = A.cast<double>();
-      shadow.lambda = Pk.inverse().cast<double>();
+      shadow.lambda = Lambda.cast<double>();
       shadow.lidar_information = HTRH.cast<double>();
-      shadow.rhs = (b - shadow.lambda.cast<scalar>() * dx_prior).cast<double>();
+      shadow.lidar_rhs = HTVr.cast<double>();
+      shadow.rhs = (b - Lambda * dx_prior).cast<double>();
       shadow.dx_prior = dx_prior.cast<double>();
       shadow.native_dx = dx_.cast<double>();
       d3_solver_audit_->record(shadow);
