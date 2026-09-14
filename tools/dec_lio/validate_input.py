@@ -23,6 +23,16 @@ EXPECTED = {
         "config": "1e081c1e414e251a1284dbef9688bc74955d86a7c029687f779ba5b9f0540c04",
         "ground_truth": "b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a",
     },
+    "fyllingsdalen_tunnel": {
+        "bag": "697b82875e5b662991915aa9c7e8fd0e3d4c0f0aca09048a6a884b718338fdf3",
+        "config": "55bbc33a7e14c4e095993c7e383e8b2e186e958794e99f1966383ec3e33e6320",
+        "ground_truth": "e763f75f939a092c58b91d79d1875c3aba694958c49383372e7f5e0a1bc0b9bd",
+    },
+    "runehamar_tunnel_hornbill": {
+        "bag": "__NTNU_RUNEHAMAR_CONVERSION_PENDING__",
+        "config": "55bbc33a7e14c4e095993c7e383e8b2e186e958794e99f1966383ec3e33e6320",
+        "ground_truth": "7ac1be2323c886b180594888b0fbdc9550522aebd0f5e483f9fec7d8c3cfeae2",
+    },
 }
 
 

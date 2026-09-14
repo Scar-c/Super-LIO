@@ -14,6 +14,7 @@ BAG=""
 CONFIG="$REPO_ROOT/src/super_lio/config/geode_alpha.yaml"
 OUT="$RUNTIME_ROOT"
 RUN_ID=""
+GROUND_TRUTH_OVERRIDE=""
 RATE="1.0"
 DURATION=""
 THREADS="$(nproc)"
@@ -43,6 +44,7 @@ while [ "$#" -gt 0 ]; do
     --config) CONFIG="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
+    --ground-truth) GROUND_TRUTH_OVERRIDE="$2"; shift 2 ;;
     --rate) RATE="$2"; shift 2 ;;
     --duration) DURATION="$2"; shift 2 ;;
     --threads) THREADS="$2"; shift 2 ;;
@@ -85,8 +87,12 @@ fi
 if [ ! -f "$CONFIG" ]; then
   echo "ERR: missing config: $CONFIG" >&2; exit 2
 fi
-if [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
+if [ -n "$GROUND_TRUTH_OVERRIDE" ]; then
+  GROUND_TRUTH="$GROUND_TRUTH_OVERRIDE"
+elif [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
   GROUND_TRUTH="$(dirname "$BAG")/Tunneling_tunnel2.txt"
+elif [ "$SEQUENCE" = "fyllingsdalen_tunnel" ] || [ "$SEQUENCE" = "runehamar_tunnel_hornbill" ]; then
+  GROUND_TRUTH="$(dirname "$BAG")/gt_odometry.tum"
 else
   GROUND_TRUTH="$(dirname "$BAG")/$SEQUENCE.txt"
 fi
@@ -143,6 +149,8 @@ trap cleanup EXIT
   echo "bag_sha256: $(sha256sum "$BAG" | awk '{print $1}')"
   echo "config: $CONFIG"
   echo "config_sha256: $(sha256sum "$CONFIG" | awk '{print $1}')"
+  echo "ground_truth: $GROUND_TRUTH"
+  echo "ground_truth_sha256: $(sha256sum "$GROUND_TRUTH" | awk '{print $1}')"
   echo "duration: ${DURATION:-whole-bag}"
   echo "rate: $RATE"
   echo "requested_threads: $THREADS"

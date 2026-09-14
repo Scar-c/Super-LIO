@@ -404,17 +404,30 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
   }
   case OUSTER:
   {
-    pcl::PointCloud<ouster_ros::Point> pl_orig;
-    pcl::fromROSMsg(*msg, pl_orig);
-    lidar_data.pc->reserve(pl_orig.size() / g_filter_rate + 1);
+    // The pinned NTNU converter publishes standard PointCloud2 fields in the
+    // os_sensor frame. Keep this adapter independent of the converter package:
+    // decode only the fields required by Super-LIO and preserve native stride
+    // and point-time semantics.
+    const std::size_t point_count =
+        static_cast<std::size_t>(msg->width) * msg->height;
+    const std::size_t stride = static_cast<std::size_t>(std::max(1, g_filter_rate));
+    lidar_data.pc->reserve(point_count / stride + 1);
     lidar_data.start_time = msg->header.stamp.toSec();
 
-    for(std::size_t i = 0; i < pl_orig.size(); i += g_filter_rate){
-      auto& pt = pl_orig.points[i];
-      if (!validPoint(pt.x, pt.y, pt.z)) continue;
-      offset_time = pt.t * 1e-9;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, offset_time);
+    sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg, "intensity");
+    sensor_msgs::PointCloud2ConstIterator<uint32_t> iter_time(*msg, "t");
+    for (std::size_t i = 0; i < point_count;
+         ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_intensity, ++iter_time) {
+      if (i % stride != 0) continue;
+      const float x = *iter_x;
+      const float y = *iter_y;
+      const float z = *iter_z;
+      if (!validPoint(x, y, z)) continue;
+      offset_time = static_cast<double>(*iter_time) * 1e-9;
+      lidar_data.pc->emplace_back(x, y, z, *iter_intensity, offset_time);
     }
     lidar_data.end_time = lidar_data.start_time + offset_time;
     break;

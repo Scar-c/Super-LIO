@@ -19,6 +19,7 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/subscribe_options.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/Point.h>

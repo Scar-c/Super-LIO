@@ -14,6 +14,7 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/config/geode_alpha.yaml",
     "src/super_lio/config/geode_stairs_alpha.yaml",
     "src/super_lio/config/geode_tunneling2_alpha.yaml",
+    "src/super_lio/config/ntnu_ar1.yaml",
     "src/super_lio/launch/dec_lio_bridge_inspect.launch",
     "src/super_lio/rviz/dec_lio_bridge_inspect.rviz",
     "src/super_lio/offline/OfflineReader.h",
@@ -39,6 +40,7 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/include/common/ds.h",
     "src/super_lio/src/lio/params.cpp",
     "src/super_lio/src/lio/super_lio.cpp",
+    "src/super_lio/include/ros/ROSWrapper.h",
     "src/super_lio/src/ros/ROSWrapper.cpp",
 }
 FORBIDDEN_ALWAYS = ("prob_lio", "sa_gate")
