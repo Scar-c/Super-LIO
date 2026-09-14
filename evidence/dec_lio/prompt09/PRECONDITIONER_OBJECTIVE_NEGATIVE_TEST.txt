@@ -1,0 +1,7 @@
+P09-N1 — preconditioner does not change objective
+====================================================
+PASS. T13 intentionally changes a weak eigenvalue in A and verifies that the
+LDLT minimizer changes. T14 compares identity and Jacobi M with the same A/r;
+both converged solutions agree with the original LDLT solution and their
+objective values agree. The real-system benchmark evaluates every PCG result
+against the original A/r and LDLT solution.

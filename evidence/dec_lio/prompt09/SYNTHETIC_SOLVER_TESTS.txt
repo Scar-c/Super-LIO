@@ -1,0 +1,10 @@
+Prompt09 synthetic solver test
+================================
+Executable: /home/lc/dec_lio/devel/lib/super_lio/dec_lio_d3_solver_synthetic_test
+Result: D3 solver synthetic tests T1-T14/P09-N1: PASS
+
+Coverage: identity; dense SPD; condition 1e4; strict 36-iteration condition
+1e8 bounded non-convergence; rank-deficient LiDAR with SPD prior; transported
+prior; b=0/nonzero prior; H=0; pose/nuisance coupling; weak rotation;
+weak translation; DCReg invalid -> Jacobi fail-open; changing A changes the
+minimizer; changing only M preserves the objective minimizer.

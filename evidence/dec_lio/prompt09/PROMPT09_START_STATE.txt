@@ -1,0 +1,13 @@
+Prompt09 startup gate
+=====================
+workspace: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+startup HEAD: da21a98e1307728ee9b9db5512beb29f6a062125
+startup origin/Dec-LIO: da21a98e1307728ee9b9db5512beb29f6a062125
+startup merge-base HEAD origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+current HEAD after Prompt09 implementation commits: c2f3ca387034b0c9b04f1d1ce666aa8574a42842
+archived prompt: prompts/dec_lio/PROMPT09_D3_SOLVER_GO_NOGO.md
+archived prompt sha256: 544a66b963d37c362c14d968817cd50cbb32ea827407abbbc7a8503def140fa6
+Prob-LIO workspace touched: NO
+native preprocessing scope: Bridge01 Alpha, Stairs_Alpha, Tunneling_tunnel2_Alpha
+runtime scope: /home/lc/dec_lio/runtime/prompt09

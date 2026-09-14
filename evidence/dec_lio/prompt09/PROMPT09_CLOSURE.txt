@@ -1,0 +1,13 @@
+Prompt09 closure
+================
+Prompt archive: PASS
+Build: PASS (catkin_make -j4)
+Synthetic T1-T14/P09-N1: PASS
+Native runs: Bridge01/Stairs/Tunnel2 each return code 0
+Shadow runs: Bridge01/Stairs/Tunnel2 each return code 0
+Native trajectory parity: PASS exact SHA for all three scenes
+Snapshot set: 192 systems, 64 per scene, runtime-only
+C++ benchmark: PASS, 500 warmup + 500 timed repetitions
+Production PCG integration: OFF
+Primary result: D3-E — FUSED_SYSTEM_REFORMULATION_AUTHORITY_FAILURE
+Status: PARTIAL / STOP — FUSED_SYSTEM_REFORMULATION_NOT_NUMERICALLY_EQUIVALENT; secondary symmetry STOP

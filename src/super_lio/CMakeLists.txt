@@ -180,4 +180,11 @@ target_include_directories(dec_lio_d3_solver_synthetic_test PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${EIGEN3_INCLUDE_DIRS})
 add_test(NAME dec_lio_d3_solver_synthetic_test
-  COMMAND dec_lio_d3_solver_synthetic_test)
+         COMMAND dec_lio_d3_solver_synthetic_test)
+
+add_executable(dec_lio_d3_solver_benchmark
+  ../../tests/dec_lio/d3_solver_benchmark.cpp
+  src/dec_lio/D3Solver.cpp
+  src/dec_lio/DCRegAnalyzer.cpp)
+target_include_directories(dec_lio_d3_solver_benchmark PRIVATE
+  include ${EIGEN3_INCLUDE_DIRS})

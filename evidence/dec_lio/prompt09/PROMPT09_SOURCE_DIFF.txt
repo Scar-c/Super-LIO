@@ -1,0 +1,23 @@
+Prompt09 source diff inventory
+=============================
+Current HEAD: c2f3ca387034b0c9b04f1d1ce666aa8574a42842
+Commits introduced during Prompt09:
+- b81d8fc dec-lio: add D3 solver shadow audit
+- c2f3ca3 dec-lio: close D3 RHS and symmetry authority
+
+Added/modified authority:
+- src/super_lio/include/dec_lio/D3Solver.h
+- src/super_lio/src/dec_lio/D3Solver.cpp
+- src/super_lio/src/lio/ESKF.cpp (shadow seam; native Lambda naming only)
+- src/super_lio/include/lio/ESKF.h
+- src/super_lio/include/lio/params.h
+- src/super_lio/src/lio/params.cpp
+- src/super_lio/src/lio/super_lio.cpp
+- src/super_lio/src/ros/ROSWrapper.cpp
+- src/super_lio/CMakeLists.txt
+- tests/dec_lio/d3_solver_synthetic_test.cpp
+- tests/dec_lio/d3_solver_benchmark.cpp
+- tools/dec_lio/run_baseline.sh
+- tools/dec_lio/select_prompt09_snapshots.py
+
+Estimator control remains native; D3 is off by default. No H/P/b/gamma/map/Prob-LIO implementation is changed.
