@@ -316,6 +316,15 @@ PairedAttenuationAudit::PairedAttenuationAudit(const std::string& csv_path) {
     csv_ << std::setprecision(17);
     writeHeader();
   }
+  const std::filesystem::path primary(csv_path);
+  const std::filesystem::path timing_path =
+      primary.parent_path() / (primary.stem().string() + "_timing.csv");
+  timing_csv_.open(timing_path.string());
+  if (timing_csv_) {
+    timing_csv_ << std::setprecision(17)
+                << "schema_version,frame,ieskf_iteration,timestamp,N_used,"
+                   "dcreg_us,lift_us,spectral_us,total_attenuation_us\n";
+  }
 }
 
 PairedAttenuationAudit::~PairedAttenuationAudit() { finalize(); }
@@ -335,8 +344,7 @@ void PairedAttenuationAudit::writeHeader() {
           "strong_mode_max_reduction,raw_fused_dx_norm,"
           "counterfactual_fused_dx_norm,counterfactual_minus_raw_norm,"
           "weak_update_difference_norm,complement_update_difference_norm,"
-          "attenuation_valid,attenuation_applied,fail_open_reason,"
-          "dcreg_us,lift_us,spectral_us,total_attenuation_us\n";
+          "attenuation_valid,attenuation_applied,fail_open_reason\n";
 }
 
 void PairedAttenuationAudit::record(
@@ -368,15 +376,21 @@ void PairedAttenuationAudit::record(
        << observation.complement_update_difference_norm << ','
        << (result.attenuation_valid ? 1 : 0) << ','
        << (result.attenuation_applied ? 1 : 0) << ','
-       << result.fail_open_reason << ',' << result.dcreg_us << ','
-       << result.lift_us << ',' << result.spectral_us << ','
-       << result.total_us << '\n';
+       << result.fail_open_reason << '\n';
+  if (timing_csv_) {
+    timing_csv_ << 1 << ',' << observation.frame << ','
+                << observation.ieskf_iteration << ',' << observation.timestamp
+                << ',' << observation.n_used << ',' << result.dcreg_us << ','
+                << result.lift_us << ',' << result.spectral_us << ','
+                << result.total_us << '\n';
+  }
 }
 
 void PairedAttenuationAudit::finalize() {
   if (finalized_) return;
   finalized_ = true;
   if (csv_) csv_.flush();
+  if (timing_csv_) timing_csv_.flush();
 }
 
 }  // namespace DecLIO

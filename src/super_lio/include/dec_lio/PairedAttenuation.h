@@ -90,6 +90,7 @@ class PairedAttenuationAudit {
   void writeHeader();
 
   std::ofstream csv_;
+  std::ofstream timing_csv_;
   bool finalized_ = false;
 };
 
