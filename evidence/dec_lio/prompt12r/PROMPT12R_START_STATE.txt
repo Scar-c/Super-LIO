@@ -1,0 +1,21 @@
+Prompt12R start state
+
+Prompt: Dec-LIO Prompt12R — NTNU Extrinsic Authority Correction + Resume Full-6DoF Held-Out Validation
+Start HEAD: 1c85e909664c08036872d7bdf6ff3bf19a31c3e9
+Start origin/Dec-LIO: 1c85e909664c08036872d7bdf6ff3bf19a31c3e9
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+merge-base(HEAD, origin/ros1): 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean
+
+Prompt12 historical hard stop
+- Prompt12 classified the composed vn100<-os_lidar comparison as TF-C.
+- Raw bag chain: vn100<-os_sensor = [I, (0.00166, 0.02158, 0.03610)];
+  os_sensor<-os_lidar = [diag(-1,-1,1), (0,0,0.038195)].
+- Therefore the composed vn100<-os_lidar has Rz(pi) and t=(0.00166,0.02158,0.074295).
+- Prompt12 evidence is historical and is not rewritten or deleted.
+
+Prompt12R correction
+- The Rz(pi) and 38.195 mm terms are Ouster-internal lidar-measurement to
+  sensor-mechanical-frame terms, not an external NTNU LiDAR-IMU conflict.
+- Prompt12R re-evaluated the remaining card-vs-acquisition-specific
+  vn100<-os_sensor discrepancy before any estimator run.

@@ -1,0 +1,34 @@
+Prompt12R closure
+
+Status: CLOSED
+Primary classification: P12R-B — HELDOUT_MIXED_BUT_PROMISING
+
+Closed authority:
+- Ouster internal lidar->sensor transform matched official documentation,
+  metadata and /tf_static; no 180-degree/38.195 mm cross-sensor conflict.
+- Final external authority is raw-bag T_vn100<-os_sensor = [I,
+  (0.00166,0.02158,0.03610) m].
+- Converted cloud frame is os_sensor; point-time is relative uint32 ns.
+- VN100, time synchronization, GT integrity and Super input semantics are
+  documented; GT is GT-B.
+
+Held-out closure:
+- Fyllingsdalen native sanity passed.
+- Fyllingsdalen and Runehamar N/P1 x2 completed RC=0.
+- Canonical threads=1 repeats have identical trajectory and science hashes.
+- Full-6DoF evaluator completed with fixed 0.05 s association, global SE(3),
+  no scale, no crop and no GT time optimization.
+- P1 is mixed/promising, not a consistent full-6DoF win; no retuning follows.
+
+Boundary assertions:
+P1 modified: NO
+threshold modified: NO
+gamma modified: NO
+P_pred modified: NO
+map modified: NO
+PCG: NO
+harmfulness gate: NO
+GT runtime access: NO
+GT used for config selection: NO
+Prob-LIO: NO
+vision: NO

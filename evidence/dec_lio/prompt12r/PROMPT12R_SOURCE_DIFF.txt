@@ -1,0 +1,24 @@
+Prompt12R source boundary summary
+
+Allowed source changes relative to origin/ros1:
+
+```text
+src/super_lio/config/ntnu_ar1.yaml
+src/super_lio/include/common/ds.h
+src/super_lio/include/ros/ROSWrapper.h
+src/super_lio/src/ros/ROSWrapper.cpp
+tools/dec_lio/production_identity.py
+tools/dec_lio/run_baseline.sh
+tools/dec_lio/validate_input.py
+eval/dec_lio/prompt12r_analysis.py
+```
+
+Production change is limited to standard PointCloud2 field decoding for the
+already enumerated OUSTER type and physical point-time conversion. No native
+estimator/map/IESKF/P1 implementation was imported from Prob-LIO. The
+production identity guard passes; the native estimator boundary remains free
+of `prob_lio`, `sa_gate`, and non-D3 `pcg` tokens.
+
+Prompt12R evidence and prompt archive are documentation/runtime contracts;
+large bags, converter builds, logs and generated trajectories remain outside
+the git worktree.
