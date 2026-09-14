@@ -6,6 +6,10 @@ using namespace BASIC;
 
 namespace LI2Sup{
 
+namespace {
+constexpr double kCounterfactualNormLimit = 1e12;
+}
+
 
 /// [1] SEfB: P195：（7.37a） P203: (7.76a) (7.77a)  P220: Table 7-2 
 /// [2] VSLAM14: P71: (4.26)  P73: (4.32)
@@ -342,7 +346,12 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
           attenuated_counterfactual - raw_counterfactual;
       const bool counterfactual_finite = raw_counterfactual.allFinite() &&
                                           attenuated_counterfactual.allFinite() &&
-                                          delta.allFinite();
+                                          delta.allFinite() &&
+                                          raw_counterfactual.norm() <
+                                              kCounterfactualNormLimit &&
+                                          attenuated_counterfactual.norm() <
+                                              kCounterfactualNormLimit &&
+                                          delta.norm() < kCounterfactualNormLimit;
       const DecLIO::Matrix18d weak_lift =
           [&]() {
             DecLIO::Matrix18d matrix = DecLIO::Matrix18d::Identity();
