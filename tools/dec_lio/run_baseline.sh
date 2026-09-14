@@ -21,6 +21,7 @@ D1_SHADOW="false"
 D2_SHADOW="false"
 CONSISTENCY_SHADOW="false"
 AXIS_SHADOW="false"
+D3_SOLVER_SHADOW="false"
 BLIND_OVERRIDE=""
 FILTER_RATE_OVERRIDE=""
 VOXEL_OVERRIDE=""
@@ -46,6 +47,7 @@ while [ "$#" -gt 0 ]; do
     --d2-shadow) D2_SHADOW="true"; shift ;;
     --consistency-shadow) CONSISTENCY_SHADOW="true"; shift ;;
     --axis-shadow) AXIS_SHADOW="true"; shift ;;
+    --d3-solver-shadow) D3_SOLVER_SHADOW="true"; shift ;;
     --blind) BLIND_OVERRIDE="$2"; shift 2 ;;
     --filter-rate) FILTER_RATE_OVERRIDE="$2"; shift 2 ;;
     --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
@@ -133,6 +135,7 @@ trap cleanup EXIT
   echo "d2_shadow: $D2_SHADOW"
   echo "consistency_shadow: $CONSISTENCY_SHADOW"
   echo "axis_shadow: $AXIS_SHADOW"
+  echo "d3_solver_shadow: $D3_SOLVER_SHADOW"
   echo "blind_override: ${BLIND_OVERRIDE:-config/default}"
   echo "filter_rate_override: ${FILTER_RATE_OVERRIDE:-config/default}"
   echo "voxel_override: ${VOXEL_OVERRIDE:-config/default}"
@@ -178,6 +181,9 @@ rosparam set /lio/dec_lio/consistency_shadow/enabled "$CONSISTENCY_SHADOW"
 rosparam set /lio/dec_lio/consistency_shadow/output_csv "$RUN_DIR/consistency_frame_summary.csv"
 rosparam set /lio/dec_lio/axis_shadow/enabled "$AXIS_SHADOW"
 rosparam set /lio/dec_lio/axis_shadow/output_csv "$RUN_DIR/axis_frame_summary.csv"
+rosparam set /lio/dec_lio/d3_solver_shadow/enabled "$D3_SOLVER_SHADOW"
+rosparam set /lio/dec_lio/d3_solver_shadow/output_csv "$RUN_DIR/d3_solver_shadow.csv"
+rosparam set /lio/dec_lio/d3_solver_shadow/snapshot_path "$RUN_DIR/d3_solver_snapshots.bin"
 rosparam set /lio/dec_lio/observation_stage_csv "$RUN_DIR/observation_stage.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio

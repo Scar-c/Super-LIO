@@ -249,6 +249,10 @@ bool ESKF::Predict(const IMUData& imu) {
 
 const int STATE_DIM = 18;
 bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
+  if (g_d3_solver_shadow_enabled && !d3_solver_audit_) {
+    d3_solver_audit_.reset(new DecLIO::D3SolverAudit(
+        g_d3_solver_output_csv, g_d3_solver_snapshot_path));
+  }
   // propagated state
   SO3 R_pred = R_;
   V3  p_pred = p_;
@@ -309,6 +313,21 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
 
     // dx = K_h + (K_x - I) * dx_prior
     dx_ = Qk * b + (K_x - M18::Identity()) * dx_prior;
+
+    if (d3_solver_audit_) {
+      DecLIO::ShadowInput shadow;
+      shadow.frame = d3_frame_;
+      shadow.ieskf_iteration = iter;
+      shadow.timestamp = d3_timestamp_;
+      shadow.n_used = d3_n_used_;
+      shadow.A = A.cast<double>();
+      shadow.lambda = Pk.inverse().cast<double>();
+      shadow.lidar_information = HTRH.cast<double>();
+      shadow.rhs = (b - shadow.lambda.cast<scalar>() * dx_prior).cast<double>();
+      shadow.dx_prior = dx_prior.cast<double>();
+      shadow.native_dx = dx_.cast<double>();
+      d3_solver_audit_->record(shadow);
+    }
 
     Update();
 

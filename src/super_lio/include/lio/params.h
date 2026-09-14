@@ -90,6 +90,11 @@ namespace LI2Sup{
   extern bool g_axis_shadow_enabled;
   extern std::string g_axis_output_csv;
 
+  /// Dec-LIO D3 solver-equivalence shadow. This never controls estimator state.
+  extern bool g_d3_solver_shadow_enabled;
+  extern std::string g_d3_solver_output_csv;
+  extern std::string g_d3_solver_snapshot_path;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

@@ -128,6 +128,13 @@ void SuperLIO::init(){
   } else {
     LOG(INFO) << GREEN << " ---> [Dec-LIO Prompt06 axis]: shadow=OFF" << RESET;
   }
+  if (g_d3_solver_shadow_enabled) {
+    LOG(INFO) << GREEN << " ---> [Dec-LIO D3 solver]: shadow=ON output="
+              << g_d3_solver_output_csv << " snapshots="
+              << g_d3_solver_snapshot_path << RESET;
+  } else {
+    LOG(INFO) << GREEN << " ---> [Dec-LIO D3 solver]: shadow=OFF" << RESET;
+  }
 
   if (!g_observation_stage_output_csv.empty()) {
     const std::filesystem::path path(g_observation_stage_output_csv);
@@ -604,6 +611,8 @@ void SuperLIO::Observe(){
   int iter_num = 0;
   int shadow_iteration = 0;
 
+  kf_->SetD3ObservationContext(static_cast<std::uint64_t>(frame_num_),
+                               measures_.lidar.end_time);
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
     const int current_shadow_iteration = shadow_iteration++;
     const SE3 pose = kf_state.pose;
@@ -715,6 +724,7 @@ void SuperLIO::Observe(){
     }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
+    kf_->SetD3ObservationCount(used_residual_count);
 
     if(need_converge) return;
 

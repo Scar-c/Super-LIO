@@ -69,6 +69,10 @@ namespace LI2Sup{
   bool g_axis_shadow_enabled = false;
   std::string g_axis_output_csv;
 
+  bool g_d3_solver_shadow_enabled = false;
+  std::string g_d3_solver_output_csv;
+  std::string g_d3_solver_snapshot_path;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;

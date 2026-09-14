@@ -107,6 +107,12 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.param("/lio/dec_lio/axis_shadow/enabled", g_axis_shadow_enabled, false);
   nh.param("/lio/dec_lio/axis_shadow/output_csv", g_axis_output_csv,
            std::string());
+  nh.param("/lio/dec_lio/d3_solver_shadow/enabled",
+           g_d3_solver_shadow_enabled, false);
+  nh.param("/lio/dec_lio/d3_solver_shadow/output_csv",
+           g_d3_solver_output_csv, std::string());
+  nh.param("/lio/dec_lio/d3_solver_shadow/snapshot_path",
+           g_d3_solver_snapshot_path, std::string());
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);

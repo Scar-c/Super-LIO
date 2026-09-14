@@ -5,6 +5,7 @@
 #include "basic/Manifold.h"
 #include "common/ds.h"
 #include "params.h"
+#include "dec_lio/D3Solver.h"
 
 
 namespace LI2Sup{
@@ -75,6 +76,11 @@ public:
 
   void SetObsTime(const double obs_time) { current_obs_time_ = obs_time; }
   void SetLastObsTime(const double obs_time) { last_obs_time_ = obs_time; }
+  void SetD3ObservationContext(std::uint64_t frame, double timestamp) {
+    d3_frame_ = frame;
+    d3_timestamp_ = timestamp;
+  }
+  void SetD3ObservationCount(std::size_t count) { d3_n_used_ = count; }
 
   void SetX(const SysState& x);
 
@@ -114,6 +120,11 @@ private:
   NOISE Q_ = NOISE::Zero();
 
   Options options_;
+
+  std::unique_ptr<DecLIO::D3SolverAudit> d3_solver_audit_;
+  std::uint64_t d3_frame_ = 0;
+  double d3_timestamp_ = 0.0;
+  std::size_t d3_n_used_ = 0;
 
   double  forward_time_ = -1;
   IMUData forward_last_imu_;
