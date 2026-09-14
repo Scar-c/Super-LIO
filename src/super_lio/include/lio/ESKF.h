@@ -6,6 +6,7 @@
 #include "common/ds.h"
 #include "params.h"
 #include "dec_lio/D3Solver.h"
+#include "dec_lio/PairedAttenuation.h"
 
 
 namespace LI2Sup{
@@ -122,6 +123,7 @@ private:
   Options options_;
 
   std::unique_ptr<DecLIO::D3SolverAudit> d3_solver_audit_;
+  std::unique_ptr<DecLIO::PairedAttenuationAudit> paired_attenuation_audit_;
   std::uint64_t d3_frame_ = 0;
   double d3_timestamp_ = 0.0;
   std::size_t d3_n_used_ = 0;

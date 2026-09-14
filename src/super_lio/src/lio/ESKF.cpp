@@ -253,6 +253,12 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
     d3_solver_audit_.reset(new DecLIO::D3SolverAudit(
         g_d3_solver_output_csv, g_d3_solver_snapshot_path));
   }
+  const bool paired_requested =
+      g_paired_attenuation_enabled || g_paired_attenuation_shadow_only;
+  if (paired_requested && !paired_attenuation_audit_) {
+    paired_attenuation_audit_.reset(
+        new DecLIO::PairedAttenuationAudit(g_paired_attenuation_output_csv));
+  }
   // propagated state
   SO3 R_pred = R_;
   V3  p_pred = p_;
@@ -296,7 +302,70 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
 
     Pk = G_prior * P_pred * G_prior.transpose();
 
+    const M6 raw_HTVH = HTVH;
+    const V6 raw_HTVr = HTVr;
+
     dx_prior = G_prior * dx_prior;
+
+    if (paired_requested) {
+      const DecLIO::PairedAttenuationResult paired =
+          DecLIO::computePairedAttenuation(raw_HTVH.cast<double>(),
+                                            raw_HTVr.cast<double>(),
+                                            g_d1_condition_threshold);
+
+      const DecLIO::Matrix18d lambda_d = Pk.cast<double>().inverse();
+      const DecLIO::Vector18d dx_prior_d = dx_prior.cast<double>();
+      const auto fused_counterfactual =
+          [&](const DecLIO::Matrix6d& h, const DecLIO::Vector6d& rhs) {
+            DecLIO::Matrix18d lidar_information =
+                DecLIO::Matrix18d::Zero();
+            lidar_information.block<6, 6>(0, 0) = h;
+            const DecLIO::Matrix18d a = lambda_d + lidar_information;
+            const DecLIO::Matrix18d q = a.inverse();
+            DecLIO::Vector18d b = DecLIO::Vector18d::Zero();
+            b.head<6>() = rhs;
+            return q * b + (q * lidar_information -
+                            DecLIO::Matrix18d::Identity()) * dx_prior_d;
+          };
+      const DecLIO::Vector18d raw_counterfactual =
+          fused_counterfactual(raw_HTVH.cast<double>(), raw_HTVr.cast<double>());
+      const DecLIO::Vector18d attenuated_counterfactual =
+          fused_counterfactual(paired.attenuated_H, paired.attenuated_b);
+      const DecLIO::Vector18d delta =
+          attenuated_counterfactual - raw_counterfactual;
+      const DecLIO::Matrix18d weak_lift =
+          [&]() {
+            DecLIO::Matrix18d matrix = DecLIO::Matrix18d::Identity();
+            matrix.setZero();
+            matrix.block<6, 6>(0, 0) = paired.weak_projector;
+            return matrix;
+          }();
+      const DecLIO::Matrix18d weak_complement =
+          DecLIO::Matrix18d::Identity() - weak_lift;
+
+      DecLIO::PairedAttenuationObservation observation;
+      observation.frame = d3_frame_;
+      observation.ieskf_iteration = iter;
+      observation.timestamp = d3_timestamp_;
+      observation.n_used = d3_n_used_;
+      observation.shadow_only = !g_paired_attenuation_enabled ||
+                                g_paired_attenuation_shadow_only;
+      observation.raw_fused_dx_norm = raw_counterfactual.norm();
+      observation.counterfactual_fused_dx_norm =
+          attenuated_counterfactual.norm();
+      observation.counterfactual_minus_raw_norm = delta.norm();
+      observation.weak_update_difference_norm = (weak_lift * delta).norm();
+      observation.complement_update_difference_norm =
+          (weak_complement * delta).norm();
+      observation.result = paired;
+      paired_attenuation_audit_->record(observation);
+
+      if (g_paired_attenuation_enabled && paired.attenuation_valid &&
+          paired.attenuation_applied) {
+        HTVH = paired.attenuated_H.cast<scalar>();
+        HTVr = paired.attenuated_b.cast<scalar>();
+      }
+    }
 
     // H^T R^{-1} H
     M18 HTRH = M18::Zero();

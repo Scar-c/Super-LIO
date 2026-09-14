@@ -188,3 +188,13 @@ add_executable(dec_lio_d3_solver_benchmark
   src/dec_lio/DCRegAnalyzer.cpp)
 target_include_directories(dec_lio_d3_solver_benchmark PRIVATE
   include ${EIGEN3_INCLUDE_DIRS})
+
+add_executable(dec_lio_paired_attenuation_synthetic_test
+  ../../tests/dec_lio/paired_attenuation_synthetic_test.cpp
+  src/dec_lio/PairedAttenuation.cpp
+  src/dec_lio/DCRegAnalyzer.cpp)
+target_include_directories(dec_lio_paired_attenuation_synthetic_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS})
+add_test(NAME dec_lio_paired_attenuation_synthetic_test
+         COMMAND dec_lio_paired_attenuation_synthetic_test)
