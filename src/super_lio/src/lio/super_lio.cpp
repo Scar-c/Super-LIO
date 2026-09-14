@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <iomanip>
 #include <limits>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
@@ -532,7 +533,8 @@ void SuperLIO::writeObservationStage(std::size_t candidate_count,
   const double max_query_timestamp =
       std::isfinite(max_offset) ? measures_.lidar.start_time + max_offset
                                 : std::numeric_limits<double>::quiet_NaN();
-  observation_stage_csv_ << 3 << ',' << frame_num_ << ','
+  observation_stage_csv_ << std::setprecision(17)
+                         << 3 << ',' << frame_num_ << ','
                          << measures_.lidar.end_time << ',' << stage.raw << ','
                          << stage.finite << ',' << stage.after_raw_stride << ','
                          << stage.after_stride_finite << ','
