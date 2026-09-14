@@ -90,6 +90,9 @@ protected:
   std::vector<int> effect_knn_idxs_;
   std::vector<std::pair<BASIC::M6, BASIC::V6>> H_R_;
   std::vector<std::array<double, 4>> abcd_vec_;
+  std::size_t imu_states_overlapping_scan_ = 0;
+  std::size_t interpolated_point_count_ = 0;
+  std::size_t beyond_propagation_fallback_count_ = 0;
   int pcd_index_ = -1;
   std::ofstream observation_stage_csv_;
 

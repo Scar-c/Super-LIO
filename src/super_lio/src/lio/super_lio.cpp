@@ -2,6 +2,8 @@
 #include "lio/super_lio.h"
 
 #include <sys/resource.h>
+#include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <tbb/parallel_for.h>
@@ -139,7 +141,9 @@ void SuperLIO::init(){
              "N_after_blind,N_after_upper_range,N_undistorted,N_after_voxel,"
              "N_candidate,N_used,header_timestamp,min_accepted_offset,"
              "max_accepted_offset,last_accepted_offset,min_query_timestamp,"
-             "max_query_timestamp,configured_lidar_end_time\n";
+             "max_query_timestamp,configured_lidar_end_time,"
+             "imu_states_overlapping_scan,interpolated_point_count,"
+             "beyond_propagation_fallback_count\n";
     }
   }
 
@@ -409,6 +413,9 @@ void SuperLIO::saveMap(){
 
 
 void SuperLIO::Propagation_Undistort(){
+  imu_states_overlapping_scan_ = 0;
+  interpolated_point_count_ = 0;
+  beyond_propagation_fallback_count_ = 0;
   propagate_states_.clear();
   propagate_states_.emplace_back(kf_->GetDynamicState());
   kf_->SetObsTime(measures_.lidar.end_time);
@@ -427,6 +434,24 @@ void SuperLIO::Propagation_Undistort(){
 
   std::size_t ptsize = raw_pc->points.size();
   scan_undistort_full_->resize(ptsize); 
+  if (!raw_pc->empty() && propagate_states_.size() >= 2) {
+    double min_query_time = std::numeric_limits<double>::infinity();
+    double max_query_time = -std::numeric_limits<double>::infinity();
+    for (const auto& point : raw_pc->points) {
+      min_query_time = std::min(min_query_time,
+                                start_time + point.offset_time);
+      max_query_time = std::max(max_query_time,
+                                start_time + point.offset_time);
+    }
+    for (std::size_t index = 0; index + 1 < propagate_states_.size(); ++index) {
+      if (propagate_states_[index].time <= max_query_time &&
+          propagate_states_[index + 1].time >= min_query_time) {
+        ++imu_states_overlapping_scan_;
+      }
+    }
+  }
+  std::atomic<std::size_t> interpolated_count{0};
+  std::atomic<std::size_t> fallback_count{0};
 
   tbb::parallel_for(
   tbb::blocked_range<size_t>(0, ptsize),
@@ -438,6 +463,7 @@ void SuperLIO::Propagation_Undistort(){
       pt_full.intensity = pt.intensity;
       double query_time = start_time + pt.offset_time;
       if (query_time > propagate_states_.back().time) {
+        ++fallback_count;
         V3 raw(pt.x, pt.y, pt.z);
         V3 eigen_point = TLI_R * raw + TLI_t;
         pt_full.x = eigen_point[0];
@@ -445,6 +471,7 @@ void SuperLIO::Propagation_Undistort(){
         pt_full.z = eigen_point[2];
         continue;
       }
+      ++interpolated_count;
       auto match_iter = propagate_states_.begin();
       for (auto iter = propagate_states_.begin(); iter != propagate_states_.end(); ++iter) {
         auto next_iter = std::next(iter);
@@ -473,6 +500,8 @@ void SuperLIO::Propagation_Undistort(){
       pt_full.z = eigen_point[2];
     }
   });
+  interpolated_point_count_ = interpolated_count.load();
+  beyond_propagation_fallback_count_ = fallback_count.load();
 }
 
 
@@ -514,7 +543,10 @@ void SuperLIO::writeObservationStage(std::size_t candidate_count,
                          << used_count << ',' << measures_.lidar.start_time << ','
                          << min_offset << ',' << max_offset << ',' << last_offset
                          << ',' << min_query_timestamp << ',' << max_query_timestamp
-                         << ',' << measures_.lidar.end_time << '\n';
+                         << ',' << measures_.lidar.end_time << ','
+                         << imu_states_overlapping_scan_ << ','
+                         << interpolated_point_count_ << ','
+                         << beyond_propagation_fallback_count_ << '\n';
 }
 
 
