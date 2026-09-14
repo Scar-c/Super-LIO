@@ -48,6 +48,7 @@ namespace LI2Sup{
   extern bool  g_enable_downsample;
   extern float g_voxel_fliter_size;
   extern double g_point_time_scale;
+  extern bool g_geode_finite_then_stride;
   extern std::string g_observation_stage_output_csv;
 
   extern int    g_imu_type;

@@ -26,6 +26,7 @@ FILTER_RATE_OVERRIDE=""
 VOXEL_OVERRIDE=""
 MAXRANGE_OVERRIDE=""
 POINT_TIME_SCALE_OVERRIDE=""
+GEODE_FINITE_THEN_STRIDE_OVERRIDE=""
 PLAY_TOPICS="/velodyne_points,/imu/data"
 RECORD_TOPICS="/lio/odom"
 
@@ -50,6 +51,7 @@ while [ "$#" -gt 0 ]; do
     --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
     --maxrange) MAXRANGE_OVERRIDE="$2"; shift 2 ;;
     --point-time-scale) POINT_TIME_SCALE_OVERRIDE="$2"; shift 2 ;;
+    --geode-finite-then-stride) GEODE_FINITE_THEN_STRIDE_OVERRIDE="$2"; shift 2 ;;
     --play-topics) PLAY_TOPICS="$2"; shift 2 ;;
     --record-topics) RECORD_TOPICS="$2"; shift 2 ;;
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
@@ -155,6 +157,7 @@ if [ -n "$FILTER_RATE_OVERRIDE" ]; then rosparam set /lio/sensor/filter_rate "$F
 if [ -n "$VOXEL_OVERRIDE" ]; then rosparam set /lio/sensor/voxel_fliter_size "$VOXEL_OVERRIDE"; fi
 if [ -n "$MAXRANGE_OVERRIDE" ]; then rosparam set /lio/sensor/maxrange "$MAXRANGE_OVERRIDE"; fi
 if [ -n "$POINT_TIME_SCALE_OVERRIDE" ]; then rosparam set /lio/sensor/point_time_scale "$POINT_TIME_SCALE_OVERRIDE"; fi
+if [ -n "$GEODE_FINITE_THEN_STRIDE_OVERRIDE" ]; then rosparam set /lio/sensor/geode_finite_then_stride "$GEODE_FINITE_THEN_STRIDE_OVERRIDE"; fi
 rosparam set /lio/offline/bag "$BAG"
 rosparam set /lio/offline/start_offset -1.0
 rosparam set /lio/offline/duration "${DURATION:--1.0}"

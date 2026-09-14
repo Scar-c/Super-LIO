@@ -31,6 +31,7 @@ namespace LI2Sup{
   bool   g_enable_downsample;
   float  g_voxel_fliter_size;
   double g_point_time_scale = 1.0;
+  bool g_geode_finite_then_stride = false;
   std::string g_observation_stage_output_csv;
 
   int    g_imu_type;

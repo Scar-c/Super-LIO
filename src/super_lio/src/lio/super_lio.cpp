@@ -134,6 +134,7 @@ void SuperLIO::init(){
     if (observation_stage_csv_) {
       observation_stage_csv_
           << "schema_version,frame,timestamp,N_raw,N_finite,N_after_raw_stride,"
+             "N_after_stride_finite,stride_input_population,"
              "N_after_blind,N_after_upper_range,N_undistorted,N_after_voxel,"
              "N_candidate,N_used\n";
     }
@@ -481,10 +482,12 @@ void SuperLIO::writeObservationStage(std::size_t candidate_count,
                                      std::size_t used_count) {
   if (!observation_stage_csv_) return;
   const auto& stage = measures_.lidar.stage;
-  observation_stage_csv_ << 1 << ',' << frame_num_ << ','
+  observation_stage_csv_ << 2 << ',' << frame_num_ << ','
                          << measures_.lidar.end_time << ',' << stage.raw << ','
                          << stage.finite << ',' << stage.after_raw_stride << ','
-                         << stage.after_blind << ',' << stage.after_upper_range
+                         << stage.after_stride_finite << ','
+                         << (g_geode_finite_then_stride ? "FINITE_COMPACTED" : "RAW")
+                         << ',' << stage.after_blind << ',' << stage.after_upper_range
                          << ',' << scan_undistort_full_->size() << ','
                          << ds_undistort_->size() << ',' << candidate_count << ','
                          << used_count << '\n';

@@ -38,6 +38,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.getParam("/lio/sensor/enable_downsample", g_enable_downsample);
   nh.getParam("/lio/sensor/voxel_fliter_size", g_voxel_fliter_size);
   nh.param("/lio/sensor/point_time_scale", g_point_time_scale, 1.0);
+  nh.param("/lio/sensor/geode_finite_then_stride",
+           g_geode_finite_then_stride, false);
   nh.param("/lio/dec_lio/observation_stage_csv",
            g_observation_stage_output_csv, std::string());
 
@@ -333,20 +335,46 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
     lidar_data.pc->reserve(pl_orig.size() / g_filter_rate + 1);
     lidar_data.start_time = msg->header.stamp.toSec();
 
-    for(std::size_t i = 0; i < pl_orig.size(); i += g_filter_rate){
-      auto& pt = pl_orig.points[i];
-      ++lidar_data.stage.after_raw_stride;
-      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z)) {
+    if (!g_geode_finite_then_stride) {
+      for(std::size_t i = 0; i < pl_orig.size(); i += g_filter_rate){
+        auto& pt = pl_orig.points[i];
+        ++lidar_data.stage.after_raw_stride;
+        if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z)) {
+          ++lidar_data.stage.after_stride_finite;
+          const double d2 = static_cast<double>(pt.x) * pt.x +
+                            static_cast<double>(pt.y) * pt.y +
+                            static_cast<double>(pt.z) * pt.z;
+          if (d2 > g_blind2) ++lidar_data.stage.after_blind;
+          if (d2 > g_blind2 && d2 < g_maxrange2)
+            ++lidar_data.stage.after_upper_range;
+        }
+        if (!validPoint(pt.x, pt.y, pt.z)) continue;
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
+      }
+    } else {
+      std::vector<std::size_t> finite_indices;
+      finite_indices.reserve(lidar_data.stage.finite);
+      for (std::size_t i = 0; i < pl_orig.size(); ++i) {
+        const auto& pt = pl_orig.points[i];
+        if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
+          finite_indices.push_back(i);
+      }
+      for (std::size_t compact_i = 0;
+           compact_i < finite_indices.size(); compact_i += g_filter_rate) {
+        const std::size_t i = finite_indices[compact_i];
+        const auto& pt = pl_orig.points[i];
+        ++lidar_data.stage.after_raw_stride;
+        ++lidar_data.stage.after_stride_finite;
         const double d2 = static_cast<double>(pt.x) * pt.x +
                           static_cast<double>(pt.y) * pt.y +
                           static_cast<double>(pt.z) * pt.z;
         if (d2 > g_blind2) ++lidar_data.stage.after_blind;
         if (d2 > g_blind2 && d2 < g_maxrange2)
           ++lidar_data.stage.after_upper_range;
+        lidar_data.pc->emplace_back(
+            pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
       }
-      if (!validPoint(pt.x, pt.y, pt.z)) continue;
-      lidar_data.pc->emplace_back(
-          pt.x, pt.y, pt.z, pt.intensity, pt.time * g_point_time_scale);
     }
     lidar_data.end_time = lidar_data.start_time + lidar_data.pc->points.back().offset_time;
     break;

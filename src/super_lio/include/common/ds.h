@@ -129,6 +129,7 @@ struct LidarData
     std::size_t raw = 0;
     std::size_t finite = 0;
     std::size_t after_raw_stride = 0;
+    std::size_t after_stride_finite = 0;
     std::size_t after_blind = 0;
     std::size_t after_upper_range = 0;
   } stage;
