@@ -31,6 +31,7 @@ class NativeIdentityTest(unittest.TestCase):
         changed = set(result.stdout.splitlines()) if result.stdout.strip() else set()
         allowed = {
             "src/super_lio/include/lio/params.h",
+            "src/super_lio/include/lio/point_selection.h",
             "src/super_lio/include/lio/super_lio.h",
             "src/super_lio/src/lio/params.cpp",
             "src/super_lio/src/lio/super_lio.cpp",

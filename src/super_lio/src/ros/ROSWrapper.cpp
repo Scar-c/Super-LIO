@@ -380,8 +380,12 @@ void ROSWrapper::stdMsgHandler(const sensor_msgs::PointCloud2::ConstPtr& msg){
                  << lidar_data.pc->size() << " accepted="
                  << lidar_data.stage.after_upper_range;
     }
-    const double max_offset_time = maxPointOffset(lidar_data.pc->points);
-    lidar_data.end_time = lidar_data.start_time + max_offset_time;
+    const double end_offset_time =
+        g_geode_finite_then_stride
+            ? maxPointOffset(lidar_data.pc->points)
+            : (lidar_data.pc->empty() ? 0.0
+                                       : lidar_data.pc->points.back().offset_time);
+    lidar_data.end_time = lidar_data.start_time + end_offset_time;
     break;
   }
   case OUSTER:
