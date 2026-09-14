@@ -1,0 +1,13 @@
+Prompt10 start authority
+
+prompt: Dec-LIO Prompt10 — DCReg-Guided Paired Information Attenuation V1
+prompt_archive: prompts/dec_lio/PROMPT10_DCREG_PAIRED_ATTENUATION_V1.md
+prompt_sha256: 1f4315dc19b452a85dfe14e3f47d47246020ecbd822b531f1d1ee694f96504a6
+start_head: 221a7b2d9dbee651365d0ae4bd11178f32180e6e
+start_origin_dec_lio: 221a7b2d9dbee651365d0ae4bd11178f32180e6e
+start_origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_merge_base: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+start_worktree: clean
+
+Prompt09 raw D3 evidence was not rerun. Prompt10 adds a separate paired
+attenuation module and uses the canonical GEODE input triplets.

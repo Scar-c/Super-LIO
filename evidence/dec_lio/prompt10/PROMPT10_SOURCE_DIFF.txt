@@ -1,0 +1,20 @@
+Prompt10 source boundary manifest
+
+Reproduce exact source diff:
+  git diff 221a7b2d9dbee651365d0ae4bd11178f32180e6e..5327767 -- src/ tools/ tests/
+
+Estimator boundary additions are limited to the Prompt10 paired-attention
+module, its ESKF observation seam, explicit ROS parameters, runner switches,
+identity guard, and deterministic synthetic test. No Prob-LIO estimator code,
+vision path, correspondence generation, point preprocessing, map algorithm,
+P_pred lifecycle, or D3 production solver was imported.
+
+Primary new files:
+  src/super_lio/include/dec_lio/PairedAttenuation.h
+  src/super_lio/src/dec_lio/PairedAttenuation.cpp
+  tests/dec_lio/paired_attenuation_synthetic_test.cpp
+
+Science controls:
+  dec_lio_paired_attenuation_enabled: false by default
+  dec_lio_paired_attenuation_shadow_only: false by default
+  D3 solver shadow: false in all science runs

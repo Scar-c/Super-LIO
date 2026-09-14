@@ -1,0 +1,11 @@
+Prompt10 deterministic synthetic test
+
+target: dec_lio_paired_attenuation_synthetic_test
+command: /home/lc/dec_lio/devel/lib/super_lio/dec_lio_paired_attenuation_synthetic_test
+result: Prompt10 paired attenuation synthetic tests T1-T20: PASS
+
+Covered: no-weak exact bypass; one weak rotational/translational lift; both
+weak modes; union rank; gamma boundary, half-amplitude, and zero limit;
+zero/full/partial occupancy; paired minimizer; H-tilde PSD; removed-information
+PSD; H-only and b-only negative controls; invalid DCReg fail-open; non-PSD
+fail-open; byte-identical no-weak bypass; and coupled B != 0.

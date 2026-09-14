@@ -1,0 +1,15 @@
+Prompt10 closure
+
+final_head: 5327767
+origin_dec_lio: 5327767
+merge_base_origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+worktree: clean for all canonical runs; evidence files are now staged for the closure commit
+build: PASS
+python_tests: 19 PASS
+synthetic_T1_T20: PASS
+native_parity: Bridge/Stairs/Tunnel2 PASS
+shadow_gate: PASS
+P1_runs: 6/6 PASS
+P1_determinism: trajectory and paired CSV SHA PASS for all scenes
+primary_classification: P10-A
+status: CLOSED
