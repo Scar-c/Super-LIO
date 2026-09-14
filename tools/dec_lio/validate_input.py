@@ -29,7 +29,7 @@ EXPECTED = {
         "ground_truth": "e763f75f939a092c58b91d79d1875c3aba694958c49383372e7f5e0a1bc0b9bd",
     },
     "runehamar_tunnel_hornbill": {
-        "bag": "__NTNU_RUNEHAMAR_CONVERSION_PENDING__",
+        "bag": "8d8104fea3abf4f37a5b61e9b08f40b7a1540cbf0e5f41a5bb805ff540cc2d59",
         "config": "55bbc33a7e14c4e095993c7e383e8b2e186e958794e99f1966383ec3e33e6320",
         "ground_truth": "7ac1be2323c886b180594888b0fbdc9550522aebd0f5e483f9fec7d8c3cfeae2",
     },
