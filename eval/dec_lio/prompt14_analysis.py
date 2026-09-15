@@ -261,10 +261,10 @@ def sustained_events(sequence, rows, mode_rows):
     return output
 
 
-def sequence_report(name, spec, run_root, output_dir):
+def sequence_report(name, spec, run_root, native_root, output_dir):
     run = spec["run"]
     shadow_dir = pathlib.Path(run_root) / f"{run}_shadow"
-    native_dir = pathlib.Path(run_root) / f"{run}_native"
+    native_dir = pathlib.Path(native_root) / f"{run}_native"
     rows, repaired = load_frame_csv(shadow_dir / "prompt14_shadow.csv")
     mode_rows = load_modes(shadow_dir / "prompt14_modes.csv")
     trajectory = trajectory_metrics(native_dir / "trajectory.tum", spec["gt"])
@@ -366,12 +366,15 @@ def write_csv(path, rows, fields=None):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-root", required=True, type=pathlib.Path)
+    parser.add_argument("--native-root", type=pathlib.Path)
     parser.add_argument("--output-dir", required=True, type=pathlib.Path)
     args = parser.parse_args(argv)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    native_root = args.native_root or args.run_root
     summaries, events = [], []
     for name, spec in SEQUENCES.items():
-        summary, sequence_events = sequence_report(name, spec, args.run_root, args.output_dir)
+        summary, sequence_events = sequence_report(
+            name, spec, args.run_root, native_root, args.output_dir)
         summaries.append(summary)
         events.extend(sequence_events)
         print(f"{name}: frames={summary['frames_processed']} weak_candidates={summary['prior_suppression_candidates']} "
