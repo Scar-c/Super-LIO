@@ -62,6 +62,14 @@ int main() {
     std::cerr << "isotropic L2 parity failed\n";
     return 1;
   }
+  Eigen::Matrix<double, 6, 6> information_isotropic =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  if (!DecLIO::isotropizePoseCovarianceByInformation(
+          isotropic, information_isotropic) ||
+      (information_isotropic - isotropic).norm() > 1.0e-24) {
+    std::cerr << "isotropic L3 identity failed\n";
+    return 1;
+  }
 
   const Eigen::AngleAxisd rotation_axis(
       0.37, Eigen::Vector3d(1.0, 2.0, 3.0).normalized());
