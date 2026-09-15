@@ -18,6 +18,7 @@ using namespace BASIC;
 namespace LI2Sup{
 
 SuperLIO::~SuperLIO(){
+  if (prompt15_analyzer_) prompt15_analyzer_->finalize();
   if (prompt14_analyzer_) prompt14_analyzer_->finalize();
   if (axis_analyzer_) axis_analyzer_->finalize();
   if (consistency_analyzer_) consistency_analyzer_->finalize();
@@ -137,7 +138,7 @@ void SuperLIO::init(){
     LOG(INFO) << GREEN << " ---> [Dec-LIO D3 solver]: shadow=OFF" << RESET;
   }
 
-  if (g_prompt14_shadow_enabled) {
+  if (g_prompt14_shadow_enabled || g_prompt15_enabled) {
     prompt14_analyzer_.reset(new DecLIO::Prompt14Analyzer(
         g_prompt14_frame_csv, g_prompt14_mode_csv,
         g_d1_condition_threshold));
@@ -147,6 +148,17 @@ void SuperLIO::init(){
   } else {
     LOG(INFO) << GREEN
               << " ---> [Dec-LIO Prompt14]: LiDAR-only shadow=OFF" << RESET;
+  }
+
+  if (g_prompt15_enabled) {
+    prompt15_analyzer_.reset(new DecLIO::CounterfactualReplayAnalyzer(
+        g_prompt15_event_csv,
+        static_cast<std::uint64_t>(std::max(g_prompt15_intervention_frame, 0)),
+        g_d1_condition_threshold));
+    LOG(INFO) << GREEN
+              << " ---> [Dec-LIO Prompt15]: one-event counterfactual probe=ON "
+              << "frame=" << g_prompt15_intervention_frame << " output="
+              << g_prompt15_event_csv << RESET;
   }
 
   if (!g_observation_stage_output_csv.empty()) {
@@ -676,6 +688,20 @@ void SuperLIO::Observe(){
               raw_b.cast<double>(), effective_H.cast<double>(),
               effective_b.cast<double>(), native_dx.head<6>().cast<double>(),
               g_paired_attenuation_mode != 0, builder);
+          if (prompt15_analyzer_) {
+            const DecLIO::LidarOnlyShadowResult result =
+                DecLIO::LidarOnlyShadowSolver::run(
+                    static_cast<std::uint64_t>(frame_num_),
+                    measures_.lidar.end_time, prompt14_t_init,
+                    prompt14_matched_points_, raw_H.cast<double>(),
+                    raw_b.cast<double>(), effective_H.cast<double>(),
+                    effective_b.cast<double>(), native_dx.head<6>().cast<double>(),
+                    g_paired_attenuation_mode != 0, g_d1_condition_threshold,
+                    builder);
+            prompt15_analyzer_->prepare(
+                static_cast<std::uint64_t>(frame_num_),
+                measures_.lidar.end_time, result);
+          }
         });
   }
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
@@ -825,6 +851,16 @@ void SuperLIO::Observe(){
 
     iter_num++;
   });
+  if (prompt15_analyzer_ && prompt15_analyzer_->has_pending()) {
+    const SE3 native_pose_after_update = kf_->GetSE3();
+    const SE3 intervention_pose = prompt15_analyzer_->pending_pose();
+    if (kf_->ApplyDiagnosticPoseIntervention(intervention_pose)) {
+      prompt15_analyzer_->commit(native_pose_after_update,
+                                  kf_->GetSE3());
+    } else {
+      prompt15_analyzer_->cancel("POSE_APPLICATION_FAIL");
+    }
+  }
   if (prompt14_enabled) kf_->ClearFirstUpdateHook();
 
   writeObservationStage(first_candidate_count, first_used_count);

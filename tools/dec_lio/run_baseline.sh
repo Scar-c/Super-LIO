@@ -27,6 +27,8 @@ PAIRED_ATTENUATION="false"
 PAIRED_ATTENUATION_SHADOW="false"
 PAIRED_MODE="0"
 P14_SHADOW="false"
+P15_ENABLED="false"
+P15_FRAME=""
 BLIND_OVERRIDE=""
 FILTER_RATE_OVERRIDE=""
 VOXEL_OVERRIDE=""
@@ -66,6 +68,8 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2 ;;
     --prompt14-shadow|--p14-shadow) P14_SHADOW="true"; shift ;;
+    --prompt15-frame|--p15-frame)
+      P15_ENABLED="true"; P15_FRAME="$2"; shift 2 ;;
     --blind) BLIND_OVERRIDE="$2"; shift 2 ;;
     --filter-rate) FILTER_RATE_OVERRIDE="$2"; shift 2 ;;
     --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
@@ -77,6 +81,14 @@ while [ "$#" -gt 0 ]; do
     *) echo "ERR: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+if [ "$P15_ENABLED" = "true" ]; then
+  if [[ ! "$P15_FRAME" =~ ^[0-9]+$ ]]; then
+    echo "ERR: --prompt15-frame must be a non-negative integer" >&2; exit 2
+  fi
+  # Prompt15 requires the Prompt14 source diagnostics for the same frame.
+  P14_SHADOW="true"
+fi
 
 if [ "$PAIRED_MODE" != "0" ]; then PAIRED_ATTENUATION="true"; fi
 
@@ -170,6 +182,8 @@ trap cleanup EXIT
   echo "paired_attenuation_shadow: $PAIRED_ATTENUATION_SHADOW"
   echo "paired_attenuation_mode: $PAIRED_MODE"
   echo "prompt14_shadow: $P14_SHADOW"
+  echo "prompt15_enabled: $P15_ENABLED"
+  echo "prompt15_intervention_frame: ${P15_FRAME:-not-applicable}"
   echo "blind_override: ${BLIND_OVERRIDE:-config/default}"
   echo "filter_rate_override: ${FILTER_RATE_OVERRIDE:-config/default}"
   echo "voxel_override: ${VOXEL_OVERRIDE:-config/default}"
@@ -225,6 +239,9 @@ rosparam set /lio/dec_lio/paired_attenuation/output_csv "$RUN_DIR/paired_attenua
 rosparam set /lio/dec_lio/prompt14_shadow/enabled "$P14_SHADOW"
 rosparam set /lio/dec_lio/prompt14_shadow/frame_csv "$RUN_DIR/prompt14_shadow.csv"
 rosparam set /lio/dec_lio/prompt14_shadow/mode_csv "$RUN_DIR/prompt14_modes.csv"
+rosparam set /lio/dec_lio/prompt15/enabled "$P15_ENABLED"
+rosparam set /lio/dec_lio/prompt15/intervention_frame "${P15_FRAME:--1}"
+rosparam set /lio/dec_lio/prompt15/event_csv "$RUN_DIR/prompt15_event.csv"
 rosparam set /lio/dec_lio/observation_stage_csv "$RUN_DIR/observation_stage.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio

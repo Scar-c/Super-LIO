@@ -82,6 +82,10 @@ namespace LI2Sup{
   std::string g_prompt14_frame_csv;
   std::string g_prompt14_mode_csv;
 
+  bool g_prompt15_enabled = false;
+  int g_prompt15_intervention_frame = -1;
+  std::string g_prompt15_event_csv;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;

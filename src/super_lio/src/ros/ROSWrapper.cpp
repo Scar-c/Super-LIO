@@ -127,6 +127,11 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_prompt14_frame_csv, std::string());
   nh.param("/lio/dec_lio/prompt14_shadow/mode_csv",
            g_prompt14_mode_csv, std::string());
+  nh.param("/lio/dec_lio/prompt15/enabled", g_prompt15_enabled, false);
+  nh.param("/lio/dec_lio/prompt15/intervention_frame",
+           g_prompt15_intervention_frame, -1);
+  nh.param("/lio/dec_lio/prompt15/event_csv", g_prompt15_event_csv,
+           std::string());
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);

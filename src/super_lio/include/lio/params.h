@@ -108,6 +108,11 @@ namespace LI2Sup{
   extern std::string g_prompt14_frame_csv;
   extern std::string g_prompt14_mode_csv;
 
+  /// Prompt15 one-event counterfactual branch-replay sensitivity probe.
+  extern bool g_prompt15_enabled;
+  extern int g_prompt15_intervention_frame;
+  extern std::string g_prompt15_event_csv;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

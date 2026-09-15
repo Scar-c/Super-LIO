@@ -90,6 +90,11 @@ public:
 
   BASIC::SE3 GetSE3() const { return BASIC::SE3(R_, p_); }
 
+  // Prompt15 diagnostic-only mean intervention. It preserves covariance,
+  // velocity, biases, gravity, timestamps, and IMU history; the caller owns
+  // the opt-in boundary and must use it for one selected frame only.
+  bool ApplyDiagnosticPoseIntervention(const BASIC::SE3& pose);
+
   void SetObsTime(const double obs_time) { current_obs_time_ = obs_time; }
   void SetLastObsTime(const double obs_time) { last_obs_time_ = obs_time; }
   void SetD3ObservationContext(std::uint64_t frame, double timestamp) {

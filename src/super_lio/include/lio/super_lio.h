@@ -28,6 +28,7 @@
 #include "dec_lio/ConsistencyAnalyzer.h"
 #include "dec_lio/WeakAxisAnalyzer.h"
 #include "dec_lio/LidarOnlyShadow.h"
+#include "dec_lio/CounterfactualReplay.h"
 
 namespace LI2Sup{
 
@@ -73,6 +74,7 @@ protected:
   std::unique_ptr<DecLIO::ConsistencyAnalyzer> consistency_analyzer_;
   std::unique_ptr<DecLIO::WeakAxisAnalyzer> axis_analyzer_;
   std::unique_ptr<DecLIO::Prompt14Analyzer> prompt14_analyzer_;
+  std::unique_ptr<DecLIO::CounterfactualReplayAnalyzer> prompt15_analyzer_;
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;

@@ -103,6 +103,19 @@ void ESKF::SetX(const SysState& x) {
   fw_v_ = v_;
 }
 
+bool ESKF::ApplyDiagnosticPoseIntervention(const BASIC::SE3& pose) {
+  if (!pose.R_.allFinite() || !pose.t_.allFinite()) return false;
+  R_ = SO3(pose.R_);
+  p_ = pose.t_;
+  // The forward nominal state is the deskew anchor for the next IMU segment.
+  // Keep all other estimator quantities and all timestamps untouched.
+  fw_R_ = R_;
+  fw_p_ = p_;
+  fw_v_ = v_;
+  dx_.setZero();
+  return true;
+}
+
 
 void ESKF::BuildNoise(const Options& options) {
   double et = options.gyro_var_;
