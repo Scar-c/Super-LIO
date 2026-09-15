@@ -30,7 +30,8 @@ Boundary:
 
 Runtime contract:
 - canonical Prompt21 runs used full 32 logical CPUs (`--threads 32`);
-- the earlier 4-requested-thread Stairs pilot is retained outside git and
-  excluded from all evidence.
+- the earlier 4-requested-thread Stairs pilot is retained outside git as
+  supplemental evidence; its SHA is identical to both 32-thread runs, so the
+  thread count affects runtime only, not the deterministic trajectory.
 
 Large runtime logs and trajectories remain outside git under runtime/prompt21.

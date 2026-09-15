@@ -16,12 +16,17 @@ L2. L1 is substantially better than L2 on Stairs, while L2 is worse than L0.
 Repeatability:
 
 ```text
+L2-0 requested 4 threads SHA256 = b8d2d2892a10173b5d0848223800d5ac654402ac96d8de338dea2d1f207d160b
 L2-1 SHA256 = b8d2d2892a10173b5d0848223800d5ac654402ac96d8de338dea2d1f207d160b
 L2-2 SHA256 = b8d2d2892a10173b5d0848223800d5ac654402ac96d8de338dea2d1f207d160b
-byte-identical: YES
-rows: 3446 / 3446
-node_rc: 0 / 0
+byte-identical across 4-thread and both 32-thread runs: YES
+rows: 3446 / 3446 / 3446
+node_rc: 0 / 0 / 0
 ```
+
+The 32-thread runs are the canonical project configuration because they finish
+faster. The 4-thread pilot is not excluded from the evidence: its identical
+SHA confirms that CPU parallelism changed wall time but not the output.
 
 State health was finite with positive covariance spectrum; L2 diagnostics had
 3435 registration/fusion successes, zero covariance fallbacks, maximum velocity

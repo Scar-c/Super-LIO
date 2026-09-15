@@ -36,4 +36,7 @@ there is no independent L2 fallback heuristic.
 
 Canonical runtime runs in this prompt use the pre-existing project convention
 of `--threads 32` (full 32 logical CPUs). The earlier 4-requested-thread
-Stairs pilot is retained outside git but excluded from all Prompt21 evidence.
+Stairs pilot is retained outside git as a supplemental reproducibility run;
+its trajectory SHA is identical to the canonical 32-thread runs, so it is
+valid evidence of deterministic output. The thread count changes runtime,
+not the resulting trajectory.
