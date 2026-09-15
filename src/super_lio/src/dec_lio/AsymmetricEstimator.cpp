@@ -380,6 +380,10 @@ AsymmetricRegistrationResult solveRegistration(
 
 AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder) {
+  // Plain mode still dispatches to solveFullRank inside solveRegistration;
+  // rank failure is reported as REGISTRATION_RANK_FAILURE there.
+  // the shared implementation keeps solvePlain and the historical entry
+  // point geometrically identical.
   return solveRegistration(
       initial_pose, builder,
       LI2Sup::g_asymmetric_registration_solver == "dcreg");

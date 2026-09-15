@@ -1,0 +1,4 @@
+sequence,native_ate_rmse_m,a0_ate_rmse_m,a0_source,l0_ate_rmse_m,l1_ate_rmse_m,l0_nonfinite,l1_nonfinite,l0_min_cov_eigen,l1_min_cov_eigen
+tunneling_tunnel2_alpha,6.30079297,16708.469059,Prompt18 canonical,2.52241574,2.47448852,0,0,1.42854e-7,1.37704e-7
+tunneling_tunnel2_gamma,1.88897035,0.807547,Prompt18 canonical,1.52820922,1.41608869,0,0,8.3077e-7,3.31959e-7
+stairs_alpha,0.197750264,1.536788,Prompt18 canonical,4.37118072,0.474292786,0,0,5.81325e-7,4.031e-7

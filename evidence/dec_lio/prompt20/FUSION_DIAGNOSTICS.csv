@@ -1,0 +1,4 @@
+sequence,mode,dc_frames,degenerate_frames,rot_weak_x,rot_weak_y,rot_weak_z,trans_weak_x,trans_weak_y,trans_weak_z,rot_multiplier_max_x,rot_multiplier_max_y,rot_multiplier_max_z,trans_multiplier_max_x,trans_multiplier_max_y,trans_multiplier_max_z,r_fallback_count
+tunneling_tunnel2_alpha,l1,2713,2713,2601,112,4,0,0,0,13.3311,10.6867,1.5965,1.0,1.0,1.0,0
+tunneling_tunnel2_gamma,l1,2568,2190,2145,1,0,1,0,43,21.1813,7.98416,1.08958,1.14554,1.03449,1.62088,0
+stairs_alpha,l1,3427,2191,1918,256,0,0,0,82,14.096,6.31681,1.52055,1.00799,1.01005,1.90415,0

@@ -1,0 +1,15 @@
+PROMPT20 CLOSED
+
+Prompt19 residue was audited and the exact `/home/lc/dlio_dcreg_ws` workspace
+was removed; Dec-LIO, GEODE bags/GT/calibration, Prob-LIO, and ROS1 were
+preserved. No ROS2, Docker, or external LIO framework was used.
+
+L0 and L1 are implemented as explicit ROS1 Super modes. L0 and L1 use the
+same plain independent LiDAR registration. L0 uses fixed pose R; L1 uses
+DCReg directional covariance only, with finite-difference rotation transport
+and fixed-covariance fail-open. Native and asymmetric existing paths remain
+separate.
+
+The final source must be pushed as the Prompt20 Dec-LIO closure after the
+evidence commit. Runtime bags and trajectories remain outside git under
+`runtime/prompt20`.
