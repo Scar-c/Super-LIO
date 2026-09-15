@@ -1,0 +1,29 @@
+Prompt17 closure
+
+Implementation commit before evidence closure:
+f282a7f3bb3ffd2636ee10cec6d961dfc9417498
+
+Validated:
+- catkin_make -C /home/lc/dec_lio -j4: PASS
+- CTest: 11/11 PASS
+- Python unittest discover tests/dec_lio: 27/27 PASS
+- Stairs native identity: PASS; rows 3446, bytes 557579, exact Prompt16 SHA
+- Stairs asymmetric A1/A2: PASS deterministic; rows 3446, identical SHA
+- corrected evaluator: independent/common APE, SE(3) RPE, GT-distance segments
+
+Classification: P17-B
+Stairs result: WORSE
+Full GEODE rerun authorized by Prompt17: NO
+
+Boundary:
+- P1 changed: NO
+- DCReg attenuation: NO
+- map geometry changed: NO
+- tuning performed: NO
+- GT used for tuning: NO
+- Prob-LIO artifacts deleted/moved/stashed: NO
+
+The first outer-session A1 attempt left an incomplete trajectory but complete
+diagnostics; it is retained at runtime/prompt17/asymmetric/stairs_asym_a1 and
+is not used as an ATE result. The authoritative A1 retry and A2 were run to
+normal runner completion.

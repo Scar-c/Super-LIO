@@ -1,0 +1,14 @@
+Prompt17 start-state audit
+
+Repository: /home/lc/dec_lio/src/Super-LIO
+Branch: Dec-LIO
+Start HEAD: 0ead29f5696762397b4663b52f25f55fee5ddb0b
+Start origin/Dec-LIO: 0ead29f5696762397b4663b52f25f55fee5ddb0b
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start merge-base(HEAD, origin/ros1): 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean
+
+Prompt17 scope was restricted to gravity/sign correctness, deterministic
+residual parity tests, evaluator correctness, and the Stairs gate. No tuning,
+DCReg attenuation, map-geometry change, or GT-driven parameter change was
+authorized. /home/lc/prob_lio was not modified.
