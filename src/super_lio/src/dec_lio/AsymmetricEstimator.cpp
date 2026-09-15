@@ -241,10 +241,11 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     for (int backtrack = 0; backtrack <= kMaxRegistrationBacktracks;
          ++backtrack) {
       const BASIC::SE3 trial_pose = applyPoseDelta(result.pose, trial_step);
-      AsymmetricRegistrationPoints trial_points;
-      builder(trial_pose, trial_points);
-      const RegistrationCost trial_cost =
-          evaluateRegistration(trial_pose, trial_points);
+      // ICP acceptance is evaluated on the correspondences frozen for this
+      // outer iteration. The next outer iteration rebuilds HKNN/planes at the
+      // accepted pose, so correspondence changes cannot masquerade as a
+      // rejected motion step.
+      const RegistrationCost trial_cost = evaluateRegistration(trial_pose, points);
       if (trial_cost.valid && trial_cost.count >= 6 &&
           trial_cost.cost <= current.cost) {
         accepted = true;

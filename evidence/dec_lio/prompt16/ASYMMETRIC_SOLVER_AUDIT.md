@@ -4,7 +4,11 @@ The solver uses the existing Super point-to-plane residual and the IMU-predicted
 pose only as its initial guess. At each bounded iteration it rebuilds HKNN
 correspondences, recomputes residuals and the six-dimensional point-to-plane
 Jacobian, solves the symmetric normal system through an eigendecomposition, and
-accepts a non-increasing backtracked step.
+accepts a non-increasing backtracked step. Backtracking evaluates the trial
+step on the correspondences frozen for that outer ICP iteration; the next
+outer iteration then rebuilds HKNN/planes at the accepted pose. This avoids
+confusing a correspondence switch with motion divergence while still
+recomputing correspondences at every outer iteration.
 
 Rank deficiency is handled by a minimum-norm eigen/pseudoinverse step over only
 the eigen-directions above the relative threshold. At least three observable
