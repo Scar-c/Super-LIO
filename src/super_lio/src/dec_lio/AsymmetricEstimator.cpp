@@ -16,6 +16,7 @@ using Vector6d = Eigen::Matrix<double, 6, 1>;
 using V3d = Eigen::Vector3d;
 constexpr double kResidualWeight = 1000.0;
 constexpr double kRankRelativeThreshold = 1.0e-8;
+constexpr int kMinimumObservableRank = 3;
 constexpr double kStepEpsilon = 1.0e-6;
 constexpr int kMaxRegistrationIterations = 12;
 constexpr int kMaxRegistrationBacktracks = 8;
@@ -82,17 +83,20 @@ bool solveFullRank(const Matrix6d& h, const Vector6d& b, Vector6d& step,
   const double largest = solver.eigenvalues().maxCoeff();
   const double threshold =
       std::max(1.0e-12, kRankRelativeThreshold * std::max(1.0, largest));
-  if (!std::isfinite(largest) || solver.eigenvalues().minCoeff() <= threshold)
-    return false;
+  if (!std::isfinite(largest)) return false;
   for (int i = 0; i < 6; ++i) {
     if (solver.eigenvalues()(i) > threshold) ++rank;
   }
-  if (rank != 6) return false;
-  const double smallest = solver.eigenvalues().minCoeff();
+  if (rank < kMinimumObservableRank) return false;
+  const double smallest = solver.eigenvalues()(6 - rank);
   condition = largest / smallest;
-  step = solver.eigenvectors() *
-         solver.eigenvalues().cwiseInverse().asDiagonal() *
-         solver.eigenvectors().transpose() * b;
+  for (int i = 0; i < 6; ++i) {
+    const double eigenvalue = solver.eigenvalues()(i);
+    if (eigenvalue > threshold) {
+      const Eigen::Matrix<double, 6, 1> eigenvector = solver.eigenvectors().col(i);
+      step.noalias() += eigenvector * (eigenvector.dot(b) / eigenvalue);
+    }
+  }
   return step.allFinite();
 }
 
@@ -224,7 +228,8 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     }
     if (result.step_norm <= kStepEpsilon) {
       result.success = true;
-      result.reason = "STEP_EPSILON";
+      result.reason = result.rank == 6 ? "STEP_EPSILON"
+                                      : "RANK_DEFICIENT_STEP_EPSILON";
       result.cost_final = current.cost;
       return result;
     }
