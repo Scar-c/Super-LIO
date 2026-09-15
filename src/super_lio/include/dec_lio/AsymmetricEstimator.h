@@ -88,6 +88,16 @@ class AsymmetricEstimator {
                  std::vector<LI2Sup::DynamicState>& propagated,
                  BASIC::SE3& predicted_pose, BASIC::V3& predicted_velocity);
 
+  // Deterministic residual seam used by Prompt17 semantic tests. It uses the
+  // same Super physical-gravity convention as the production factor.
+  static Eigen::Matrix<double, 9, 1> evaluateInertialResidualForTest(
+      const BASIC::SO3& R_i, const BASIC::V3& p_i,
+      const BASIC::V3& v_i, const BASIC::SO3& R_j,
+      const BASIC::V3& p_j, const BASIC::V3& v_j,
+      const std::vector<LI2Sup::IMUData>& imu,
+      const BASIC::V3& accel_bias, const BASIC::V3& gyro_bias,
+      const BASIC::V3& physical_gravity, double imu_scale);
+
   bool acceptPose(double timestamp, const BASIC::SE3& pose);
   bool acceptPredictedPose(double timestamp);
 
@@ -142,6 +152,7 @@ class AsymmetricEstimator {
   BASIC::V3 accel_bias_ = BASIC::V3::Zero();
   BASIC::V3 gyro_bias_ = BASIC::V3::Zero();
   BASIC::V3 gravity_dir_{0.0, 0.0, -1.0};
+  BASIC::V3 initial_gravity_dir_{0.0, 0.0, -1.0};
   std::deque<AsymmetricStateNode> states_;
   std::deque<Segment> segments_;
   Segment pending_segment_;

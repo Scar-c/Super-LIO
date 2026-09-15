@@ -235,3 +235,15 @@ target_link_libraries(dec_lio_asymmetric_registration_test
   ${catkin_LIBRARIES})
 add_test(NAME dec_lio_asymmetric_registration_test
          COMMAND dec_lio_asymmetric_registration_test)
+
+add_executable(dec_lio_prompt17_gravity_residual_test
+  ../../tests/dec_lio/prompt17_gravity_residual_test.cpp)
+target_include_directories(dec_lio_prompt17_gravity_residual_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(dec_lio_prompt17_gravity_residual_test
+  lio
+  ${catkin_LIBRARIES})
+add_test(NAME dec_lio_prompt17_gravity_residual_test
+         COMMAND dec_lio_prompt17_gravity_residual_test)

@@ -334,10 +334,14 @@ struct AsymmetricEstimator::InertialCost {
     const Eigen::Vector3d pj = segment->p_j.cast<double>();
     const Eigen::Vector3d gravity =
         gravity_dir * static_cast<double>(LI2Sup::g_gravity_norm);
+    // Super-LIO stores physical world gravity g_W ~= [0, 0, -g]. Its
+    // propagation is a_W = R*a_body + g_W, so the fixed-pose residual
+    // subtracts the physical gravity contribution. BIEVR's variable G has
+    // the opposite sign: G = -g_W.
     const Eigen::Vector3d pos = Ri.transpose() *
-        (0.5 * gravity * dt * dt + pj - pi - v_i * dt);
+        (pj - pi - v_i * dt - 0.5 * gravity * dt * dt);
     const Eigen::Vector3d vel = Ri.transpose() *
-        (gravity * dt + v_j - v_i);
+        (v_j - v_i - gravity * dt);
     const Eigen::Matrix3d q_error =
         delta.delta_R.R_.cast<double>().transpose() * Ri.transpose() * Rj;
     const Eigen::AngleAxisd angle(q_error);
@@ -360,6 +364,50 @@ AsymmetricEstimator::AsymmetricEstimator(const std::string& diagnostics_csv) {
 
 AsymmetricEstimator::~AsymmetricEstimator() { flush(); }
 
+Eigen::Matrix<double, 9, 1>
+AsymmetricEstimator::evaluateInertialResidualForTest(
+    const BASIC::SO3& R_i, const BASIC::V3& p_i,
+    const BASIC::V3& v_i, const BASIC::SO3& R_j,
+    const BASIC::V3& p_j, const BASIC::V3& v_j,
+    const std::vector<LI2Sup::IMUData>& imu,
+    const BASIC::V3& accel_bias, const BASIC::V3& gyro_bias,
+    const BASIC::V3& physical_gravity, double imu_scale) {
+  Eigen::Matrix<double, 9, 1> residual =
+      Eigen::Matrix<double, 9, 1>::Constant(
+          std::numeric_limits<double>::quiet_NaN());
+  if (imu.size() < 2 || !physical_gravity.allFinite()) return residual;
+  Segment segment;
+  segment.start_time = imu.front().secs;
+  segment.end_time = imu.back().secs;
+  segment.R_i = R_i;
+  segment.p_i = p_i;
+  segment.R_j = R_j;
+  segment.p_j = p_j;
+  segment.imu_scale = imu_scale;
+  segment.imu = imu;
+  const Preintegrated delta = integrate(segment, accel_bias, gyro_bias);
+  const double dt = delta.dt;
+  if (!(dt > 0.0) || !std::isfinite(dt)) return residual;
+  const Eigen::Matrix3d Ri = R_i.R_.cast<double>();
+  const Eigen::Matrix3d Rj = R_j.R_.cast<double>();
+  const Eigen::Vector3d gravity = physical_gravity.cast<double>();
+  const Eigen::Vector3d position = Ri.transpose() *
+      (p_j.cast<double>() - p_i.cast<double>() - v_i.cast<double>() * dt -
+       0.5 * gravity * dt * dt) - delta.delta_p.cast<double>();
+  const Eigen::Vector3d velocity = Ri.transpose() *
+      (v_j.cast<double>() - v_i.cast<double>() - gravity * dt) -
+      delta.delta_v.cast<double>();
+  const Eigen::Matrix3d q_error =
+      delta.delta_R.R_.cast<double>().transpose() * Ri.transpose() * Rj;
+  const Eigen::AngleAxisd angle(q_error);
+  Eigen::Vector3d rotation = Eigen::Vector3d::Zero();
+  if (angle.angle() > 1.0e-12) rotation = angle.axis() * angle.angle();
+  residual.template segment<3>(0) = rotation;
+  residual.template segment<3>(3) = position;
+  residual.template segment<3>(6) = velocity;
+  return residual;
+}
+
 void AsymmetricEstimator::initialize(const LI2Sup::SysState& initial,
                                      const BASIC::V3& gravity,
                                      double imu_scale,
@@ -372,6 +420,7 @@ void AsymmetricEstimator::initialize(const LI2Sup::SysState& initial,
   gravity_dir_ = gravity;
   if (gravity_dir_.norm() < 1.0e-6) gravity_dir_ = BASIC::V3(0, 0, -1);
   gravity_dir_.normalize();
+  initial_gravity_dir_ = gravity_dir_;
   AsymmetricStateNode node;
   node.time = initial.timestamp;
   node.R = initial.R;
@@ -494,7 +543,7 @@ bool AsymmetricEstimator::acceptPose(double timestamp,
   health_.accel_bias_norm = accel_bias_.norm();
   health_.gravity_norm = gravity().norm();
   const double cosine = std::clamp(
-      static_cast<double>(gravity_dir_.dot(BASIC::V3(0, 0, -1))), -1.0, 1.0);
+      static_cast<double>(gravity_dir_.dot(initial_gravity_dir_)), -1.0, 1.0);
   health_.gravity_direction_error_deg =
       std::acos(cosine) * 180.0 / M_PI;
   return true;
