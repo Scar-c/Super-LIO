@@ -1,0 +1,10 @@
+Prompt23 closure
+
+- Six canonical hybrid runs completed sequentially with bag threads=32.
+- Compile workers were -j4; runtime effective TBB concurrency was 32 in every run.
+- All six runs had no fatal marker, no nonfinite state row, and positive covariance minimum eigenvalues.
+- Current-source Native Alpha and L1 Alpha identity checks passed byte-for-byte.
+- G0 and G1 were both tested under the frozen rules; neither passed all three targets.
+- Classification: P23-C NO_UNIFIED_FINAL_CANDIDATE.
+- No FINAL_DEV_V1 was created.
+- Mechanism iteration stops here as required; no G2, extra covariance mode, threshold retuning, NIS gate, or GT-selected switching.

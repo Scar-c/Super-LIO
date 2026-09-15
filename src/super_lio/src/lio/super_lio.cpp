@@ -1162,7 +1162,7 @@ void SuperLIO::ObserveLoosePose(
 }
 
 
-void SuperLIO::Observe() {
+void SuperLIO::Observe(){
   const std::size_t ptsize = ds_undistort_->size();
   if (g_estimator_mode == "dec_lio_final_candidate") {
     points_body_v3_.resize(ptsize);
