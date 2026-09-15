@@ -40,6 +40,37 @@ bool isotropizePoseCovarianceByTrace(
     double* rotation_trace_error = nullptr,
     double* translation_trace_error = nullptr);
 
+// Prompt22 L3 control: replace each final L1 covariance block by a scalar
+// covariance with the same trace of inverse (measurement information).
+bool covarianceInformationTrace(
+    const PoseMatrix3d& covariance, double& information_trace,
+    Eigen::Vector3d* eigenvalues = nullptr);
+
+bool isotropizePoseCovarianceByInformation(
+    const PoseMatrix6d& directional_covariance,
+    PoseMatrix6d& scalar_covariance,
+    double* rotation_information_error = nullptr,
+    double* translation_information_error = nullptr);
+
+struct WeakRotationMode {
+  bool valid = false;
+  int index = -1;
+  double lambda = std::numeric_limits<double>::quiet_NaN();
+  double clamped_lambda = std::numeric_limits<double>::quiet_NaN();
+  double multiplier = std::numeric_limits<double>::quiet_NaN();
+  Eigen::Vector3d registration_vector =
+      Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  Eigen::Vector3d innovation_vector =
+      Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+};
+
+// Select the weak rotational mode in DCReg eigenmode space, then transport
+// that mode from the registration tangent to the ESKF innovation tangent.
+bool selectWeakRotationMode(const DCRegCore::Analysis& analysis,
+                            const PoseMatrix3d& rotation_jacobian,
+                            WeakRotationMode& mode,
+                            double eigenvalue_epsilon = 1.0e-12);
+
 struct DcregCovarianceResult {
   bool valid = false;
   bool fallback = false;

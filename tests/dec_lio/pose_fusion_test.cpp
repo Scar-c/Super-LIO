@@ -101,6 +101,63 @@ int main() {
     return 1;
   }
 
+  Eigen::Matrix<double, 6, 6> information_scalar =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  double information_rotation_error = 0.0;
+  double information_translation_error = 0.0;
+  if (!DecLIO::isotropizePoseCovarianceByInformation(
+          anisotropic, information_scalar, &information_rotation_error,
+          &information_translation_error) ||
+      information_rotation_error > 1.0e-9 ||
+      information_translation_error > 1.0e-9 ||
+      !near(information_scalar(0, 0), information_scalar(1, 1), 1.0e-18) ||
+      !near(information_scalar(1, 1), information_scalar(2, 2), 1.0e-18) ||
+      !near(information_scalar(3, 3), information_scalar(4, 4), 1.0e-16) ||
+      !near(information_scalar(4, 4), information_scalar(5, 5), 1.0e-16)) {
+    std::cerr << "information-matched scalar construction failed\n";
+    return 1;
+  }
+  double l1_rotation_information = 0.0;
+  double l3_rotation_information = 0.0;
+  double l1_translation_information = 0.0;
+  double l3_translation_information = 0.0;
+  if (!DecLIO::covarianceInformationTrace(
+          anisotropic.block<3, 3>(0, 0), l1_rotation_information) ||
+      !DecLIO::covarianceInformationTrace(
+          information_scalar.block<3, 3>(0, 0), l3_rotation_information) ||
+      !DecLIO::covarianceInformationTrace(
+          anisotropic.block<3, 3>(3, 3), l1_translation_information) ||
+      !DecLIO::covarianceInformationTrace(
+          information_scalar.block<3, 3>(3, 3), l3_translation_information) ||
+      std::abs(l1_rotation_information - l3_rotation_information) > 1.0e-8 ||
+      std::abs(l1_translation_information - l3_translation_information) >
+          1.0e-8) {
+    std::cerr << "information trace parity failed\n";
+    return 1;
+  }
+
+  DecLIO::DCRegCore::Analysis controlled_mode;
+  controlled_mode.factorization_ok = true;
+  controlled_mode.aligned_rot_basis =
+      Eigen::AngleAxisd(0.41, Eigen::Vector3d(1.0, 2.0, 3.0).normalized())
+          .toRotationMatrix();
+  controlled_mode.aligned_lambda_rot << 1.0, 10.0, 20.0;
+  controlled_mode.clamped_lambda_rot << 100.0, 10.0, 20.0;
+  DecLIO::WeakRotationMode weak_mode;
+  if (!DecLIO::selectWeakRotationMode(
+          controlled_mode, Eigen::AngleAxisd(
+                               -0.23, Eigen::Vector3d(2.0, -1.0, 1.0).normalized())
+                               .toRotationMatrix(),
+          weak_mode) ||
+      weak_mode.index != 0 || !near(weak_mode.multiplier, 100.0, 1.0e-12) ||
+      !weak_mode.registration_vector.allFinite() ||
+      !weak_mode.innovation_vector.allFinite() ||
+      std::abs(weak_mode.registration_vector.dot(Eigen::Vector3d::UnitX())) >
+          0.999999) {
+    std::cerr << "eigenmode weak-axis selection/transport failed\n";
+    return 1;
+  }
+
   const Eigen::Matrix3d prior_information = 0.2 * Eigen::Matrix3d::Identity();
   const Eigen::Matrix3d l1_gain =
       prior_information * (prior_information + rotated).inverse();
@@ -210,7 +267,8 @@ int main() {
   }
 
   std::cout << "PASS pose innovation, fixed covariance, rotation transport, "
-               "DCReg R design, matched scalar trace parity, directional "
-               "EKF control, cross-covariance EKF, Joseph PSD\n";
+               "DCReg R design, matched scalar trace parity, information "
+               "scalar parity, weak-mode transport, directional EKF control, "
+               "cross-covariance EKF, Joseph PSD\n";
   return 0;
 }

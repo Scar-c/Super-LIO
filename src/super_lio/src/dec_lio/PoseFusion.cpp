@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <Eigen/Eigenvalues>
+
 namespace DecLIO {
 namespace {
 
@@ -123,6 +125,108 @@ bool isotropizePoseCovarianceByTrace(
         scalar_covariance.block<3, 3>(3, 3).trace() - translation.trace());
   }
   return true;
+}
+
+bool covarianceInformationTrace(const PoseMatrix3d& covariance,
+                                double& information_trace,
+                                Eigen::Vector3d* eigenvalues) {
+  const PoseMatrix3d symmetric =
+      0.5 * (covariance + covariance.transpose());
+  if (!symmetric.allFinite()) return false;
+  const Eigen::SelfAdjointEigenSolver<PoseMatrix3d> solver(symmetric);
+  if (solver.info() != Eigen::Success ||
+      !solver.eigenvalues().allFinite())
+    return false;
+  constexpr double kInformationEigenvalueEpsilon = 1.0e-15;
+  if ((solver.eigenvalues().array() <= kInformationEigenvalueEpsilon).any())
+    return false;
+  information_trace = solver.eigenvalues().cwiseInverse().sum();
+  if (!std::isfinite(information_trace)) return false;
+  if (eigenvalues) *eigenvalues = solver.eigenvalues();
+  return true;
+}
+
+bool isotropizePoseCovarianceByInformation(
+    const PoseMatrix6d& directional_covariance,
+    PoseMatrix6d& scalar_covariance,
+    double* rotation_information_error,
+    double* translation_information_error) {
+  if (!directional_covariance.allFinite()) return false;
+  double rotation_information = 0.0;
+  double translation_information = 0.0;
+  if (!covarianceInformationTrace(
+          directional_covariance.block<3, 3>(0, 0), rotation_information) ||
+      !covarianceInformationTrace(
+          directional_covariance.block<3, 3>(3, 3), translation_information))
+    return false;
+  const double rotation_variance = 3.0 / rotation_information;
+  const double translation_variance = 3.0 / translation_information;
+  if (!std::isfinite(rotation_variance) ||
+      !std::isfinite(translation_variance) || rotation_variance <= 0.0 ||
+      translation_variance <= 0.0)
+    return false;
+  scalar_covariance = PoseMatrix6d::Zero();
+  scalar_covariance.block<3, 3>(0, 0) =
+      rotation_variance * PoseMatrix3d::Identity();
+  scalar_covariance.block<3, 3>(3, 3) =
+      translation_variance * PoseMatrix3d::Identity();
+  if (!scalar_covariance.allFinite()) return false;
+  double rotation_scalar_information = 0.0;
+  double translation_scalar_information = 0.0;
+  if (!covarianceInformationTrace(
+          scalar_covariance.block<3, 3>(0, 0), rotation_scalar_information) ||
+      !covarianceInformationTrace(
+          scalar_covariance.block<3, 3>(3, 3), translation_scalar_information))
+    return false;
+  if (rotation_information_error) {
+    *rotation_information_error =
+        std::abs(rotation_scalar_information - rotation_information);
+  }
+  if (translation_information_error) {
+    *translation_information_error =
+        std::abs(translation_scalar_information - translation_information);
+  }
+  return true;
+}
+
+bool selectWeakRotationMode(const DCRegCore::Analysis& analysis,
+                            const PoseMatrix3d& rotation_jacobian,
+                            WeakRotationMode& mode,
+                            double eigenvalue_epsilon) {
+  mode = WeakRotationMode();
+  if (!analysis.factorization_ok || !analysis.aligned_rot_basis.allFinite() ||
+      !analysis.aligned_lambda_rot.allFinite() ||
+      !analysis.clamped_lambda_rot.allFinite() ||
+      !rotation_jacobian.allFinite())
+    return false;
+  double largest_multiplier = -1.0;
+  for (int index = 0; index < 3; ++index) {
+    const double lambda = analysis.aligned_lambda_rot(index);
+    const double clamped = analysis.clamped_lambda_rot(index);
+    if (!std::isfinite(lambda) || !std::isfinite(clamped) ||
+        !(lambda > 0.0) || !(clamped > 0.0))
+      return false;
+    const double multiplier =
+        clamped / std::max(lambda, eigenvalue_epsilon);
+    if (!std::isfinite(multiplier)) return false;
+    if (multiplier > largest_multiplier) {
+      largest_multiplier = multiplier;
+      mode.index = index;
+      mode.lambda = lambda;
+      mode.clamped_lambda = clamped;
+      mode.multiplier = multiplier;
+    }
+  }
+  if (mode.index < 0) return false;
+  mode.registration_vector = analysis.aligned_rot_basis.col(mode.index);
+  const double norm =
+      (rotation_jacobian * mode.registration_vector).norm();
+  if (!std::isfinite(norm) || norm <= 1.0e-12) return false;
+  mode.innovation_vector =
+      rotation_jacobian * mode.registration_vector / norm;
+  mode.valid = mode.registration_vector.allFinite() &&
+               mode.innovation_vector.allFinite();
+  return mode.valid;
 }
 
 DcregCovarianceResult buildDcregPoseCovariance(
