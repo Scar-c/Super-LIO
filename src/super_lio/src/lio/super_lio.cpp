@@ -738,6 +738,8 @@ void SuperLIO::Observe(){
                   prompt14_points_by_index_[idx];
               capture.point_body = point_body.cast<double>();
               capture.length = _lengths[idx];
+              capture.reference_residual = static_cast<double>(error);
+              capture.has_reference_residual = true;
               capture.plane = abcd;
               prompt14_used_[idx] = 1;
             }

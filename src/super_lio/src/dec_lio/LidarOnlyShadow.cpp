@@ -38,7 +38,7 @@ double residualAt(const BASIC::SE3& pose, const LidarOnlyPoint& point) {
 
 void accumulateGeometry(const BASIC::SE3& pose,
                         const LidarOnlyPoints& points, Matrix6d& h,
-                        Vector6d& b) {
+                        Vector6d& b, bool use_reference_residual = false) {
   h.setZero();
   b.setZero();
   const Eigen::Matrix3d r_transpose = pose.R_.cast<double>().transpose();
@@ -48,7 +48,9 @@ void accumulateGeometry(const BASIC::SE3& pose,
     Vector6d jacobian = Vector6d::Zero();
     jacobian.head<3>() = point.point_body.cross(normal_body);
     jacobian.tail<3>() = normal;
-    const double error = residualAt(pose, point);
+    const double error = use_reference_residual && point.has_reference_residual
+                             ? point.reference_residual
+                             : residualAt(pose, point);
     h.noalias() += kResidualWeight * jacobian * jacobian.transpose();
     b.noalias() -= kResidualWeight * jacobian * error;
   }
@@ -171,7 +173,7 @@ LidarOnlyShadowResult LidarOnlyShadowSolver::run(
 
   Matrix6d h_matched = Matrix6d::Zero();
   Vector6d b_matched = Vector6d::Zero();
-  accumulateGeometry(t_init, matched_points, h_matched, b_matched);
+  accumulateGeometry(t_init, matched_points, h_matched, b_matched, true);
   const double h_reconstruction_error = (h_matched - raw_h).norm();
   const double b_reconstruction_error = (b_matched - raw_b).norm();
   if (std::isfinite(h_reconstruction_error) &&
@@ -335,7 +337,7 @@ void Prompt14Analyzer::writeHeaders() {
                   "cond_R,cond_t,weak_rank_R,weak_rank_t,"
                   "weak_norm_l,weak_norm_tight,strong_norm_l,strong_norm_tight,"
                   "weak_ratio,strong_ratio,raw_effective_h_diff,raw_effective_b_diff,"
-                  "cost_init,cost_lidar,cost_tight,valid_init,valid_lidar,valid_tight,"
+                  "cost_init,valid_init,cost_lidar,valid_lidar,cost_tight,valid_tight,"
                   "mean_abs_init,mean_abs_lidar,mean_abs_tight,"
                   "rmse_init,rmse_lidar,rmse_tight,"
                   "nonlinear_valid,nonlinear_iterations,nonlinear_reason,"

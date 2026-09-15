@@ -1,0 +1,1 @@
+sequence,event_id,start_timestamp,end_timestamp,duration_s,frames,dominant_weak_mode,median_c_L_norm,median_c_tight_norm,median_suppression,median_cost_improvement,nonlinear_valid_fraction,native_local_behavior

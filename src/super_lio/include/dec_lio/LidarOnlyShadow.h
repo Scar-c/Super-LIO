@@ -23,6 +23,8 @@ struct LidarOnlyPoint {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Eigen::Vector3d point_body = Eigen::Vector3d::Zero();
   double length = 0.0;
+  double reference_residual = 0.0;
+  bool has_reference_residual = false;
   std::array<double, 4> plane{{0.0, 0.0, 0.0, 0.0}};
 };
 
