@@ -13,6 +13,7 @@ import numpy as np
 TIME_HORIZONS = (1.0, 5.0, 10.0, 20.0)
 DISTANCE_HORIZONS = (5.0, 10.0, 20.0)
 EPS = 1.0e-3
+GT_TOLERANCE = 0.10
 
 
 def load_tum(path, allow_unsorted=False):
@@ -53,7 +54,7 @@ def nearest_index(times, stamp, tolerance=0.05):
     return best if abs(float(times[best] - stamp)) <= tolerance else None
 
 
-def associate_estimate_to_gt(est_times, gt_times, tolerance=0.05):
+def associate_estimate_to_gt(est_times, gt_times, tolerance=GT_TOLERANCE):
     pairs = []
     used = set()
     for ei, stamp in enumerate(est_times):
@@ -163,9 +164,25 @@ def fixed_alignment(native, gt):
     return umeyama_se3(source, destination), pairs
 
 
-def gt_at(stamp, gt):
-    index = nearest_index(gt[0], stamp)
+def gt_at(stamp, gt, tolerance=GT_TOLERANCE):
+    index = nearest_index(gt[0], stamp, tolerance)
     return None if index is None else index
+
+
+def interpolate_gt_position(stamp, gt):
+    if stamp < gt[0][0] or stamp > gt[0][-1]:
+        return None
+    index = int(np.searchsorted(gt[0], stamp))
+    if index == 0:
+        return gt[1][0]
+    if index >= len(gt[0]):
+        return gt[1][-1]
+    left, right = index - 1, index
+    span = gt[0][right] - gt[0][left]
+    if span <= 0.0:
+        return gt[1][left]
+    alpha = (stamp - gt[0][left]) / span
+    return (1.0 - alpha) * gt[1][left] + alpha * gt[1][right]
 
 
 def make_pairs(native, intervention):
@@ -194,17 +211,23 @@ def horizon_row(sequence, rank, event_time, horizon, native, intervention, gt,
     if native_end is None or intervention_end is None:
         return {"available": 0, "sequence": sequence, "selection_rank": rank,
                 "horizon_s": horizon}
-    gt_start = gt_at(event_time, gt)
+    # The diagnostic timestamp is LiDAR scan-end time and tunnel1 GT is sampled
+    # on a slightly different clock. Use one declared 100 ms GT contract for
+    # the event anchor and every future sample; branch time pairing stays 50 ms.
+    gt_start = gt_at(event_time, gt, GT_TOLERANCE)
     gt_end = gt_at(float(intervention[0][intervention_end]), gt)
-    if gt_start is None or gt_end is None:
+    gt_start_position = interpolate_gt_position(event_time, gt)
+    gt_end_position = interpolate_gt_position(
+        float(intervention[0][intervention_end]), gt)
+    if gt_start is None or gt_start_position is None or gt_end_position is None:
         return {"available": 0, "sequence": sequence, "selection_rank": rank,
                 "horizon_s": horizon}
-    gt_segment = gt[1][gt_end] - gt[1][gt_start]
+    gt_segment = gt_end_position - gt_start_position
     native_segment = aligned(native[1][native_end], alignment) - aligned(
         native[1][native_start], alignment)
     intervention_segment = aligned(intervention[1][intervention_end], alignment) - aligned(
         intervention[1][intervention_start], alignment)
-    gt_position = gt[1][gt_end]
+    gt_position = gt_end_position
     native_endpoint_error = np.linalg.norm(
         aligned(native[1][native_end], alignment) - gt_position)
     intervention_endpoint_error = np.linalg.norm(
@@ -240,12 +263,12 @@ def horizon_row(sequence, rank, event_time, horizon, native, intervention, gt,
         "native_rot_rpe_rad": float("nan"),
         "intervention_rot_rpe_rad": float("nan"),
     }
-    if orientation_valid(gt[2][gt_start:gt_end + 1]) and orientation_valid(
+    if gt_end is not None and orientation_valid(gt[2][gt_start:gt_end + 1]) and orientation_valid(
             native[2][native_start:native_end + 1]):
         row["native_rot_rpe_rad"] = relative_rotation_error(
             native[2][native_start], native[2][native_end],
             gt[2][gt_start], gt[2][gt_end])
-    if orientation_valid(gt[2][gt_start:gt_end + 1]) and orientation_valid(
+    if gt_end is not None and orientation_valid(gt[2][gt_start:gt_end + 1]) and orientation_valid(
             intervention[2][intervention_start:intervention_end + 1]):
         row["intervention_rot_rpe_rad"] = relative_rotation_error(
             intervention[2][intervention_start], intervention[2][intervention_end],
@@ -259,7 +282,7 @@ def horizon_row(sequence, rank, event_time, horizon, native, intervention, gt,
 def distance_rows(sequence, rank, event_time, native, intervention, gt, alignment,
                   native_start, intervention_start):
     rows = []
-    gt_start = gt_at(event_time, gt)
+    gt_start = gt_at(event_time, gt, GT_TOLERANCE)
     if gt_start is None:
         return rows
     for distance in DISTANCE_HORIZONS:
@@ -303,6 +326,8 @@ def classify(curve, horizons):
     available = [row for row in horizons if int(row.get("available", 0)) and
                  math.isfinite(float(row.get("delta_suffix_ate_m", "nan")))]
     long_rows = [row for row in available if float(row["horizon_s"]) >= 5.0]
+    if len(long_rows) < 2:
+        return "UNAVAILABLE"
     deltas = [float(row["delta_suffix_ate_m"]) for row in long_rows]
     if len(deltas) >= 2 and all(delta <= -EPS for delta in deltas):
         return "PERSISTENT_BENEFIT"
@@ -353,15 +378,19 @@ def main(argv=None):
         out = pathlib.Path(args.output_dir)
         native = {}
         native_b = {}
+        native_lines = {}
+        native_b_lines = {}
         gt = {}
         alignment = {}
         native_stage = {}
         for sequence, path in native_paths.items():
             native[sequence] = load_tum(path / "trajectory.tum")
             native_b[sequence] = load_tum(native_b_paths[sequence] / "trajectory.tum")
-            if native[sequence][0].shape != native_b[sequence][0].shape or not np.array_equal(
-                    pathlib.Path(path / "trajectory.tum").read_bytes(),
-                    pathlib.Path(native_b_paths[sequence] / "trajectory.tum").read_bytes()):
+            native_lines[sequence] = pathlib.Path(path / "trajectory.tum").read_bytes().splitlines()
+            native_b_lines[sequence] = pathlib.Path(
+                native_b_paths[sequence] / "trajectory.tum").read_bytes().splitlines()
+            if native[sequence][0].shape != native_b[sequence][0].shape or \
+                    native_lines[sequence] != native_b_lines[sequence]:
                 raise ValueError(f"native replay mismatch: {sequence}")
             gt[sequence] = load_gt(gt_paths[sequence])
             alignment[sequence], _ = fixed_alignment(native[sequence], gt[sequence])
@@ -383,6 +412,12 @@ def main(argv=None):
             intervention_start = nearest_index(intervention[0], event_time)
             if native_start is None or intervention_start is None:
                 raise ValueError(f"event timestamp not in trajectories: {sequence} rank {rank}")
+            intervention_lines = pathlib.Path(
+                branch_path / "trajectory.tum").read_bytes().splitlines()
+            if native_start != intervention_start or \
+                    native_lines[sequence][:native_start] != intervention_lines[:intervention_start]:
+                raise ValueError(
+                    f"counterfactual prefix mismatch: {sequence} rank {rank}")
             event_curve = []
             stage_i = read_observation_stage(branch_path / "observation_stage.csv")
             for ni, ii in pair:
@@ -437,6 +472,7 @@ def main(argv=None):
                 **selection,
                 "event_csv_applied": event_meta.get("applied", "0"),
                 "event_csv_reason": event_meta.get("selection_reason", "MISSING"),
+                "prefix_rows_byte_identical": native_start,
                 "classification": classification,
                 "curve_samples": len(event_curve),
                 "max_separation_translation_m": max(
@@ -447,7 +483,8 @@ def main(argv=None):
             aggregate.append({"classification": classification})
 
         event_fields = list(selection_rows[0].keys()) + [
-            "event_csv_applied", "event_csv_reason", "classification", "curve_samples",
+            "event_csv_applied", "event_csv_reason", "prefix_rows_byte_identical",
+            "classification", "curve_samples",
             "max_separation_translation_m", "final_separation_translation_m"]
         horizon_fields = ["sequence", "selection_rank", "horizon_s", "available",
                           "native_rpe_m", "intervention_rpe_m", "delta_rpe_m",
@@ -472,7 +509,7 @@ def main(argv=None):
         write_csv(out / "BRANCH_SEPARATION_CURVES.csv", curve_rows, curve_fields)
         counts = {name: sum(row["classification"] == name for row in event_rows)
                   for name in ("PERSISTENT_BENEFIT", "PERSISTENT_HARM", "RECOVERS",
-                               "AMPLIFIES", "MIXED")}
+                               "AMPLIFIES", "MIXED", "UNAVAILABLE")}
         write_csv(out / "AGGREGATE.csv", [counts], list(counts.keys()))
         print(f"native_native_parity=PASS events={len(event_rows)} output={out}")
         print("aggregate=" + ",".join(f"{key}:{value}" for key, value in counts.items()))
