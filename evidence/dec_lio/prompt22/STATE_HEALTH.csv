@@ -1,0 +1,4 @@
+sequence,mode,rows,registration_success,fusion_success,dcreg_fallback,state_nonfinite,min_cov_eigen,max_cov_eigen,max_velocity,max_bg,max_ba,gravity_norm,trajectory_sha256
+stairs_alpha,l3,3446,3439,3439,0,0,5.8366e-07,0.000238426,1.76098,0.0358595,0.478614,9.7946,dacb73677e6f37ad7dca0fdd002422d2aa70e848fc2e71df10c85926c175ebb0
+tunneling_tunnel2_alpha,l3,2739,2700,2700,0,0,1.94415e-07,0.00476491,1.67139,0.0195805,0.646881,9.7946,63dedf079f39bf73fafcd63f74d0fa21e59be0913e8a2543c92cb526f7a9a99a
+tunneling_tunnel2_gamma,l3,2605,2564,2564,0,0,6.18574e-07,0.000227423,1.44528,0.0195061,0.457034,9.7946,56550965b8db84f52093698ea3b970b6b45d3fbf276c94cd073cb556e6e874bf

@@ -1,0 +1,36 @@
+PROMPT22 CLOSED
+
+Diagnostic correction:
+- weak rotational mode is selected in DCReg eigenmode space by argmax(clamped
+  lambda / max(lambda, epsilon)); physical-coordinate diagonals are not used;
+- the selected registration mode is transported through J_meas to the ESKF
+  innovation tangent;
+- corrected weak/strong projections use final L1 covariance eigenvectors;
+- Native, L0, and L1 Alpha identities remain byte-identical.
+
+L3 information control:
+- new selector: loose_pose_ekf_dcreg_info_scalar;
+- rotational and translational blocks match tr(R^-1) per frame;
+- Stairs L3-1/L3-2 are byte-identical;
+- Prompt22 classification: P22-B — INFORMATION_DIRECTIONALITY_SEQUENCE_DEPENDENT.
+
+Commits:
+- diagnostic-fix/L3 source checkpoint: 6898dd9fb185907787f5767b1cd009d55afadc1f
+- isotropic L3 identity test: 42ba091ce7ef53e9fbd291b9c01f3c0f228ba81f
+
+Boundary:
+- estimator architecture changed: NO
+- LiDAR registration changed: NO
+- DCReg changed: NO
+- base covariance changed: NO
+- threshold tuning: NO
+- GT tuning: NO
+- new dataset: NO
+- same-frame shadow control: NOT IMPLEMENTED; no shadow state was committed
+- Prob-LIO artifacts deleted/moved/stashed: NO
+- large bags/logs/trajectories remain outside git
+
+Runtime:
+- build workers: 4
+- bag runtime threads: 32
+- bags executed sequentially: YES
