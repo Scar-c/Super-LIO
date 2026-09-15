@@ -26,6 +26,7 @@ D3_SOLVER_SHADOW="false"
 PAIRED_ATTENUATION="false"
 PAIRED_ATTENUATION_SHADOW="false"
 PAIRED_MODE="0"
+P14_SHADOW="false"
 BLIND_OVERRIDE=""
 FILTER_RATE_OVERRIDE=""
 VOXEL_OVERRIDE=""
@@ -64,6 +65,7 @@ while [ "$#" -gt 0 ]; do
         *) echo "ERR: --paired-mode must be off, p1, utrace, or ugamma" >&2; exit 2 ;;
       esac
       shift 2 ;;
+    --prompt14-shadow|--p14-shadow) P14_SHADOW="true"; shift ;;
     --blind) BLIND_OVERRIDE="$2"; shift 2 ;;
     --filter-rate) FILTER_RATE_OVERRIDE="$2"; shift 2 ;;
     --voxel-size) VOXEL_OVERRIDE="$2"; shift 2 ;;
@@ -90,6 +92,10 @@ fi
 if [ -n "$GROUND_TRUTH_OVERRIDE" ]; then
   GROUND_TRUTH="$GROUND_TRUTH_OVERRIDE"
 elif [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
+  GROUND_TRUTH="$(dirname "$BAG")/Tunneling_tunnel2.txt"
+elif [ "$SEQUENCE" = "tunneling_tunnel1_gamma" ]; then
+  GROUND_TRUTH="$(dirname "$BAG")/Tunneling_tunnel1.txt"
+elif [ "$SEQUENCE" = "tunneling_tunnel2_alpha" ] || [ "$SEQUENCE" = "tunneling_tunnel2_gamma" ]; then
   GROUND_TRUTH="$(dirname "$BAG")/Tunneling_tunnel2.txt"
 elif [ "$SEQUENCE" = "fyllingsdalen_tunnel" ] || [ "$SEQUENCE" = "runehamar_tunnel_hornbill" ]; then
   GROUND_TRUTH="$(dirname "$BAG")/gt_odometry.tum"
@@ -163,6 +169,7 @@ trap cleanup EXIT
   echo "paired_attenuation: $PAIRED_ATTENUATION"
   echo "paired_attenuation_shadow: $PAIRED_ATTENUATION_SHADOW"
   echo "paired_attenuation_mode: $PAIRED_MODE"
+  echo "prompt14_shadow: $P14_SHADOW"
   echo "blind_override: ${BLIND_OVERRIDE:-config/default}"
   echo "filter_rate_override: ${FILTER_RATE_OVERRIDE:-config/default}"
   echo "voxel_override: ${VOXEL_OVERRIDE:-config/default}"
@@ -215,6 +222,9 @@ rosparam set /lio/dec_lio/paired_attenuation/enabled "$PAIRED_ATTENUATION"
 rosparam set /lio/dec_lio/paired_attenuation/shadow_only "$PAIRED_ATTENUATION_SHADOW"
 rosparam set /lio/dec_lio/paired_attenuation/mode "$PAIRED_MODE"
 rosparam set /lio/dec_lio/paired_attenuation/output_csv "$RUN_DIR/paired_attenuation_shadow.csv"
+rosparam set /lio/dec_lio/prompt14_shadow/enabled "$P14_SHADOW"
+rosparam set /lio/dec_lio/prompt14_shadow/frame_csv "$RUN_DIR/prompt14_shadow.csv"
+rosparam set /lio/dec_lio/prompt14_shadow/mode_csv "$RUN_DIR/prompt14_modes.csv"
 rosparam set /lio/dec_lio/observation_stage_csv "$RUN_DIR/observation_stage.csv"
 if [ "$MODE" = offline ]; then rosparam set /lio/offline/out_dir "$RUN_DIR"; fi
 rosparam dump "$RUN_DIR/effective_rosparams.yaml" /lio
@@ -269,7 +279,9 @@ echo "play_rc: ${PLAY_RC:-not-applicable}" >> "$META"
 echo "record_rc: ${RECORD_RC:-not-applicable}" >> "$META"
 echo "trajectory: $RUN_DIR/trajectory.tum" >> "$META"
 if [ -f "$RUN_DIR/trajectory.tum" ]; then
-  if [ "$SEQUENCE" = "tunneling_tunnel2" ]; then
+  if [ "$SEQUENCE" = "tunneling_tunnel2" ] ||
+     [ "$SEQUENCE" = "tunneling_tunnel2_alpha" ] ||
+     [ "$SEQUENCE" = "tunneling_tunnel2_gamma" ]; then
     python3 "$REPO_ROOT/eval/dec_lio/normalize_tum_timestamps.py" \
       --input "$RUN_DIR/trajectory.tum" \
       --output "$RUN_DIR/trajectory.strict.tum"

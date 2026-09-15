@@ -27,6 +27,7 @@
 #include "dec_lio/D2ShadowAnalyzer.h"
 #include "dec_lio/ConsistencyAnalyzer.h"
 #include "dec_lio/WeakAxisAnalyzer.h"
+#include "dec_lio/LidarOnlyShadow.h"
 
 namespace LI2Sup{
 
@@ -52,6 +53,9 @@ protected:
   void Propagation_Undistort();
   void DownSample();
   void Observe();
+  void buildPrompt14Correspondences(
+      const BASIC::SE3& pose,
+      DecLIO::LidarOnlyPoints& correspondences) const;
   void writeObservationStage(std::size_t candidate_count,
                              std::size_t used_count);
   virtual void UpdateMap();
@@ -68,6 +72,7 @@ protected:
   std::unique_ptr<DecLIO::D2ShadowAnalyzer> d2_analyzer_;
   std::unique_ptr<DecLIO::ConsistencyAnalyzer> consistency_analyzer_;
   std::unique_ptr<DecLIO::WeakAxisAnalyzer> axis_analyzer_;
+  std::unique_ptr<DecLIO::Prompt14Analyzer> prompt14_analyzer_;
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;
@@ -90,6 +95,9 @@ protected:
   std::vector<int> effect_knn_idxs_;
   std::vector<std::pair<BASIC::M6, BASIC::V6>> H_R_;
   std::vector<std::array<double, 4>> abcd_vec_;
+  DecLIO::LidarOnlyPoints prompt14_points_by_index_;
+  DecLIO::LidarOnlyPoints prompt14_matched_points_;
+  std::vector<unsigned char> prompt14_used_;
   std::size_t imu_states_overlapping_scan_ = 0;
   std::size_t interpolated_point_count_ = 0;
   std::size_t beyond_propagation_fallback_count_ = 0;

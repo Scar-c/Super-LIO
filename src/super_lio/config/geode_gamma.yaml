@@ -1,0 +1,65 @@
+# Dec-LIO Prompt14 native GEODE Gamma configuration.
+# Sensor-specific values are translated directly from
+# /home/lc/dec_lio/bag/GEODE/gamma_config.yaml:
+#   /imu/data, /livox/lidar, Livox 6-channel, Gamma T_IMU_LiDAR and IMU noise.
+# Generic wrapper values remain the frozen GEODE baseline used by Dec-LIO:
+# blind=2 m, maxrange=150 m, filter_rate=3, scan/map voxel=0.5 m, KF=4.
+lio:
+  map:
+    save_map: false
+    if_filter: false
+    save_map_dir: "map"
+    map_name: "map.pcd"
+    ds_size: 0.3
+    save_interval: 500
+
+  ros:
+    lidar_topic: "/livox/lidar"
+    imu_topic: "/imu/data"
+
+  sensor:
+    lidar_type: 1                 # native LID_TYPE::LIVOX
+    blind: 2.0
+    maxrange: 150.0
+    filter_rate: 3.0
+    enable_downsample: true
+    voxel_fliter_size: 0.5
+    gravity_norm: 9.7946
+    imu_type: 0
+    imu_na: 0.005574102551335777
+    imu_ng: 0.005144105954181042
+    imu_nba: 0.00012078671772058479
+    imu_nbg: 0.00010881627554710405
+    point_time_scale: 1.0
+    geode_finite_then_stride: true
+
+  extrinsic:
+    # T_IMU_LiDAR: LiDAR coordinates to IMU coordinates, row-major R.
+    lidar_imu: [0.049258, -0.012500, 0.026946,
+                0.999620, 0.027463, 0.002445,
+               -0.027517, 0.999299, 0.025398,
+               -0.001746, -0.025456, 0.999674]
+    odom_robo: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+  hash_map:
+    hash_capacity: 100000000
+    vox_resolution: 0.5
+
+  kf:
+    kf_type: 0
+    kf_max_iterations: 4
+    kf_align_gravity: true
+    kf_quit_eps: 0.001
+
+  output:
+    robot: false
+    plan_env_world: false
+    plan_env_body: false
+    ml_map: false
+    planner: false
+    map: false
+    dense: false
+    pub_step: 1
+
+  eva:
+    timer: false

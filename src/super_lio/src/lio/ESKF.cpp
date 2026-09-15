@@ -437,6 +437,10 @@ bool ESKF::UpdateObserve(ESKF::ObsFunc obs) {
       d3_solver_audit_->record(shadow);
     }
 
+    if (iter == 0 && first_update_hook_) {
+      first_update_hook_(raw_HTVH, raw_HTVr, HTVH, HTVr, dx_);
+    }
+
     Update();
 
     if (dx_.lpNorm<Eigen::Infinity>() < options_.quit_eps_ && iter > 0) {

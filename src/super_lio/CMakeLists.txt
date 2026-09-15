@@ -208,3 +208,15 @@ target_include_directories(dec_lio_prompt11_uniform_control_test PRIVATE
   ${EIGEN3_INCLUDE_DIRS})
 add_test(NAME dec_lio_prompt11_uniform_control_test
          COMMAND dec_lio_prompt11_uniform_control_test)
+
+add_executable(dec_lio_prompt14_shadow_test
+  ../../tests/dec_lio/prompt14_shadow_test.cpp)
+target_include_directories(dec_lio_prompt14_shadow_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(dec_lio_prompt14_shadow_test
+  lio
+  ${catkin_LIBRARIES})
+add_test(NAME dec_lio_prompt14_shadow_test
+         COMMAND dec_lio_prompt14_shadow_test)

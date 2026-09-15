@@ -18,6 +18,7 @@ using namespace BASIC;
 namespace LI2Sup{
 
 SuperLIO::~SuperLIO(){
+  if (prompt14_analyzer_) prompt14_analyzer_->finalize();
   if (axis_analyzer_) axis_analyzer_->finalize();
   if (consistency_analyzer_) consistency_analyzer_->finalize();
   if (d2_analyzer_) d2_analyzer_->finalize();
@@ -134,6 +135,18 @@ void SuperLIO::init(){
               << g_d3_solver_snapshot_path << RESET;
   } else {
     LOG(INFO) << GREEN << " ---> [Dec-LIO D3 solver]: shadow=OFF" << RESET;
+  }
+
+  if (g_prompt14_shadow_enabled) {
+    prompt14_analyzer_.reset(new DecLIO::Prompt14Analyzer(
+        g_prompt14_frame_csv, g_prompt14_mode_csv,
+        g_d1_condition_threshold));
+    LOG(INFO) << GREEN
+              << " ---> [Dec-LIO Prompt14]: LiDAR-only shadow=ON output="
+              << g_prompt14_frame_csv << RESET;
+  } else {
+    LOG(INFO) << GREEN
+              << " ---> [Dec-LIO Prompt14]: LiDAR-only shadow=OFF" << RESET;
   }
 
   if (!g_observation_stage_output_csv.empty()) {
@@ -566,6 +579,30 @@ struct ThreadACC{
   ThreadACC(): HTVH(M6d::Zero()), HTVr(V6d::Zero()), used_residual_count(0) {}
 };
 
+void SuperLIO::buildPrompt14Correspondences(
+    const BASIC::SE3& pose,
+    DecLIO::LidarOnlyPoints& correspondences) const {
+  correspondences.clear();
+  correspondences.reserve(points_body_v3_.size());
+  for (const V3& point_body : points_body_v3_) {
+    const V3 point_world = pose * point_body;
+    KNNHeapType top_K;
+    top_K.reset();
+    ivox_->getTopK(point_world, top_K);
+    if (top_K.count < 4) continue;
+    std::array<double, 4> plane;
+    if (!calc_plane_coeff(top_K.count, top_K.points_, plane)) continue;
+    scalar error = 0.0;
+    if (!compute_error(plane, point_world, point_body.norm(), error)) continue;
+
+    DecLIO::LidarOnlyPoint correspondence;
+    correspondence.point_body = point_body.cast<double>();
+    correspondence.length = point_body.norm();
+    correspondence.plane = plane;
+    correspondences.push_back(correspondence);
+  }
+}
+
 
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
@@ -574,6 +611,7 @@ void SuperLIO::Observe(){
   const bool d2_enabled = d2_analyzer_ != nullptr;
   const bool consistency_enabled = consistency_analyzer_ != nullptr;
   const bool axis_enabled = axis_analyzer_ != nullptr;
+  const bool prompt14_enabled = prompt14_analyzer_ != nullptr;
   const bool shadow_capture = d2_enabled || consistency_enabled || axis_enabled;
   // This is a read-only copy taken immediately before the native update call.
   // It is the ESKF propagated covariance, not a posterior or a mutable state.
@@ -592,6 +630,12 @@ void SuperLIO::Observe(){
     d2_jacobians.resize(ptsize, V6d::Zero());
     d2_used.assign(ptsize, 0);
     consistency_errors.assign(ptsize, std::numeric_limits<double>::quiet_NaN());
+  }
+  if (prompt14_enabled) {
+    prompt14_points_by_index_.resize(ptsize);
+    prompt14_used_.assign(ptsize, 0);
+    prompt14_matched_points_.clear();
+    prompt14_matched_points_.reserve(ptsize);
   }
   
   static std::vector<float> _lengths;
@@ -613,6 +657,27 @@ void SuperLIO::Observe(){
 
   kf_->SetD3ObservationContext(static_cast<std::uint64_t>(frame_num_),
                                measures_.lidar.end_time);
+  const SE3 prompt14_t_init = kf_->GetSE3();
+  if (prompt14_enabled) {
+    const DecLIO::LidarOnlyShadowSolver::CorrespondenceBuilder builder =
+        [this](const BASIC::SE3& pose,
+               DecLIO::LidarOnlyPoints& correspondences) {
+          buildPrompt14Correspondences(pose, correspondences);
+        };
+    kf_->SetFirstUpdateHook(
+        [this, prompt14_t_init, builder](const M6& raw_H, const V6& raw_b,
+                                         const M6& effective_H,
+                                         const V6& effective_b,
+                                         const V18& native_dx) {
+          prompt14_analyzer_->observe(
+              static_cast<std::uint64_t>(frame_num_),
+              measures_.lidar.end_time, prompt14_t_init,
+              prompt14_matched_points_, raw_H.cast<double>(),
+              raw_b.cast<double>(), effective_H.cast<double>(),
+              effective_b.cast<double>(), native_dx.head<6>().cast<double>(),
+              g_paired_attenuation_mode != 0, builder);
+        });
+  }
   kf_->UpdateObserve([&, this](const ESKF::KFState &kf_state, M6 &HTVH, V6 &HTVr) {
     const int current_shadow_iteration = shadow_iteration++;
     const SE3 pose = kf_state.pose;
@@ -666,6 +731,15 @@ void SuperLIO::Observe(){
               d2_jacobians[idx] = J;
               d2_used[idx] = 1;
               consistency_errors[idx] = static_cast<double>(error);
+            }
+            if (prompt14_enabled && current_shadow_iteration == 0 &&
+                !need_converge) {
+              DecLIO::LidarOnlyPoint& capture =
+                  prompt14_points_by_index_[idx];
+              capture.point_body = point_body.cast<double>();
+              capture.length = _lengths[idx];
+              capture.plane = abcd;
+              prompt14_used_[idx] = 1;
             }
           }
         }
@@ -722,6 +796,14 @@ void SuperLIO::Observe(){
             consistency.d1, consistency);
       }
     }
+    if (prompt14_enabled && current_shadow_iteration == 0 && !need_converge) {
+      for (std::size_t index = 0; index < ptsize; ++index) {
+        if (prompt14_used_[index]) {
+          prompt14_matched_points_.push_back(
+              prompt14_points_by_index_[index]);
+        }
+      }
+    }
     HTVH = sum_HTVH.cast<scalar>();
     HTVr = sum_HTVr.cast<scalar>();
     kf_->SetD3ObservationCount(used_residual_count);
@@ -741,6 +823,7 @@ void SuperLIO::Observe(){
 
     iter_num++;
   });
+  if (prompt14_enabled) kf_->ClearFirstUpdateHook();
 
   writeObservationStage(first_candidate_count, first_used_count);
 

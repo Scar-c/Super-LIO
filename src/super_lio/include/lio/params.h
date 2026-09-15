@@ -103,6 +103,11 @@ namespace LI2Sup{
   extern bool g_paired_attenuation_shadow_only;
   extern std::string g_paired_attenuation_output_csv;
 
+  /// Prompt14 LiDAR-only prior-suppression shadow. Disabled by default.
+  extern bool g_prompt14_shadow_enabled;
+  extern std::string g_prompt14_frame_csv;
+  extern std::string g_prompt14_mode_csv;
+
   /// submaps
   extern double g_submap_resolution;
   extern int    g_submap_capacity;

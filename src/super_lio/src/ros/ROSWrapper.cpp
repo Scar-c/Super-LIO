@@ -121,6 +121,12 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_paired_attenuation_shadow_only, false);
   nh.param("/lio/dec_lio/paired_attenuation/output_csv",
            g_paired_attenuation_output_csv, std::string());
+  nh.param("/lio/dec_lio/prompt14_shadow/enabled",
+           g_prompt14_shadow_enabled, false);
+  nh.param("/lio/dec_lio/prompt14_shadow/frame_csv",
+           g_prompt14_frame_csv, std::string());
+  nh.param("/lio/dec_lio/prompt14_shadow/mode_csv",
+           g_prompt14_mode_csv, std::string());
 
   // submaps
   nh.getParam("/lio/submap/submap_resolution", g_submap_resolution);

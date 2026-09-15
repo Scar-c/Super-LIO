@@ -78,6 +78,10 @@ namespace LI2Sup{
   bool g_paired_attenuation_shadow_only = false;
   std::string g_paired_attenuation_output_csv;
 
+  bool g_prompt14_shadow_enabled = false;
+  std::string g_prompt14_frame_csv;
+  std::string g_prompt14_mode_csv;
+
   /// submap 
   double g_submap_resolution;
   int    g_submap_capacity;

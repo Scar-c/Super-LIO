@@ -1,6 +1,9 @@
 #ifndef ESKF_HPP_
 #define ESKF_HPP_
 
+#include <functional>
+#include <utility>
+
 #include "basic/alias.h"
 #include "basic/Manifold.h"
 #include "common/ds.h"
@@ -58,6 +61,18 @@ public:
 
   using ObsFunc = std::function<void(const KFState& kf_state, BASIC::M6& HT_Vinv_H, BASIC::V6& HT_Vinv_r)>;
   bool UpdateObserve(ObsFunc obs);
+
+  // Synchronous, read-only diagnostic hook at the first native linearization.
+  // The hook is invoked after the native dx is solved and before Update().
+  using FirstUpdateHook = std::function<void(const BASIC::M6& raw_H,
+                                             const BASIC::V6& raw_b,
+                                             const BASIC::M6& effective_H,
+                                             const BASIC::V6& effective_b,
+                                             const BASIC::V18& native_dx)>;
+  void SetFirstUpdateHook(FirstUpdateHook hook) {
+    first_update_hook_ = std::move(hook);
+  }
+  void ClearFirstUpdateHook() { first_update_hook_ = FirstUpdateHook(); }
 
   double GetTime() const { return current_time_; }
 
@@ -124,6 +139,7 @@ private:
 
   std::unique_ptr<DecLIO::D3SolverAudit> d3_solver_audit_;
   std::unique_ptr<DecLIO::PairedAttenuationAudit> paired_attenuation_audit_;
+  FirstUpdateHook first_update_hook_;
   std::uint64_t d3_frame_ = 0;
   double d3_timestamp_ = 0.0;
   std::size_t d3_n_used_ = 0;

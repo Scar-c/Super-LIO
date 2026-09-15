@@ -23,6 +23,21 @@ EXPECTED = {
         "config": "1e081c1e414e251a1284dbef9688bc74955d86a7c029687f779ba5b9f0540c04",
         "ground_truth": "b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a",
     },
+    "tunneling_tunnel2_alpha": {
+        "bag": "08a4a32f660b3d2df3d2adb053fe86d310505a1689e9d37b3f87a6a20768498e",
+        "config": "1e081c1e414e251a1284dbef9688bc74955d86a7c029687f779ba5b9f0540c04",
+        "ground_truth": "b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a",
+    },
+    "tunneling_tunnel1_gamma": {
+        "bag": "79f89b1c8653c65841fd00dcc0f1ed24799f9d0a839b34f107ec336cac5ebb50",
+        "config": "9d5f3c1d5321cce2cc903dffa2414382beab7c5fd4e159c8c1693314ba80dea3",
+        "ground_truth": "603bf842bcfcb8886fd885cb396bb1009941ee0fe41779767d06318bb91bf803",
+    },
+    "tunneling_tunnel2_gamma": {
+        "bag": "1ab2890232b4d74cc3577a840aa3180bbc62491dc42ba02795954ec8f5ef7e00",
+        "config": "9d5f3c1d5321cce2cc903dffa2414382beab7c5fd4e159c8c1693314ba80dea3",
+        "ground_truth": "b83ca5db4102838cd260fc78b0a20cca90da9db855ab9b762f9d7f2e5c856c5a",
+    },
     "fyllingsdalen_tunnel": {
         "bag": "697b82875e5b662991915aa9c7e8fd0e3d4c0f0aca09048a6a884b718338fdf3",
         "config": "55bbc33a7e14c4e095993c7e383e8b2e186e958794e99f1966383ec3e33e6320",
