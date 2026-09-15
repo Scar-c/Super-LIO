@@ -286,7 +286,12 @@ AsymmetricEstimator::Preintegrated AsymmetricEstimator::integrate(
     const LI2Sup::IMUData& previous = segment.imu[index - 1];
     const LI2Sup::IMUData& current = segment.imu[index];
     const double dt = current.secs - previous.secs;
-    if (!(dt > 0.0) || dt > 0.2) continue;
+    // Preserve native/BIEVR continuous-time semantics across a real sensor
+    // gap. The native predictor advances to the scan endpoint rather than
+    // freezing the state; rejecting dt>0.2 would make every later output carry
+    // a stale timestamp. The gap remains visible in the IMU segment and in the
+    // resulting diagnostics/trajectory, not hidden by a native update.
+    if (!(dt > 0.0)) continue;
     const BASIC::V3 acc =
         0.5 * (previous.acc + current.acc) * segment.imu_scale - accel_bias;
     const BASIC::V3 gyr = 0.5 * (previous.gyr + current.gyr) - gyro_bias;
@@ -419,7 +424,7 @@ bool AsymmetricEstimator::propagate(
   for (const LI2Sup::IMUData& sample : imu) {
     if (sample.secs <= current.time || sample.secs > target_time) continue;
     const double dt = sample.secs - predicted.time;
-    if (!(dt > 0.0) || dt > 0.2) continue;
+    if (!(dt > 0.0)) continue;
     const BASIC::V3 acc =
         0.5 * (previous.acc + sample.acc) * imu_scale_ - accel_bias_;
     const BASIC::V3 gyr = 0.5 * (previous.gyr + sample.gyr) - gyro_bias_;
@@ -441,7 +446,7 @@ bool AsymmetricEstimator::propagate(
     LI2Sup::IMUData end = consumed_actual ? last_actual : previous;
     end.secs = target_time;
     const double dt = target_time - predicted.time;
-    if (dt > 0.0 && dt <= 0.2) {
+    if (dt > 0.0) {
       const BASIC::V3 acc = end.acc * imu_scale_ - accel_bias_;
       const BASIC::V3 gyr = end.gyr - gyro_bias_;
       const BASIC::V3 world_acc = predicted.R * acc + gravity();
