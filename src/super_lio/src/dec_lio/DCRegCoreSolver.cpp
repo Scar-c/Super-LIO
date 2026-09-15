@@ -121,6 +121,8 @@ Analysis detect(const Matrix6d& hessian, const Parameters& parameters) {
   }
   result.clamped_lambda_rot = aligned_rot;
   result.clamped_lambda_trans = aligned_trans;
+  result.aligned_lambda_rot = aligned_rot;
+  result.aligned_lambda_trans = aligned_trans;
   const double rot_max = aligned_rot.maxCoeff();
   const double trans_max = aligned_trans.maxCoeff();
   const double min_rot = std::max(rot_max / parameters.kappa_target, 1e-9);

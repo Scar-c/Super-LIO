@@ -25,6 +25,20 @@ public:
   using F_X   = Eigen::Matrix<BASIC::scalar, 18, 18>;
   using F_W   = Eigen::Matrix<BASIC::scalar, 18, 12>;
 
+  struct PoseUpdateDiagnostics {
+    bool valid = false;
+    Eigen::Matrix<double, 6, 1> innovation =
+        Eigen::Matrix<double, 6, 1>::Zero();
+    Eigen::Matrix<double, 18, 1> correction =
+        Eigen::Matrix<double, 18, 1>::Zero();
+    Eigen::Matrix<double, 6, 6> innovation_covariance =
+        Eigen::Matrix<double, 6, 6>::Zero();
+    Eigen::Matrix<double, 18, 18> posterior_covariance =
+        Eigen::Matrix<double, 18, 18>::Zero();
+    double innovation_norm = 0.0;
+    double correction_norm = 0.0;
+  };
+
 
   struct Options {
     Options(){}
@@ -73,6 +87,14 @@ public:
     first_update_hook_ = std::move(hook);
   }
   void ClearFirstUpdateHook() { first_update_hook_ = FirstUpdateHook(); }
+
+  // Pose-level loose fusion. The measurement convention is fixed by
+  // DecLIO::poseInnovation: prior-relative right/local rotation followed by
+  // world-frame translation. H is [I6 0] in the 18-state error ordering.
+  bool UpdatePoseMeasurement(
+      const BASIC::SE3& lidar_pose,
+      const Eigen::Matrix<double, 6, 6>& measurement_covariance,
+      PoseUpdateDiagnostics* diagnostics = nullptr);
 
   double GetTime() const { return current_time_; }
 

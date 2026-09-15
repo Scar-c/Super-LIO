@@ -14,6 +14,7 @@ namespace LI2Sup{
   std::string g_asymmetric_diagnostics_csv;
   std::string g_asymmetric_registration_solver = "plain";
   std::string g_asymmetric_dcreg_diagnostics_csv;
+  std::string g_loose_pose_diagnostics_csv;
 
   /// evaluation
   bool g_time_eva = false;

@@ -45,6 +45,11 @@ struct Analysis {
       Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
   Vector3d clamped_lambda_trans =
       Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  // Eigenvalues reordered to match aligned_rot_basis/aligned_trans_basis.
+  Vector3d aligned_lambda_rot =
+      Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  Vector3d aligned_lambda_trans =
+      Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
   std::array<bool, 6> degenerate_mask = {false, false, false,
                                          false, false, false};
   Matrix3d raw_rot_basis = Matrix3d::Identity();

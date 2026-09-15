@@ -41,6 +41,8 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/dec_lio/AsymmetricEstimator.cpp",
     "src/super_lio/include/dec_lio/DCRegCoreSolver.h",
     "src/super_lio/src/dec_lio/DCRegCoreSolver.cpp",
+    "src/super_lio/include/dec_lio/PoseFusion.h",
+    "src/super_lio/src/dec_lio/PoseFusion.cpp",
     "src/super_lio/include/lio/ESKF.h",
     "src/super_lio/src/lio/ESKF.cpp",
     "src/super_lio/include/lio/params.h",

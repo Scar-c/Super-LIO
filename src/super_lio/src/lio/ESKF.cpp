@@ -3,6 +3,8 @@
 #include <chrono>
 #include <Eigen/QR>
 
+#include "dec_lio/PoseFusion.h"
+
 using namespace BASIC;
 
 namespace LI2Sup{
@@ -113,6 +115,110 @@ bool ESKF::ApplyDiagnosticPoseIntervention(const BASIC::SE3& pose) {
   fw_p_ = p_;
   fw_v_ = v_;
   dx_.setZero();
+  return true;
+}
+
+bool ESKF::UpdatePoseMeasurement(
+    const BASIC::SE3& lidar_pose,
+    const Eigen::Matrix<double, 6, 6>& measurement_covariance,
+    PoseUpdateDiagnostics* diagnostics) {
+  PoseUpdateDiagnostics local;
+  if (!lidar_pose.R_.allFinite() || !lidar_pose.t_.allFinite() ||
+      !measurement_covariance.allFinite()) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+
+  const Eigen::Matrix<double, 6, 1> innovation =
+      DecLIO::poseInnovation(GetSE3(), lidar_pose);
+  Eigen::Matrix<double, 18, 18> prior_covariance = P_.cast<double>();
+  prior_covariance =
+      0.5 * (prior_covariance + prior_covariance.transpose());
+  Eigen::Matrix<double, 18, 6> state_measurement_covariance =
+      prior_covariance.leftCols<6>();
+  Eigen::Matrix<double, 6, 6> innovation_covariance =
+      prior_covariance.topLeftCorner<6, 6>() + measurement_covariance;
+  innovation_covariance =
+      0.5 * (innovation_covariance + innovation_covariance.transpose());
+  if (!innovation.allFinite() || !prior_covariance.allFinite() ||
+      !innovation_covariance.allFinite()) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+
+  Eigen::LDLT<Eigen::Matrix<double, 6, 6>> solver(innovation_covariance);
+  if (solver.info() != Eigen::Success ||
+      !solver.isPositive() || !solver.vectorD().allFinite()) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+  const Eigen::Matrix<double, 18, 6> kalman_gain =
+      state_measurement_covariance * solver.solve(
+          Eigen::Matrix<double, 6, 6>::Identity());
+  const Eigen::Matrix<double, 18, 1> correction = kalman_gain * innovation;
+  if (!kalman_gain.allFinite() || !correction.allFinite()) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+
+  Eigen::Matrix<double, 18, 18> identity =
+      Eigen::Matrix<double, 18, 18>::Identity();
+  Eigen::Matrix<double, 6, 18> measurement_jacobian =
+      Eigen::Matrix<double, 6, 18>::Zero();
+  measurement_jacobian.leftCols<6>() =
+      Eigen::Matrix<double, 6, 6>::Identity();
+  Eigen::Matrix<double, 18, 18> joseph_left = identity;
+  joseph_left.noalias() -= kalman_gain * measurement_jacobian;
+  Eigen::Matrix<double, 18, 18> posterior_covariance =
+      joseph_left * prior_covariance * joseph_left.transpose() +
+      kalman_gain * measurement_covariance * kalman_gain.transpose();
+  posterior_covariance =
+      0.5 * (posterior_covariance + posterior_covariance.transpose());
+  if (!posterior_covariance.allFinite()) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+
+  dx_ = correction.cast<scalar>();
+  R_ = R_ * SO3::Exp(dx_.template block<3, 1>(0, 0));
+  p_ += dx_.template block<3, 1>(3, 0);
+  v_ += dx_.template block<3, 1>(6, 0);
+  bg_ += dx_.template block<3, 1>(9, 0);
+  ba_ += dx_.template block<3, 1>(12, 0);
+  g_ += dx_.template block<3, 1>(15, 0);
+  if (!g_.allFinite() || g_.norm() < 1.0e-6f) {
+    if (diagnostics) *diagnostics = local;
+    return false;
+  }
+  g_ = g_gravity_norm * g_.normalized();
+  fw_R_ = R_;
+  fw_p_ = p_;
+  fw_v_ = v_;
+  forward_time_ = current_obs_time_;
+
+  // Match the existing ESKF reset convention after applying a right-local
+  // rotation correction. Cross-covariances remain intact through Joseph.
+  Eigen::Matrix<double, 18, 18> reset =
+      Eigen::Matrix<double, 18, 18>::Identity();
+  const Eigen::Vector3d correction_rotation = correction.head<3>();
+  reset.topLeftCorner<3, 3>() =
+      Eigen::Matrix3d::Identity() -
+      0.5 * Eigen::Matrix3d(
+                 SO3::hat(correction_rotation.cast<scalar>()).template cast<double>());
+  P_ = (reset * posterior_covariance * reset.transpose()).cast<scalar>();
+  P_ = 0.5f * (P_ + P_.transpose());
+  dx_.setZero();
+  need_converge_ = false;
+  last_obs_time_ = current_obs_time_;
+
+  local.valid = true;
+  local.innovation = innovation;
+  local.correction = correction;
+  local.innovation_covariance = innovation_covariance;
+  local.posterior_covariance = P_.cast<double>();
+  local.innovation_norm = innovation.norm();
+  local.correction_norm = correction.norm();
+  if (diagnostics) *diagnostics = local;
   return true;
 }
 

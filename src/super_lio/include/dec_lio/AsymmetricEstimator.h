@@ -40,6 +40,11 @@ struct AsymmetricRegistrationResult {
   double step_norm = 0.0;
   std::string linear_solver = "plain";
   std::string linear_solver_status = "PLAIN_EIGEN";
+  Eigen::Matrix<double, 6, 6> final_hessian =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  Eigen::Matrix<double, 6, 1> final_rhs =
+      Eigen::Matrix<double, 6, 1>::Zero();
+  bool final_geometry_valid = false;
 };
 
 class AsymmetricLidarRegistration {
@@ -48,6 +53,10 @@ class AsymmetricLidarRegistration {
       std::function<void(const BASIC::SE3&, AsymmetricRegistrationPoints&)>;
 
   static AsymmetricRegistrationResult solve(
+      const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder);
+  // Prompt20 L0/L1 entry point: always the same plain independent LiDAR
+  // registration, regardless of the global asymmetric solver selector.
+  static AsymmetricRegistrationResult solvePlain(
       const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder);
 };
 

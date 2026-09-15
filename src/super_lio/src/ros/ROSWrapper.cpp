@@ -20,6 +20,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_asymmetric_registration_solver, std::string("plain"));
   nh.param("/lio/dec_lio/asymmetric/dcreg_diagnostics_csv",
            g_asymmetric_dcreg_diagnostics_csv, std::string());
+  nh.param("/lio/dec_lio/loose_pose/diagnostics_csv",
+           g_loose_pose_diagnostics_csv, std::string());
   if (g_asymmetric_registration_solver != "plain" &&
       g_asymmetric_registration_solver != "dcreg") {
     LOG(ERROR) << " ---> invalid asymmetric_registration_solver='"
@@ -27,12 +29,14 @@ void LoadParamFromRos(ros::NodeHandle& nh){
                << "', forcing plain";
     g_asymmetric_registration_solver = "plain";
   }
-  if (g_estimator_mode != "native" && g_estimator_mode != "asymmetric") {
-    LOG(ERROR) << " ---> [Prompt16] invalid estimator_mode='"
+  if (g_estimator_mode != "native" && g_estimator_mode != "asymmetric" &&
+      g_estimator_mode != "loose_pose_ekf" &&
+      g_estimator_mode != "loose_pose_ekf_dcreg") {
+    LOG(ERROR) << " ---> [Prompt20] invalid estimator_mode='"
                << g_estimator_mode << "', forcing native";
     g_estimator_mode = "native";
   }
-  LOG(INFO) << GREEN << " ---> [Prompt16] estimator_mode: "
+  LOG(INFO) << GREEN << " ---> [Prompt20] estimator_mode: "
             << g_estimator_mode << RESET;
   LOG(INFO) << GREEN << " ---> [Prompt18] asymmetric registration solver: "
             << g_asymmetric_registration_solver << RESET;

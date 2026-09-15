@@ -249,16 +249,33 @@ struct GravityPriorCost {
 
 }  // namespace
 
-AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
-    const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder) {
+AsymmetricRegistrationResult solveRegistration(
+    const BASIC::SE3& initial_pose,
+    const AsymmetricLidarRegistration::CorrespondenceBuilder& builder,
+    bool use_dcreg) {
   AsymmetricRegistrationResult result;
-  const bool use_dcreg =
-      LI2Sup::g_asymmetric_registration_solver == "dcreg";
   result.linear_solver = use_dcreg ? "dcreg" : "plain";
   result.pose = initial_pose;
+  const auto finalizeGeometry = [&]() -> AsymmetricRegistrationResult {
+    if (result.success && finitePose(result.pose) && builder) {
+      AsymmetricRegistrationPoints final_points;
+      builder(result.pose, final_points);
+      const RegistrationCost final_cost =
+          evaluateRegistration(result.pose, final_points);
+      if (final_cost.valid && final_cost.count >= 6) {
+        accumulateRegistration(result.pose, final_points, result.final_hessian,
+                               result.final_rhs);
+        result.final_geometry_valid = result.final_hessian.allFinite() &&
+                                      result.final_rhs.allFinite();
+        result.valid_residuals = final_cost.count;
+        result.cost_final = final_cost.cost;
+      }
+    }
+    return result;
+  };
   if (!finitePose(initial_pose) || !builder) {
     result.reason = "STATE_NONFINITE";
-    return result;
+    return finalizeGeometry();
   }
 
   AsymmetricRegistrationPoints points;
@@ -267,7 +284,7 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
   if (!current.valid || current.count < 6) {
     result.reason = "INSUFFICIENT_CORRESPONDENCE";
     result.valid_residuals = current.count;
-    return result;
+    return finalizeGeometry();
   }
   result.cost_initial = current.cost;
   result.cost_final = current.cost;
@@ -280,7 +297,7 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     result.valid_residuals = current.count;
     if (!current.valid || current.count < 6) {
       result.reason = "INSUFFICIENT_CORRESPONDENCE";
-      return result;
+      return finalizeGeometry();
     }
 
     Matrix6d h;
@@ -300,23 +317,23 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
                             result.cost_initial, current.cost, solve_report);
       if (!step.allFinite()) {
         result.reason = "REGISTRATION_STATE_NONFINITE";
-        return result;
+        return finalizeGeometry();
       }
     } else if (!solveFullRank(h, b, step, result.rank, result.condition)) {
       result.reason = "REGISTRATION_RANK_FAILURE";
-      return result;
+      return finalizeGeometry();
     }
     result.step_norm = step.norm();
     if (!std::isfinite(result.step_norm)) {
       result.reason = "STATE_NONFINITE";
-      return result;
+      return finalizeGeometry();
     }
     if (result.step_norm <= kStepEpsilon) {
       result.success = true;
       result.reason = result.rank == 6 ? "STEP_EPSILON"
                                       : "RANK_DEFICIENT_STEP_EPSILON";
       result.cost_final = current.cost;
-      return result;
+      return finalizeGeometry();
     }
 
     bool accepted = false;
@@ -342,7 +359,7 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     }
     if (!accepted) {
       result.reason = "REGISTRATION_DIVERGENCE";
-      return result;
+      return finalizeGeometry();
     }
     result.pose = accepted_pose;
     result.cost_final = accepted_cost.cost;
@@ -351,14 +368,26 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     if (trial_step.norm() <= kStepEpsilon) {
       result.success = true;
       result.reason = "STEP_EPSILON";
-      return result;
+      return finalizeGeometry();
     }
   }
 
   result.reason = "REGISTRATION_MAX_ITERATIONS";
   result.success = std::isfinite(result.cost_final) &&
                    result.valid_residuals >= 6;
-  return result;
+  return finalizeGeometry();
+}
+
+AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
+    const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder) {
+  return solveRegistration(
+      initial_pose, builder,
+      LI2Sup::g_asymmetric_registration_solver == "dcreg");
+}
+
+AsymmetricRegistrationResult AsymmetricLidarRegistration::solvePlain(
+    const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder) {
+  return solveRegistration(initial_pose, builder, false);
 }
 
 AsymmetricEstimator::Preintegrated AsymmetricEstimator::integrate(

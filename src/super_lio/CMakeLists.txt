@@ -62,6 +62,7 @@ catkin_package(
 file(GLOB_RECURSE LIO_LIB_SRC "src/lio/*.cpp" "src/ros/*.cpp" "src/dec_lio/*.cpp"
   "src/dec_lio/D2ShadowAnalyzer.cpp")
 list(APPEND LIO_LIB_SRC src/dec_lio/D3Solver.cpp)
+list(APPEND LIO_LIB_SRC src/dec_lio/PoseFusion.cpp)
 
 file(GLOB_RECURSE LIO_LIB_HEADERS "include/lio/*.hpp" "include/lio/*.h"
   "include/dec_lio/*.hpp" "include/dec_lio/*.h")
@@ -234,7 +235,19 @@ target_link_libraries(dec_lio_asymmetric_registration_test
   lio
   ${catkin_LIBRARIES})
 add_test(NAME dec_lio_asymmetric_registration_test
-         COMMAND dec_lio_asymmetric_registration_test)
+  COMMAND dec_lio_asymmetric_registration_test)
+
+add_executable(dec_lio_pose_fusion_test
+  ../../tests/dec_lio/pose_fusion_test.cpp)
+target_include_directories(dec_lio_pose_fusion_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(dec_lio_pose_fusion_test
+  lio
+  ${catkin_LIBRARIES})
+add_test(NAME dec_lio_pose_fusion_test
+  COMMAND dec_lio_pose_fusion_test)
 
 add_executable(dec_lio_prompt17_gravity_residual_test
   ../../tests/dec_lio/prompt17_gravity_residual_test.cpp)

@@ -30,6 +30,7 @@
 #include "dec_lio/LidarOnlyShadow.h"
 #include "dec_lio/CounterfactualReplay.h"
 #include "dec_lio/AsymmetricEstimator.h"
+#include "dec_lio/PoseFusion.h"
 
 namespace LI2Sup{
 
@@ -56,6 +57,7 @@ protected:
   void DownSample();
   void Observe();
   void ObserveAsymmetric();
+  void ObserveLoosePose();
   void buildAsymmetricCorrespondences(
       const BASIC::SE3& pose,
       DecLIO::AsymmetricRegistrationPoints& correspondences) const;
@@ -111,6 +113,7 @@ protected:
   std::size_t beyond_propagation_fallback_count_ = 0;
   int pcd_index_ = -1;
   std::ofstream observation_stage_csv_;
+  std::ofstream loose_pose_diagnostics_csv_;
 
   Timer time_record_;
 };

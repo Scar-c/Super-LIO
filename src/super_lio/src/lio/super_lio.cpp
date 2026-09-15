@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iomanip>
 #include <limits>
+#include <Eigen/Eigenvalues>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/concurrent_vector.h>
@@ -86,6 +87,11 @@ void SuperLIO::init(){
     LOG(INFO) << GREEN
               << " ---> [Prompt16] BIEVR-style asymmetric Super-LIO=ON"
               << RESET;
+  } else if (g_estimator_mode == "loose_pose_ekf" ||
+             g_estimator_mode == "loose_pose_ekf_dcreg") {
+    LOG(INFO) << GREEN
+              << " ---> [Prompt20] pose-level loose fusion="
+              << g_estimator_mode << " ON" << RESET;
   }
   
   scan_undistort_full_.reset(new PointCloudType());
@@ -184,6 +190,41 @@ void SuperLIO::init(){
              "max_query_timestamp,configured_lidar_end_time,"
              "imu_states_overlapping_scan,interpolated_point_count,"
              "beyond_propagation_fallback_count\n";
+    }
+  }
+
+  if ((g_estimator_mode == "loose_pose_ekf" ||
+       g_estimator_mode == "loose_pose_ekf_dcreg") &&
+      !g_loose_pose_diagnostics_csv.empty()) {
+    const std::filesystem::path path(g_loose_pose_diagnostics_csv);
+    std::error_code error;
+    if (path.has_parent_path())
+      std::filesystem::create_directories(path.parent_path(), error);
+    loose_pose_diagnostics_csv_.open(g_loose_pose_diagnostics_csv);
+    if (loose_pose_diagnostics_csv_) {
+      loose_pose_diagnostics_csv_
+          << "schema_version,mode,frame,timestamp,registration_success,"
+             "registration_reason,valid_residuals,registration_rank,"
+             "registration_condition,cost_initial,cost_final,"
+             "registration_iterations,registration_solver,"
+             "fusion_success,innovation_norm,correction_norm,"
+             "innovation_rot_x,innovation_rot_y,innovation_rot_z,"
+             "innovation_trans_x,innovation_trans_y,innovation_trans_z,"
+             "correction_rot_x,correction_rot_y,correction_rot_z,"
+             "correction_p_x,correction_p_y,correction_p_z,"
+             "correction_v_x,correction_v_y,correction_v_z,"
+             "correction_bg_x,correction_bg_y,correction_bg_z,"
+             "correction_ba_x,correction_ba_y,correction_ba_z,"
+             "correction_g_x,correction_g_y,correction_g_z,"
+             "prior_x,prior_y,prior_z,lidar_x,lidar_y,lidar_z,"
+             "posterior_x,posterior_y,posterior_z,velocity_norm,bg_norm,"
+             "ba_norm,gravity_norm,covariance_min_eigen,covariance_max_eigen,"
+             "state_nonfinite,dcreg_factorization_ok,dcreg_degenerate,"
+             "dcreg_rot_weak_x,dcreg_rot_weak_y,dcreg_rot_weak_z,"
+             "dcreg_trans_weak_x,dcreg_trans_weak_y,dcreg_trans_weak_z,"
+             "rot_multiplier_x,rot_multiplier_y,rot_multiplier_z,"
+             "trans_multiplier_x,trans_multiplier_y,trans_multiplier_z,"
+             "dcreg_r_fallback,fusion_covariance_source\n";
     }
   }
 
@@ -698,6 +739,125 @@ void SuperLIO::ObserveAsymmetric() {
   last_pose_ = asymmetric_estimator_->pose();
 }
 
+void SuperLIO::ObserveLoosePose() {
+  const BASIC::SE3 prior_pose = kf_->GetSE3();
+  const DecLIO::AsymmetricLidarRegistration::CorrespondenceBuilder builder =
+      [this](const BASIC::SE3& pose,
+             DecLIO::AsymmetricRegistrationPoints& correspondences) {
+        buildAsymmetricCorrespondences(pose, correspondences);
+      };
+  const DecLIO::AsymmetricRegistrationResult registration =
+      DecLIO::AsymmetricLidarRegistration::solvePlain(prior_pose, builder);
+
+  Eigen::Matrix<double, 6, 6> measurement_covariance =
+      DecLIO::fixedPoseCovariance(0.001, 0.01);
+  DecLIO::DCRegCore::Analysis dcreg_analysis;
+  DecLIO::DcregCovarianceResult dcreg_covariance;
+  const bool dcreg_mode = g_estimator_mode == "loose_pose_ekf_dcreg";
+  if (dcreg_mode && registration.success &&
+      registration.final_geometry_valid) {
+    const DecLIO::DCRegCore::Parameters parameters;
+    dcreg_analysis = DecLIO::DCRegCore::analyze(
+        registration.final_hessian, parameters);
+    dcreg_covariance = DecLIO::buildDcregPoseCovariance(
+        prior_pose, registration.pose, dcreg_analysis, 0.001, 0.01, 1.0e6);
+    if (dcreg_covariance.valid) {
+      measurement_covariance = dcreg_covariance.covariance;
+    }
+  }
+
+  ESKF::PoseUpdateDiagnostics fusion;
+  bool fusion_success = false;
+  if (registration.success) {
+    fusion_success = kf_->UpdatePoseMeasurement(
+        registration.pose, measurement_covariance, &fusion);
+  }
+  const BASIC::SE3 posterior_pose = kf_->GetSE3();
+  const SysState state = kf_->GetSysState();
+  const Eigen::Matrix<double, 18, 18> covariance =
+      kf_->GetCov().cast<double>();
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 18, 18>>
+      covariance_solver(0.5 * (covariance + covariance.transpose()));
+  const bool covariance_spectral_valid =
+      covariance_solver.info() == Eigen::Success &&
+      covariance_solver.eigenvalues().allFinite();
+  const double covariance_min = covariance_spectral_valid
+                                    ? covariance_solver.eigenvalues().minCoeff()
+                                    : std::numeric_limits<double>::quiet_NaN();
+  const double covariance_max = covariance_spectral_valid
+                                    ? covariance_solver.eigenvalues().maxCoeff()
+                                    : std::numeric_limits<double>::quiet_NaN();
+  const bool state_nonfinite =
+      !state.R.R_.allFinite() || !state.p.allFinite() || !state.v.allFinite() ||
+      !state.bg.allFinite() || !state.ba.allFinite() ||
+      !kf_->GetGravity().allFinite() ||
+      !covariance.allFinite();
+
+  if (loose_pose_diagnostics_csv_) {
+    const auto& innovation = fusion.innovation;
+    const auto& correction = fusion.correction;
+    loose_pose_diagnostics_csv_
+        << "1," << g_estimator_mode << ',' << frame_num_ << ','
+        << measures_.lidar.end_time << ',' << (registration.success ? 1 : 0)
+        << ',' << registration.reason << ',' << registration.valid_residuals
+        << ',' << registration.rank << ',' << registration.condition << ','
+        << registration.cost_initial << ',' << registration.cost_final << ','
+        << registration.iterations << ',' << registration.linear_solver << ','
+        << (fusion_success ? 1 : 0) << ',' << fusion.innovation_norm << ','
+        << fusion.correction_norm << ',' << innovation(0) << ','
+        << innovation(1) << ',' << innovation(2) << ',' << innovation(3) << ','
+        << innovation(4) << ',' << innovation(5) << ',' << correction(0) << ','
+        << correction(1) << ',' << correction(2) << ',' << correction(3) << ','
+        << correction(4) << ',' << correction(5) << ',' << correction(6) << ','
+        << correction(7) << ',' << correction(8) << ',' << correction(9) << ','
+        << correction(10) << ',' << correction(11) << ',' << correction(12)
+        << ',' << correction(13) << ',' << correction(14) << ','
+        << correction(15) << ',' << correction(16) << ',' << correction(17)
+        << ',' << prior_pose.t_(0) << ',' << prior_pose.t_(1) << ','
+        << prior_pose.t_(2) << ',' << registration.pose.t_(0) << ','
+        << registration.pose.t_(1) << ',' << registration.pose.t_(2) << ','
+        << posterior_pose.t_(0) << ',' << posterior_pose.t_(1) << ','
+        << posterior_pose.t_(2) << ',' << state.v.norm() << ','
+        << state.bg.norm() << ',' << state.ba.norm() << ','
+        << kf_->GetGravity().norm()
+        << ',' << covariance_min << ',' << covariance_max << ','
+        << (state_nonfinite ? 1 : 0) << ','
+        << (dcreg_analysis.factorization_ok ? 1 : 0) << ','
+        << (dcreg_analysis.is_degenerate ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[0] ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[1] ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[2] ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[3] ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[4] ? 1 : 0) << ','
+        << (dcreg_analysis.degenerate_mask[5] ? 1 : 0) << ',';
+    if (dcreg_mode && dcreg_covariance.valid) {
+      loose_pose_diagnostics_csv_
+          << dcreg_covariance.rotation_multiplier(0, 0) << ','
+          << dcreg_covariance.rotation_multiplier(1, 1) << ','
+          << dcreg_covariance.rotation_multiplier(2, 2) << ','
+          << dcreg_covariance.translation_multiplier(0, 0) << ','
+          << dcreg_covariance.translation_multiplier(1, 1) << ','
+          << dcreg_covariance.translation_multiplier(2, 2) << ',' << 0
+          << ",DCREG_R_DIRECTIONAL\n";
+    } else {
+      loose_pose_diagnostics_csv_ << "1,1,1,1,1,1,"
+                                  << (dcreg_mode ? 1 : 0) << ','
+                                  << (dcreg_mode ? "DCREG_R_FALLBACK_FIXED"
+                                                 : "FIXED")
+                                  << '\n';
+    }
+    loose_pose_diagnostics_csv_.flush();
+  }
+  if (!registration.success) {
+    LOG(WARNING) << " ---> [Prompt20] loose LiDAR registration failed: "
+                 << registration.reason;
+  } else if (!fusion_success) {
+    LOG(ERROR) << " ---> [Prompt20] pose EKF update rejected";
+  }
+  last_pose_ = posterior_pose;
+  ++frame_num_;
+}
+
 
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
@@ -708,6 +868,16 @@ void SuperLIO::Observe(){
       points_body_v3_[index] = V3(point.x, point.y, point.z);
     }
     ObserveAsymmetric();
+    return;
+  }
+  if (g_estimator_mode == "loose_pose_ekf" ||
+      g_estimator_mode == "loose_pose_ekf_dcreg") {
+    points_body_v3_.resize(ptsize);
+    for (std::size_t index = 0; index < ptsize; ++index) {
+      const auto& point = ds_undistort_->points[index];
+      points_body_v3_[index] = V3(point.x, point.y, point.z);
+    }
+    ObserveLoosePose();
     return;
   }
   const std::size_t first_candidate_count = ptsize;
