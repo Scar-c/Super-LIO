@@ -840,10 +840,13 @@ void SuperLIO::ObserveLoosePose() {
           << dcreg_covariance.translation_multiplier(2, 2) << ',' << 0
           << ",DCREG_R_DIRECTIONAL\n";
     } else {
+      const bool covariance_fallback = dcreg_mode && registration.success;
       loose_pose_diagnostics_csv_ << "1,1,1,1,1,1,"
-                                  << (dcreg_mode ? 1 : 0) << ','
-                                  << (dcreg_mode ? "DCREG_R_FALLBACK_FIXED"
-                                                 : "FIXED")
+                                  << (covariance_fallback ? 1 : 0) << ','
+                                  << (covariance_fallback
+                                          ? "DCREG_R_FALLBACK_FIXED"
+                                          : (dcreg_mode ? "REGISTRATION_NOT_RUN"
+                                                        : "FIXED"))
                                   << '\n';
     }
     loose_pose_diagnostics_csv_.flush();

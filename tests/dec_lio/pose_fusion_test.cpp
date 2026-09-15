@@ -76,6 +76,15 @@ int main() {
     std::cerr << "DCReg covariance design failed\n";
     return 1;
   }
+  DecLIO::DCRegCore::Analysis invalid_analysis;
+  const DecLIO::DcregCovarianceResult fallback =
+      DecLIO::buildDcregPoseCovariance(prior, measurement, invalid_analysis);
+  if (!fallback.fallback || fallback.valid ||
+      fallback.failure_reason != "DCREG_R_FALLBACK_FIXED" ||
+      !fallback.covariance.allFinite()) {
+    std::cerr << "DCReg fail-open covariance fallback failed\n";
+    return 1;
+  }
 
   LI2Sup::ESKF::Options options;
   LI2Sup::ESKF filter(options);
