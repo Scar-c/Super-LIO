@@ -31,7 +31,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   }
   if (g_estimator_mode != "native" && g_estimator_mode != "asymmetric" &&
       g_estimator_mode != "loose_pose_ekf" &&
-      g_estimator_mode != "loose_pose_ekf_dcreg") {
+      g_estimator_mode != "loose_pose_ekf_dcreg" &&
+      g_estimator_mode != "loose_pose_ekf_dcreg_scalar") {
     LOG(ERROR) << " ---> [Prompt20] invalid estimator_mode='"
                << g_estimator_mode << "', forcing native";
     g_estimator_mode = "native";

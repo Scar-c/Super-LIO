@@ -89,6 +89,42 @@ bool transportRotationCovariance(const BASIC::SE3& prior,
   return true;
 }
 
+bool isotropizePoseCovarianceByTrace(
+    const PoseMatrix6d& directional_covariance,
+    PoseMatrix6d& scalar_covariance,
+    double* rotation_trace_error,
+    double* translation_trace_error) {
+  if (!directional_covariance.allFinite()) return false;
+  const PoseMatrix3d rotation =
+      0.5 * (directional_covariance.block<3, 3>(0, 0) +
+             directional_covariance.block<3, 3>(0, 0).transpose());
+  const PoseMatrix3d translation =
+      0.5 * (directional_covariance.block<3, 3>(3, 3) +
+             directional_covariance.block<3, 3>(3, 3).transpose());
+  const double rotation_variance = rotation.trace() / 3.0;
+  const double translation_variance = translation.trace() / 3.0;
+  if (!std::isfinite(rotation_variance) ||
+      !std::isfinite(translation_variance) || rotation_variance < 0.0 ||
+      translation_variance < 0.0) {
+    return false;
+  }
+  scalar_covariance = PoseMatrix6d::Zero();
+  scalar_covariance.block<3, 3>(0, 0) =
+      rotation_variance * PoseMatrix3d::Identity();
+  scalar_covariance.block<3, 3>(3, 3) =
+      translation_variance * PoseMatrix3d::Identity();
+  if (!scalar_covariance.allFinite()) return false;
+  if (rotation_trace_error) {
+    *rotation_trace_error = std::abs(
+        scalar_covariance.block<3, 3>(0, 0).trace() - rotation.trace());
+  }
+  if (translation_trace_error) {
+    *translation_trace_error = std::abs(
+        scalar_covariance.block<3, 3>(3, 3).trace() - translation.trace());
+  }
+  return true;
+}
+
 DcregCovarianceResult buildDcregPoseCovariance(
     const BASIC::SE3& prior, const BASIC::SE3& lidar_pose,
     const DCRegCore::Analysis& analysis, double sigma_rotation,

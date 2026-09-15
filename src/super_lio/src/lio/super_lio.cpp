@@ -88,7 +88,8 @@ void SuperLIO::init(){
               << " ---> [Prompt16] BIEVR-style asymmetric Super-LIO=ON"
               << RESET;
   } else if (g_estimator_mode == "loose_pose_ekf" ||
-             g_estimator_mode == "loose_pose_ekf_dcreg") {
+             g_estimator_mode == "loose_pose_ekf_dcreg" ||
+             g_estimator_mode == "loose_pose_ekf_dcreg_scalar") {
     LOG(INFO) << GREEN
               << " ---> [Prompt20] pose-level loose fusion="
               << g_estimator_mode << " ON" << RESET;
@@ -194,7 +195,8 @@ void SuperLIO::init(){
   }
 
   if ((g_estimator_mode == "loose_pose_ekf" ||
-       g_estimator_mode == "loose_pose_ekf_dcreg") &&
+       g_estimator_mode == "loose_pose_ekf_dcreg" ||
+       g_estimator_mode == "loose_pose_ekf_dcreg_scalar") &&
       !g_loose_pose_diagnostics_csv.empty()) {
     const std::filesystem::path path(g_loose_pose_diagnostics_csv);
     std::error_code error;
@@ -224,7 +226,19 @@ void SuperLIO::init(){
              "dcreg_trans_weak_x,dcreg_trans_weak_y,dcreg_trans_weak_z,"
              "rot_multiplier_x,rot_multiplier_y,rot_multiplier_z,"
              "trans_multiplier_x,trans_multiplier_y,trans_multiplier_z,"
-             "dcreg_r_fallback,fusion_covariance_source\n";
+             "dcreg_r_fallback,fusion_covariance_source,"
+             "rot_trace_l1,rot_trace_used,trans_trace_l1,trans_trace_used,"
+             "rot_trace_abs_error,trans_trace_abs_error,"
+             "l1_rot_eigenvalue_0,l1_rot_eigenvalue_1,l1_rot_eigenvalue_2,"
+             "l1_rot_eigenvector_00,l1_rot_eigenvector_01,"
+             "l1_rot_eigenvector_02,l1_rot_eigenvector_10,"
+             "l1_rot_eigenvector_11,l1_rot_eigenvector_12,"
+             "l1_rot_eigenvector_20,l1_rot_eigenvector_21,"
+             "l1_rot_eigenvector_22,weak_rot_axis,weak_rot_eigenvalue,"
+             "weak_rot_clamped,weak_rot_vector_x,weak_rot_vector_y,"
+             "weak_rot_vector_z,innovation_weak_projection,"
+             "correction_weak_projection,scalar_rot_variance,"
+             "scalar_trans_variance\n";
     }
   }
 
@@ -751,9 +765,14 @@ void SuperLIO::ObserveLoosePose() {
 
   Eigen::Matrix<double, 6, 6> measurement_covariance =
       DecLIO::fixedPoseCovariance(0.001, 0.01);
+  Eigen::Matrix<double, 6, 6> l1_covariance = measurement_covariance;
   DecLIO::DCRegCore::Analysis dcreg_analysis;
   DecLIO::DcregCovarianceResult dcreg_covariance;
-  const bool dcreg_mode = g_estimator_mode == "loose_pose_ekf_dcreg";
+  const bool dcreg_mode =
+      g_estimator_mode == "loose_pose_ekf_dcreg" ||
+      g_estimator_mode == "loose_pose_ekf_dcreg_scalar";
+  const bool scalar_mode =
+      g_estimator_mode == "loose_pose_ekf_dcreg_scalar";
   if (dcreg_mode && registration.success &&
       registration.final_geometry_valid) {
     const DecLIO::DCRegCore::Parameters parameters;
@@ -762,9 +781,68 @@ void SuperLIO::ObserveLoosePose() {
     dcreg_covariance = DecLIO::buildDcregPoseCovariance(
         prior_pose, registration.pose, dcreg_analysis, 0.001, 0.01, 1.0e6);
     if (dcreg_covariance.valid) {
-      measurement_covariance = dcreg_covariance.covariance;
+      l1_covariance = dcreg_covariance.covariance;
+      if (scalar_mode) {
+        if (!DecLIO::isotropizePoseCovarianceByTrace(
+                l1_covariance, measurement_covariance)) {
+          dcreg_covariance.valid = false;
+          dcreg_covariance.fallback = true;
+          dcreg_covariance.failure_reason = "DCREG_R_FALLBACK_FIXED";
+          l1_covariance = DecLIO::fixedPoseCovariance(0.001, 0.01);
+          measurement_covariance = l1_covariance;
+        }
+      } else {
+        measurement_covariance = l1_covariance;
+      }
     }
   }
+
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> l1_rotation_solver(
+      0.5 * (l1_covariance.block<3, 3>(0, 0) +
+             l1_covariance.block<3, 3>(0, 0).transpose()));
+  const bool l1_rotation_spectral_valid =
+      l1_rotation_solver.info() == Eigen::Success &&
+      l1_rotation_solver.eigenvalues().allFinite() &&
+      l1_rotation_solver.eigenvectors().allFinite();
+  const Eigen::Vector3d l1_rotation_eigenvalues =
+      l1_rotation_spectral_valid
+          ? l1_rotation_solver.eigenvalues()
+          : Eigen::Vector3d::Constant(
+                std::numeric_limits<double>::quiet_NaN());
+  const Eigen::Matrix3d l1_rotation_eigenvectors =
+      l1_rotation_spectral_valid
+          ? l1_rotation_solver.eigenvectors()
+          : Eigen::Matrix3d::Constant(
+                std::numeric_limits<double>::quiet_NaN());
+  int weak_rotation_axis = -1;
+  double weak_rotation_eigenvalue =
+      std::numeric_limits<double>::quiet_NaN();
+  double weak_rotation_clamped = std::numeric_limits<double>::quiet_NaN();
+  Eigen::Vector3d weak_rotation_vector =
+      Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+  if (dcreg_mode && dcreg_covariance.valid) {
+    double largest_multiplier = -1.0;
+    for (int axis = 0; axis < 3; ++axis) {
+      const double multiplier =
+          dcreg_covariance.rotation_multiplier(axis, axis);
+      if (std::isfinite(multiplier) && multiplier > largest_multiplier) {
+        largest_multiplier = multiplier;
+        weak_rotation_axis = axis;
+        weak_rotation_eigenvalue = dcreg_analysis.aligned_lambda_rot(axis);
+        weak_rotation_clamped = dcreg_analysis.clamped_lambda_rot(axis);
+        weak_rotation_vector = dcreg_analysis.aligned_rot_basis.col(axis);
+      }
+    }
+  }
+  const double rot_trace_l1 = l1_covariance.block<3, 3>(0, 0).trace();
+  const double rot_trace_used =
+      measurement_covariance.block<3, 3>(0, 0).trace();
+  const double trans_trace_l1 = l1_covariance.block<3, 3>(3, 3).trace();
+  const double trans_trace_used =
+      measurement_covariance.block<3, 3>(3, 3).trace();
+  const double rot_trace_error = std::abs(rot_trace_l1 - rot_trace_used);
+  const double trans_trace_error =
+      std::abs(trans_trace_l1 - trans_trace_used);
 
   ESKF::PoseUpdateDiagnostics fusion;
   bool fusion_success = false;
@@ -797,7 +875,7 @@ void SuperLIO::ObserveLoosePose() {
     const auto& innovation = fusion.innovation;
     const auto& correction = fusion.correction;
     loose_pose_diagnostics_csv_
-        << "1," << g_estimator_mode << ',' << frame_num_ << ','
+        << "2," << g_estimator_mode << ',' << frame_num_ << ','
         << measures_.lidar.end_time << ',' << (registration.success ? 1 : 0)
         << ',' << registration.reason << ',' << registration.valid_residuals
         << ',' << registration.rank << ',' << registration.condition << ','
@@ -838,7 +916,8 @@ void SuperLIO::ObserveLoosePose() {
           << dcreg_covariance.translation_multiplier(0, 0) << ','
           << dcreg_covariance.translation_multiplier(1, 1) << ','
           << dcreg_covariance.translation_multiplier(2, 2) << ',' << 0
-          << ",DCREG_R_DIRECTIONAL\n";
+          << ',' << (scalar_mode ? "DCREG_R_SCALAR_TRACE"
+                                  : "DCREG_R_DIRECTIONAL");
     } else {
       const bool covariance_fallback = dcreg_mode && registration.success;
       loose_pose_diagnostics_csv_ << "1,1,1,1,1,1,"
@@ -846,9 +925,27 @@ void SuperLIO::ObserveLoosePose() {
                                   << (covariance_fallback
                                           ? "DCREG_R_FALLBACK_FIXED"
                                           : (dcreg_mode ? "REGISTRATION_NOT_RUN"
-                                                        : "FIXED"))
-                                  << '\n';
+                                                        : "FIXED"));
     }
+    loose_pose_diagnostics_csv_
+        << ',' << rot_trace_l1 << ',' << rot_trace_used << ','
+        << trans_trace_l1 << ',' << trans_trace_used << ','
+        << rot_trace_error << ',' << trans_trace_error << ','
+        << l1_rotation_eigenvalues(0) << ',' << l1_rotation_eigenvalues(1)
+        << ',' << l1_rotation_eigenvalues(2);
+    for (int row = 0; row < 3; ++row) {
+      for (int column = 0; column < 3; ++column) {
+        loose_pose_diagnostics_csv_ << ',' << l1_rotation_eigenvectors(row, column);
+      }
+    }
+    loose_pose_diagnostics_csv_
+        << ',' << weak_rotation_axis << ',' << weak_rotation_eigenvalue << ','
+        << weak_rotation_clamped << ',' << weak_rotation_vector(0) << ','
+        << weak_rotation_vector(1) << ',' << weak_rotation_vector(2) << ','
+        << weak_rotation_vector.dot(innovation.head<3>()) << ','
+        << weak_rotation_vector.dot(correction.head<3>()) << ','
+        << measurement_covariance(0, 0) << ','
+        << measurement_covariance(3, 3) << '\n';
     loose_pose_diagnostics_csv_.flush();
   }
   if (!registration.success) {
@@ -874,7 +971,8 @@ void SuperLIO::Observe(){
     return;
   }
   if (g_estimator_mode == "loose_pose_ekf" ||
-      g_estimator_mode == "loose_pose_ekf_dcreg") {
+      g_estimator_mode == "loose_pose_ekf_dcreg" ||
+      g_estimator_mode == "loose_pose_ekf_dcreg_scalar") {
     points_body_v3_.resize(ptsize);
     for (std::size_t index = 0; index < ptsize; ++index) {
       const auto& point = ds_undistort_->points[index];

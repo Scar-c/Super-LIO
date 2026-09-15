@@ -55,8 +55,8 @@ while [ "$#" -gt 0 ]; do
     --threads) THREADS="$2"; shift 2 ;;
     --estimator-mode)
       case "$2" in
-        native|asymmetric|loose_pose_ekf|loose_pose_ekf_dcreg) ESTIMATOR_MODE="$2" ;;
-        *) echo "ERR: --estimator-mode must be native, asymmetric, loose_pose_ekf, or loose_pose_ekf_dcreg" >&2; exit 2 ;;
+        native|asymmetric|loose_pose_ekf|loose_pose_ekf_dcreg|loose_pose_ekf_dcreg_scalar) ESTIMATOR_MODE="$2" ;;
+        *) echo "ERR: --estimator-mode must be native, asymmetric, loose_pose_ekf, loose_pose_ekf_dcreg, or loose_pose_ekf_dcreg_scalar" >&2; exit 2 ;;
       esac
       shift 2 ;;
     --asymmetric-registration-solver)
@@ -237,7 +237,8 @@ else
   rosparam set /lio/dec_lio/asymmetric/dcreg_diagnostics_csv ""
 fi
 if [ "$ESTIMATOR_MODE" = "loose_pose_ekf" ] ||
-   [ "$ESTIMATOR_MODE" = "loose_pose_ekf_dcreg" ]; then
+   [ "$ESTIMATOR_MODE" = "loose_pose_ekf_dcreg" ] ||
+   [ "$ESTIMATOR_MODE" = "loose_pose_ekf_dcreg_scalar" ]; then
   rosparam set /lio/dec_lio/loose_pose/diagnostics_csv "$RUN_DIR/loose_pose_diagnostics.csv"
 else
   rosparam set /lio/dec_lio/loose_pose/diagnostics_csv ""

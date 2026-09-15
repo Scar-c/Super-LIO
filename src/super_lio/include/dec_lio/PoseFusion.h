@@ -32,6 +32,14 @@ bool transportRotationCovariance(const BASIC::SE3& prior,
                                  PoseMatrix3d& innovation_covariance,
                                  PoseMatrix3d* jacobian = nullptr);
 
+// Prompt21 L2 control: erase only directional structure of each final L1
+// covariance block while preserving its trace in double precision.
+bool isotropizePoseCovarianceByTrace(
+    const PoseMatrix6d& directional_covariance,
+    PoseMatrix6d& scalar_covariance,
+    double* rotation_trace_error = nullptr,
+    double* translation_trace_error = nullptr);
+
 struct DcregCovarianceResult {
   bool valid = false;
   bool fallback = false;

@@ -13,6 +13,13 @@ bool near(double actual, double expected, double tolerance) {
   return std::abs(actual - expected) <= tolerance;
 }
 
+bool psd(const Eigen::Matrix3d& covariance) {
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(
+      0.5 * (covariance + covariance.transpose()));
+  return solver.info() == Eigen::Success && solver.eigenvalues().allFinite() &&
+         solver.eigenvalues().minCoeff() >= -1.0e-12;
+}
+
 }  // namespace
 
 int main() {
@@ -38,6 +45,76 @@ int main() {
   if (!near(fixed(0, 0), 1.0e-6, 1.0e-12) ||
       !near(fixed(3, 3), 1.0e-4, 1.0e-10) || fixed(0, 3) != 0.0) {
     std::cerr << "fixed covariance failed\n";
+    return 1;
+  }
+
+  Eigen::Matrix<double, 6, 6> isotropic = Eigen::Matrix<double, 6, 6>::Zero();
+  isotropic.block<3, 3>(0, 0) = 2.0e-6 * Eigen::Matrix3d::Identity();
+  isotropic.block<3, 3>(3, 3) = 3.0e-4 * Eigen::Matrix3d::Identity();
+  Eigen::Matrix<double, 6, 6> scalar = Eigen::Matrix<double, 6, 6>::Zero();
+  double rotation_trace_error = 0.0;
+  double translation_trace_error = 0.0;
+  if (!DecLIO::isotropizePoseCovarianceByTrace(
+          isotropic, scalar, &rotation_trace_error,
+          &translation_trace_error) ||
+      (scalar - isotropic).norm() > 1.0e-24 ||
+      rotation_trace_error != 0.0 || translation_trace_error != 0.0) {
+    std::cerr << "isotropic L2 parity failed\n";
+    return 1;
+  }
+
+  const Eigen::AngleAxisd rotation_axis(
+      0.37, Eigen::Vector3d(1.0, 2.0, 3.0).normalized());
+  const Eigen::Matrix3d basis = rotation_axis.toRotationMatrix();
+  const Eigen::Matrix3d rotated =
+      basis * Eigen::Vector3d(1.0e-6, 7.0e-6, 2.0e-5).asDiagonal() *
+      basis.transpose();
+  const Eigen::Matrix3d rotated_translation =
+      basis * Eigen::Vector3d(2.0e-4, 4.0e-4, 9.0e-4).asDiagonal() *
+      basis.transpose();
+  Eigen::Matrix<double, 6, 6> anisotropic =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  anisotropic.block<3, 3>(0, 0) = rotated;
+  anisotropic.block<3, 3>(3, 3) = rotated_translation;
+  Eigen::Matrix<double, 6, 6> anisotropic_scalar =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  rotation_trace_error = translation_trace_error = 0.0;
+  const double off_diagonal_norm =
+      std::abs(rotated(0, 1)) + std::abs(rotated(0, 2)) +
+      std::abs(rotated(1, 0)) + std::abs(rotated(1, 2)) +
+      std::abs(rotated(2, 0)) + std::abs(rotated(2, 1));
+  if (!DecLIO::isotropizePoseCovarianceByTrace(
+          anisotropic, anisotropic_scalar, &rotation_trace_error,
+          &translation_trace_error) ||
+      !psd(anisotropic.block<3, 3>(0, 0)) ||
+      !psd(anisotropic.block<3, 3>(3, 3)) ||
+      !psd(anisotropic_scalar.block<3, 3>(0, 0)) ||
+      !psd(anisotropic_scalar.block<3, 3>(3, 3)) ||
+      std::abs(anisotropic_scalar.block<3, 3>(0, 0).trace() -
+               anisotropic.block<3, 3>(0, 0).trace()) > 1.0e-18 ||
+      std::abs(anisotropic_scalar.block<3, 3>(3, 3).trace() -
+               anisotropic.block<3, 3>(3, 3).trace()) > 1.0e-18 ||
+      !(off_diagonal_norm > 1.0e-12) ||
+      !near(anisotropic_scalar(0, 0), anisotropic_scalar(1, 1), 1.0e-18) ||
+      !near(anisotropic_scalar(1, 1), anisotropic_scalar(2, 2), 1.0e-18)) {
+    std::cerr << "rotated anisotropic L2 parity failed\n";
+    return 1;
+  }
+
+  const Eigen::Matrix3d prior_information = 0.2 * Eigen::Matrix3d::Identity();
+  const Eigen::Matrix3d l1_gain =
+      prior_information * (prior_information + rotated).inverse();
+  const Eigen::Matrix3d l2_gain = prior_information *
+      (prior_information + anisotropic_scalar.block<3, 3>(0, 0)).inverse();
+  const Eigen::Vector3d weak = basis.col(0);
+  const Eigen::Vector3d strong = basis.col(2);
+  const double l1_weak_gain = weak.dot(l1_gain * weak);
+  const double l1_strong_gain = strong.dot(l1_gain * strong);
+  const double l2_weak_gain = weak.dot(l2_gain * weak);
+  const double l2_strong_gain = strong.dot(l2_gain * strong);
+  if (!(std::abs(l1_weak_gain - l1_strong_gain) > 1.0e-6) ||
+      !(std::abs(l2_weak_gain - l2_strong_gain) < 1.0e-12)) {
+    std::cerr << "directional EKF effect control failed\n";
     return 1;
   }
 
@@ -85,6 +162,14 @@ int main() {
     std::cerr << "DCReg fail-open covariance fallback failed\n";
     return 1;
   }
+  Eigen::Matrix<double, 6, 6> fallback_scalar =
+      Eigen::Matrix<double, 6, 6>::Zero();
+  if (!DecLIO::isotropizePoseCovarianceByTrace(
+          fallback.covariance, fallback_scalar) ||
+      (fallback_scalar - fallback.covariance).norm() > 1.0e-24) {
+    std::cerr << "fixed fallback L2 identity failed\n";
+    return 1;
+  }
 
   LI2Sup::ESKF::Options options;
   LI2Sup::ESKF filter(options);
@@ -125,6 +210,7 @@ int main() {
   }
 
   std::cout << "PASS pose innovation, fixed covariance, rotation transport, "
-               "DCReg R design, cross-covariance EKF, Joseph PSD\n";
+               "DCReg R design, matched scalar trace parity, directional "
+               "EKF control, cross-covariance EKF, Joseph PSD\n";
   return 0;
 }
