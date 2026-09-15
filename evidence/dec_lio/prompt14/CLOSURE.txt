@@ -1,0 +1,15 @@
+Prompt14 closure
+
+Classification: P14-B
+Required sequences: 5/5 completed
+Basis-contract fraction: 1.0 for all sequences
+Native/shadow trajectory parity: exact byte parity for 5/5 sequences
+Sustained events (>=3 consecutive frames): 0
+Production estimator mutation: none
+Parameter tuning: none
+Runtime bags/logs/trajectories committed: none
+
+Final repository state at closure is recorded by the final commit and
+origin/Dec-LIO. The Dec-LIO branch retains ancestry through
+origin/ros1@60b57aaac8dc397f80c56364e7ccb008c300cc29. The historical
+Prob-LIO workspace and its artifacts were not deleted, moved, or stashed.

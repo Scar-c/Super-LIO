@@ -6,8 +6,8 @@ Sensor/config: `LIVOX6 / geode_gamma.yaml`
 |---|---:|
 | `frames_processed` | `2078` |
 | `matched_valid_frames` | `2078` |
-| `basis_contract_fraction` | `0.992300289` |
-| `csv_schema_rows_repaired` | `2078` |
+| `basis_contract_fraction` | `1` |
+| `csv_schema_rows_repaired` | `0` |
 | `gt_valid` | `1` |
 | `gt_matches` | `435` |
 | `ape_rmse_m` | `0.142506672` |

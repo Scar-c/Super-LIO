@@ -1,0 +1,14 @@
+Prompt14 start-state record
+
+Prompt: /home/lc/dec_lio/prompts/Dec-LIO Prompt14 — GEODE LiDAR-Only Shadow - Prior-Suppression Audit.md
+Prompt SHA256: 10367576e99660dfcd5b9163d2cfb95e0e525ef4eb6a6050be2454b7d777b242
+Start HEAD: 3bb275e9687ed0eebb493ad6de3657f9a8ea6003
+Start origin/Dec-LIO: 3bb275e9687ed0eebb493ad6de3657f9a8ea6003
+Origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start merge-base with origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean
+
+Repository boundary: /home/lc/dec_lio/src/Super-LIO
+Historical Prob-LIO workspace retained: /home/lc/prob_lio
+No Prob-LIO runtime artifacts were deleted, moved, or stashed.
+Prompt14 runtime scratch roots are outside the repository and are not committed.

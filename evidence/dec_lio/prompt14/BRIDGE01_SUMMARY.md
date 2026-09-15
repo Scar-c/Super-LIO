@@ -6,8 +6,8 @@ Sensor/config: `VELO16 / geode_alpha.yaml`
 |---|---:|
 | `frames_processed` | `3814` |
 | `matched_valid_frames` | `3814` |
-| `basis_contract_fraction` | `0.719454641` |
-| `csv_schema_rows_repaired` | `3814` |
+| `basis_contract_fraction` | `1` |
+| `csv_schema_rows_repaired` | `0` |
 | `gt_valid` | `1` |
 | `gt_matches` | `3763` |
 | `ape_rmse_m` | `38.8016958` |
