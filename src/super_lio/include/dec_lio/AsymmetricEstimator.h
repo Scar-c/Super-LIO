@@ -38,6 +38,8 @@ struct AsymmetricRegistrationResult {
   double cost_initial = 0.0;
   double cost_final = 0.0;
   double step_norm = 0.0;
+  std::string linear_solver = "plain";
+  std::string linear_solver_status = "PLAIN_EIGEN";
 };
 
 class AsymmetricLidarRegistration {

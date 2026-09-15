@@ -247,3 +247,12 @@ target_link_libraries(dec_lio_prompt17_gravity_residual_test
   ${catkin_LIBRARIES})
 add_test(NAME dec_lio_prompt17_gravity_residual_test
          COMMAND dec_lio_prompt17_gravity_residual_test)
+
+add_executable(dec_lio_dcreg_core_solver_test
+  ../../tests/dec_lio/dcreg_core_solver_test.cpp
+  src/dec_lio/DCRegCoreSolver.cpp)
+target_include_directories(dec_lio_dcreg_core_solver_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS})
+add_test(NAME dec_lio_dcreg_core_solver_test
+         COMMAND dec_lio_dcreg_core_solver_test)

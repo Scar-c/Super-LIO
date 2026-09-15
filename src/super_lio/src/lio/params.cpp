@@ -12,6 +12,8 @@ namespace LI2Sup{
   bool g_flg_map_init = true;
   std::string g_estimator_mode = "native";
   std::string g_asymmetric_diagnostics_csv;
+  std::string g_asymmetric_registration_solver = "plain";
+  std::string g_asymmetric_dcreg_diagnostics_csv;
 
   /// evaluation
   bool g_time_eva = false;

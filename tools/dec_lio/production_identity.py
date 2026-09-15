@@ -39,6 +39,8 @@ ALLOWED_SOURCE_CHANGES = {
     "src/super_lio/src/dec_lio/CounterfactualReplay.cpp",
     "src/super_lio/include/dec_lio/AsymmetricEstimator.h",
     "src/super_lio/src/dec_lio/AsymmetricEstimator.cpp",
+    "src/super_lio/include/dec_lio/DCRegCoreSolver.h",
+    "src/super_lio/src/dec_lio/DCRegCoreSolver.cpp",
     "src/super_lio/include/lio/ESKF.h",
     "src/super_lio/src/lio/ESKF.cpp",
     "src/super_lio/include/lio/params.h",
@@ -55,6 +57,12 @@ FORBIDDEN_NON_D3 = ("pcg",)
 D3_SHADOW_PATHS = {
     "src/super_lio/include/dec_lio/D3Solver.h",
     "src/super_lio/src/dec_lio/D3Solver.cpp",
+}
+DCREG_PCG_PATHS = {
+    "src/super_lio/include/dec_lio/AsymmetricEstimator.h",
+    "src/super_lio/src/dec_lio/AsymmetricEstimator.cpp",
+    "src/super_lio/include/dec_lio/DCRegCoreSolver.h",
+    "src/super_lio/src/dec_lio/DCRegCoreSolver.cpp",
 }
 
 
@@ -98,7 +106,7 @@ def main(argv=None):
             continue
         lowered = file_path.read_text(encoding="utf-8", errors="replace").lower()
         forbidden = FORBIDDEN_ALWAYS
-        if path not in D3_SHADOW_PATHS:
+        if path not in D3_SHADOW_PATHS and path not in DCREG_PCG_PATHS:
             forbidden += FORBIDDEN_NON_D3
         for word in forbidden:
             if word in lowered:

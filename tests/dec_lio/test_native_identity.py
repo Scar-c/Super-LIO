@@ -68,6 +68,12 @@ class NativeIdentityTest(unittest.TestCase):
     def test_prob_lio_estimator_tokens_are_absent(self):
         repo = pathlib.Path(__file__).resolve().parents[2]
         production = repo / "src/super_lio"
+        dcreg_pcg_paths = {
+            "src/super_lio/include/dec_lio/AsymmetricEstimator.h",
+            "src/super_lio/src/dec_lio/AsymmetricEstimator.cpp",
+            "src/super_lio/include/dec_lio/DCRegCoreSolver.h",
+            "src/super_lio/src/dec_lio/DCRegCoreSolver.cpp",
+        }
         for path in production.rglob("*"):
             if not path.is_file():
                 continue
@@ -78,7 +84,7 @@ class NativeIdentityTest(unittest.TestCase):
             if relative not in {
                 "src/super_lio/include/dec_lio/D3Solver.h",
                 "src/super_lio/src/dec_lio/D3Solver.cpp",
-            }:
+            } and relative not in dcreg_pcg_paths:
                 self.assertNotIn("pcg", text, str(path))
 
 

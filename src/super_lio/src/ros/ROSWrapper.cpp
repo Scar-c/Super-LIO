@@ -16,6 +16,17 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   nh.param("/lio/estimator_mode", g_estimator_mode, std::string("native"));
   nh.param("/lio/dec_lio/asymmetric/diagnostics_csv",
            g_asymmetric_diagnostics_csv, std::string());
+  nh.param("/lio/dec_lio/asymmetric/registration_solver",
+           g_asymmetric_registration_solver, std::string("plain"));
+  nh.param("/lio/dec_lio/asymmetric/dcreg_diagnostics_csv",
+           g_asymmetric_dcreg_diagnostics_csv, std::string());
+  if (g_asymmetric_registration_solver != "plain" &&
+      g_asymmetric_registration_solver != "dcreg") {
+    LOG(ERROR) << " ---> invalid asymmetric_registration_solver='"
+               << g_asymmetric_registration_solver
+               << "', forcing plain";
+    g_asymmetric_registration_solver = "plain";
+  }
   if (g_estimator_mode != "native" && g_estimator_mode != "asymmetric") {
     LOG(ERROR) << " ---> [Prompt16] invalid estimator_mode='"
                << g_estimator_mode << "', forcing native";
@@ -23,6 +34,8 @@ void LoadParamFromRos(ros::NodeHandle& nh){
   }
   LOG(INFO) << GREEN << " ---> [Prompt16] estimator_mode: "
             << g_estimator_mode << RESET;
+  LOG(INFO) << GREEN << " ---> [Prompt18] asymmetric registration solver: "
+            << g_asymmetric_registration_solver << RESET;
   nh.getParam("/lio/map/save_map", g_save_map);
   LOG(INFO) << GREEN << " ---> [Param] map/save_map: " << (g_save_map ? "true" : "false") << RESET;
   nh.getParam("/lio/map/if_filter", g_if_filter);

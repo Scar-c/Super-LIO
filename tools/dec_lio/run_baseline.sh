@@ -19,6 +19,7 @@ RATE="1.0"
 DURATION=""
 THREADS="$(nproc)"
 ESTIMATOR_MODE="native"
+ASYMMETRIC_REGISTRATION_SOLVER="plain"
 D1_SHADOW="false"
 D2_SHADOW="false"
 CONSISTENCY_SHADOW="false"
@@ -56,6 +57,12 @@ while [ "$#" -gt 0 ]; do
       case "$2" in
         native|asymmetric) ESTIMATOR_MODE="$2" ;;
         *) echo "ERR: --estimator-mode must be native or asymmetric" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
+    --asymmetric-registration-solver)
+      case "$2" in
+        plain|dcreg) ASYMMETRIC_REGISTRATION_SOLVER="$2" ;;
+        *) echo "ERR: --asymmetric-registration-solver must be plain or dcreg" >&2; exit 2 ;;
       esac
       shift 2 ;;
     --d1-shadow) D1_SHADOW="true"; shift ;;
@@ -178,6 +185,7 @@ trap cleanup EXIT
   echo "rate: $RATE"
   echo "requested_threads: $THREADS"
   echo "estimator_mode: $ESTIMATOR_MODE"
+  echo "asymmetric_registration_solver: $ASYMMETRIC_REGISTRATION_SOLVER"
   echo "nproc: $(nproc)"
   echo "d1_shadow: $D1_SHADOW"
   echo "d2_shadow: $D2_SHADOW"
@@ -216,10 +224,17 @@ fi
 
 rosparam load "$CONFIG"
 rosparam set /lio/estimator_mode "$ESTIMATOR_MODE"
+rosparam set /lio/dec_lio/asymmetric/registration_solver "$ASYMMETRIC_REGISTRATION_SOLVER"
 if [ "$ESTIMATOR_MODE" = "asymmetric" ]; then
   rosparam set /lio/dec_lio/asymmetric/diagnostics_csv "$RUN_DIR/asymmetric_diagnostics.csv"
+  if [ "$ASYMMETRIC_REGISTRATION_SOLVER" = "dcreg" ]; then
+    rosparam set /lio/dec_lio/asymmetric/dcreg_diagnostics_csv "$RUN_DIR/dcreg_solver.csv"
+  else
+    rosparam set /lio/dec_lio/asymmetric/dcreg_diagnostics_csv ""
+  fi
 else
   rosparam set /lio/dec_lio/asymmetric/diagnostics_csv ""
+  rosparam set /lio/dec_lio/asymmetric/dcreg_diagnostics_csv ""
 fi
 if [ -n "$BLIND_OVERRIDE" ]; then rosparam set /lio/sensor/blind "$BLIND_OVERRIDE"; fi
 if [ -n "$FILTER_RATE_OVERRIDE" ]; then rosparam set /lio/sensor/filter_rate "$FILTER_RATE_OVERRIDE"; fi

@@ -31,6 +31,8 @@ namespace LI2Sup{
   /// Prompt16 architecture selector. Default is the historical native path.
   extern std::string g_estimator_mode;
   extern std::string g_asymmetric_diagnostics_csv;
+  extern std::string g_asymmetric_registration_solver;
+  extern std::string g_asymmetric_dcreg_diagnostics_csv;
 
   /// evaluation
   extern bool g_time_eva;

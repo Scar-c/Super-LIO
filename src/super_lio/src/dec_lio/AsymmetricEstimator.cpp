@@ -4,9 +4,12 @@
 #include <cmath>
 #include <iomanip>
 #include <limits>
+#include <mutex>
 
 #include <Eigen/Eigenvalues>
 #include <ceres/ceres.h>
+
+#include "dec_lio/DCRegCoreSolver.h"
 
 namespace DecLIO {
 namespace {
@@ -119,6 +122,68 @@ void accumulateRegistration(const BASIC::SE3& pose,
   }
 }
 
+void appendDcregDiagnostic(
+    std::uint64_t registration_call, int outer_iteration,
+    std::size_t valid_residuals, double cost_initial, double cost_current,
+    const DecLIO::DCRegCore::SolveReport& report) {
+  static std::mutex mutex;
+  static std::string active_path;
+  static std::ofstream stream;
+  std::lock_guard<std::mutex> lock(mutex);
+  const std::string& path = LI2Sup::g_asymmetric_dcreg_diagnostics_csv;
+  if (path.empty()) return;
+  if (path != active_path) {
+    if (stream.is_open()) stream.close();
+    stream.open(path);
+    active_path = path;
+    if (stream) {
+      stream << "registration_call,outer_iteration,valid_residuals,"
+                "cost_initial,cost_current,step_rot_norm,step_trans_norm,"
+                "rank,cond_full,cond_schur_rot,cond_schur_trans,"
+                "lambda_schur_rot_x,lambda_schur_rot_y,lambda_schur_rot_z,"
+                "lambda_schur_trans_x,lambda_schur_trans_y,lambda_schur_trans_z,"
+                "clamped_lambda_rot_x,clamped_lambda_rot_y,"
+                "clamped_lambda_rot_z,clamped_lambda_trans_x,"
+                "clamped_lambda_trans_y,clamped_lambda_trans_z,"
+                "degenerate_rot_x,degenerate_rot_y,degenerate_rot_z,"
+                "degenerate_trans_x,degenerate_trans_y,degenerate_trans_z,"
+                "pcg_iterations,pcg_relative_residual,pcg_converged,"
+                "qr_fallback,status\n";
+    }
+  }
+  if (!stream) return;
+  const auto& analysis = report.analysis;
+  const auto& step = report.delta;
+  stream << registration_call << ',' << outer_iteration << ','
+         << valid_residuals << ',' << cost_initial << ',' << cost_current << ','
+         << step.head<3>().norm() << ',' << step.tail<3>().norm() << ','
+         << analysis.rank << ',' << analysis.cond_full << ','
+         << analysis.cond_schur_rot << ',' << analysis.cond_schur_trans << ','
+         << analysis.lambda_schur_rot(0) << ','
+         << analysis.lambda_schur_rot(1) << ','
+         << analysis.lambda_schur_rot(2) << ','
+         << analysis.lambda_schur_trans(0) << ','
+         << analysis.lambda_schur_trans(1) << ','
+         << analysis.lambda_schur_trans(2) << ','
+         << analysis.clamped_lambda_rot(0) << ','
+         << analysis.clamped_lambda_rot(1) << ','
+         << analysis.clamped_lambda_rot(2) << ','
+         << analysis.clamped_lambda_trans(0) << ','
+         << analysis.clamped_lambda_trans(1) << ','
+         << analysis.clamped_lambda_trans(2) << ','
+         << (analysis.degenerate_mask[0] ? 1 : 0) << ','
+         << (analysis.degenerate_mask[1] ? 1 : 0) << ','
+         << (analysis.degenerate_mask[2] ? 1 : 0) << ','
+         << (analysis.degenerate_mask[3] ? 1 : 0) << ','
+         << (analysis.degenerate_mask[4] ? 1 : 0) << ','
+         << (analysis.degenerate_mask[5] ? 1 : 0) << ','
+         << report.pcg_iterations << ',' << report.pcg_relative_residual << ','
+         << (report.pcg_converged ? 1 : 0) << ','
+         << (report.qr_fallback ? 1 : 0) << ','
+         << DecLIO::DCRegCore::statusName(report.status) << '\n';
+  stream.flush();
+}
+
 V3d toDouble(const BASIC::V3& value) { return value.cast<double>(); }
 
 class GravitySphereParameterization final : public ceres::LocalParameterization {
@@ -187,6 +252,9 @@ struct GravityPriorCost {
 AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     const BASIC::SE3& initial_pose, const CorrespondenceBuilder& builder) {
   AsymmetricRegistrationResult result;
+  const bool use_dcreg =
+      LI2Sup::g_asymmetric_registration_solver == "dcreg";
+  result.linear_solver = use_dcreg ? "dcreg" : "plain";
   result.pose = initial_pose;
   if (!finitePose(initial_pose) || !builder) {
     result.reason = "STATE_NONFINITE";
@@ -204,6 +272,8 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
   result.cost_initial = current.cost;
   result.cost_final = current.cost;
 
+  static std::atomic<std::uint64_t> next_registration_call{0};
+  const std::uint64_t registration_call = next_registration_call.fetch_add(1);
   for (int iteration = 0; iteration < kMaxRegistrationIterations; ++iteration) {
     builder(result.pose, points);
     current = evaluateRegistration(result.pose, points);
@@ -217,7 +287,22 @@ AsymmetricRegistrationResult AsymmetricLidarRegistration::solve(
     Vector6d b;
     accumulateRegistration(result.pose, points, h, b);
     Vector6d step;
-    if (!solveFullRank(h, b, step, result.rank, result.condition)) {
+    if (use_dcreg) {
+      const DecLIO::DCRegCore::Parameters parameters;
+      const DecLIO::DCRegCore::SolveReport solve_report =
+          DecLIO::DCRegCore::solve(h, b, parameters);
+      step = solve_report.delta;
+      result.rank = solve_report.analysis.rank;
+      result.condition = solve_report.analysis.cond_full;
+      result.linear_solver_status =
+          DecLIO::DCRegCore::statusName(solve_report.status);
+      appendDcregDiagnostic(registration_call, iteration, current.count,
+                            result.cost_initial, current.cost, solve_report);
+      if (!step.allFinite()) {
+        result.reason = "REGISTRATION_STATE_NONFINITE";
+        return result;
+      }
+    } else if (!solveFullRank(h, b, step, result.rank, result.condition)) {
       result.reason = "REGISTRATION_RANK_FAILURE";
       return result;
     }
