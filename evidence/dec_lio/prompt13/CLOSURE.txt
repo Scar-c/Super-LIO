@@ -1,0 +1,32 @@
+Dec-LIO Prompt13 closure
+
+Classification:
+P13-B — FEASIBLE_WITH_MAJOR_STATE_REDESIGN
+
+Scope closure:
+- Architecture and source audit completed.
+- Current estimator behavior was not changed by Prompt13.
+- No new dataset was downloaded and no science experiment was run.
+- P1, DCReg threshold, gamma law, map representation, HKNN, residual,
+  IMU noise, native initialization, KF iteration count, downsampling, and
+  dataset configuration were not changed by Prompt13.
+- The historical Prob-LIO workspace and artifacts were not touched.
+
+Evidence closure:
+- All 13 mandatory files exist in evidence/dec_lio/prompt13/.
+- BIEVR source audit is pinned to commit
+  2306022e341e98ce84244f92ba7d26f047b41dbc.
+- The user-supplied Prompt13 is archived as
+  prompts/dec_lio/PROMPT13_ASYMMETRIC_ARCHITECTURE_AUDIT.md.
+
+Validation closure before commit:
+- catkin_make -C /home/lc/dec_lio -j4: PASS
+- unittest discovery tests/dec_lio: 19 tests, PASS
+- production_identity.py: IDENTITY_PASS
+- check_evidence_hygiene.py: HYGIENE_PASS
+- git diff --check: PASS
+- Prompt13 source delta: documentation/archive only; no estimator source delta.
+
+Next authorized phase:
+Prompt14 zero-side-effect LiDAR-only shadow design and parity validation.
+No pose-authority conversion is authorized by this closure.

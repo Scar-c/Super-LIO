@@ -1,0 +1,29 @@
+Dec-LIO Prompt13 start-state record
+
+Repository: /home/lc/dec_lio/src/Super-LIO
+Branch: Dec-LIO
+Prompt: /home/lc/dec_lio/prompts/Dec-LIO Prompt13 — Asymmetric Architecture Authority Audit.md
+Audit date: 2026-09-15 (Asia/Shanghai)
+
+Required starting HEAD:
+6c225e2aeeec8d30471000e918c7baac3f3d3605
+
+Observed before Prompt13 edits:
+- HEAD: 6c225e2aeeec8d30471000e918c7baac3f3d3605
+- origin/Dec-LIO: 6c225e2aeeec8d30471000e918c7baac3f3d3605
+- HEAD == origin/Dec-LIO: YES
+- HEAD == merge-base(HEAD, origin/ros1): NO (common base: 60b57aaac8dc397f80c56364e7ccb008c300cc29)
+- worktree: CLEAN
+
+Scope lock:
+- Prompt13 is an architecture/source audit only.
+- No estimator implementation, parameter, dataset, map, HKNN, residual, IMU-noise,
+  initialization, KF-iteration, DCReg-threshold, gamma, or P1 change is authorized.
+- No science run or new dataset is authorized.
+- The historical Prob-LIO workspace and its runtime artifacts are outside this task.
+
+External source authority pinned for this audit:
+- Repository: https://github.com/ethz-asl/BIEVR-LIO
+- Exact commit: 2306022e341e98ce84244f92ba7d26f047b41dbc
+- Local read-only clone used: /tmp/bievr-lio-audit.tk8jAx/repo
+- The BIEVR clone is not part of the Dec-LIO repository and is not committed.
