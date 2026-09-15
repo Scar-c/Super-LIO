@@ -9,6 +9,7 @@
 #include <cassert>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 
 #include <pcl/io/pcd_io.h>
@@ -31,6 +32,7 @@
 #include "dec_lio/CounterfactualReplay.h"
 #include "dec_lio/AsymmetricEstimator.h"
 #include "dec_lio/PoseFusion.h"
+#include "dec_lio/FinalCandidateGate.h"
 
 namespace LI2Sup{
 
@@ -57,7 +59,29 @@ protected:
   void DownSample();
   void Observe();
   void ObserveAsymmetric();
-  void ObserveLoosePose();
+  void ObserveNative();
+  void ObserveFinalCandidate();
+  struct FinalCandidateL1Cache {
+    bool rotationally_weak = false;
+    DecLIO::DCRegCore::Analysis dcreg_analysis;
+    DecLIO::DcregCovarianceResult dcreg_covariance;
+    DecLIO::PoseMatrix6d l1_covariance = DecLIO::PoseMatrix6d::Zero();
+    DecLIO::PoseMatrix6d measurement_covariance =
+        DecLIO::PoseMatrix6d::Zero();
+    DecLIO::WeakRotationMode weak_rotation_mode;
+    double prior_cov_weak_projection =
+        std::numeric_limits<double>::quiet_NaN();
+    double measurement_cov_weak_projection =
+        std::numeric_limits<double>::quiet_NaN();
+    double q_weak = std::numeric_limits<double>::quiet_NaN();
+  };
+  bool buildFinalCandidateL1Cache(
+      const BASIC::SE3& prior_pose,
+      const DecLIO::AsymmetricRegistrationResult& registration,
+      FinalCandidateL1Cache& cache) const;
+  void ObserveLoosePose(
+      const DecLIO::AsymmetricRegistrationResult* cached_registration = nullptr,
+      const FinalCandidateL1Cache* cached_l1 = nullptr);
   void buildAsymmetricCorrespondences(
       const BASIC::SE3& pose,
       DecLIO::AsymmetricRegistrationPoints& correspondences) const;
@@ -114,6 +138,12 @@ protected:
   int pcd_index_ = -1;
   std::ofstream observation_stage_csv_;
   std::ofstream loose_pose_diagnostics_csv_;
+  std::ofstream final_candidate_diagnostics_csv_;
+  std::unique_ptr<DecLIO::FinalCandidateGate> final_candidate_gate_;
+  std::size_t final_native_count_ = 0;
+  std::size_t final_loose_count_ = 0;
+  std::size_t final_mode_switches_ = 0;
+  bool last_loose_fusion_success_ = false;
 
   Timer time_record_;
 };

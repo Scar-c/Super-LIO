@@ -249,6 +249,14 @@ target_link_libraries(dec_lio_pose_fusion_test
 add_test(NAME dec_lio_pose_fusion_test
   COMMAND dec_lio_pose_fusion_test)
 
+add_executable(dec_lio_final_candidate_gate_test
+  ../../tests/dec_lio/final_candidate_gate_test.cpp
+  src/dec_lio/FinalCandidateGate.cpp)
+target_include_directories(dec_lio_final_candidate_gate_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_test(NAME dec_lio_final_candidate_gate_test
+  COMMAND dec_lio_final_candidate_gate_test)
+
 add_executable(dec_lio_prompt17_gravity_residual_test
   ../../tests/dec_lio/prompt17_gravity_residual_test.cpp)
 target_include_directories(dec_lio_prompt17_gravity_residual_test PRIVATE

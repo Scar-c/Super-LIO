@@ -34,6 +34,8 @@ namespace LI2Sup{
   extern std::string g_asymmetric_registration_solver;
   extern std::string g_asymmetric_dcreg_diagnostics_csv;
   extern std::string g_loose_pose_diagnostics_csv;
+  extern std::string g_final_candidate_gate;
+  extern std::string g_final_candidate_diagnostics_csv;
 
   /// evaluation
   extern bool g_time_eva;

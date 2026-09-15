@@ -19,6 +19,7 @@ RATE="1.0"
 DURATION=""
 THREADS="$(nproc)"
 ESTIMATOR_MODE="native"
+FINAL_GATE="g0"
 ASYMMETRIC_REGISTRATION_SOLVER="plain"
 D1_SHADOW="false"
 D2_SHADOW="false"
@@ -55,8 +56,14 @@ while [ "$#" -gt 0 ]; do
     --threads) THREADS="$2"; shift 2 ;;
     --estimator-mode)
       case "$2" in
-        native|asymmetric|loose_pose_ekf|loose_pose_ekf_dcreg|loose_pose_ekf_dcreg_scalar|loose_pose_ekf_dcreg_info_scalar) ESTIMATOR_MODE="$2" ;;
-        *) echo "ERR: --estimator-mode must be native, asymmetric, loose_pose_ekf, loose_pose_ekf_dcreg, loose_pose_ekf_dcreg_scalar, or loose_pose_ekf_dcreg_info_scalar" >&2; exit 2 ;;
+        native|asymmetric|loose_pose_ekf|loose_pose_ekf_dcreg|loose_pose_ekf_dcreg_scalar|loose_pose_ekf_dcreg_info_scalar|dec_lio_final_candidate) ESTIMATOR_MODE="$2" ;;
+        *) echo "ERR: --estimator-mode must be native, asymmetric, loose_pose_ekf, loose_pose_ekf_dcreg, loose_pose_ekf_dcreg_scalar, loose_pose_ekf_dcreg_info_scalar, or dec_lio_final_candidate" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
+    --final-gate)
+      case "$2" in
+        g0|g1) FINAL_GATE="$2" ;;
+        *) echo "ERR: --final-gate must be g0 or g1" >&2; exit 2 ;;
       esac
       shift 2 ;;
     --asymmetric-registration-solver)
@@ -185,6 +192,7 @@ trap cleanup EXIT
   echo "rate: $RATE"
   echo "requested_threads: $THREADS"
   echo "estimator_mode: $ESTIMATOR_MODE"
+  echo "final_candidate_gate: $FINAL_GATE"
   echo "asymmetric_registration_solver: $ASYMMETRIC_REGISTRATION_SOLVER"
   echo "nproc: $(nproc)"
   echo "d1_shadow: $D1_SHADOW"
@@ -224,6 +232,7 @@ fi
 
 rosparam load "$CONFIG"
 rosparam set /lio/estimator_mode "$ESTIMATOR_MODE"
+rosparam set /lio/dec_lio/final_candidate/gate "$FINAL_GATE"
 rosparam set /lio/dec_lio/asymmetric/registration_solver "$ASYMMETRIC_REGISTRATION_SOLVER"
 if [ "$ESTIMATOR_MODE" = "asymmetric" ]; then
   rosparam set /lio/dec_lio/asymmetric/diagnostics_csv "$RUN_DIR/asymmetric_diagnostics.csv"
@@ -243,6 +252,11 @@ if [ "$ESTIMATOR_MODE" = "loose_pose_ekf" ] ||
   rosparam set /lio/dec_lio/loose_pose/diagnostics_csv "$RUN_DIR/loose_pose_diagnostics.csv"
 else
   rosparam set /lio/dec_lio/loose_pose/diagnostics_csv ""
+fi
+if [ "$ESTIMATOR_MODE" = "dec_lio_final_candidate" ]; then
+  rosparam set /lio/dec_lio/final_candidate/diagnostics_csv "$RUN_DIR/final_candidate_diagnostics.csv"
+else
+  rosparam set /lio/dec_lio/final_candidate/diagnostics_csv ""
 fi
 if [ -n "$BLIND_OVERRIDE" ]; then rosparam set /lio/sensor/blind "$BLIND_OVERRIDE"; fi
 if [ -n "$FILTER_RATE_OVERRIDE" ]; then rosparam set /lio/sensor/filter_rate "$FILTER_RATE_OVERRIDE"; fi

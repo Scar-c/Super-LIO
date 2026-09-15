@@ -94,6 +94,15 @@ void SuperLIO::init(){
     LOG(INFO) << GREEN
               << " ---> [Prompt20] pose-level loose fusion="
               << g_estimator_mode << " ON" << RESET;
+  } else if (g_estimator_mode == "dec_lio_final_candidate") {
+    DecLIO::FinalCandidateGateKind gate_kind;
+    if (!DecLIO::parseFinalCandidateGate(g_final_candidate_gate, gate_kind)) {
+      gate_kind = DecLIO::FinalCandidateGateKind::kG0;
+    }
+    final_candidate_gate_.reset(new DecLIO::FinalCandidateGate(gate_kind));
+    LOG(INFO) << GREEN << " ---> [Prompt23] final candidate hybrid=ON gate="
+              << g_final_candidate_gate << " W=20 enter=0.75 exit=0.60"
+              << RESET;
   }
   
   scan_undistort_full_.reset(new PointCloudType());
@@ -250,6 +259,26 @@ void SuperLIO::init(){
              "innovation_cov_strong_projection,correction_cov_strong_projection,"
              "prior_cov_weak_projection,measurement_cov_weak_projection,q_weak,"
              "scalar_rot_variance,scalar_trans_variance\n";
+    }
+  }
+
+  if (g_estimator_mode == "dec_lio_final_candidate" &&
+      !g_final_candidate_diagnostics_csv.empty()) {
+    const std::filesystem::path path(g_final_candidate_diagnostics_csv);
+    std::error_code error;
+    if (path.has_parent_path())
+      std::filesystem::create_directories(path.parent_path(), error);
+    final_candidate_diagnostics_csv_.open(g_final_candidate_diagnostics_csv);
+    if (final_candidate_diagnostics_csv_) {
+      final_candidate_diagnostics_csv_
+          << "frame,timestamp,registration_success,registration_reason,"
+             "weak_flag,weak_multiplier,q_weak,rolling_weak_fraction,"
+             "rolling_q_median,rolling_successful_frames,rolling_q_frames,"
+             "gate_candidate,state_before,state_after,selected_estimator,"
+             "mode_switch,native_count,loose_count,registration_valid_residuals,"
+             "registration_rank,registration_condition,fusion_success,"
+             "velocity_norm,bg_norm,ba_norm,gravity_norm,covariance_min_eigen,"
+             "covariance_max_eigen,state_nonfinite\n";
     }
   }
 
@@ -457,8 +486,9 @@ void SuperLIO::ProcessCaceMap(){
       } else {
         LOG(WARNING) << RED << " ---> Failed to load: " << entry.path().string() << RESET;
       }
-    }
   }
+
+}
 
   LOG(INFO) << YELLOW << " ---> Total merged fragments: " << count << RESET;
 
@@ -764,7 +794,62 @@ void SuperLIO::ObserveAsymmetric() {
   last_pose_ = asymmetric_estimator_->pose();
 }
 
-void SuperLIO::ObserveLoosePose() {
+bool SuperLIO::buildFinalCandidateL1Cache(
+    const BASIC::SE3& prior_pose,
+    const DecLIO::AsymmetricRegistrationResult& registration,
+    FinalCandidateL1Cache& cache) const {
+  cache = FinalCandidateL1Cache();
+  cache.measurement_covariance = DecLIO::fixedPoseCovariance(0.001, 0.01);
+  cache.l1_covariance = cache.measurement_covariance;
+  if (!registration.success || !registration.final_geometry_valid) return false;
+
+  const DecLIO::DCRegCore::Parameters parameters;
+  cache.dcreg_analysis = DecLIO::DCRegCore::analyze(
+      registration.final_hessian, parameters);
+  cache.dcreg_covariance = DecLIO::buildDcregPoseCovariance(
+      prior_pose, registration.pose, cache.dcreg_analysis, 0.001, 0.01,
+      1.0e6);
+  if (!cache.dcreg_covariance.valid) return false;
+
+  cache.l1_covariance = cache.dcreg_covariance.covariance;
+  cache.measurement_covariance = cache.l1_covariance;
+  DecLIO::selectWeakRotationMode(
+      cache.dcreg_analysis, cache.dcreg_covariance.rotation_jacobian,
+      cache.weak_rotation_mode);
+  cache.rotationally_weak =
+      cache.weak_rotation_mode.valid &&
+      (cache.dcreg_analysis.degenerate_mask[0] ||
+       cache.dcreg_analysis.degenerate_mask[1] ||
+       cache.dcreg_analysis.degenerate_mask[2]);
+  if (!cache.rotationally_weak) return true;
+
+  // Prompt23 q uses the largest-covariance direction of the final L1
+  // rotational covariance, expressed directly in the ESKF innovation tangent.
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> l1_rotation_solver(
+      0.5 * (cache.l1_covariance.block<3, 3>(0, 0) +
+             cache.l1_covariance.block<3, 3>(0, 0).transpose()));
+  if (l1_rotation_solver.info() != Eigen::Success ||
+      !l1_rotation_solver.eigenvalues().allFinite() ||
+      !l1_rotation_solver.eigenvectors().allFinite()) {
+    return true;
+  }
+  const Eigen::Vector3d u = l1_rotation_solver.eigenvectors().col(2);
+  const Eigen::Matrix<double, 18, 18> prior_covariance =
+      kf_->GetCov().cast<double>();
+  const double p_w = u.dot(prior_covariance.block<3, 3>(0, 0) * u);
+  const double r_w = u.dot(cache.l1_covariance.block<3, 3>(0, 0) * u);
+  cache.prior_cov_weak_projection = p_w;
+  cache.measurement_cov_weak_projection = r_w;
+  cache.q_weak = r_w / std::max(p_w, 1.0e-15);
+  if (!std::isfinite(cache.q_weak)) {
+    cache.q_weak = std::numeric_limits<double>::quiet_NaN();
+  }
+  return true;
+}
+
+void SuperLIO::ObserveLoosePose(
+    const DecLIO::AsymmetricRegistrationResult* cached_registration,
+    const FinalCandidateL1Cache* cached_l1) {
   const BASIC::SE3 prior_pose = kf_->GetSE3();
   const DecLIO::AsymmetricLidarRegistration::CorrespondenceBuilder builder =
       [this](const BASIC::SE3& pose,
@@ -772,7 +857,9 @@ void SuperLIO::ObserveLoosePose() {
         buildAsymmetricCorrespondences(pose, correspondences);
       };
   const DecLIO::AsymmetricRegistrationResult registration =
-      DecLIO::AsymmetricLidarRegistration::solvePlain(prior_pose, builder);
+      cached_registration
+          ? *cached_registration
+          : DecLIO::AsymmetricLidarRegistration::solvePlain(prior_pose, builder);
 
   Eigen::Matrix<double, 6, 6> measurement_covariance =
       DecLIO::fixedPoseCovariance(0.001, 0.01);
@@ -782,12 +869,18 @@ void SuperLIO::ObserveLoosePose() {
   const bool dcreg_mode =
       g_estimator_mode == "loose_pose_ekf_dcreg" ||
       g_estimator_mode == "loose_pose_ekf_dcreg_scalar" ||
-      g_estimator_mode == "loose_pose_ekf_dcreg_info_scalar";
+      g_estimator_mode == "loose_pose_ekf_dcreg_info_scalar" ||
+      g_estimator_mode == "dec_lio_final_candidate";
   const bool scalar_mode =
       g_estimator_mode == "loose_pose_ekf_dcreg_scalar";
   const bool info_scalar_mode =
       g_estimator_mode == "loose_pose_ekf_dcreg_info_scalar";
-  if (dcreg_mode && registration.success &&
+  if (cached_l1 != nullptr) {
+    dcreg_analysis = cached_l1->dcreg_analysis;
+    dcreg_covariance = cached_l1->dcreg_covariance;
+    l1_covariance = cached_l1->l1_covariance;
+    measurement_covariance = cached_l1->measurement_covariance;
+  } else if (dcreg_mode && registration.success &&
       registration.final_geometry_valid) {
     const DecLIO::DCRegCore::Parameters parameters;
     dcreg_analysis = DecLIO::DCRegCore::analyze(
@@ -917,6 +1010,7 @@ void SuperLIO::ObserveLoosePose() {
     fusion_success = kf_->UpdatePoseMeasurement(
         registration.pose, measurement_covariance, &fusion);
   }
+  last_loose_fusion_success_ = fusion_success;
   const BASIC::SE3 posterior_pose = kf_->GetSE3();
   const SysState state = kf_->GetSysState();
   const Eigen::Matrix<double, 18, 18> covariance =
@@ -1068,8 +1162,17 @@ void SuperLIO::ObserveLoosePose() {
 }
 
 
-void SuperLIO::Observe(){
-  size_t ptsize = ds_undistort_->size();
+void SuperLIO::Observe() {
+  const std::size_t ptsize = ds_undistort_->size();
+  if (g_estimator_mode == "dec_lio_final_candidate") {
+    points_body_v3_.resize(ptsize);
+    for (std::size_t index = 0; index < ptsize; ++index) {
+      const auto& point = ds_undistort_->points[index];
+      points_body_v3_[index] = V3(point.x, point.y, point.z);
+    }
+    ObserveFinalCandidate();
+    return;
+  }
   if (asymmetric_estimator_) {
     points_body_v3_.resize(ptsize);
     for (std::size_t index = 0; index < ptsize; ++index) {
@@ -1091,6 +1194,95 @@ void SuperLIO::Observe(){
     ObserveLoosePose();
     return;
   }
+  ObserveNative();
+}
+
+void SuperLIO::ObserveFinalCandidate() {
+  if (!final_candidate_gate_) {
+    LOG(ERROR) << " ---> [Prompt23] final candidate gate is not initialized";
+    ObserveNative();
+    return;
+  }
+
+  const std::size_t frame = static_cast<std::size_t>(frame_num_);
+  const BASIC::SE3 prior_pose = kf_->GetSE3();
+  const DecLIO::AsymmetricLidarRegistration::CorrespondenceBuilder builder =
+      [this](const BASIC::SE3& pose,
+             DecLIO::AsymmetricRegistrationPoints& correspondences) {
+        buildAsymmetricCorrespondences(pose, correspondences);
+      };
+  const DecLIO::AsymmetricRegistrationResult registration =
+      DecLIO::AsymmetricLidarRegistration::solvePlain(prior_pose, builder);
+  FinalCandidateL1Cache cache;
+  const bool cache_valid =
+      buildFinalCandidateL1Cache(prior_pose, registration, cache);
+  const bool weak_flag = cache_valid && cache.rotationally_weak;
+  const double weak_multiplier = weak_flag
+                                     ? cache.weak_rotation_mode.multiplier
+                                     : std::numeric_limits<double>::quiet_NaN();
+  const double q_weak = weak_flag ? cache.q_weak
+                                  : std::numeric_limits<double>::quiet_NaN();
+  const DecLIO::FinalCandidateGateDecision decision =
+      final_candidate_gate_->update(registration.success, weak_flag,
+                                    weak_multiplier, q_weak);
+  if (decision.state_changed) ++final_mode_switches_;
+
+  bool fusion_success = false;
+  const char* selected_estimator = "Native";
+  if (decision.selected_loose && cache_valid) {
+    selected_estimator = "Loose_L1";
+    ++final_loose_count_;
+    ObserveLoosePose(&registration, &cache);
+    fusion_success = last_loose_fusion_success_;
+  } else {
+    ++final_native_count_;
+    ObserveNative();
+    fusion_success = true;
+  }
+
+  const SysState state = kf_->GetSysState();
+  const Eigen::Matrix<double, 18, 18> covariance =
+      kf_->GetCov().cast<double>();
+  const Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 18, 18>>
+      covariance_solver(0.5 * (covariance + covariance.transpose()));
+  const bool covariance_spectral_valid =
+      covariance_solver.info() == Eigen::Success &&
+      covariance_solver.eigenvalues().allFinite();
+  const double covariance_min = covariance_spectral_valid
+                                    ? covariance_solver.eigenvalues().minCoeff()
+                                    : std::numeric_limits<double>::quiet_NaN();
+  const double covariance_max = covariance_spectral_valid
+                                    ? covariance_solver.eigenvalues().maxCoeff()
+                                    : std::numeric_limits<double>::quiet_NaN();
+  const bool state_nonfinite =
+      !state.R.R_.allFinite() || !state.p.allFinite() || !state.v.allFinite() ||
+      !state.bg.allFinite() || !state.ba.allFinite() ||
+      !kf_->GetGravity().allFinite() || !covariance.allFinite();
+
+  if (final_candidate_diagnostics_csv_) {
+    final_candidate_diagnostics_csv_
+        << frame << ',' << measures_.lidar.end_time << ','
+        << (registration.success ? 1 : 0) << ',' << registration.reason << ','
+        << (weak_flag ? 1 : 0) << ',' << weak_multiplier << ',' << q_weak << ','
+        << decision.rolling_weak_fraction << ',' << decision.rolling_q_median
+        << ',' << decision.rolling_successful_frames << ','
+        << decision.rolling_q_frames << ','
+        << DecLIO::finalCandidateGateName(final_candidate_gate_->kind()) << ','
+        << (decision.state_before_loose ? "Loose" : "Native") << ','
+        << (decision.state_after_loose ? "Loose" : "Native") << ','
+        << selected_estimator << ',' << (decision.state_changed ? 1 : 0) << ','
+        << final_native_count_ << ',' << final_loose_count_ << ','
+        << registration.valid_residuals << ',' << registration.rank << ','
+        << registration.condition << ',' << (fusion_success ? 1 : 0) << ','
+        << state.v.norm() << ',' << state.bg.norm() << ',' << state.ba.norm()
+        << ',' << kf_->GetGravity().norm() << ',' << covariance_min << ','
+        << covariance_max << ',' << (state_nonfinite ? 1 : 0) << '\n';
+    final_candidate_diagnostics_csv_.flush();
+  }
+}
+
+void SuperLIO::ObserveNative() {
+  const std::size_t ptsize = ds_undistort_->size();
   const std::size_t first_candidate_count = ptsize;
   std::size_t first_used_count = 0;
   const bool d2_enabled = d2_analyzer_ != nullptr;

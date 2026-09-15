@@ -3,6 +3,7 @@
 #include "lio/point_selection.h"
 #include "super_lio/CloudPose.h"
 #include "super_lio/CloudPose2.h"
+#include "dec_lio/FinalCandidateGate.h"
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
@@ -22,6 +23,10 @@ void LoadParamFromRos(ros::NodeHandle& nh){
            g_asymmetric_dcreg_diagnostics_csv, std::string());
   nh.param("/lio/dec_lio/loose_pose/diagnostics_csv",
            g_loose_pose_diagnostics_csv, std::string());
+  nh.param("/lio/dec_lio/final_candidate/gate",
+           g_final_candidate_gate, std::string("g0"));
+  nh.param("/lio/dec_lio/final_candidate/diagnostics_csv",
+           g_final_candidate_diagnostics_csv, std::string());
   if (g_asymmetric_registration_solver != "plain" &&
       g_asymmetric_registration_solver != "dcreg") {
     LOG(ERROR) << " ---> invalid asymmetric_registration_solver='"
@@ -33,15 +38,25 @@ void LoadParamFromRos(ros::NodeHandle& nh){
       g_estimator_mode != "loose_pose_ekf" &&
       g_estimator_mode != "loose_pose_ekf_dcreg" &&
       g_estimator_mode != "loose_pose_ekf_dcreg_scalar" &&
-      g_estimator_mode != "loose_pose_ekf_dcreg_info_scalar") {
+      g_estimator_mode != "loose_pose_ekf_dcreg_info_scalar" &&
+      g_estimator_mode != "dec_lio_final_candidate") {
     LOG(ERROR) << " ---> [Prompt20] invalid estimator_mode='"
                << g_estimator_mode << "', forcing native";
     g_estimator_mode = "native";
+  }
+  DecLIO::FinalCandidateGateKind final_gate_kind;
+  if (!DecLIO::parseFinalCandidateGate(g_final_candidate_gate,
+                                       final_gate_kind)) {
+    LOG(ERROR) << " ---> [Prompt23] invalid final_candidate gate='"
+               << g_final_candidate_gate << "', forcing g0";
+    g_final_candidate_gate = "g0";
   }
   LOG(INFO) << GREEN << " ---> [Prompt20] estimator_mode: "
             << g_estimator_mode << RESET;
   LOG(INFO) << GREEN << " ---> [Prompt18] asymmetric registration solver: "
             << g_asymmetric_registration_solver << RESET;
+  LOG(INFO) << GREEN << " ---> [Prompt23] final candidate gate: "
+            << g_final_candidate_gate << RESET;
   nh.getParam("/lio/map/save_map", g_save_map);
   LOG(INFO) << GREEN << " ---> [Param] map/save_map: " << (g_save_map ? "true" : "false") << RESET;
   nh.getParam("/lio/map/if_filter", g_if_filter);
