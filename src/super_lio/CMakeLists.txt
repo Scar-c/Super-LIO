@@ -14,6 +14,7 @@ add_definitions(-DROOT=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
 
 # Find packages
 find_package(Eigen3 REQUIRED)
+find_package(Ceres REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -75,6 +76,7 @@ target_include_directories(lio PUBLIC
   ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${CERES_INCLUDE_DIRS}
 )
 
 # Linking libraries
@@ -86,6 +88,7 @@ target_link_libraries(lio
   tbb 
   gflags 
   glog
+  ${CERES_LIBRARIES}
 )
 
 
@@ -220,3 +223,15 @@ target_link_libraries(dec_lio_prompt14_shadow_test
   ${catkin_LIBRARIES})
 add_test(NAME dec_lio_prompt14_shadow_test
          COMMAND dec_lio_prompt14_shadow_test)
+
+add_executable(dec_lio_asymmetric_registration_test
+  ../../tests/dec_lio/asymmetric_registration_test.cpp)
+target_include_directories(dec_lio_asymmetric_registration_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS})
+target_link_libraries(dec_lio_asymmetric_registration_test
+  lio
+  ${catkin_LIBRARIES})
+add_test(NAME dec_lio_asymmetric_registration_test
+         COMMAND dec_lio_asymmetric_registration_test)

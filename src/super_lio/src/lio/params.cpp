@@ -10,6 +10,8 @@ namespace LI2Sup{
   const std::string g_root_dir = std::string(ROOT);
   std::atomic<bool> g_flag_run = true; 
   bool g_flg_map_init = true;
+  std::string g_estimator_mode = "native";
+  std::string g_asymmetric_diagnostics_csv;
 
   /// evaluation
   bool g_time_eva = false;

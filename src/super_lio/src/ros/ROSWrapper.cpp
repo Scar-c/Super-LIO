@@ -13,6 +13,16 @@ using namespace BASIC;
 namespace LI2Sup{
 
 void LoadParamFromRos(ros::NodeHandle& nh){
+  nh.param("/lio/estimator_mode", g_estimator_mode, std::string("native"));
+  nh.param("/lio/dec_lio/asymmetric/diagnostics_csv",
+           g_asymmetric_diagnostics_csv, std::string());
+  if (g_estimator_mode != "native" && g_estimator_mode != "asymmetric") {
+    LOG(ERROR) << " ---> [Prompt16] invalid estimator_mode='"
+               << g_estimator_mode << "', forcing native";
+    g_estimator_mode = "native";
+  }
+  LOG(INFO) << GREEN << " ---> [Prompt16] estimator_mode: "
+            << g_estimator_mode << RESET;
   nh.getParam("/lio/map/save_map", g_save_map);
   LOG(INFO) << GREEN << " ---> [Param] map/save_map: " << (g_save_map ? "true" : "false") << RESET;
   nh.getParam("/lio/map/if_filter", g_if_filter);

@@ -1,0 +1,11 @@
+Prompt16 closure placeholder
+
+The final version is written after:
+- clean native identity for bridge01, stairs_alpha, tunnel1_gamma,
+  tunnel2_alpha and tunnel2_gamma;
+- primary N1/N2 and A1/A2 repeatability;
+- complete metric evaluation and state-health aggregation;
+- final git commit and origin/Dec-LIO push.
+
+No bags, build/devel trees, raw trajectories or large runtime logs belong in
+this repository evidence directory.

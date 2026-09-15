@@ -28,6 +28,10 @@ namespace LI2Sup{
   extern std::atomic<bool> g_flag_run;
   extern bool g_flg_map_init;
 
+  /// Prompt16 architecture selector. Default is the historical native path.
+  extern std::string g_estimator_mode;
+  extern std::string g_asymmetric_diagnostics_csv;
+
   /// evaluation
   extern bool g_time_eva;
 

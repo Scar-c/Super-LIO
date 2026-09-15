@@ -18,6 +18,7 @@ GROUND_TRUTH_OVERRIDE=""
 RATE="1.0"
 DURATION=""
 THREADS="$(nproc)"
+ESTIMATOR_MODE="native"
 D1_SHADOW="false"
 D2_SHADOW="false"
 CONSISTENCY_SHADOW="false"
@@ -51,6 +52,12 @@ while [ "$#" -gt 0 ]; do
     --rate) RATE="$2"; shift 2 ;;
     --duration) DURATION="$2"; shift 2 ;;
     --threads) THREADS="$2"; shift 2 ;;
+    --estimator-mode)
+      case "$2" in
+        native|asymmetric) ESTIMATOR_MODE="$2" ;;
+        *) echo "ERR: --estimator-mode must be native or asymmetric" >&2; exit 2 ;;
+      esac
+      shift 2 ;;
     --d1-shadow) D1_SHADOW="true"; shift ;;
     --d2-shadow) D2_SHADOW="true"; shift ;;
     --consistency-shadow) CONSISTENCY_SHADOW="true"; shift ;;
@@ -170,6 +177,7 @@ trap cleanup EXIT
   echo "duration: ${DURATION:-whole-bag}"
   echo "rate: $RATE"
   echo "requested_threads: $THREADS"
+  echo "estimator_mode: $ESTIMATOR_MODE"
   echo "nproc: $(nproc)"
   echo "d1_shadow: $D1_SHADOW"
   echo "d2_shadow: $D2_SHADOW"
@@ -207,6 +215,12 @@ if ! timeout 2 rosnode list >/dev/null 2>&1; then
 fi
 
 rosparam load "$CONFIG"
+rosparam set /lio/estimator_mode "$ESTIMATOR_MODE"
+if [ "$ESTIMATOR_MODE" = "asymmetric" ]; then
+  rosparam set /lio/dec_lio/asymmetric/diagnostics_csv "$RUN_DIR/asymmetric_diagnostics.csv"
+else
+  rosparam set /lio/dec_lio/asymmetric/diagnostics_csv ""
+fi
 if [ -n "$BLIND_OVERRIDE" ]; then rosparam set /lio/sensor/blind "$BLIND_OVERRIDE"; fi
 if [ -n "$FILTER_RATE_OVERRIDE" ]; then rosparam set /lio/sensor/filter_rate "$FILTER_RATE_OVERRIDE"; fi
 if [ -n "$VOXEL_OVERRIDE" ]; then rosparam set /lio/sensor/voxel_fliter_size "$VOXEL_OVERRIDE"; fi

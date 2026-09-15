@@ -29,6 +29,7 @@
 #include "dec_lio/WeakAxisAnalyzer.h"
 #include "dec_lio/LidarOnlyShadow.h"
 #include "dec_lio/CounterfactualReplay.h"
+#include "dec_lio/AsymmetricEstimator.h"
 
 namespace LI2Sup{
 
@@ -54,6 +55,10 @@ protected:
   void Propagation_Undistort();
   void DownSample();
   void Observe();
+  void ObserveAsymmetric();
+  void buildAsymmetricCorrespondences(
+      const BASIC::SE3& pose,
+      DecLIO::AsymmetricRegistrationPoints& correspondences) const;
   void buildPrompt14Correspondences(
       const BASIC::SE3& pose,
       DecLIO::LidarOnlyPoints& correspondences) const;
@@ -75,6 +80,7 @@ protected:
   std::unique_ptr<DecLIO::WeakAxisAnalyzer> axis_analyzer_;
   std::unique_ptr<DecLIO::Prompt14Analyzer> prompt14_analyzer_;
   std::unique_ptr<DecLIO::CounterfactualReplayAnalyzer> prompt15_analyzer_;
+  std::unique_ptr<DecLIO::AsymmetricEstimator> asymmetric_estimator_;
   OctVoxMapType::Ptr ivox_;
   VoxelGridClosest<BASIC::PointType> voxel_grid_fliter_;
   ROSWrapper::Ptr data_wrapper_;

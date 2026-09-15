@@ -108,6 +108,7 @@ public:
   void SetCov(const COV& cov){ P_ = cov; }
 
   BASIC::V3 GetGravity() const { return g_; }
+  double GetImuScale() const { return imu_scale_; }
 
   bool init_ = false;
   bool Predict(const IMUData& imu, DynamicState& state_imu, DynamicState& state_robot);

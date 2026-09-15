@@ -80,6 +80,13 @@ void SuperLIO::init(){
   ivox_.reset(new OctVoxMapType(OctVoxMapType::Options{g_ivox_resolution, g_ivox_capacity}));
   kf_.reset(new ESKF());
   data_wrapper_->setESKF(kf_);
+  if (g_estimator_mode == "asymmetric") {
+    asymmetric_estimator_.reset(
+        new DecLIO::AsymmetricEstimator(g_asymmetric_diagnostics_csv));
+    LOG(INFO) << GREEN
+              << " ---> [Prompt16] BIEVR-style asymmetric Super-LIO=ON"
+              << RESET;
+  }
   
   scan_undistort_full_.reset(new PointCloudType());
   ds_undistort_.reset(new PointCloudType());
@@ -253,6 +260,11 @@ bool SuperLIO::kf_init(){
   state.timestamp = measures_.imu.back().secs;
   kf_->SetX(state);
   sys_init_pose_ = kf_->GetSE3();
+  if (asymmetric_estimator_) {
+    if (measures_.imu.empty()) return false;
+    asymmetric_estimator_->initialize(kf_->GetSysState(), kf_->GetGravity(),
+                                      kf_->GetImuScale(), measures_.imu.back());
+  }
   return true;
 }
 
@@ -278,6 +290,10 @@ bool SuperLIO::map_init(){
 
   ivox_->insert(points_world_v3_);
   kf_->SetLastObsTime(measures_.lidar.end_time);
+  if (asymmetric_estimator_ && !measures_.imu.empty()) {
+    asymmetric_estimator_->setInitializationTime(measures_.lidar.end_time,
+                                                  measures_.imu.back());
+  }
 
   if(frame_num_ > 3){
     g_flg_map_init = false;
@@ -307,7 +323,8 @@ void SuperLIO::stateProcess(){
 
 void SuperLIO::caceData(){
   if(!g_save_map) return;
-  auto state = kf_->GetNavState();
+  auto state = asymmetric_estimator_ ? asymmetric_estimator_->navState()
+                                     : kf_->GetNavState();
   Eigen::Matrix4f transformation = Eigen::Matrix4f::Identity();
   transformation.block<3, 3>(0, 0) = state.R.R_.cast<float>();
   transformation.block<3, 1>(0, 3) = state.p.cast<float>();
@@ -450,16 +467,28 @@ void SuperLIO::Propagation_Undistort(){
   interpolated_point_count_ = 0;
   beyond_propagation_fallback_count_ = 0;
   propagate_states_.clear();
-  propagate_states_.emplace_back(kf_->GetDynamicState());
-  kf_->SetObsTime(measures_.lidar.end_time);
-  for (auto &imu : measures_.imu) {
-    kf_->Predict(imu);
+  SE3 T_end;
+  if (asymmetric_estimator_) {
+    V3 predicted_velocity = V3::Zero();
+    if (!asymmetric_estimator_->propagate(
+            measures_.imu, measures_.lidar.end_time, propagate_states_, T_end,
+            predicted_velocity)) {
+      LOG(ERROR) << " ---> [Prompt16] asymmetric IMU propagation failed";
+      propagate_states_.emplace_back(kf_->GetDynamicState());
+      T_end = asymmetric_estimator_->pose();
+    }
+  } else {
     propagate_states_.emplace_back(kf_->GetDynamicState());
+    kf_->SetObsTime(measures_.lidar.end_time);
+    for (auto &imu : measures_.imu) {
+      kf_->Predict(imu);
+      propagate_states_.emplace_back(kf_->GetDynamicState());
+    }
+    T_end = kf_->GetSE3();
   }
 
   static const M3 TLI_R = g_lidar_imu.R_;
   static const V3 TLI_t = g_lidar_imu.t_;
-  const SE3 T_end = kf_->GetSE3();
   const M3  R_inv = T_end.R_.transpose();
   const V3  T_end_t = T_end.t_;
   const double start_time = measures_.lidar.start_time;
@@ -615,9 +644,72 @@ void SuperLIO::buildPrompt14Correspondences(
   }
 }
 
+void SuperLIO::buildAsymmetricCorrespondences(
+    const BASIC::SE3& pose,
+    DecLIO::AsymmetricRegistrationPoints& correspondences) const {
+  correspondences.clear();
+  correspondences.reserve(points_body_v3_.size());
+  for (const V3& point_body : points_body_v3_) {
+    const V3 point_world = pose * point_body;
+    KNNHeapType top_K;
+    top_K.reset();
+    ivox_->getTopK(point_world, top_K);
+    if (top_K.count < 4) continue;
+    std::array<double, 4> plane;
+    if (!calc_plane_coeff(top_K.count, top_K.points_, plane)) continue;
+    scalar error = 0.0;
+    if (!compute_error(plane, point_world, point_body.norm(), error)) continue;
+    DecLIO::AsymmetricRegistrationPoint correspondence;
+    correspondence.point_body = point_body.cast<double>();
+    correspondence.plane = plane;
+    correspondences.push_back(correspondence);
+  }
+}
+
+void SuperLIO::ObserveAsymmetric() {
+  const BASIC::SE3 initial_pose = asymmetric_estimator_->predictedPose();
+  const DecLIO::AsymmetricLidarRegistration::CorrespondenceBuilder builder =
+      [this](const BASIC::SE3& pose,
+             DecLIO::AsymmetricRegistrationPoints& correspondences) {
+        buildAsymmetricCorrespondences(pose, correspondences);
+      };
+  DecLIO::AsymmetricRegistrationResult registration =
+      DecLIO::AsymmetricLidarRegistration::solve(initial_pose, builder);
+
+  bool accepted = false;
+  if (registration.success) {
+    accepted = asymmetric_estimator_->acceptPose(measures_.lidar.end_time,
+                                                 registration.pose);
+  } else {
+    LOG(ERROR) << " ---> [Prompt16] LiDAR-only registration failed: "
+               << registration.reason;
+    // This is an explicit non-canonical IMU-only continuation. It is never
+    // reported as a successful asymmetric frame and never invokes the native
+    // tight update as a hidden fallback.
+    accepted = asymmetric_estimator_->acceptPredictedPose(
+        measures_.lidar.end_time);
+  }
+  const bool canonical = registration.success && accepted &&
+                         (!asymmetric_estimator_->health().inertial_attempted ||
+                          asymmetric_estimator_->health().inertial_success);
+  asymmetric_estimator_->recordFrame(
+      static_cast<std::uint64_t>(frame_num_), measures_.lidar.end_time,
+      registration, canonical);
+  last_pose_ = asymmetric_estimator_->pose();
+}
+
 
 void SuperLIO::Observe(){
   size_t ptsize = ds_undistort_->size();
+  if (asymmetric_estimator_) {
+    points_body_v3_.resize(ptsize);
+    for (std::size_t index = 0; index < ptsize; ++index) {
+      const auto& point = ds_undistort_->points[index];
+      points_body_v3_[index] = V3(point.x, point.y, point.z);
+    }
+    ObserveAsymmetric();
+    return;
+  }
   const std::size_t first_candidate_count = ptsize;
   std::size_t first_used_count = 0;
   const bool d2_enabled = d2_analyzer_ != nullptr;
@@ -879,7 +971,8 @@ void SuperLIO::UpdateMap() {
   const size_t ptsize = ds_undistort_->size();
   if (ptsize == 0) return;
   
-  last_pose_ = kf_->GetSE3();
+  last_pose_ = asymmetric_estimator_ ? asymmetric_estimator_->pose()
+                                     : kf_->GetSE3();
   points_world_v3_.resize(ptsize);
   
   const auto R = last_pose_.R_;
@@ -896,7 +989,8 @@ void SuperLIO::UpdateMap() {
 
 
 void SuperLIO::Output(){
-  auto state = kf_->GetNavState();
+  auto state = asymmetric_estimator_ ? asymmetric_estimator_->navState()
+                                     : kf_->GetNavState();
   data_wrapper_->pub_odom(state);  
 
   Eigen::Matrix4f transformation = Eigen::Matrix4f::Identity();

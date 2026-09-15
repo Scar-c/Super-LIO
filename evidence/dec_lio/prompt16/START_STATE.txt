@@ -1,0 +1,19 @@
+Prompt16 start state
+
+repository: /home/lc/dec_lio/src/Super-LIO
+branch: Dec-LIO
+start_head: 1b8e5859e0fe6a9184bbb9fa84466117650a54c0
+origin_ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+merge_base_at_start: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+origin_dec_lio_at_start: 1b8e5859e0fe6a9184bbb9fa84466117650a54c0
+worktree_at_start: clean
+
+Prob-LIO boundary:
+- /home/lc/prob_lio remains the historical Prob-LIO workspace.
+- No Prob-LIO artifact was deleted, moved, or stashed.
+- Prompt16 source/runtime work is confined to this independent Dec-LIO workspace.
+
+Pinned BIEVR authority:
+- repository: ethz-asl/BIEVR-LIO
+- commit: 2306022e341e98ce84244f92ba7d26f047b41dbc
+- local audit checkout: /tmp/bievr_lio_prompt16
