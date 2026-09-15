@@ -1,0 +1,4 @@
+sequence,mode,rows,registration_success,fusion_success,state_nonfinite,psd_failures,min_cov_eigen,max_cov_eigen,max_velocity_norm,max_bg_norm,max_ba_norm,min_gravity_norm,max_gravity_norm,dcreg_factorization_ok,dcreg_fallback
+stairs_alpha,l2,3446,3435,3435,0,0,5.93386e-07,0.000269362,4.90145,0.0361869,1.67662,9.7946,9.7946,3435,0
+tunneling_tunnel2_alpha,l2,2739,2709,2709,0,0,3.91045e-07,0.00479261,1.65413,0.0157713,0.673407,9.7946,9.7946,2709,0
+tunneling_tunnel2_gamma,l2,2605,2572,2572,0,0,6.90102e-07,0.000231168,1.44751,0.0205118,0.491586,9.7946,9.7946,2572,0

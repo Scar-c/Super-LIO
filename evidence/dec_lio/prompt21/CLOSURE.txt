@@ -1,0 +1,36 @@
+PROMPT21 CLOSED
+
+Phase A Native authority:
+- Prompt18 and Prompt20 Alpha Native trajectories are byte-identical,
+  SHA256 3668c6a5ca49471560d69469506f6ebf0a20bc5bd61c7fa715547145bd936e30.
+- 6.450671654842644 m versus 6.30079297 m is exactly the 0.10 s versus 0.05 s
+  GT association evaluator difference (591 versus 580 matches).
+- Prompt17/Prompt08 corrected 0.10 s evaluator is frozen going forward.
+
+Phase B matched-scalar:
+- L2 is the exact L1 final covariance with each 3x3 block isotropized by trace.
+- Stairs L2-1/L2-2 are byte-identical.
+- Alpha and Gamma L2 complete with finite state and positive covariance.
+- Prompt21 classification: P21-B — DIRECTIONALITY_PARTIALLY_SUPPORTED.
+
+Commits:
+- native-audit checkpoint: 3264b20729d6429d5cd778a3145ef50292c3648c
+- L2 implementation: d85888eb38641b9d61f02521a952cc9869e9ac5c
+
+Boundary:
+- architecture changed: NO
+- LiDAR registration changed: NO
+- DCReg threshold changed: NO
+- DCReg solver/PCG used by L2: NO
+- base covariance changed: NO
+- GT tuning or GT-based frame selection: NO
+- new dataset added: NO
+- Prob-LIO artifacts deleted/moved/stashed: NO
+- ROS2/Docker/external LIO framework: NO
+
+Runtime contract:
+- canonical Prompt21 runs used full 32 logical CPUs (`--threads 32`);
+- the earlier 4-requested-thread Stairs pilot is retained outside git and
+  excluded from all evidence.
+
+Large runtime logs and trajectories remain outside git under runtime/prompt21.
