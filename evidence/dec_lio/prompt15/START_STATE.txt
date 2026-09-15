@@ -1,0 +1,14 @@
+Prompt15 start-state record
+
+Prompt: /home/lc/dec_lio/prompts/Dec-LIO Prompt15 — Counterfactual Branch-Replay Audit.md
+Prompt SHA256: 8ad9860e800e48a69f6ef0f62010dd47f2e4211bb6699d07a4cfade45f5ef771
+Expected/start HEAD: 0011bff04522ba0ad3f56e22d61ac83d63f17566
+Start origin/Dec-LIO: 0011bff04522ba0ad3f56e22d61ac83d63f17566
+Origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start merge-base with origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean
+
+Repository boundary: /home/lc/dec_lio/src/Super-LIO
+Primary sequences: stairs_alpha, Tunneling_tunnel1_gamma
+Historical Prob-LIO workspace retained: /home/lc/prob_lio
+No Prob-LIO artifacts were deleted, moved, or stashed.

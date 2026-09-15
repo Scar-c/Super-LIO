@@ -1,0 +1,23 @@
+Prompt15 closure
+
+Scientific conclusion: MIXED
+Classification: P15-B — MIXED_COUNTERFACTUAL_EFFECT
+Primary sequences: 2/2 completed
+Frozen events: 9 total; 9/9 eligible and applied
+Native/native replay parity: exact for both primary sequences
+Intervention prefix parity: exact for all 9 events
+Long-horizon GT-usable events: 6
+Persistent benefit / harm / recovery / amplification / mixed: 0 / 2 / 2 / 0 / 2
+GT-unavailable events: 3
+
+Full asymmetric estimator prototype authorized: NO
+Production estimator modified: NO
+Default trajectory modified: NO
+P1 modified: NO
+DCReg threshold tuned: NO
+Dataset parameters tuned: NO
+GT used for event selection: NO
+Runtime bags/logs/trajectories committed: NO
+
+The final repository commit and origin/Dec-LIO are recorded after push. The
+historical Prob-LIO workspace and artifacts were not deleted, moved, or stashed.
