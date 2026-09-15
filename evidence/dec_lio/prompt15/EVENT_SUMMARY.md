@@ -19,7 +19,7 @@ means the frozen event lacks sufficient GT coverage.
 
 The full per-horizon and branch-separation records are retained in the CSV
 artifacts. The distance-horizon deltas for stairs were negative for all 5/10/20
-m event segments; tunnel1 event4 was `-0.0011 / -0.0018 / -0.0031 m` at those
+m event segments; tunnel1 event4 was `+0.0006 / -0.0025 / -0.0046 m` at those
 three distances. These segment results do not override the mixed time-horizon
 classification.
 
