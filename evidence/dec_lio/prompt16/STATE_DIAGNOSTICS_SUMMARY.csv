@@ -1,0 +1,6 @@
+sequence,frames,canonical_frames,registration_failures,inertial_attempts,inertial_successes,nonfinite,step_epsilon,max_iterations,divergence,insufficient,final_bg_norm,final_ba_norm,final_gravity_norm,final_gravity_direction_error_deg
+bridge01,3814,3729,85,3810,3810,0,759,2970,85,0,0.006313,0.788711,9.794600,165.6433
+stairs_alpha,3446,3444,2,3442,3442,0,886,2558,2,0,0.006411,0.163502,9.794600,169.3173
+tunneling_tunnel1_gamma,2078,2058,20,2074,2074,0,102,1956,18,2,0.010256,0.180671,9.794600,83.4960
+tunneling_tunnel2_alpha,2739,2540,199,2731,2731,0,307,2233,18,181,49.791374,1516.695068,9.794600,85.1103
+tunneling_tunnel2_gamma,2605,2588,17,2601,2601,0,345,2243,17,0,0.010767,0.021556,9.794600,176.3999

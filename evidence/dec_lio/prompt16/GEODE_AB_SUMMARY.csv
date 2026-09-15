@@ -1,0 +1,6 @@
+sequence,group,native_complete,asymmetric_complete,native_ape_rmse_m,asymmetric_ape_rmse_m,delta_ape_percent,native_10s_rpe_m,asymmetric_10s_rpe_m,native_10m_segment_m,asymmetric_10m_segment_m,result
+stairs_alpha,PRIMARY,yes,yes,0.197724,11.125119,5526.58,7.394312,7.365505,5.967455,7.620411,asymmetric_worse
+tunneling_tunnel1_gamma,PRIMARY,yes,yes,0.142507,1717.956318,1205426.94,22.248667,25.185394,16.882378,16.095161,asymmetric_worse
+bridge01,STRESS,yes,yes,38.740382,67.100610,73.21,180.680486,180.762041,19.688390,19.511658,asymmetric_worse
+tunneling_tunnel2_alpha,STRESS,yes,yes,6.450672,4829.473405,74767.76,13.205293,761.648527,16.469945,14.731692,asymmetric_worse
+tunneling_tunnel2_gamma,STRESS,yes,yes,1.885981,2.076355,10.09,14.604322,14.605450,17.784803,17.484690,asymmetric_worse
