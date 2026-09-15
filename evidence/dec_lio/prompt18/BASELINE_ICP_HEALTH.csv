@@ -1,0 +1,7 @@
+sequence,run,rows,step_epsilon,max_iterations,divergence,insufficient_correspondence,rank_deficient_step_epsilon,rank_values,valid_residuals_min,valid_residuals_max,condition_min,condition_max
+stairs_alpha,prompt17_a0_authority,3446,967,2466,13,0,0,6,99,1946,33.552,14051.465
+bridge01,bridge_a0,3814,902,2848,64,0,0,6,296,3285,343.697,6729.897
+tunneling_tunnel1_gamma,tunnel1_gamma_a0,2078,634,1401,43,0,0,6,38,1646,30.490,5516.474
+tunneling_tunnel2_alpha,tunnel2_alpha_a0_1,2739,428,1650,24,616,21,"0,3,4,5,6",0,1251,0.000,99762316.130
+tunneling_tunnel2_alpha,tunnel2_alpha_a0_2,2739,428,1650,24,616,21,"0,3,4,5,6",0,1251,0.000,99762316.130
+tunneling_tunnel2_gamma,tunnel2_gamma_a0,2605,584,1981,40,0,0,6,40,1431,83.034,4698.034

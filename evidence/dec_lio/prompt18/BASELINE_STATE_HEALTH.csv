@@ -1,0 +1,7 @@
+sequence,run,rows,finite_rows,velocity_norm_max,bg_norm_max,ba_norm_max,ba_norm_final,gravity_drift_max_deg,gravity_drift_final_deg,gravity_norm_min,gravity_norm_max,inertial_attempted,inertial_success,inertial_failures,health_class
+stairs_alpha,stairs_asym_a1_retry,3446,3446,2.053933,0.047048,1.042894,0.073432,16.683519,12.886977,9.794599,9.794600,3442,3442,0,VALID_STATE_HEALTH
+bridge01,bridge_a0,3814,3814,19.135681,0.018451,2.105352,0.817547,17.950696,15.778313,9.794599,9.794600,3810,3810,0,FINITE_STRESS
+tunneling_tunnel1_gamma,tunnel1_gamma_a0,2078,2078,1.647394,0.024974,0.367930,0.015447,3.654842,3.133816,9.794599,9.794600,2074,2074,0,VALID_STATE_HEALTH
+tunneling_tunnel2_alpha,tunnel2_alpha_a0_1,2739,2739,3439.177002,39.700485,2170.921143,2063.443359,177.406933,16.246176,9.794599,9.794600,2731,2731,0,INVALID_STATE_PATHOLOGY
+tunneling_tunnel2_alpha,tunnel2_alpha_a0_2,2739,2739,3439.177002,39.700485,2170.921143,2063.443359,177.406933,16.246176,9.794599,9.794600,2731,2731,0,INVALID_STATE_PATHOLOGY
+tunneling_tunnel2_gamma,tunnel2_gamma_a0,2605,2605,1.353636,0.031419,1.029372,0.054741,4.519434,3.112001,9.794599,9.794600,2601,2601,0,VALID_STATE_HEALTH

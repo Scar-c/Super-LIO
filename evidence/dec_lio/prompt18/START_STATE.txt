@@ -1,0 +1,14 @@
+Prompt18 start-state audit
+
+Repository: /home/lc/dec_lio/src/Super-LIO
+Branch: Dec-LIO
+Start HEAD: b3c2bdbead8df34fb07ad0770bb1244633e4a0cb
+Start origin/Dec-LIO: b3c2bdbead8df34fb07ad0770bb1244633e4a0cb
+origin/ros1: 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start merge-base(HEAD, origin/ros1): 60b57aaac8dc397f80c56364e7ccb008c300cc29
+Start worktree: clean
+Runtime CPU policy: 4 requested logical CPUs for Phase A
+
+Prompt17 authority retained: corrected gravity semantics, corrected evaluator,
+native identity, and P17-B classification. No Stairs-only rejection is used.
+Prob-LIO historical artifacts were not deleted, moved, or stashed.
