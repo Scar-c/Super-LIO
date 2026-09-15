@@ -24,6 +24,7 @@ class CounterfactualReplayAnalyzer {
   // Returns true only when the target frame is eligible for intervention.
   bool prepare(std::uint64_t frame, double timestamp,
                const LidarOnlyShadowResult& result);
+  bool is_target(std::uint64_t frame) const { return frame == target_frame_; }
   bool has_pending() const { return pending_; }
   const BASIC::SE3& pending_pose() const { return pending_pose_; }
 

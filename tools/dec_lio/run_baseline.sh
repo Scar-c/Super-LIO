@@ -86,8 +86,6 @@ if [ "$P15_ENABLED" = "true" ]; then
   if [[ ! "$P15_FRAME" =~ ^[0-9]+$ ]]; then
     echo "ERR: --prompt15-frame must be a non-negative integer" >&2; exit 2
   fi
-  # Prompt15 requires the Prompt14 source diagnostics for the same frame.
-  P14_SHADOW="true"
 fi
 
 if [ "$PAIRED_MODE" != "0" ]; then PAIRED_ATTENUATION="true"; fi

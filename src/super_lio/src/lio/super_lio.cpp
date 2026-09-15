@@ -138,7 +138,7 @@ void SuperLIO::init(){
     LOG(INFO) << GREEN << " ---> [Dec-LIO D3 solver]: shadow=OFF" << RESET;
   }
 
-  if (g_prompt14_shadow_enabled || g_prompt15_enabled) {
+  if (g_prompt14_shadow_enabled) {
     prompt14_analyzer_.reset(new DecLIO::Prompt14Analyzer(
         g_prompt14_frame_csv, g_prompt14_mode_csv,
         g_d1_condition_threshold));
@@ -624,6 +624,10 @@ void SuperLIO::Observe(){
   const bool consistency_enabled = consistency_analyzer_ != nullptr;
   const bool axis_enabled = axis_analyzer_ != nullptr;
   const bool prompt14_enabled = prompt14_analyzer_ != nullptr;
+  const bool prompt15_target =
+      prompt15_analyzer_ &&
+      prompt15_analyzer_->is_target(static_cast<std::uint64_t>(frame_num_));
+  const bool prompt14_capture = prompt14_enabled || prompt15_target;
   const bool shadow_capture = d2_enabled || consistency_enabled || axis_enabled;
   // This is a read-only copy taken immediately before the native update call.
   // It is the ESKF propagated covariance, not a posterior or a mutable state.
@@ -643,7 +647,7 @@ void SuperLIO::Observe(){
     d2_used.assign(ptsize, 0);
     consistency_errors.assign(ptsize, std::numeric_limits<double>::quiet_NaN());
   }
-  if (prompt14_enabled) {
+  if (prompt14_capture) {
     prompt14_points_by_index_.resize(ptsize);
     prompt14_used_.assign(ptsize, 0);
     prompt14_matched_points_.clear();
@@ -670,25 +674,27 @@ void SuperLIO::Observe(){
   kf_->SetD3ObservationContext(static_cast<std::uint64_t>(frame_num_),
                                measures_.lidar.end_time);
   const SE3 prompt14_t_init = kf_->GetSE3();
-  if (prompt14_enabled) {
+  if (prompt14_capture) {
     const DecLIO::LidarOnlyShadowSolver::CorrespondenceBuilder builder =
         [this](const BASIC::SE3& pose,
                DecLIO::LidarOnlyPoints& correspondences) {
           buildPrompt14Correspondences(pose, correspondences);
         };
     kf_->SetFirstUpdateHook(
-        [this, prompt14_t_init, builder](const M6& raw_H, const V6& raw_b,
+        [this, prompt14_t_init, prompt15_target, builder](const M6& raw_H, const V6& raw_b,
                                          const M6& effective_H,
                                          const V6& effective_b,
                                          const V18& native_dx) {
-          prompt14_analyzer_->observe(
-              static_cast<std::uint64_t>(frame_num_),
-              measures_.lidar.end_time, prompt14_t_init,
-              prompt14_matched_points_, raw_H.cast<double>(),
-              raw_b.cast<double>(), effective_H.cast<double>(),
-              effective_b.cast<double>(), native_dx.head<6>().cast<double>(),
-              g_paired_attenuation_mode != 0, builder);
-          if (prompt15_analyzer_) {
+          if (prompt14_analyzer_) {
+            prompt14_analyzer_->observe(
+                static_cast<std::uint64_t>(frame_num_),
+                measures_.lidar.end_time, prompt14_t_init,
+                prompt14_matched_points_, raw_H.cast<double>(),
+                raw_b.cast<double>(), effective_H.cast<double>(),
+                effective_b.cast<double>(), native_dx.head<6>().cast<double>(),
+                g_paired_attenuation_mode != 0, builder);
+          }
+          if (prompt15_target) {
             const DecLIO::LidarOnlyShadowResult result =
                 DecLIO::LidarOnlyShadowSolver::run(
                     static_cast<std::uint64_t>(frame_num_),
@@ -758,7 +764,7 @@ void SuperLIO::Observe(){
               d2_used[idx] = 1;
               consistency_errors[idx] = static_cast<double>(error);
             }
-            if (prompt14_enabled && current_shadow_iteration == 0 &&
+            if (prompt14_capture && current_shadow_iteration == 0 &&
                 !need_converge) {
               DecLIO::LidarOnlyPoint& capture =
                   prompt14_points_by_index_[idx];
@@ -824,7 +830,7 @@ void SuperLIO::Observe(){
             consistency.d1, consistency);
       }
     }
-    if (prompt14_enabled && current_shadow_iteration == 0 && !need_converge) {
+    if (prompt14_capture && current_shadow_iteration == 0 && !need_converge) {
       for (std::size_t index = 0; index < ptsize; ++index) {
         if (prompt14_used_[index]) {
           prompt14_matched_points_.push_back(
@@ -861,7 +867,7 @@ void SuperLIO::Observe(){
       prompt15_analyzer_->cancel("POSE_APPLICATION_FAIL");
     }
   }
-  if (prompt14_enabled) kf_->ClearFirstUpdateHook();
+  if (prompt14_capture) kf_->ClearFirstUpdateHook();
 
   writeObservationStage(first_candidate_count, first_used_count);
 
